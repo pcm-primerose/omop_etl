@@ -1,0 +1,10 @@
+.venv
+.env
+.DS_STORE
+.pyc
+.vscode
+.data
+.test_data
+__pycache__
+.pytest_cache
+
