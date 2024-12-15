@@ -124,4 +124,9 @@ class Patient:
     quality_of_life_assessment: str # EQ5D: EventName, EventDate, EQ5D1, EQ5D2, EQ5D3, EQ5D4, EQ5D5 & C30: EventName, EventDate, C30_Q1 - 30
     # is this needed?
     # Health-related Quality of Life (HrQoL)-questionnaires collected in the trial (QLQ-C30, EQ-5D-5L, WISP and Patient Preference).
+
+@dataclass 
+class Trial: 
+    trial_name: str 
+    patients: List[Patient]
     
