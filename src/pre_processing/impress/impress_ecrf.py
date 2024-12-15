@@ -1,9 +1,9 @@
-import openpyxl as px
-from dataclasses import dataclass
+import openpyxl as px # type: ignore 
+from dataclasses import dataclass, asdict
 from pydantic import BaseModel
-import pandas as pd
+import pandas as pd # type: ignore
 from pathlib import Path 
-from typing import Optional, List, Callable, Dict
+from typing import Optional, List, Dict
 import logging 
 import argparse
 
@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 # NOTE: Found clinical benefit at week 16, but only over telephone, and not for all patients, but only place where this info is stored: 
 # RESP: EventName = Week16, Telephone, RESPEV = Partial Response 
 
+# TODO Fix stubs for pandas and openpyxl 
+
 
 
 @dataclass 
@@ -38,15 +40,15 @@ class SheetData:
     """Stores input data"""
     key: str 
     data: pd.DataFrame
-    input_path: Optional[Path]
+    input_path: Optional[Path] = None
 
 @dataclass 
 class EcrfConfig: 
     """Stores all configs with their data"""
-    data: List[SheetData]
     configs: List[SheetConfig]
-    trial: Optional[str]
-    source_type: Optional[str]
+    data: Optional[List[SheetData]] = None 
+    trial: Optional[str] = None 
+    source_type: Optional[str] = None
 
     def get_config(self, key: str) -> Optional[SheetConfig]:
         """Get configuration for a specific key"""
@@ -67,16 +69,64 @@ class EcrfConfig:
             self.data = []
         self.data.append(sheet_data)
 
-    def get_data(self, key: str) -> Optional[SheetData]:
-        """Get SheetData instance by key"""
-        if not self.is_data_loaded:
+    def get_all_data(self) -> List[SheetData]:
+        """Ensure data is loaded and return the self.data"""
+        if self.data is None:
             raise ValueError("No data has been loaded into the config")
-        return next((d for d in self.data if d.key == key), None)
+        return self.data
+    
+    def get_sheet_data(self, key: str) -> SheetData:
+        """Get SheetData instance by key or raise if not found"""
+        if self.data is None:
+            raise ValueError("No data has been loaded into the config")
+        
+        sheet_data = next((d for d in self.data if d.key == key), None)
+        if sheet_data is None:
+            raise ValueError(f"Data for key '{key}' not found")
+            
+        return sheet_data
 
     @property
     def is_data_loaded(self) -> bool:
         """Check if data has been loaded into the config"""
         return self.data is not None and len(self.data) > 0
+    
+@dataclass(frozen=True)
+class ImpressColumns:
+    """Stores column configurations for IMPRESS eCRF data"""
+
+    coh: List[str] = ["SubjectId", "COHORTNAME", "ICD10COD", "COHALLO1"] # flat 
+    ecog: List[str] = ["SubjectId", "EventId", "ECOGS", "ECOGSCD"] # nested, but not after extracting V00 only 
+    dm: List[str] = ["SubjectId", "SEX", "SEXCD"] # flat 
+    ct: List[str] = ["SubjectId", "CTTYPE", "CTTYPECD", "CTTYPESP", "CTSTDAT", "CTSPID", "CTENDAT"] # nested 
+    eos: List[str] = ["SubjectId", "DEATHDTC"] # flat 
+    fu: List[str] = ["SubjectId", "FUPDEDAT"] # nested 
+    tr: List[str] = ["SubjectId", "TRC1_DT", "TRCNO1", "TRIVDS1", "TRIVU1", "TRIVDELYN1", "TRDSDEL1"] # nested, but we only want DoD which is one per patient 
+    eot: List[str] = ["SubjectId", "EventDate", "EOTPROGDTC", "EOTDAT", "EOTREOTCD"] # flat 
+    cm: List[str] = ["SubjectId", "CMTRT", "CMMHYN", "CMSTDAT", "CMONGO", "CMENDAT", "CMAEYN", "CMAENO"] # nested
+    ae: List[str] = ["SubjectId", "AETOXGRECD", "AECTCAET", "AESTDAT", "AEENDAT", "CMAEYN", "CMAENO", "AEOUT", # nested 
+                     "AESERCD", "AETRT1", "AEREL1", "AETRT2", "AEREL2", "SAEEXP1", "AETRTMM1", "SAEEXP2", "AETRTMM2"] 
+    vi: List[str] = ["SubjectId", "VITUMA", "VITUMA_2"] # nested, but I think we only grab V00VI row so flat (same check as ecog)
+    ra: List[str] = ["SubjectId", "EventDate", "RARECBAS", "RARECCUR", "RARECNAD", "RABASECH", "RATIMRES", "RARECCH", "RAiMOD"] # nested time-series (extract all?)
+    rnrsp: List[str] = ["SubjectId", "EventDate", "TERNTBAS", "TERNTB", "TERNAD", "TERNCFB", "RNRSPCL"] # nested, same as ra: extract all or only w16 and eot? 
+    lugrsp: List[str] = ["SubjectId", "EventDate", "LUGOVRL"] # same as ra and rnrsp: extract all time points? currently empty so doesn't matter yet 
+    emlrsp: List[str] = ["SubjectId", "EventDate", "EMLRESP", "RESPEV"] # same as all tumor assessments: what time points to extraxct? 
+    br: List[str] = ["SubjectId", "BRRESP"] # should not be nested but is: do we want EOT or EOS clinical response? 
+    eqd5: List[str] = ["SubjectId", "EventName", "EventDate", "EQ5D1", "EQ5D2", "EQ5D3", "EQ5D4", "EQ5D5"] # nested, what time-points? 
+    c30: List[str] = ["SubjectId", "EventDate", "C30_Q1", "C30_Q1CD", "C30_Q2", "C30_Q2CD", "C30_Q3", "C30_Q3CD", "C30_Q4", "C30_Q4CD", "C30_Q5", 
+                      "C30_Q5CD", "C30_Q6", "C30_Q6CD", "C30_Q7", "C30_Q7CD", "C30_Q8", "C30_Q8CD", "C30_Q9", "C30_Q9CD", "C30_Q10", "C30_Q10CD", 
+                      "C30_Q11", "C30_Q11CD", "C30_Q12", "C30_Q12CD", "C30_Q13", "C30_Q13CD", "C30_Q14", "C30_Q14CD", "C30_Q15", "C30_Q15CD", "C30_Q16", 
+                      "C30_Q16CD", "C30_Q17", "C30_Q17CD", "C30_Q18", "C30_Q18CD", "C30_Q19", "C30_Q19CD", "C30_Q20", "C30_Q20CD", "C30_Q21", "C30_Q21CD", 
+                      "C30_Q22", "C30_Q22CD", "C30_Q23", "C30_Q23CD","C30_Q24", "C30_Q24CD", "C30_Q25", "C30_Q25CD", "C30_Q26", "C30_Q26CD", "C30_Q27", 
+                      "C30_Q27CD","C30_Q28", "C30_Q28CD", "C30_Q29", "C30_Q29CD", "C30_Q30", "C30_Q30CD"]
+                      # nested as well, same time-point issues
+    
+    def populate_config(self): 
+        """Convert column definitions to list of SheetConfigs"""
+        return [
+            SheetConfig(key=field_name.upper(), usecols=columns)
+            for field_name, columns in asdict(self).items()
+        ]
     
 
 class InputResolver:
@@ -194,30 +244,30 @@ class ImpressProcessor:
 
     def process(self) -> EcrfConfig:
         """Process all sheets in place and return updated config"""
-        # process COH first to get valid patients placed in cohorts
+        # process COH first to get valid subjects
         self._process_coh()
         
-        # and then process remaining data 
-        for sheet_data in self.ecrf_config.data:
+        # process remaining sheets
+        for sheet_data in self.ecrf_config.get_all_data():
             if sheet_data.key != "COH":
                 logger.info(f"Processing {sheet_data.key} data...")
-                process_method = getattr(self, f"_process_{sheet_data.key.lower()}", 
-                                      self._default_process)
-                process_method(sheet_data)
-        
+                # first filter by valid subjects
+                self._filter_valid_subjects(sheet_data)
+                
         return self.ecrf_config
     
-    def _default_process(self, sheet_data: SheetData):
-        """Default processing for sheets without specific processing"""
+    def _filter_valid_subjects(self, sheet_data: SheetData) -> None:
+        """Filter dataframe to only include valid subjects"""
+        if self.valid_subjects is None:
+            raise ValueError("Valid subjects not set - process COH first")
+        
         sheet_data.data = sheet_data.data[
-            sheet_data.data['SubjectId'].isin(self.valid_subjects)
+            sheet_data.data["SubjectId"].isin(self.valid_subjects)
         ]
 
     def _process_coh(self):
         """Process COH data and establish valid subjects"""
-        coh = self.ecrf_config.get_data("COH")
-        if coh is None:
-            raise ValueError("COH data not found")
+        coh = self.ecrf_config.get_sheet_data("COH")
             
         # drop rows where COHORTNAME is empty string, NaN, or None (i.e. patient not in cohort)
         coh.data = coh.data[
@@ -231,130 +281,36 @@ class ImpressProcessor:
 
     def _process_ecog(self):
         """Process ECOG data"""
-        ecog = self.ecrf_config.get_data("ECOG")
-        if ecog is None:
-            raise ValueError("ECOG data not found")
-    
+        ecog = self.ecrf_config.get_sheet_data("ECOG")    
         ecog.data = ecog.data[ecog.data["SubjectId"].isin(self.valid_subjects)]
         
         # filter for V00 events and drop the EventId column
         ecog.data = ecog.data[ecog.data["EventId"] == "V00"]
         ecog.data = ecog.data.drop(columns=["EventId"])
 
-    def _process_ae(self, sheet_data: SheetData):
-        """Process AE data"""
-        df = sheet_data.data
-        df = df[df['SubjectId'].isin(self.valid_subjects)]
-        agg_dict = {col: list for col in df.columns if col != "SubjectId"}
-        sheet_data.data = df.groupby('SubjectId').agg(agg_dict).reset_index()
+    
+class DataMerger:
+    def __init__(self, ecrf_config: EcrfConfig):
+        self.ecrf_config = ecrf_config
 
+    def merge(self) -> pd.DataFrame:
+        """Merge all processed sheets into one DataFrame"""
+        # start with COH
+        coh = self.ecrf_config.get_sheet_data("COH")
+        merged_df = coh.data.copy()
 
-def create_impress_config() -> EcrfConfig: 
-    configs = [
-            SheetConfig(key="COH", 
-                        usecols=["SubjectId", "COHORTNAME", "ICD10COD", "COHALLO1", "COHALLO1__2", "COHALLO2", "COHALLO2__2", "COHTMN"]),
+        # and merge with other dataframes
+        for sheet_data in self.ecrf_config.get_all_data():
+            if sheet_data.key != "COH":
+                merged_df = merged_df.merge(
+                    sheet_data.data,
+                    on="SubjectId",
+                    how="left"
+                )
 
-            SheetConfig(key="ECOG", 
-                        usecols=["SubjectId", "EventId", "ECOGS", "ECOGSCD"]),
-
-            SheetConfig(key="DM", 
-                        usecols=["SubjectId", "SEX", "SEXCD"]),
-
-            SheetConfig(key="CT", 
-                        usecols=["SubjectId", "CTTYPE", "CTTYPECD", "CTTYPESP", "CTSTDAT", "CTSPID", "CTENDAT"]),
-
-            SheetConfig(key="EOS", 
-                        usecols=["SubjectId", "DEATHDTC"]),
-
-            SheetConfig(key="FU", 
-                        usecols=["SubjectId", "FUPDEDAT"]),
-
-            SheetConfig(key="TR", 
-                        usecols=["SubjectId", "TRC1_DT", "TRCNO1", "TRIVDS1", "TRIVU1", "TRIVDELYN1", "TRDSDEL1"]),
-
-            SheetConfig(key="EOT", 
-                            usecols=["SubjectId", "EventDate", "EOTPROGDTC", "EOTDAT", "EOTREOTCD"]),
-
-            SheetConfig(key="CM", 
-                            usecols=["SubjectId", "CMTRT", "CMMHYN", "CMSTDAT", "CMONGO", "CMENDAT", "CMAEYN", "CMAENO"]),
-            
-            SheetConfig(key="AE", 
-                        usecols=["SubjectId", "AETOXGRECD", "AECTCAET", "AESTDAT", "AEENDAT", "CMAEYN", "CMAENO", "AEOUT", 
-                                 "AESERCD", "AETRT1", "AEREL1", "AETRT2", "AEREL2", "SAEEXP1", "AETRTMM1", "SAEEXP2", "AETRTMM2"]),
-
-            SheetConfig(key="VI",
-                        usecols=["SubjectId", "VITUMA", "VITUMA_2"]),
-
-            SheetConfig(key="RA",
-                        usecols=["SubjectId", "EventDate", "RARECBAS", "RARECCUR", "RARECNAD", "RABASECH", "RATIMRES", "RARECCH", "RAiMOD"]),
-
-            SheetConfig(key="RNRSP", 
-                        usecols=["SubjectId", "EventDate", "TERNTBAS", "TERNTB", "TERNAD", "TERNCFB", "RNRSPCL"]),
-            
-            SheetConfig(key="LUGRSP", 
-                        usecols=["SubjectId", "EventDate", "LUGOVRL"]),
-
-            SheetConfig(key="EMLRSP", 
-                        usecols=["SubjectId", "EventDate", "EMLRESP", "RESPEV"]),
-
-            SheetConfig(key="BR", 
-                        usecols=["SubjectId", "BRRESP"]),
-
-            SheetConfig(key="EQD5", 
-                        usecols=["SubjectId", "EventName", "EventDate", "EQ5D1", "EQ5D2", "EQ5D3", "EQ5D4", "EQ5D5"]),
-
-            SheetConfig(key="C30", 
-                        usecols=["SubjectId", "EventDate", "C30_Q1", "C30_Q1CD", "C30_Q2", "C30_Q2CD", "C30_Q3", "C30_Q3CD", "C30_Q4", "C30_Q4CD", "C30_Q5", 
-                                 "C30_Q5CD", "C30_Q6", "C30_Q6CD", "C30_Q7", "C30_Q7CD", "C30_Q8", "C30_Q8CD", "C30_Q9", "C30_Q9CD", "C30_Q10", "C30_Q10CD", 
-                                 "C30_Q11", "C30_Q11CD", "C30_Q12", "C30_Q12CD", "C30_Q13", "C30_Q13CD", "C30_Q14", "C30_Q14CD", "C30_Q15", "C30_Q15CD", "C30_Q16", 
-                                 "C30_Q16CD", "C30_Q17", "C30_Q17CD", "C30_Q18", "C30_Q18CD", "C30_Q19", "C30_Q19CD", "C30_Q20", "C30_Q20CD", "C30_Q21", "C30_Q21CD", 
-                                 "C30_Q22", "C30_Q22CD", "C30_Q23", "C30_Q23CD","C30_Q24", "C30_Q24CD", "C30_Q25", "C30_Q25CD", "C30_Q26", "C30_Q26CD", "C30_Q27", 
-                                 "C30_Q27CD","C30_Q28", "C30_Q28CD", "C30_Q29", "C30_Q29CD", "C30_Q30", "C30_Q30CD"])
-    ]
- 
-    return EcrfConfig(configs=configs)
-
-def main(input_path: Path, output_path: Path):
-    """
-    Main function to process eCRF data for the IMPRESS trial and write the merged DataFrame to a CSV file.
-
-    Args:
-        input_path (Path): Path to the input data (Excel file or CSV directory).
-        output_path (Pah): Path to save the output CSV fil.
-    """
-
-    try:
-        # create configs
-        logger.info("Creating configurations...")
-        manager = impress_base_config({}) 
-        sheet_configs = manager.get_allconfigs()
-
-        # resolve input with the configs
-        logger.info("Resolving input data...")
-        resolver = InputResolver(input_path=input_path, sheet_configs=sheet_configs)
-        df_dict = resolver.resolve)
-        logger.info(f"Loaded {len(df_dict)} DataFrames from input.")
-
-        # configure and process data
-        logger.info("Processing data...")
-        processor = ProcessImpress(df_dct=df_dict)
-        processed_data = processor.process_all_df()
-        logger.info(f"Processed data for {len(processed_data)} sheets.")
-
-        # merge dataframes
-        logger.info("Merging processed data...")
-        merged_df = merge_all_dataframes(procesed_data)
-        logger.info(f"Merged DataFrame contains {len(merged_df)} rows and {len(merged_df.columns)} columns.")
-
-        # write Output
-        logger.info(f"Writing merged data to {output_path}...")
-        merged_df.to_csv(output_path, index=False)
-        logger.info("Data successfully written t output file.")
-
-    except Exception as e:
-        logger.error(f"Error occurred during processing: {e}")
-        raise
-
+        return merged_df
+    
+    
 def parse_arguments():
     """
     Parse command-line arguments.
@@ -364,18 +320,47 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser(description="Process eCRF data and merge into a single CSV.")
     parser.add_argument(
-        "--input",
+        "--input", "-i",
         type=str,
         required=True,
         help="Path to the eCRF input data (Excel file or CSV directory).",
     )
     parser.add_argument(
-            "--output",
+            "--output", "-o",
             type=str,
             required=True,
             help="Path to save the output CSV file.",
         )
     return parser.parse_args()
+
+
+def main(input_path: Path, output_path: Path):
+    """
+    Main function to process eCRF data for the IMPRESS trial and write the merged DataFrame to a CSV file.
+
+    Args:
+        input_path (Path): Path to the input data (Excel file or CSV directory).
+        output_path (Pah): Path to save the output CSV fil.
+    """
+    try:
+        # create column configuration and populate SheetConfigs
+        impress_cols = ImpressColumns()
+        sheet_configs = impress_cols.populate_config()
+        
+        # initialize EcrfConfig with the sheet configs
+        ecrf_config = EcrfConfig(configs=sheet_configs, data=None, trial="Impress", source_type="csv")
+        
+        # use InputResolver to load data based on configs
+        resolver = InputResolver(input_path=input_path, ecrf_config=ecrf_config)
+        ecrf_config = resolver.resolve()  
+
+        # merge data 
+
+        # then write to output path 
+        
+    except Exception as e:
+        logger.error(f"Error occurred during processing: {e}")
+        raise
 
 
 if __name__=="__main__": 
