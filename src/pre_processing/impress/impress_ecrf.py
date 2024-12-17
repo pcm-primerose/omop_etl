@@ -95,31 +95,34 @@ class EcrfConfig:
 class ImpressColumns:
     """Stores column configurations for IMPRESS eCRF data"""
 
-    coh: List[str] = ["SubjectId", "COHORTNAME", "ICD10COD", "COHALLO1"] # flat 
+    # TODO go through marias updated list and add all that is missing 
+
+
+    coh: List[str] = ["SubjectId", "COHORTNAME", "ICD10COD","ICD10DES", "COHALLO1"] # flat 
     ecog: List[str] = ["SubjectId", "EventId", "ECOGS", "ECOGSCD"] # nested, but not after extracting V00 only 
-    dm: List[str] = ["SubjectId", "SEX", "SEXCD"] # flat 
-    ct: List[str] = ["SubjectId", "CTTYPE", "CTTYPECD", "CTTYPESP", "CTSTDAT", "CTSPID", "CTENDAT"] # nested 
-    eos: List[str] = ["SubjectId", "DEATHDTC"] # flat 
-    fu: List[str] = ["SubjectId", "FUPDEDAT"] # nested 
-    tr: List[str] = ["SubjectId", "TRC1_DT", "TRCNO1", "TRIVDS1", "TRIVU1", "TRIVDELYN1", "TRDSDEL1"] # nested, but we only want DoD which is one per patient 
-    eot: List[str] = ["SubjectId", "EventDate", "EOTPROGDTC", "EOTDAT", "EOTREOTCD"] # flat 
+    dm: List[str] = ["SubjectId", "BRTHDAT", "SEX", "SEXCD"] # flat 
+    ct: List[str] = ["SubjectId", "CTTYPE", "CTTYPECD", "CTTYPESP", "CTSTDAT", "CTSPID", "CTENDAT", "SQCTYN", "SQCTYNCD", "CTSTDAT"] # nested, missing dates means ongoing 
+    eos: List[str] = ["SubjectId", "DEATHDTC", "EOSDAT"] # flat 
+    fu: List[str] = ["SubjectId", "FUPDEDAT", "FUPALDAT", "FUPDEDAT", "FUPSSTCD", "FUPSST", "FUPSSTCD"] # nested 
+    tr: List[str] = ["SubjectId", "TRTNO", "TRC1_DT", "TRCNO1", "TRIVDS1", "TRIVU1", "TRIVDELYN1", "TRDSDEL1"] # nested, but we only want DoD which is one per patient 
+    eot: List[str] = ["SubjectId", "EventDate", "EOTPROGDTC", "EOTDAT", "EOTREOTCD", "EOTREOT"] # flat 
     cm: List[str] = ["SubjectId", "CMTRT", "CMMHYN", "CMSTDAT", "CMONGO", "CMENDAT", "CMAEYN", "CMAENO"] # nested
-    ae: List[str] = ["SubjectId", "AETOXGRECD", "AECTCAET", "AESTDAT", "AEENDAT", "CMAEYN", "CMAENO", "AEOUT", # nested 
+    ae: List[str] = ["SubjectId", "AETOXGRECD", "AECTCAET", "AESTDAT", "AEENDAT", "AEOUT", # nested 
                      "AESERCD", "AETRT1", "AEREL1", "AETRT2", "AEREL2", "SAEEXP1", "AETRTMM1", "SAEEXP2", "AETRTMM2"] 
-    vi: List[str] = ["SubjectId", "VITUMA", "VITUMA_2"] # nested, but I think we only grab V00VI row so flat (same check as ecog)
-    ra: List[str] = ["SubjectId", "EventDate", "RARECBAS", "RARECCUR", "RARECNAD", "RABASECH", "RATIMRES", "RARECCH", "RAiMOD"] # nested time-series (extract all?)
-    rnrsp: List[str] = ["SubjectId", "EventDate", "TERNTBAS", "TERNTB", "TERNAD", "TERNCFB", "RNRSPCL"] # nested, same as ra: extract all or only w16 and eot? 
+    vi: List[str] = ["SubjectId", "VITUMA", "VITUMA_2", "VITUMACD", "VITUMA__2CD"] # nested, but I think we only grab V00VI row so flat (same check as ecog)
+    ra: List[str] = ["SubjectId", "EventDate", "RARECBAS", "RARECCUR", "RARECNAD", "RABASECH", "RATIMRES", "RARECCH", "RAiMOD", "RNALBASE", "RNALBASECD"] # nested time-series (extract all?)
+    rnrsp: List[str] = ["SubjectId", "EventDate", "TERNTBAS", "TERNTB", "TERNAD", "TERNCFB", "TERNCFN", "RNRSPCL" "RNRSPLC", "RNRSPCLCD"] # nested, same as ra: extract all or only w16 and eot? 
     lugrsp: List[str] = ["SubjectId", "EventDate", "LUGOVRL"] # same as ra and rnrsp: extract all time points? currently empty so doesn't matter yet 
     emlrsp: List[str] = ["SubjectId", "EventDate", "EMLRESP", "RESPEV"] # same as all tumor assessments: what time points to extraxct? 
-    br: List[str] = ["SubjectId", "BRRESP"] # should not be nested but is: do we want EOT or EOS clinical response? 
+    br: List[str] = ["SubjectId", "BRRESP", "BRRESPCD", "BRCPRDAT", "BRPDDAT"] # should not be nested but is: do we want EOT or EOS clinical response? and date? 
+    resp: List[str] = ["SubjectId", "EventName", "RESPDAT", "RESPDATCD", "RESPEV"]
     eqd5: List[str] = ["SubjectId", "EventName", "EventDate", "EQ5D1", "EQ5D2", "EQ5D3", "EQ5D4", "EQ5D5"] # nested, what time-points? 
-    c30: List[str] = ["SubjectId", "EventDate", "C30_Q1", "C30_Q1CD", "C30_Q2", "C30_Q2CD", "C30_Q3", "C30_Q3CD", "C30_Q4", "C30_Q4CD", "C30_Q5", 
+    c30: List[str] = ["SubjectId", "EventName", "EventDate", "C30_Q1", "C30_Q1CD", "C30_Q2", "C30_Q2CD", "C30_Q3", "C30_Q3CD", "C30_Q4", "C30_Q4CD", "C30_Q5", 
                       "C30_Q5CD", "C30_Q6", "C30_Q6CD", "C30_Q7", "C30_Q7CD", "C30_Q8", "C30_Q8CD", "C30_Q9", "C30_Q9CD", "C30_Q10", "C30_Q10CD", 
                       "C30_Q11", "C30_Q11CD", "C30_Q12", "C30_Q12CD", "C30_Q13", "C30_Q13CD", "C30_Q14", "C30_Q14CD", "C30_Q15", "C30_Q15CD", "C30_Q16", 
                       "C30_Q16CD", "C30_Q17", "C30_Q17CD", "C30_Q18", "C30_Q18CD", "C30_Q19", "C30_Q19CD", "C30_Q20", "C30_Q20CD", "C30_Q21", "C30_Q21CD", 
                       "C30_Q22", "C30_Q22CD", "C30_Q23", "C30_Q23CD","C30_Q24", "C30_Q24CD", "C30_Q25", "C30_Q25CD", "C30_Q26", "C30_Q26CD", "C30_Q27", 
                       "C30_Q27CD","C30_Q28", "C30_Q28CD", "C30_Q29", "C30_Q29CD", "C30_Q30", "C30_Q30CD"]
-                      # nested as well, same time-point issues
     
     def populate_config(self): 
         """Convert column definitions to list of SheetConfigs"""
