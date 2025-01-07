@@ -1,6 +1,5 @@
 import openpyxl as px # type: ignore 
 from dataclasses import dataclass, asdict, field
-from pydantic import BaseModel
 import pandas as pd # type: ignore
 from pathlib import Path 
 from typing import Optional, List, Dict, Set
@@ -43,7 +42,7 @@ def setup_logging(log_path: Optional[Path] = None) -> None:
     )
 
 # NOTE: three different documents that don't always agree on what to extract. 
-# approach here is completonist: just extract everything, easy to update/ignore downstream. 
+# approach here is completionist: just extract everything, easy to update/ignore downstream.
 # NOTE: idea is to make this configurable and scaleable to minimize time spent adding support 
 # for new trials. adding new configs uses a common interface without changing the implementation,
 # all that's needed is writing trial-specific pre-processing functions and making the config.  
