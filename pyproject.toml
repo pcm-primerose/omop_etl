@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "omop-etl"
+version = "0.1.0"
+description = "ETL for PRIME ROSE to OMOP CDM"
+authors = ["Gabriel Stav"]
+readme = "README.md"
+packages = [
+    { include = "*", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+python-dotenv = "^1.0.0"
+openpyxl = "^3.1.5"
+pandas = "^2.2.3"
+pydantic = "^2.10.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pre-commit = "^3.0.0"
+black = "^23.9b0"
+flake8 = "^6.1.0"
+
+[tool.poetry.scripts]
+setup = "setup:main"
+
+[tool.black]
+line-length = 130
+
+

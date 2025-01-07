@@ -1,0 +1,9 @@
+repos:
+  - repo: git@github.com:psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0  # Ensure this matches the version you want to use
+    hooks:
+      - id: flake8

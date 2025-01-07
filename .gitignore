@@ -4,6 +4,7 @@
 .pyc
 .vscode
 .data
+.idea
 .test_data
 __pycache__
 .pytest_cache
