@@ -32,6 +32,23 @@ def install_poetry():
         sys.exit(1)
 
 
+def create_symlink(venv_path):
+    # define symlink path in project root
+    symlink_path = os.path.join(os.getcwd(), "activate")
+    activate_script = os.path.join(venv_path, "bin", "activate")
+
+    # check if symlink already exists
+    if os.path.islink(symlink_path):
+        os.remove(symlink_path)
+
+    # create the symlink
+    try:
+        os.symlink(activate_script, symlink_path)
+        print(f"Symlink created: {symlink_path}")
+    except Exception as e:
+        print(f"Failed to create symlink: {e}")
+
+
 def main():
     print("Setting up the project...")
 
@@ -51,6 +68,9 @@ def main():
     # get virtual env path
     venv_path = subprocess.check_output(["poetry", "env", "info", "--path"]).decode().strip()
 
+    # create symlink to virtual environment activation script
+    create_symlink(venv_path)
+
     # activation instructions
     if os.name == "nt":
         activation_cmd = f"{venv_path}\\Scripts\\activate.bat"
@@ -68,8 +88,8 @@ def main():
     # next steps
     print("\nNext Steps:")
     print("- Activate the virtual environment:")
-    print("- Run `poetry shell` to enter the virtual environment, or use your IDE.")
-    print("- Run tests with `poetry run pytest`.")
+    print("- Run `source activate` to enter the virtual environment, `poetry shell` or use your IDE.")
+    print("- Run tests with `poetry run pytest` or enter the virtual env and run `pytest tests.py`.")
     print("- Start coding! See 'Contributing' section of README for how to contribute")
 
 
