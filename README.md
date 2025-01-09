@@ -37,10 +37,13 @@ Use the symlink to activate the environment:
 source activate
 ```
 
-Alternatively, you can use:
+Or just run through Poetry without having to enter the env (see `Running` section).
+Alternatively get the fullpath to the env and activate it manually:
+
 
 ```bash
-poetry shell
+poetry env info -p
+source path/to/env
 ```
 
 ### Running the Project
@@ -55,7 +58,7 @@ For example:
 ```bash
 poetry run pytest  # Run the tests
 poetry run pre-commit run --all-files  # Run pre-commit hooks
-poetry run src/some_file.py # Run a specific file 
+poetry run some_file.py # Run a specific file 
 ```
 
 You can of course also enter the virtual env and run files in 

@@ -2,7 +2,7 @@
 name = "omop-etl"
 version = "0.1.0"
 description = "ETL for PRIME ROSE to OMOP CDM"
-authors = ["Gabriel Stav"]
+authors = ["Gabriel B. Stav"]
 readme = "README.md"
 packages = [
     { include = "*", from = "src" }
