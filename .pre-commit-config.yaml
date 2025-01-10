@@ -3,7 +3,7 @@ repos:
     rev: 23.12.1
     hooks:
       - id: black
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0  # Ensure this matches the version you want to use
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.0
     hooks:
-      - id: flake8
+      - id: ruff

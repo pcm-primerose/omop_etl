@@ -56,9 +56,9 @@ poetry run <command>
 For example:
 
 ```bash
-poetry run pytest  # Run the tests
+poetry run python3 pytest  # Run the tests
 poetry run pre-commit run --all-files  # Run pre-commit hooks
-poetry run some_file.py # Run a specific file 
+poetry run python3 some_file.py # Run a specific file 
 ```
 
 You can of course also enter the virtual env and run files in 
