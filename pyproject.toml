@@ -23,10 +23,10 @@ black = "^23.9b0"
 setup = "setup:main"
 
 [tool.black]
-line-length = 130
+line-length = 170
 
 [tool.ruff]
-line-length = 130
+line-length = 170
 select = ["E", "F"]
 ignore = ["E203"]
 
