@@ -7,6 +7,7 @@ import logging as logging
 import argparse
 from datetime import datetime
 import sys
+
 import json
 
 # configure logger
@@ -182,6 +183,7 @@ class InputResolver:
     def _load_excel(self) -> None:
         """Load data from Excel sheets based on configs"""
         excel_file = pd.ExcelFile(self.input_path)
+        print(excel_file.sheet_names)
 
         for config in self.ecrf_config.configs:
             if config.key not in excel_file.sheet_names:
@@ -193,9 +195,11 @@ class InputResolver:
                     excel_file,
                     sheet_name=config.key,
                     usecols=config.usecols,
+                    skiprows=[0]
                     # if formatting issues, test: engine="calamine"
                 )
                 self.ecrf_config.add_data(SheetData(key=config.key, data=df))
+
                 logger.info(f"Loaded sheet: {config.key}")
 
             except Exception as e:
@@ -497,8 +501,7 @@ def main(
         # load config, instantiate SheetConfig and EcrfConfig
         logger.info("Loading config data from json..")
         ecrf_config = EcrfConfig.from_json(config_path)
-        ecrf_config.trial = "Impress"
-        ecrf_config.source_type = "csv"
+        ecrf_config.trial = "impress"
 
         # use InputResolver to load data based on configs
         logger.info("Resolving input data...")
@@ -561,25 +564,31 @@ def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
     return default_config
 
 
-get_config_path()
+# TODO (fix):
+#   Fix renaming of cols (not good to have different naming conventions)
+#   Fix unread cols
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process eCRF data for clinical trials.")
     parser.add_argument(
+        "-i",
         "--input",
         type=Path,
         required=True,
         help="Path to input data (Excel file or CSV directory)",
     )
-    parser.add_argument("--output", type=Path, required=True, help="Path for output file")
-    parser.add_argument("--trial", type=str, required=True, help="Trial ID (e.g., 'impress')")
+    parser.add_argument("-o", "--output", type=Path, required=True, help="Path for output file")
+    parser.add_argument("-t", "--trial", type=str, required=True, help="Trial ID (e.g., 'impress')")
     parser.add_argument(
+        "-c",
         "--config",
         type=Path,
         help="Optional: Path to custom JSON configuration file (overrides default)",
     )
-    parser.add_argument("--log-path", type=Path, help="Path for log files (optional)")
+    parser.add_argument("-l", "--log-path", type=Path, help="Path for log files (optional)")
     parser.add_argument(
+        "-f",
         "--format",
         choices=["csv", "txt"],
         default="csv",
