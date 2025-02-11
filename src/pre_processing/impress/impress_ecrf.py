@@ -38,29 +38,6 @@ def setup_logging(log_path: Optional[Path] = None) -> None:
     logging.basicConfig(level=logging.INFO, handlers=handlers)
 
 
-# NOTE: three different documents that don't always agree on what to extract.
-# approach here is completionist: just extract everything, easy to update/ignore downstream.
-# NOTE: idea is to make this configurable and scaleable to minimize time spent adding support
-# for new trials. adding new configs uses a common interface without changing the implementation,
-# all that's needed is writing trial-specific pre-processing functions and making the config.
-# NOTE: need to flesh out when (if) we get access to other ecrf systems, in that case:
-# TODO: add support all data in oe file, dockerize this, split into seprate modules,
-# make trial-specific processing modular, use class to get processing logic and apply it per trial,
-# should actually refactor to use dataclasses instead of pandas, would make things much cleaner,
-# map sheet/filename to each dataclass, something like this (but then I might as well harmonize!?
-
-# NOTE: Found clinical benefit at week 16, but only over telephone, and not for all patients,
-# but only place where this info is stored:
-# RESP: EventName = Week16, Telephone, RESPEV = Partial Response
-
-# TODO Fix stubs for pandas and openpyxl
-# TODO just avoid aggregation and downstream grab unique IDs and instantiate dataclasses based on key
-
-# TODO create static configs, extract to proper structure and make this truly modular
-# TODO will then also need to containerize with docker, should store wheels etc and automate building locally
-# TODO then generate 'upload to tsd' folder containing the images, etc and run using podman on TSD
-
-
 @dataclass
 class SheetConfig:
     """Stores what data is extracted from which sheet/file"""
@@ -336,7 +313,8 @@ class DataCombiner:
 
         return combined_df
 
-    def get_summary(self, df: pd.DataFrame) -> dict:
+    @staticmethod
+    def get_summary(df: pd.DataFrame) -> dict:
         """Generate summary of the combined data"""
         return {
             "total_rows": len(df),
@@ -354,10 +332,10 @@ class Output:
 
     SUPPORTED_FORMATS: Set[str] = {"csv", "txt"}
 
-    def __init__(self, output_path: Path, data: pd.DataFrame, format: str = "csv"):
+    def __init__(self, output_path: Path, data: pd.DataFrame, output_format: str = "csv"):
         self.output_path = output_path
         self.data = data
-        self.format = format.lower()  # normalize format string
+        self.format = output_format.lower()  # normalize format string
 
     def write_output(self) -> None:
         """Write the dataframe to the specified output format."""
@@ -521,7 +499,7 @@ def main(
 
         # write output
         logger.info(f"Writing output to {output_path}...")
-        output = Output(output_path=output_path, data=combined_data, format=output_format)
+        output = Output(output_path=output_path, data=combined_data, output_format=output_format)
         output.write_output()
 
         logger.info("Processing completed successfully!")
@@ -562,11 +540,6 @@ def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
         raise FileNotFoundError(f"Default config file not found: {default_config}")
 
     return default_config
-
-
-# TODO (fix):
-#   Fix renaming of cols (not good to have different naming conventions)
-#   Fix unread cols
 
 
 if __name__ == "__main__":

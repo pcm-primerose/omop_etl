@@ -116,18 +116,15 @@
     "AETRTMM2",
     "SAEEXP1",
     "SAEEXP1CD",
-    "AETRTMM1",
     "SAEEXP2",
-    "SAEEXP2CD",
-    "AETRTMM2"
+    "SAEEXP2CD"
   ],
   "fu": [
     "SubjectId",
     "FUPALDAT",
     "FUPDEDAT",
     "FUPSSTCD",
-    "FUPSST",
-    "FUPSSTCD"
+    "FUPSST"
   ],
   "vi": [
     "SubjectId",
