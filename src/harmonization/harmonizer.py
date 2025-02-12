@@ -1,10 +1,150 @@
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, List
+from abc import abstractmethod, ABC
+import pandas as pd
+
 
 # have some main entry point to take X extracted ecrf files and standardize, then harmonize by instantiating
 # dataclasses mirroring variable list struct and have meta for which trials are where, so we can just call this on all data
 # and automate processing
+
+
+# TODO: Implement abc or protocols later, mapping each trial-specific processor
+#   to output structure and create common interface for processing
+#   then based on some metadata and trial name, call correct subclass
+class BaseProcessos(ABC):
+    """
+    Abstract base class that defines the methods needed to produce
+    each final output variable. The idea is that each output variable
+    is computed by a dedicated method, which may pull data from different
+    sheets (i.e. from differently prefixed columns in the combined DataFrame).
+    """
+
+    def __init__(self, combined_df: pd.DataFrame):
+        self.combined_df = combined_df
+
+    def process(self) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
+    def _process_cohort_name(self):
+        pass
+
+    pass
+
+
+# TODO move this to separate config later or store in a struct, should be the same for all trials
+
+drup_ecrf_output = {
+    "patient ID",
+    "CohortName",
+    "Trial",
+    "ID",
+    "TumourType",
+    "TumourTypeOther",
+    "ICD10Code",
+    "ICD10Description",
+    "TumourType2",
+    "StudyTreatment",
+    "Biomarker",
+    "Biomarker_mutation",
+    "BiomarkerTargets",
+    "BiomarkerCategory",
+    "BiomarkerOther",
+    "Age",
+    "Sex",
+    "WHO",
+    "PT_start_date",
+    "PT_end_date",
+    "PT_chemotherapy_YN",
+    "PT_chemo_end_date",
+    "PT_radiotherapy_YN",
+    "PT_radiotherapy_end_date",
+    "PT_immunotherapy_YN",
+    "PT_immunotherapy_end_date",
+    "PT_hormonaltherapy_YN",
+    "PT_hormonaltherapy_end_date",
+    "PT_targetedtherapy_YN",
+    "PT_targetedtherapy_end_date",
+    "Death",
+    "Lost_to_follow_up",
+    "Days_treated",
+    "Evaluability",
+    "Treatment_type",
+    "Treatment_start",
+    "Number_of_cyles",
+    "Treatment_end",
+    "Treatment_end_last_dose",
+    "Dose_delivered",
+    "Concominant_start_date",
+    "Concominant_end_date",
+    "Concominant_medication",
+    "Concominant_indication",
+    "Concominant_ongoing",
+    "AE_event",
+    "AE_grade",
+    "CTCAE_term",
+    "AE_start_date",
+    "AE_end_date",
+    "AE_total",
+    "SAE",
+    "AE_related_to_treatment1",
+    "AE_related_to_treatment2",
+    "Type_tumour_assessment",
+    "Baseline_evaluation",
+    "Event_date_assessment",
+    "Change_from_baseline",
+    "Change_from_minimum",
+    "Response_assessment",
+    "Best_overall_response_BOR",
+    "Best_overall_response_Ra",
+    "Clinical_benefit",
+}
+primerose_output_schema = {
+    "Cohort Name",
+    "Trial",
+    "Patient ID",
+    "Study Drug 1",
+    "Study Drug 2",
+    "Biomarker/Target",
+    "Age",
+    "Sex",
+    "ECOG/WHO performance status",
+    "Medical History",
+    "Previous treatment lines",
+    "Death",
+    "Lost to follow-up",
+    "Evaluability",
+    "Treatment start",
+    "Treatment start cycle",
+    "Treatment end cycle",
+    "Treatment start last cycle",
+    "Treatment end",
+    "Dose delivered",
+    "Concomitant medication",
+    "Adverse Event (AE)",
+    "AE grade",
+    "AE CTCAE Term",
+    "AE start date",
+    "AE end date",
+    "AE outcome",
+    "AE management",
+    "Number of AEs",
+    "SAE",
+    "Related to Treatment",
+    "Expectedness",
+    "Type Tumor Assessment",
+    "Event date assessment",
+    "Baseline evaluation",
+    "Change from baseline",
+    "Response assessment",
+    "Date End of Treatment",
+    "Reason EOT",
+    "Best Overall Response",
+    "Clinical benefit",
+    "Quality of Life assessment",
+}
 
 
 class HarmonizeData:

@@ -1,5 +1,7 @@
-# import openpyxl as px  # type: ignore
 from dataclasses import dataclass
+
+# from abc import ABC, abstractmethod
+# import ns
 import pandas as pd  # type: ignore
 from pathlib import Path
 from typing import Optional, List, Dict, Set
@@ -7,7 +9,6 @@ import logging as logging
 import argparse
 from datetime import datetime
 import sys
-
 import json
 
 # configure logger
@@ -168,15 +169,9 @@ class InputResolver:
                 continue
 
             try:
-                df = pd.read_excel(
-                    excel_file,
-                    sheet_name=config.key,
-                    usecols=config.usecols,
-                    skiprows=[0]
-                    # if formatting issues, test: engine="calamine"
-                )
+                df = pd.read_excel(excel_file, sheet_name=config.key, skiprows=[0])
+                df = self._reorder_rename_df(df, config.usecols)
                 self.ecrf_config.add_data(SheetData(key=config.key, data=df))
-
                 logger.info(f"Loaded sheet: {config.key}")
 
             except Exception as e:
@@ -185,7 +180,6 @@ class InputResolver:
     def _load_csv(self) -> None:
         """Load data from CSV files based on configs"""
         for config in self.ecrf_config.configs:
-            # look for files like: prefix_123_COH.csv
             matching_files = [file for file in self.input_path.iterdir() if file.is_file() and file.suffix.lower() == ".csv" and config.key == file.stem.split("_")[-1]]
 
             if not matching_files:
@@ -193,23 +187,13 @@ class InputResolver:
                 continue
 
             file_path = matching_files[0]
+
             try:
-                # read headers first to check columns
-                actual_cols = pd.read_csv(file_path, nrows=0, skiprows=[0]).columns.tolist()
-                col_mapping = {col.upper(): col for col in actual_cols}
+                # Read the CSV fully without skiprows if the header is in the first row.
+                df = pd.read_csv(file_path, skiprows=[0])
 
-                # map requested columns to actual columns in case-insensitive manner
-                requested_cols = [col_mapping.get(col.upper()) for col in config.usecols]
-
-                # log missing columns
-                if None in requested_cols:
-                    missing = [col for col in config.usecols if col.upper() not in col_mapping]
-                    logger.error(f"Missing columns in {file_path.name}: {missing}")
-                    continue
-
-                # read data with mapped columns
-                df = pd.read_csv(file_path, usecols=requested_cols, skiprows=[0])
-                df.columns = config.usecols  # and normalize column names
+                # Use the helper function to reorder and rename the DataFrame columns.
+                df = self._reorder_rename_df(df, config.usecols)
 
                 self.ecrf_config.add_data(SheetData(key=config.key, data=df))
                 logger.info(f"Loaded CSV: {file_path.name}")
@@ -217,64 +201,31 @@ class InputResolver:
             except Exception as e:
                 logger.error(f"Failed to load '{file_path}': {e}")
 
+    @staticmethod
+    def _reorder_rename_df(df: pd.DataFrame, expected_cols: list) -> pd.DataFrame:
+        """
+        Reorder and rename the DataFrame columns based on the expected columns.
+        """
+        # mapping from uppercase version of actual column names to the actual column name
+        actual_mapping = {col.upper(): col for col in df.columns}
 
-class ImpressProcessor:
-    def __init__(self, ecrf_config: EcrfConfig):
-        if not ecrf_config.is_data_loaded:
-            raise ValueError("Cannot process EcrfConfig with no data loaded")
-        self.ecrf_config = ecrf_config
-        self.valid_subjects = None
+        ordered_actual_columns = []
+        for expected in expected_cols:
+            key = expected.upper()
+            if key in actual_mapping:
+                ordered_actual_columns.append(actual_mapping[key])
+                print(f"Ordered actual cols: {ordered_actual_columns}")
 
-    def process(self) -> EcrfConfig:
-        """Process all sheets in place and return updated config"""
-        # process COH first to get valid subjects
-        self._process_coh()
-        self._process_ecog()
+            else:
+                logger.warning(f"Expected column '{expected}' not found in data.")
 
-        # process remaining sheets
-        for sheet_data in self.ecrf_config.get_all_data():
-            if sheet_data.key != "COH":
-                logger.info(f"Processing {sheet_data.key} data...")
-                # and filter by valid SubjectId
-                self._filter_valid_subjects(sheet_data)
+        # reindex the DataFrame
+        df_reordered = df.reindex(columns=ordered_actual_columns)
+        df_reordered.columns = expected_cols
 
-        return self.ecrf_config
+        print(f"Reordered cols: {df_reordered}")
 
-    def _filter_valid_subjects(self, sheet_data: SheetData) -> None:
-        """Filter dataframe to only include valid subjects"""
-        if self.valid_subjects is None:
-            raise ValueError("Valid subjects not set - process COH first")
-
-        original_count = len(sheet_data.data)
-
-        sheet_data.data = sheet_data.data[sheet_data.data["SubjectId"].isin(self.valid_subjects)]
-
-        filtered_count = len(sheet_data.data)
-        if filtered_count < original_count:
-            logger.info(f"Filtered {original_count - filtered_count} rows from {sheet_data.key} that didn't match valid SubjectIds")
-
-    def _process_coh(self):
-        """Process COH data and establish valid subjects"""
-        coh = self.ecrf_config.get_sheet_data("COH")
-
-        # drop rows where COHORTNAME is empty string, NaN, or None (i.e. patient not in a cohort)
-        coh.data = coh.data[(coh.data["COHORTNAME"].notna()) & (coh.data["COHORTNAME"] != "") & (coh.data["COHORTNAME"].str.strip() != "")]
-
-        self.valid_subjects = set(coh.data["SubjectId"])
-
-    def _process_ecog(self):
-        """Process ECOG data - filter for baseline (V00) assessments only"""
-        ecog = self.ecrf_config.get_sheet_data("ECOG")
-
-        # filter for baseline (V00) assessments only
-        original_count = len(ecog.data)
-        ecog.data = ecog.data[ecog.data["EventId"] == "V00"]
-        filtered_count = len(ecog.data)
-
-        # drop EventId column since we only have V00 events now
-        ecog.data = ecog.data.drop(columns=["EventId"])
-
-        logger.info(f"Filtered {original_count - filtered_count} non-baseline ECOG assessments")
+        return df_reordered
 
 
 class DataCombiner:
@@ -292,23 +243,16 @@ class DataCombiner:
         for sheet_data in self.ecrf_config.get_all_data():
             # add sheet prefix to all columns except SubjectId
             df = sheet_data.data.copy()
-
-            # TODO rename? maybe not as it leads to inconsistencies in naming
             cols_to_rename = [col for col in df.columns if col != "SubjectId"]
             df = df.rename(columns={col: f"{sheet_data.key}_{col}" for col in cols_to_rename})
 
             processed_dfs.append(df)
             logger.info(f"Processed {sheet_data.key}: {len(df)} rows")
 
-        # TODO add metadata? use class
-        # combined_df["ProcessingTimestamp"] = pd.Timestamp.now()
-
-        # combine all dataframes
+        # combine all dataframes and sort by SubjectId
         combined_df = pd.concat(processed_dfs, axis=0, ignore_index=True)
-
-        # sort by SubjectId
         combined_df = combined_df.sort_values("SubjectId").reset_index(drop=True)
-
+        print(f"Combined df: {combined_df}")
         logger.info(f"Combination complete. Final dataset has {len(combined_df)} rows " f"for {combined_df['SubjectId'].nunique()} unique subjects")
 
         return combined_df
@@ -325,6 +269,121 @@ class DataCombiner:
                 for sheet in {col.split("_")[0] for col in df.columns if "_" in col and col != "ProcessingTimestamp"}
             },
         }
+
+
+class OutputFormatter:
+    """
+    Class to process combined data to final pre-processed output, updating in place.
+    Handles patient data aggregation with conflict detection and resolution.
+    """
+
+    def __init__(self, combined_data: pd.DataFrame):
+        self.combined_data = combined_data.copy()
+        self.original_shape = combined_data.shape
+
+    def run(self) -> pd.DataFrame:
+        """
+        Apply filtering and transformation in sequence.
+        Prints progress information at each step.
+        """
+        print(f"Initial shape: {self.original_shape}")
+
+        steps = [self._process_cohort_name, self._process_ecog, self._process_trial_id, self._process_subject_id, self._aggregate_on_id, self._reorder_columns]
+
+        for step in steps:
+            step()
+
+        return self.combined_data
+
+    def _process_cohort_name(self):
+        """
+        Filters out all rows for any patient (SubjectId) that never has a valid COHORTNAME.
+        A valid COHORTNAME is one that is not NaN, not an empty string after stripping,
+        and not "NA" (case-insensitive).
+        """
+        # create mask for valid cohort names
+        valid_mask = (
+            pd.notna(self.combined_data["COH_COHORTNAME"])
+            & (self.combined_data["COH_COHORTNAME"].str.strip() != "")
+            & (~self.combined_data["COH_COHORTNAME"].str.upper().eq("NA"))
+        )
+
+        # get subjects with at least one valid cohort name
+        valid_subjects = self.combined_data.groupby("SubjectId")["COH_COHORTNAME"].transform(lambda x: valid_mask[x.index].any())
+
+        self.combined_data = self.combined_data[valid_subjects]
+        print(f"After filtering by cohort: {self.combined_data.shape}")
+
+    def _process_ecog(self):
+        """
+        For rows that have ECOG data, only keep rows where ECOG_EventId is "V00".
+        Rows without any ECOG data (i.e. ECOG_EventId is NaN) are kept.
+        """
+        mask = self.combined_data["ECOG_EventId"].isna() | (self.combined_data["ECOG_EventId"] == "V00")
+        self.combined_data = self.combined_data[mask]
+        print(f"After filtering ECOG rows: {self.combined_data.shape}")
+
+    def _process_trial_id(self):
+        """Adds/updates a column "Trial" with the trial name."""
+        self.combined_data["Trial"] = "IMPRESS"
+
+    def _process_subject_id(self):
+        """
+        Replace the original SubjectId values with new IMPRESS IDs.
+        For example, if a subject was "X_1234_1", it becomes "IMPRESS-X_1234_1".
+        """
+        self.combined_data["SubjectId"] = "IMPRESS-" + self.combined_data["SubjectId"]
+
+    def _aggregate_on_id(self):
+        """
+        For each SubjectId, collapse the group into a single row if possible.
+        Rows are combined only if there are no conflicts in non-null values across all columns.
+        """
+
+        def can_merge_group(group: pd.DataFrame) -> bool:
+            """Check if a group of rows can be merged (no conflicts in non-null values)."""
+            for col in group.columns:
+                if col == "SubjectId":
+                    continue
+                # get unique non-null values
+                unique_vals = group[col].dropna().unique()
+                if len(unique_vals) > 1:
+                    return False
+            return True
+
+        def merge_group(group: pd.DataFrame) -> pd.DataFrame:
+            """Merge a group of rows by taking first non-null value for each column."""
+            if not can_merge_group(group):
+                return group
+
+            # for each column, take the first non-null value
+            merged_row = {}
+            for col in group.columns:
+                non_null_vals = group[col].dropna()
+                merged_row[col] = non_null_vals.iloc[0] if len(non_null_vals) > 0 else None
+
+            return pd.DataFrame([merged_row])
+
+        # process each group and concatenate results
+        result_dfs = [merge_group(group) for _, group in self.combined_data.groupby("SubjectId")]
+
+        self.combined_data = pd.concat(result_dfs, ignore_index=True)
+        print(f"After aggregation on SubjectId: {self.combined_data.shape}")
+
+    def _reorder_columns(self):
+        """
+        Reorder columns to ensure SubjectId is first and Trial is second.
+        Remaining columns follow in their original order.
+        """
+        # get all columns except SubjectId and Trial
+        other_cols = [col for col in self.combined_data.columns if col not in ["SubjectId", "Trial"]]
+
+        # create new column order
+        new_order = ["SubjectId", "Trial"] + other_cols
+
+        # reorder columns, handling case where Trial might not exist
+        existing_cols = [col for col in new_order if col in self.combined_data.columns]
+        self.combined_data = self.combined_data[existing_cols]
 
 
 class Output:
@@ -361,23 +420,23 @@ class Output:
         try:
             self.data.to_csv(
                 self.output_path,
-                index=False,  # Don't write row numbers
-                na_rep="",  # Empty string for missing values
-                date_format="%Y-%m-%d",  # ISO format for dates
+                index=False,
+                na_rep="NA",
+                date_format="%Y-%m-%d",
             )
         except Exception as e:
             logger.error(f"Error writing CSV file: {str(e)}")
             raise
 
-    def _write_txt(self) -> None:
+    def _write_tsv(self) -> None:
         """Write data to tab-separated text file."""
         try:
             self.data.to_csv(
                 self.output_path,
-                sep="\t",  # Tab separator
-                index=False,  # Don't write row numbers
-                na_rep="",  # Empty string for missing values
-                date_format="%Y-%m-%d",  # ISO format for dates
+                sep="\t",
+                index=False,
+                na_rep="NA",
+                date_format="%Y-%m-%d",
             )
         except Exception as e:
             logger.error(f"Error writing TXT file: {str(e)}")
@@ -497,9 +556,13 @@ def main(
         logger.info(f"Total rows: {summary['total_rows']}")
         logger.info(f"Unique patients: {summary['unique_patients']}")
 
+        # filter data
+        formatter = OutputFormatter(combined_data)
+        output_data = formatter.run()
+
         # write output
         logger.info(f"Writing output to {output_path}...")
-        output = Output(output_path=output_path, data=combined_data, output_format=output_format)
+        output = Output(output_path=output_path, data=output_data, output_format=output_format)
         output.write_output()
 
         logger.info("Processing completed successfully!")
@@ -526,10 +589,6 @@ def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
         if not custom_config_path.exists():
             raise FileNotFoundError(f"Custom config file not found: {custom_config_path}")
         return custom_config_path
-
-    # default config path within project
-    # parametrize later when we get more eCRF data, e.g.:
-    # f"{trial_id.lower()}_config.json"
 
     default_config: Path = Path(__file__).parents[3] / "configs" / "impress_ecrf_variables.json"
     print(f"Default config: {default_config}")
