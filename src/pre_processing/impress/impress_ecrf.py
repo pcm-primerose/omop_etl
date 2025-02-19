@@ -334,6 +334,14 @@ class OutputFormatter:
         """
         self.combined_data["SubjectId"] = "IMPRESS-" + self.combined_data["SubjectId"]
 
+    def _process_tumor_type(self):
+        """
+        Maybe combine the drop-down tumor type CD lists to one - since they are complementary (COHTTYPECD and COHTTYPE_2CD).
+        """
+        # self.combined_data["COHHTYPECD_MERGED"] = self.combined_data["COHTTYPECD"] & self.combined_data["COHTTYPE__2CD"]
+        # I think it's better to handle all processing downstream of extraction, and just extract here instead (?)
+        pass
+
     def _aggregate_on_id(self):
         """
         For each SubjectId, collapse the group into a single row if possible.
@@ -407,7 +415,7 @@ class Output:
             if self.format == "csv":
                 self._write_csv()
             elif self.format == "txt":
-                self._write_txt()
+                self._write_tsv()
 
             logger.info(f"Successfully wrote {len(self.data)} rows to {self.output_path}")
 
@@ -465,31 +473,6 @@ class Output:
         expected_extension = f".{self.format}"
         if self.output_path.suffix != expected_extension:
             logger.warning(f"Output file extension '{self.output_path.suffix}' doesn't match format '{self.format}'. " f"Expected extension: '{expected_extension}'")
-
-
-def parse_arguments():
-    """
-    Parse command-line arguments.
-
-    Returns:
-        Namespace: Parsed arguments.
-    """
-    parser = argparse.ArgumentParser(description="Process eCRF data and merge into a single CSV.")
-    parser.add_argument(
-        "--input",
-        "-i",
-        type=str,
-        required=True,
-        help="Path to the eCRF input data (Excel file or CSV directory).",
-    )
-    parser.add_argument(
-        "--output",
-        "-o",
-        type=str,
-        required=True,
-        help="Path to save the output CSV file.",
-    )
-    return parser.parse_args()
 
 
 def validate_paths(input_path: Path, output_path: Path) -> None:
