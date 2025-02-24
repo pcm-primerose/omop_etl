@@ -1,6 +1,9 @@
 from abc import abstractmethod, ABC
 import pandas as pd
-
+import polars as pl
+from pathlib import Path
+from typing import List
+from pydantic.dataclasses import dataclass
 
 # Each abstract method harmonized towards one PRIME-ROSE variable, and return instances of that model?
 # need to update the data models in any case, implement IMPRESS first if we can export the anonymized data,
@@ -19,6 +22,32 @@ import pandas as pd
 # and contruct emopty DB with same structure as CDM, use structural mapping with linkage and logic from struct to tables
 # and instantiate, something like that.
 
+# TODO:
+#   [ ] Implement basic example to harmonize cohort name (ignore upstream I/O, factory etc)
+#   [ ] Implement patient ID (need to know trial - best way to do this? just use dependancy injection and worry about that later)
+#   [ ] Test these with output (make fixtures) and if that works extend and think about best way to design this
+
+
+@dataclass
+class Patient:
+    cohort_name: str
+    patient_id: str
+
+
+@dataclass
+class TrailData:
+    patients: List[Patient]
+
+
+def drup_data(file: Path) -> pl.DataFrame:
+    data = pl.read_csv(file)
+    return data
+
+
+def impress_data(file: Path) -> pl.DataFrame:
+    data = pl.read_csv(file)
+    return data
+
 
 class BaseHarmonizer(ABC):
     """
@@ -28,10 +57,11 @@ class BaseHarmonizer(ABC):
     sheets (i.e. from differently prefixed columns in the combined DataFrame).
     """
 
-    def __init__(self, combined_df: pd.DataFrame):
-        self.combined_df = combined_df
+    def __init__(self, data: pd.DataFrame):
+        self.data = data
 
-    def process(self) -> pd.DataFrame:
+    @abstractmethod
+    def process(self) -> List[Patient]:
         pass
 
     @abstractmethod
@@ -42,15 +72,53 @@ class BaseHarmonizer(ABC):
 
 
 class ImpressHarmonizer(BaseHarmonizer):
+    def __init__(self, data: pl.DataFrame):
+        super().__init__(data)
+
+    @abstractmethod
+    def process(self) -> List[Patient]:
+        pass
+
     @abstractmethod
     def _process_cohort_name(self):
         pass
 
 
 class DrupHarmonizer(BaseHarmonizer):
+    def __init__(self, data: pl.DataFrame):
+        super().__init__(data)
+
+    @abstractmethod
+    def process(self) -> Patient:
+        cohort_name = self._process_cohort_name()
+        patient_id = "test"
+        return Patient(cohort_name=cohort_name, patient_id=patient_id)
+
     @abstractmethod
     def _process_cohort_name(self):
         pass
+
+
+def process_impress(file: Path):
+    data = impress_data(file)
+    harmonizer = ImpressHarmonizer(data)
+    return harmonizer.process()
+
+
+def process_drup(file: Path):
+    data = drup_data(file)
+    harmonizer = DrupHarmonizer(data)
+    return harmonizer.process()
+
+
+if __name__ == "__main__":
+    drup_file = Path(__file__).parents[3] / ".data" / "drup_dummy_data.txt"
+    impress_file = Path(__file__).parents[3] / ".data" / "mockdata_impress_2025-02-18.csv"
+    process_drup(drup_file)
+    process_impress(impress_file)
+
+    print("impress out:")
+    pass
 
 
 # TODO move this to separate config later or store in a struct, should be the same for all trials
@@ -119,48 +187,4 @@ drup_ecrf_output = {
     "Best_overall_response_BOR",
     "Best_overall_response_Ra",
     "Clinical_benefit",
-}
-primerose_output_schema = {
-    "Cohort Name",
-    "Trial",
-    "Patient ID",
-    "Study Drug 1",
-    "Study Drug 2",
-    "Biomarker/Target",
-    "Age",
-    "Sex",
-    "ECOG/WHO performance status",
-    "Medical History",
-    "Previous treatment lines",
-    "Death",
-    "Lost to follow-up",
-    "Evaluability",
-    "Treatment start",
-    "Treatment start cycle",
-    "Treatment end cycle",
-    "Treatment start last cycle",
-    "Treatment end",
-    "Dose delivered",
-    "Concomitant medication",
-    "Adverse Event (AE)",
-    "AE grade",
-    "AE CTCAE Term",
-    "AE start date",
-    "AE end date",
-    "AE outcome",
-    "AE management",
-    "Number of AEs",
-    "SAE",
-    "Related to Treatment",
-    "Expectedness",
-    "Type Tumor Assessment",
-    "Event date assessment",
-    "Baseline evaluation",
-    "Change from baseline",
-    "Response assessment",
-    "Date End of Treatment",
-    "Reason EOT",
-    "Best Overall Response",
-    "Clinical benefit",
-    "Quality of Life assessment",
 }

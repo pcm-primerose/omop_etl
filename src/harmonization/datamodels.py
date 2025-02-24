@@ -1,11 +1,56 @@
 # import modules
+# import dataclasses
 from pathlib import Path
-from dataclasses import dataclass
 from typing import List, Optional
+from pydantic.dataclasses import dataclass
 
+# Probably better to not model each trials intermediate structs
+# and just have a final harmonized output (primerouse output shcema, but as pydantic dataclass)
 
-# TODO: Refactor this!
-#   and consider using
+primerose_output_schema = {
+    "Cohort Name",
+    "Trial",
+    "Patient ID",
+    "Study Drug 1",
+    "Study Drug 2",
+    "Biomarker/Target",
+    "Age",
+    "Sex",
+    "ECOG/WHO performance status",
+    "Medical History",
+    "Previous treatment lines",
+    "Death",
+    "Lost to follow-up",
+    "Evaluability",
+    "Treatment start",
+    "Treatment start cycle",
+    "Treatment end cycle",
+    "Treatment start last cycle",
+    "Treatment end",
+    "Dose delivered",
+    "Concomitant medication",
+    "Adverse Event (AE)",
+    "AE grade",
+    "AE CTCAE Term",
+    "AE start date",
+    "AE end date",
+    "AE outcome",
+    "AE management",
+    "Number of AEs",
+    "SAE",
+    "Related to Treatment",
+    "Expectedness",
+    "Type Tumor Assessment",
+    "Event date assessment",
+    "Baseline evaluation",
+    "Change from baseline",
+    "Response assessment",
+    "Date End of Treatment",
+    "Reason EOT",
+    "Best Overall Response",
+    "Clinical benefit",
+    "Quality of Life assessment",
+}
 
 
 @dataclass
