@@ -1,3 +1,4 @@
+import datetime as dt
 from abc import abstractmethod, ABC
 import pandas as pd
 import polars as pl
@@ -27,16 +28,39 @@ from pydantic.dataclasses import dataclass
 #   [ ] Implement patient ID (need to know trial - best way to do this? just use dependancy injection and worry about that later)
 #   [ ] Test these with output (make fixtures) and if that works extend and think about best way to design this
 
+# So pydantic dataclasses should just mirror the OMOP CDM tables I need to use.
+# so that'll make things a lot easier. Then I'll use Polars in harmonization and to process the data
+# and keep each dataclass modular by using patient ID as a foreign key.
+# The end result can then be composition of all patients. Unsure if I should make more modular, using patient_id as foreign key per dataclass
+# but for now just implement using normal composition and if needed later make more modular.
+
+
+@dataclass
+class MedicalHistory:
+    patient_id: str
+    treatment_type: str
+    treatment_type_code: int
+    treatment_specification: str
+    treatment_start_date: str
+    treatment_end_date: str
+    previous_treatment_lines: int
+
 
 @dataclass
 class Patient:
-    cohort_name: str
     patient_id: str
+    cohort_name: str
+    sex: str
+    age: int
+    trial_id: str
+    death_date: dt.datetime
+    medical_history: MedicalHistory
 
 
 @dataclass
-class TrailData:
-    patients: List[Patient]
+class HarmonizedData:
+    data: List[Patient]
+    trial_id: str
 
 
 def drup_data(file: Path) -> pl.DataFrame:
@@ -61,42 +85,40 @@ class BaseHarmonizer(ABC):
         self.data = data
 
     @abstractmethod
-    def process(self) -> List[Patient]:
+    def process(self) -> Patient:
         pass
 
     @abstractmethod
     def _process_cohort_name(self):
         pass
-
-    pass
 
 
 class ImpressHarmonizer(BaseHarmonizer):
     def __init__(self, data: pl.DataFrame):
         super().__init__(data)
 
-    @abstractmethod
-    def process(self) -> List[Patient]:
-        pass
+    def process(self):
+        print(self.data)
+        self._process_cohort_name()
 
-    @abstractmethod
     def _process_cohort_name(self):
-        pass
+        cohort_name = self.data.filter(pl.col("COH_COHORTNAME") != "NA")
+        # TODO need to read polars documentation
+        cohort_name = self.data.get_column("COH_COHORTNAME")
+        print(type(cohort_name))
+        print(cohort_name)
 
 
 class DrupHarmonizer(BaseHarmonizer):
     def __init__(self, data: pl.DataFrame):
         super().__init__(data)
 
-    @abstractmethod
-    def process(self) -> Patient:
-        cohort_name = self._process_cohort_name()
-        patient_id = "test"
-        return Patient(cohort_name=cohort_name, patient_id=patient_id)
+    def process(self):
+        print(self.data)
 
-    @abstractmethod
     def _process_cohort_name(self):
-        pass
+        cohort_name = self.data.filter(pl.all_horizontal(pl.col("CohortName") != "NA"))
+        print(cohort_name)
 
 
 def process_impress(file: Path):
@@ -112,16 +134,11 @@ def process_drup(file: Path):
 
 
 if __name__ == "__main__":
-    drup_file = Path(__file__).parents[3] / ".data" / "drup_dummy_data.txt"
-    impress_file = Path(__file__).parents[3] / ".data" / "mockdata_impress_2025-02-18.csv"
-    process_drup(drup_file)
-    process_impress(impress_file)
+    drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.txt"
+    impress_file = Path(__file__).parents[2] / ".data" / "impress_mockdata_2025-02-18.csv"
+    drup = process_drup(drup_file)
+    impress = process_impress(impress_file)
 
-    print("impress out:")
-    pass
-
-
-# TODO move this to separate config later or store in a struct, should be the same for all trials
 
 drup_ecrf_output = {
     "patient ID",
