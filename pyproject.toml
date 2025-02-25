@@ -31,6 +31,6 @@ line-length = 170
 [tool.ruff]
 line-length = 170
 select = ["E", "F"]
-ignore = ["E203"]
+ignore = ["E203", "F401"]
 
 

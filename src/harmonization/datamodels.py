@@ -4,8 +4,78 @@ from pathlib import Path
 from typing import List, Optional
 from pydantic.dataclasses import dataclass
 
+# TODO refactor and move data models here
+
 # Probably better to not model each trials intermediate structs
 # and just have a final harmonized output (primerouse output shcema, but as pydantic dataclass)
+
+
+drup_ecrf_output = {
+    "patient ID",
+    "CohortName",
+    "Trial",
+    "ID",
+    "TumourType",
+    "TumourTypeOther",
+    "ICD10Code",
+    "ICD10Description",
+    "TumourType2",
+    "StudyTreatment",
+    "Biomarker",
+    "Biomarker_mutation",
+    "BiomarkerTargets",
+    "BiomarkerCategory",
+    "BiomarkerOther",
+    "Age",
+    "Sex",
+    "WHO",
+    "PT_start_date",
+    "PT_end_date",
+    "PT_chemotherapy_YN",
+    "PT_chemo_end_date",
+    "PT_radiotherapy_YN",
+    "PT_radiotherapy_end_date",
+    "PT_immunotherapy_YN",
+    "PT_immunotherapy_end_date",
+    "PT_hormonaltherapy_YN",
+    "PT_hormonaltherapy_end_date",
+    "PT_targetedtherapy_YN",
+    "PT_targetedtherapy_end_date",
+    "Death",
+    "Lost_to_follow_up",
+    "Days_treated",
+    "Evaluability",
+    "Treatment_type",
+    "Treatment_start",
+    "Number_of_cyles",
+    "Treatment_end",
+    "Treatment_end_last_dose",
+    "Dose_delivered",
+    "Concominant_start_date",
+    "Concominant_end_date",
+    "Concominant_medication",
+    "Concominant_indication",
+    "Concominant_ongoing",
+    "AE_event",
+    "AE_grade",
+    "CTCAE_term",
+    "AE_start_date",
+    "AE_end_date",
+    "AE_total",
+    "SAE",
+    "AE_related_to_treatment1",
+    "AE_related_to_treatment2",
+    "Type_tumour_assessment",
+    "Baseline_evaluation",
+    "Event_date_assessment",
+    "Change_from_baseline",
+    "Change_from_minimum",
+    "Response_assessment",
+    "Best_overall_response_BOR",
+    "Best_overall_response_Ra",
+    "Clinical_benefit",
+}
+
 
 primerose_output_schema = {
     "Cohort Name",

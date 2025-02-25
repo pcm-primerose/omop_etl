@@ -27,7 +27,8 @@
     "SubjectId",
     "EventId",
     "ECOGS",
-    "ECOGSCD"
+    "ECOGSCD",
+    "ECOGDAT"
   ],
   "dm": [
     "SubjectId",
@@ -42,7 +43,8 @@
     "CTTYPECD",
     "CTSTDAT",
     "CTENDAT",
-    "CTSPID"
+    "CTSPID",
+    "CTTYPESP"
   ],
   "eot": [
     "SubjectId",
@@ -152,7 +154,8 @@
     "RATIMRESCD",
     "RAiMOD",
     "RAiMODCD",
-    "RAPROGDT"
+    "RAPROGDT",
+    "RAiUNPDT"
   ],
   "rnrsp": [
     "SubjectId",
@@ -177,7 +180,8 @@
   "lugrsp": [
     "SubjectId",
     "EventDate",
-    "LUGOVRL"
+    "LUGOVRL",
+    "LUGOVRLCD"
   ],
   "eq5d": [
     "SubjectId",
