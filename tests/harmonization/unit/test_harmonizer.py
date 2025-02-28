@@ -1,20 +1,7 @@
 import pytest
 import polars as pl
-from pathlib import Path
-from src.harmonization.datamodels import (
-    Patient,
-    Ecog,
-    MedicalHistory,
-    PreviousTreatmentLine,
-    AdverseEvent,
-    ResponseAssessment,
-    ClinicalBenefit,
-    QualityOfLife,
-    HarmonizedData,
-)
 from src.harmonization.harmonizers.impress import ImpressHarmonizer
-from src.harmonization.harmonizers.drup import DrupHarmonizer
-from src.harmonization.base import BaseHarmonizer
+from src.harmonization.harmonizers.base import BaseHarmonizer
 
 
 @pytest.fixture

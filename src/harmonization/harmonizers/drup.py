@@ -1,6 +1,6 @@
 import polars as pl
-from ..base import BaseHarmonizer
-from ..datamodels import HarmonizedData, Patient
+from src.harmonization.harmonizers.base import BaseHarmonizer
+from src.harmonization.datamodels import HarmonizedData, Patient
 
 
 class DrupHarmonizer(BaseHarmonizer):
@@ -29,7 +29,7 @@ class DrupHarmonizer(BaseHarmonizer):
         # quality_of_life_assessments=self.quality_of_life_assessments,
 
     def _process_patient_id(self):
-        patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
+        patient_ids = self.data.select("ID").unique().to_series().to_list()
 
         # create initial patient object
         for patient_id in patient_ids:
@@ -37,11 +37,11 @@ class DrupHarmonizer(BaseHarmonizer):
 
     def _process_cohort_name(self):
         """Process cohort names and update patient objects"""
-        cohort_data = self.data.filter(pl.col("COH_COHORTNAME") != "NA")
+        cohort_data = self.data.filter(pl.col("ID") != "NA")
 
         for row in cohort_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            cohort_name = row["COH_COHORTNAME"]
+            patient_id = row["ID"]
+            cohort_name = row["CohortName"]
 
             if patient_id in self.patient_data:
                 self.patient_data[patient_id].cohort_name = cohort_name

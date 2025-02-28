@@ -1,8 +1,8 @@
 import polars as pl
 from pathlib import Path
-from datamodels import HarmonizedData
-from harmonizers.impress import ImpressHarmonizer
-from harmonizers.drup import DrupHarmonizer
+from src.harmonization.datamodels import HarmonizedData
+from src.harmonization.harmonizers.impress import ImpressHarmonizer
+from src.harmonization.harmonizers.drup import DrupHarmonizer
 
 
 # Each abstract method harmonized towards one PRIME-ROSE variable, and return instances of that model?
@@ -38,9 +38,10 @@ from harmonizers.drup import DrupHarmonizer
 
 # TODO:
 #   [ ] Implement rest of methods for DRUP and IMPRESS data (will take some time)
-#   [ ]
-#   [ ]
-#   [ ]
+#   [ ] Figure out best way to create new IDs without making all dataclasses mutable (currently they are mutable for dev but should be frozen)
+#   [ ] Make nice methods for filtering finished objects (get only specific cohort, patient etc)
+#   [ ] Make upstream IO resolve function (maybe infer trial type unless specified - easy to check)
+#   [ ] Fix faulty ECOG parsing (find out if its formatting issue or some char split thing in pre-processing)
 
 
 def drup_data(file: Path) -> pl.DataFrame:
@@ -59,13 +60,15 @@ def process_impress(file: Path) -> HarmonizedData:
     return harmonizer.process()
 
 
-def process_drup(file: Path) -> HarmonizedData:
-    data = drup_data(file)
-    harmonizer = DrupHarmonizer(data=data, trial_id="DRUP")
-    return harmonizer.process()
+# def process_drup(file: Path) -> HarmonizedData:
+#     data = drup_data(file)
+#     harmonizer = DrupHarmonizer(data=data, trial_id="DRUP")
+#     return harmonizer.process()
 
 
 if __name__ == "__main__":
-    drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.txt"
+    # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.txt"
     impress_file = Path(__file__).parents[2] / ".data" / "impress_mockdata_2025-02-18.csv"
     impress = process_impress(impress_file)
+    print("\n")
+    # drup = process_drup(drup_file)
