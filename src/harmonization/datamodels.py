@@ -5,6 +5,33 @@ import datetime as dt
 
 
 @dataclass
+class TumorType:
+    icd10_code: str
+    icd10_description: str
+    tumor_type: Optional[str] = None
+    tumor_type_code: Optional[int] = None
+    cohort_tumor_type: Optional[str] = None
+    other_tumor_type: Optional[str] = None
+
+    "COH_ICD10COD"  # tumor type ICD10 code
+    "COH_ICD10DES"  # tumor type ICD10 description
+
+    # mutually exlusive (either COHTTYPE and COHTTYPECD or COHTTYPE__2 and COHTTYPE__2CD):
+    "COH_COHTTYPE"  # tumor type
+    "COH_COHTTYPECD"  # tumor type code
+    "COH_COHTTYPE__2"  # tumor type 2
+    "COH_COHTTYPE__2CD"  # tumor type 2 code
+    # So these will be one description and one code --> tumor_type / tumor_type_code
+
+    "COH_COHTT"  # cohort tumor type --> cohort_tumor_type
+    "COH_COHTTOSP"  # other tumor type --> other_tumor_type
+
+
+# "TumourType","TumourTypeOther","ICD10Code","ICD10Description","TumourType2"
+# ICD10 codes, ICD10 description, pull-down menu tumor types, cohort tumor type, free text description. All given as text
+
+
+@dataclass
 class MedicalHistory:
     patient_id: str
     treatment_type: str

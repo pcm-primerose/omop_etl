@@ -1,7 +1,10 @@
+import datetime
+
 import polars as pl
 import datetime as dt
 from src.harmonization.datamodels import HarmonizedData, Patient
 from src.harmonization.harmonizers.base import BaseHarmonizer
+from src.utils.helpers import date_parser_helper
 
 
 class ImpressHarmonizer(BaseHarmonizer):
@@ -13,6 +16,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_cohort_name()
         self._process_gender()
         self._process_age()
+        self._process_tumor_type()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -51,9 +55,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_gender(self):
         """Process gender and update patient object"""
-        gender_data = self.data.filter(
-            (pl.col("DM_SEX") != "NA") & (pl.col("DM_SEX").is_in(["Female", "Male"])),
-        )
+        gender_data = self.data.with_columns(pl.col("DM_SEX").str.to_lowercase()).filter(pl.col("DM_SEX").is_in(["female", "male"]))
 
         for row in gender_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -64,19 +66,26 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_age(self):
         """Process and calculate age and update patient object"""
-        birth_date_data = self.data.filter(pl.col("DM_BRTHDAT") != "NA").select("SubjectId", "DM_BRTHDAT").with_columns(pl.col("DM_BRTHDAT").str.to_date())
+        birth_date_data = (
+            self.data.filter(pl.col("DM_BRTHDAT") != "NA")
+            .select("SubjectId", "DM_BRTHDAT")
+            .with_columns(parsed_date=date_parser_helper("DM_BRTHDAT"))
+            .with_columns(birth_date=pl.col("parsed_date").str.to_date())
+            .select("SubjectId", "birth_date")
+        )
 
         treatment_dates = (
             self.data.filter(pl.col("TR_TRC1_DT") != "NA")
             .select("SubjectId", "TR_TRC1_DT")
-            .with_columns(pl.col("TR_TRC1_DT").str.to_date())
+            .with_columns(parsed_date=date_parser_helper("TR_TRC1_DT"))
+            .with_columns(parsed_treatment_date=pl.col("parsed_date").str.to_date())
             .group_by("SubjectId")
-            .agg(latest_treatment_date=pl.col("TR_TRC1_DT").max())
+            .agg(latest_treatment_date=pl.col("parsed_treatment_date").max())
         )
 
         combined_data = birth_date_data.join(treatment_dates, on="SubjectId", how="inner")
 
-        with_age = combined_data.with_columns(age_at_treatment=((pl.col("latest_treatment_date") - pl.col("DM_BRTHDAT")).dt.total_days() / 365.25).round(0).cast(pl.Int8))
+        with_age = combined_data.with_columns(age_at_treatment=((pl.col("latest_treatment_date") - pl.col("birth_date")).dt.total_days() / 365.25).round(0).cast(pl.Int8))
 
         # update patient objects
         for row in with_age.iter_rows(named=True):
@@ -87,15 +96,36 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id in self.patient_data:
                 self.patient_data[patient_id].age = age
 
+    def _process_tumor_type(self):
+        tumor_data = self.data.with_columns(
+            pl.cols("COH_ICD10DES", "COH_ICD10DES", "COH_COHTTYPE, COH_COHTTYPECD", "COH_COHTTYPE__2", "COH_COHTTYPE__2CD", "COH_COHTT", "COH_COHTTOSP")
+        )
+
+        print(tumor_data)
+        pass
+
+    "COH_ICD10COD"  # tumor type ICD10 code
+    "COH_ICD10DES"  # tumor type ICD10 description
+
+    # mutually exlusive (either COHTTYPE and COHTTYPECD or COHTTYPE__2 and COHTTYPE__2CD):
+    "COH_COHTTYPE"  # tumor type
+    "COH_COHTTYPECD"  # tumor type code
+    "COH_COHTTYPE__2"  # tumor type 2
+    "COH_COHTTYPE__2CD"  # tumor type 2 code
+    # So these will be one description and one code --> tumor_type / tumor_type_code
+
+    "COH_COHTT"  # cohort tumor type --> cohort_tumor_type
+    "COH_COHTTOSP"  # other tumor type --> other_tumor_type
+
+
+"""
+ICD10 codes, ICD10 description, pull-down menu tumor types, cohort tumor type, free text description. All given as text
+"""
+
 
 """
 @dataclass
 class Patient:
-    patient_id: str
-    trial_id: str
-    cohort_name: Optional[str] = None
-    age: Optional[int] = None
-    sex: Optional[str] = None
     tumor_type: Optional[str] = None
     study_drug_1: Optional[str] = None
     study_drug_2: Optional[str] = None

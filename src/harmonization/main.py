@@ -43,6 +43,9 @@ from src.harmonization.harmonizers.drup import DrupHarmonizer
 #   [ ] Make upstream IO resolve function (maybe infer trial type unless specified - easy to check)
 #   [ ] Fix faulty ECOG parsing (find out if its formatting issue or some char split thing in pre-processing)
 
+# TODO:
+#   [ ] Probably best to refactor to normalized approach and keep things modular and as explicit as possible but finish first harmonization iteration
+
 
 def drup_data(file: Path) -> pl.DataFrame:
     data = pl.read_csv(file)
