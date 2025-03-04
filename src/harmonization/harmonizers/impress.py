@@ -1,5 +1,11 @@
 import polars as pl
-from src.harmonization.datamodels import HarmonizedData, Patient, TumorType, StudyDrugs, Biomarkers
+from src.harmonization.datamodels import (
+    HarmonizedData,
+    Patient,
+    TumorType,
+    StudyDrugs,
+    Biomarkers,
+)
 from src.harmonization.harmonizers.base import BaseHarmonizer
 from src.utils.helpers import date_parser_helper
 
@@ -44,7 +50,9 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         # create initial patient object
         for patient_id in patient_ids:
-            self.patient_data[patient_id] = Patient(trial_id=self.trial_id, patient_id=patient_id)
+            self.patient_data[patient_id] = Patient(
+                trial_id=self.trial_id, patient_id=patient_id
+            )
 
     def _process_cohort_name(self):
         """Process cohort names and update patient objects"""
@@ -59,7 +67,9 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_gender(self):
         """Process gender and update patient object"""
-        gender_data = self.data.with_columns(pl.col("DM_SEX").str.to_lowercase()).filter(pl.col("DM_SEX").is_in(["female", "male"]))
+        gender_data = self.data.with_columns(
+            pl.col("DM_SEX").str.to_lowercase()
+        ).filter(pl.col("DM_SEX").is_in(["female", "male"]))
 
         for row in gender_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -87,9 +97,18 @@ class ImpressHarmonizer(BaseHarmonizer):
             .agg(latest_treatment_date=pl.col("parsed_treatment_date").max())
         )
 
-        combined_data = birth_date_data.join(treatment_dates, on="SubjectId", how="inner")
+        combined_data = birth_date_data.join(
+            treatment_dates, on="SubjectId", how="inner"
+        )
 
-        with_age = combined_data.with_columns(age_at_treatment=((pl.col("latest_treatment_date") - pl.col("birth_date")).dt.total_days() / 365.25).round(0).cast(pl.Int8))
+        with_age = combined_data.with_columns(
+            age_at_treatment=(
+                (pl.col("latest_treatment_date") - pl.col("birth_date")).dt.total_days()
+                / 365.25
+            )
+            .round(0)
+            .cast(pl.Int8)
+        )
 
         # update patient objects
         for row in with_age.iter_rows(named=True):
@@ -102,7 +121,17 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_tumor_type(self):
         tumor_data = (
             self.data.select(
-                ("SubjectId", "COH_ICD10COD", "COH_ICD10DES", "COH_COHTTYPE", "COH_COHTTYPECD", "COH_COHTTYPE__2", "COH_COHTTYPE__2CD", "COH_COHTT", "COH_COHTTOSP")
+                (
+                    "SubjectId",
+                    "COH_ICD10COD",
+                    "COH_ICD10DES",
+                    "COH_COHTTYPE",
+                    "COH_COHTTYPECD",
+                    "COH_COHTTYPE__2",
+                    "COH_COHTTYPE__2CD",
+                    "COH_COHTT",
+                    "COH_COHTTOSP",
+                )
             )
         ).filter(
             pl.col("COH_ICD10COD") != "NA"
@@ -113,9 +142,13 @@ class ImpressHarmonizer(BaseHarmonizer):
         for row in tumor_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
             icd10_code = row["COH_ICD10COD"] if row["COH_ICD10COD"] != "NA" else None
-            icd10_description = row["COH_ICD10DES"] if row["COH_ICD10DES"] != "NA" else None
+            icd10_description = (
+                row["COH_ICD10DES"] if row["COH_ICD10DES"] != "NA" else None
+            )
             cohort_tumor_type = row["COH_COHTT"] if row["COH_COHTT"] != "NA" else None
-            other_tumor_type = row["COH_COHTTOSP"] if row["COH_COHTTOSP"] != "NA" else None
+            other_tumor_type = (
+                row["COH_COHTTOSP"] if row["COH_COHTTOSP"] != "NA" else None
+            )
 
             # get main tumor type (mutally exclusive)
             tumor_type = None
@@ -149,7 +182,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             "COH_COHALLO2CD",
             "COH_COHALLO2__2",
             "COH_COHALLO2__2CD",
-        ).filter((pl.col("COH_COHALLO1") != "NA") | (pl.col("COH_COHALLO1__2") != "NA") | (pl.col("COH_COHALLO2") != "NA") | (pl.col("COH_COHALLO2__2") != "NA"))
+        ).filter(
+            (pl.col("COH_COHALLO1") != "NA")
+            | (pl.col("COH_COHALLO1__2") != "NA")
+            | (pl.col("COH_COHALLO2") != "NA")
+            | (pl.col("COH_COHALLO2__2") != "NA")
+        )
 
         # assuming we have all drug data in one row and that 1 / 1__2 & 2 / 2__2 vars are mutally exclusive
         # such that 1 <--> 2 & 1__2 <--> 2__2 and != 1 <--> 2__2 & 1__2 <--> 2
@@ -174,7 +212,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 secondary_drug = row["COH_COHALLO2__2"]
                 secondary_drug_code = int(row["COH_COHALLO2__2CD"])
 
-                print(f"Primary: {primary_drug}, primary code: {primary_drug_code}, secondary: {secondary_drug}, secondary code: {secondary_drug_code}")
+                print(
+                    f"Primary: {primary_drug}, primary code: {primary_drug_code}, secondary: {secondary_drug}, secondary code: {secondary_drug_code}"
+                )
 
             self.patient_data[patient_id].study_drugs = StudyDrugs(
                 primary_treatment_drug=primary_drug,
@@ -184,8 +224,13 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
     def _process_biomarkers(self):
-        biomarker_data = self.data.select("SubjectId", "COH_GENMUT1", "COH_GENMUT1CD", "COH_COHCTN", "COH_COHTMN").filter(
-            (pl.col("COH_GENMUT1") != "NA") | (pl.col("COH_GENMUT1CD") != "NA") | (pl.col("COH_COHCTN") != "NA") | (pl.col("COH_COHTMN") != "NA")
+        biomarker_data = self.data.select(
+            "SubjectId", "COH_GENMUT1", "COH_GENMUT1CD", "COH_COHCTN", "COH_COHTMN"
+        ).filter(
+            (pl.col("COH_GENMUT1") != "NA")
+            | (pl.col("COH_GENMUT1CD") != "NA")
+            | (pl.col("COH_COHCTN") != "NA")
+            | (pl.col("COH_COHTMN") != "NA")
         )
 
         for row in biomarker_data.iter_rows(named=True):
@@ -203,7 +248,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
     def _process_date_of_death(self):
-        death_data = self.data.select("SubjectId", "EOS_DEATHDTC", "FU_FUPDEDAT").filter((pl.col("EOS_DEATHDTC") != "NA") | (pl.col("FU_FUPDEDAT") != "NA"))
+        death_data = self.data.select(
+            "SubjectId", "EOS_DEATHDTC", "FU_FUPDEDAT"
+        ).filter((pl.col("EOS_DEATHDTC") != "NA") | (pl.col("FU_FUPDEDAT") != "NA"))
 
         for row in death_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -219,8 +266,13 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_date_lost_to_followup(self):
         # TODO: What do we actually want to store here? Just a bool or date + bool, or all the info?
-        followup_data = self.data.select("SubjectId", "FU_FUPALDAT", "FU_FUPDEDAT", "FU_FUPSST", "FU_FUPSSTCD").filter(
-            (pl.col("FU_FUPALDAT") != "NA") | (pl.col("FU_FUPDEDAT") != "NA") | (pl.col("FU_FUPSST") != "NA") | (pl.col("FU_FUPSSTCD") != "NA")
+        followup_data = self.data.select(
+            "SubjectId", "FU_FUPALDAT", "FU_FUPDEDAT", "FU_FUPSST", "FU_FUPSSTCD"
+        ).filter(
+            (pl.col("FU_FUPALDAT") != "NA")
+            | (pl.col("FU_FUPDEDAT") != "NA")
+            | (pl.col("FU_FUPSST") != "NA")
+            | (pl.col("FU_FUPSSTCD") != "NA")
         )
 
         print(followup_data)

@@ -20,13 +20,12 @@ polars = "^1.22.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
 pre-commit = "^3.0.0"
-black = "^23.9b0"
 
 [tool.poetry.scripts]
 setup = "setup:main"
 
-[tool.black]
-line-length = 170
+#[tool.black]
+#line-length = 200
 
 [tool.ruff]
 line-length = 170
