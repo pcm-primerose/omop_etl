@@ -6,8 +6,8 @@ import datetime as dt
 
 @dataclass
 class TumorType:
-    icd10_code: str
-    icd10_description: str
+    icd10_code: Optional[str] = None
+    icd10_description: Optional[str] = None
     tumor_type: Optional[str] = None
     tumor_type_code: Optional[int] = None
     cohort_tumor_type: Optional[str] = None
@@ -15,20 +15,34 @@ class TumorType:
 
     "COH_ICD10COD"  # tumor type ICD10 code
     "COH_ICD10DES"  # tumor type ICD10 description
-
     # mutually exlusive (either COHTTYPE and COHTTYPECD or COHTTYPE__2 and COHTTYPE__2CD):
     "COH_COHTTYPE"  # tumor type
     "COH_COHTTYPECD"  # tumor type code
     "COH_COHTTYPE__2"  # tumor type 2
     "COH_COHTTYPE__2CD"  # tumor type 2 code
-    # So these will be one description and one code --> tumor_type / tumor_type_code
-
     "COH_COHTT"  # cohort tumor type --> cohort_tumor_type
     "COH_COHTTOSP"  # other tumor type --> other_tumor_type
 
+    # in DRUP:
+    # "TumourType" --> tumor_type,
+    # "TumourTypeOther" --> other_tumor_type
+    # "ICD10Code"
+    # "ICD10Description"
+    # "TumourType2" --> cohort tumor type? or just rename to tumor type 3? is it important to track the source from eCRF?
+    # or is this the same as in IMPRESS, being mutually exclusive drop-down lists?
 
-# "TumourType","TumourTypeOther","ICD10Code","ICD10Description","TumourType2"
-# ICD10 codes, ICD10 description, pull-down menu tumor types, cohort tumor type, free text description. All given as text
+
+@dataclass
+class StudyDrugs:
+    # name better, see ecrf:
+    drug_1: str
+    drug_1_code: int
+    drug_1_2: str
+    drug_1_2_code: int
+    drug_2: str
+    drug_2_code: int
+    drug_2_2: str
+    drug_2_2_code: int
 
 
 @dataclass
@@ -86,7 +100,7 @@ class Patient:
     cohort_name: Optional[str] = None
     age: Optional[int] = None
     sex: Optional[str] = None
-    tumor_type: Optional[str] = None
+    tumor_type: Optional[TumorType] = None
     study_drug_1: Optional[str] = None
     study_drug_2: Optional[str] = None
     biomarker: Optional[str] = None

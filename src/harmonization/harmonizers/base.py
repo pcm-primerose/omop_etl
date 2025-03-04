@@ -4,6 +4,12 @@ from typing import Optional, List, Dict
 from src.harmonization.datamodels import Patient
 from src.harmonization.datamodels import HarmonizedData
 
+# TODO refactor to functional approach later
+#   where each processing methods returns corresponding datamodel instance
+#   use patient ID as foreign key and store trial ID
+#   then in the process method instantiate the harmonized data class
+#   and in main handle the renaming of patient IDs (and other stuff) that is common to all data
+
 
 class BaseHarmonizer(ABC):
     """

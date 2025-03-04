@@ -1,8 +1,5 @@
-import datetime
-
 import polars as pl
-import datetime as dt
-from src.harmonization.datamodels import HarmonizedData, Patient
+from src.harmonization.datamodels import HarmonizedData, Patient, TumorType
 from src.harmonization.harmonizers.base import BaseHarmonizer
 from src.utils.helpers import date_parser_helper
 
@@ -91,31 +88,51 @@ class ImpressHarmonizer(BaseHarmonizer):
         for row in with_age.iter_rows(named=True):
             patient_id = row["SubjectId"]
             age = row["age_at_treatment"]
-            print(f"Age: {age}")
 
             if patient_id in self.patient_data:
                 self.patient_data[patient_id].age = age
 
     def _process_tumor_type(self):
-        tumor_data = self.data.with_columns(
-            pl.cols("COH_ICD10DES", "COH_ICD10DES", "COH_COHTTYPE, COH_COHTTYPECD", "COH_COHTTYPE__2", "COH_COHTTYPE__2CD", "COH_COHTT", "COH_COHTTOSP")
-        )
+        tumor_data = (
+            self.data.select(
+                ("SubjectId", "COH_ICD10COD", "COH_ICD10DES", "COH_COHTTYPE", "COH_COHTTYPECD", "COH_COHTTYPE__2", "COH_COHTTYPE__2CD", "COH_COHTT", "COH_COHTTOSP")
+            )
+        ).filter(
+            pl.col("COH_ICD10COD") != "NA"
+        )  # Note: Assume tumor type data is always on the same row and we don't have multiple,
+        # if this is not always the case, can use List[TumorType] in Patient class with default factory and store multiple
 
-        print(tumor_data)
+        # update patient objects
+        for row in tumor_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            icd10_code = row["COH_ICD10COD"] if row["COH_ICD10COD"] != "NA" else None
+            icd10_description = row["COH_ICD10DES"] if row["COH_ICD10DES"] != "NA" else None
+            cohort_tumor_type = row["COH_COHTT"] if row["COH_COHTT"] != "NA" else None
+            other_tumor_type = row["COH_COHTTOSP"] if row["COH_COHTTOSP"] != "NA" else None
+
+            # get main tumor type (mutally exclusive)
+            tumor_type = None
+            tumor_type_code = None
+
+            if row["COH_COHTTYPE"] != "NA" and row["COH_COHTTYPECD"] != "NA":
+                tumor_type = row["COH_COHTTYPE"]
+                tumor_type_code = int(row["COH_COHTTYPECD"])
+            elif row["COH_COHTTYPE__2"] != "NA" and row["COH_COHTTYPE__2CD"] != "NA":
+                tumor_type = row["COH_COHTTYPE__2"]
+                tumor_type_code = int(row["COH_COHTTYPE__2CD"])
+
+            if patient_id in self.patient_data:
+                self.patient_data[patient_id].tumor_type = TumorType(
+                    icd10_code=icd10_code,
+                    icd10_description=icd10_description,
+                    tumor_type=tumor_type,
+                    tumor_type_code=tumor_type_code,
+                    cohort_tumor_type=cohort_tumor_type,
+                    other_tumor_type=other_tumor_type,
+                )
+
+    def _process_study_drugs(self):
         pass
-
-    "COH_ICD10COD"  # tumor type ICD10 code
-    "COH_ICD10DES"  # tumor type ICD10 description
-
-    # mutually exlusive (either COHTTYPE and COHTTYPECD or COHTTYPE__2 and COHTTYPE__2CD):
-    "COH_COHTTYPE"  # tumor type
-    "COH_COHTTYPECD"  # tumor type code
-    "COH_COHTTYPE__2"  # tumor type 2
-    "COH_COHTTYPE__2CD"  # tumor type 2 code
-    # So these will be one description and one code --> tumor_type / tumor_type_code
-
-    "COH_COHTT"  # cohort tumor type --> cohort_tumor_type
-    "COH_COHTTOSP"  # other tumor type --> other_tumor_type
 
 
 """
@@ -126,7 +143,6 @@ ICD10 codes, ICD10 description, pull-down menu tumor types, cohort tumor type, f
 """
 @dataclass
 class Patient:
-    tumor_type: Optional[str] = None
     study_drug_1: Optional[str] = None
     study_drug_2: Optional[str] = None
     biomarker: Optional[str] = None
