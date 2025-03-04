@@ -34,15 +34,26 @@ class TumorType:
 
 @dataclass
 class StudyDrugs:
-    # name better, see ecrf:
-    drug_1: str
-    drug_1_code: int
-    drug_1_2: str
-    drug_1_2_code: int
-    drug_2: str
-    drug_2_code: int
-    drug_2_2: str
-    drug_2_2_code: int
+    primary_treatment_drug: Optional[str] = None
+    primary_treatment_drug_code: Optional[int] = None
+    secondary_treatment_drug: Optional[str] = None
+    secondary_treatment_drug_code: Optional[int] = None
+
+
+@dataclass
+class Biomarkers:
+    gene_and_mutation: str  # genmut
+    gene_and_mutation_code: int
+    cohort_target_name: str  # cohctn
+    cohort_target_mutation: str  # cohtmn
+
+
+@dataclass
+class FollowUp:
+    lost_to_followup: bool
+    alive: bool
+    date_of_death: dt.datetime
+    date_last_known_alive: dt.datetime
 
 
 @dataclass
@@ -101,9 +112,8 @@ class Patient:
     age: Optional[int] = None
     sex: Optional[str] = None
     tumor_type: Optional[TumorType] = None
-    study_drug_1: Optional[str] = None
-    study_drug_2: Optional[str] = None
-    biomarker: Optional[str] = None
+    study_drugs: Optional[StudyDrugs] = None
+    biomarker: Optional[Biomarkers] = None
     date_of_death: Optional[dt.datetime] = None
     date_lost_to_followup: Optional[dt.datetime] = None
     evaluable_for_efficacy_analysis: Optional[bool] = None

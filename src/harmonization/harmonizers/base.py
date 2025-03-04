@@ -55,3 +55,15 @@ class BaseHarmonizer(ABC):
     @abstractmethod
     def _process_age(self) -> None:
         pass
+
+    @abstractmethod
+    def _process_tumor_type(self) -> None:
+        pass
+
+    @abstractmethod
+    def _process_study_drugs(self) -> None:
+        pass
+
+    @abstractmethod
+    def _process_biomarkers(self) -> None:
+        pass
