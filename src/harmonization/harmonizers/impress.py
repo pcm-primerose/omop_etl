@@ -205,44 +205,22 @@ class ImpressHarmonizer(BaseHarmonizer):
         # such that 1 <--> 2 & 1__2 <--> 2__2 and != 1 <--> 2__2 & 1__2 <--> 2
         for row in drug_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
+
             if patient_id not in self.patient_data:
                 continue
 
-            # process primary drug
-            primary_drug = None
-            primary_drug_code = None
-
-            if safe_get(row["COH_COHALLO1"]) is not None:
-                primary_drug = row["COH_COHALLO1"]
-                primary_drug_code = safe_int(row["COH_COHALLO1CD"])
-
-            elif safe_get(row["COH_COHALLO1__2"]) is not None:
-                primary_drug = row["COH_COHALLO1__2"]
-                primary_drug_code = safe_int(row["COH_COHALLO1__2CD"])
-
-            # use code if no drugs found
-            elif safe_get(row["COH_COHALLO1CD"]) is not None:
-                primary_drug_code = safe_int(row["COH_COHALLO1CD"])
-            elif safe_get(row["COH_COHALLO1__2CD"]) is not None:
-                primary_drug_code = safe_int(row["COH_COHALLO1__2CD"])
-
-            # process seconadry drug
-            secondary_drug = None
-            secondary_drug_code = None
-
-            if safe_get(row["COH_COHALLO2"]) is not None:
-                secondary_drug = row["COH_COHALLO2"]
-                secondary_drug_code = safe_int(row["COH_COHALLO2CD"])
-
-            elif safe_get(row["COH_COHALLO2__2"]) is not None:
-                secondary_drug = row["COH_COHALLO2__2"]
-                secondary_drug_code = safe_int(row["COH_COHALLO2__2CD"])
-
-            # use code if no drugs found
-            elif safe_get(row["COH_COHALLO2CD"]) is not None:
-                secondary_drug_code = safe_int(row["COH_COHALLO2CD"])
-            elif safe_get(row["COH_COHALLO2__2CD"]) is not None:
-                secondary_drug_code = safe_int(row["COH_COHALLO2__2CD"])
+            primary_drug = safe_get(row["COH_COHALLO1"]) or safe_get(
+                row["COH_COHALLO1__2"]
+            )
+            primary_drug_code = safe_int(row["COH_COHALLO1CD"]) or safe_int(
+                row["COH_COHALLO1__2CD"]
+            )
+            secondary_drug = safe_get(row["COH_COHALLO2"]) or safe_get(
+                row["COH_COHALLO2__2"]
+            )
+            secondary_drug_code = safe_int(row["COH_COHALLO2CD"]) or safe_int(
+                row["COH_COHALLO2__2CD"]
+            )
 
             self.patient_data[patient_id].study_drugs = StudyDrugs(
                 primary_treatment_drug=primary_drug,
@@ -263,16 +241,15 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         for row in biomarker_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
-            gene_and_mutation = row["COH_GENMUT1"]
-            gene_and_mutation_code = int(row["COH_GENMUT1CD"])
-            cohort_target_name = row["COH_COHCTN"]
-            cohort_target_mutation = row["COH_COHTMN"]
+
+            if patient_id not in self.patient_data:
+                continue
 
             self.patient_data[patient_id].biomarker = Biomarkers(
-                gene_and_mutation=gene_and_mutation,
-                gene_and_mutation_code=gene_and_mutation_code,
-                cohort_target_name=cohort_target_name,
-                cohort_target_mutation=cohort_target_mutation,
+                gene_and_mutation=safe_get(row["COH_GENMUT1"]),
+                gene_and_mutation_code=safe_int(row["COH_GENMUT1CD"]),
+                cohort_target_name=safe_get(row["COH_COHCTN"]),
+                cohort_target_mutation=safe_get(row["COH_COHTMN"]),
             )
 
     def _process_date_of_death(self):

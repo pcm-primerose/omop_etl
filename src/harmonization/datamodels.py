@@ -42,10 +42,10 @@ class StudyDrugs:
 
 @dataclass
 class Biomarkers:
-    gene_and_mutation: str  # genmut
-    gene_and_mutation_code: int
-    cohort_target_name: str  # cohctn
-    cohort_target_mutation: str  # cohtmn
+    gene_and_mutation: Optional[str] = None  # genmut
+    gene_and_mutation_code: Optional[int] = None
+    cohort_target_name: Optional[str] = None  # cohctn
+    cohort_target_mutation: Optional[str] = None  # cohtmn
 
 
 @dataclass

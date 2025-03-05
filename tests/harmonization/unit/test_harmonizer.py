@@ -2,10 +2,10 @@ import pytest
 import polars as pl
 import datetime as dt
 
-from src.harmonization.datamodels import TumorType, StudyDrugs, Patient
+from src.harmonization.datamodels import TumorType, StudyDrugs, Patient, Biomarkers
 from src.harmonization.harmonizers.impress import ImpressHarmonizer
 from src.harmonization.harmonizers.base import BaseHarmonizer
-from src.utils.helpers import date_parser_helper
+from src.utils.helpers import parse_flexible_date
 
 
 @pytest.fixture
@@ -154,8 +154,9 @@ def biomarker_fixture():
                 "NA",
                 "BRCA1 inactivating mutation",
                 "SDHAF2 mutation",
+                "NA",
             ],
-            "COH_GENMUT1CD": ["21", "NA", 2, -1, "NA"],
+            "COH_GENMUT1CD": ["21", "NA", "2", "-1", "10"],
             "COH_COHCTN": [
                 "BRAF Non-V600activating mutations",
                 "some info",
@@ -164,10 +165,11 @@ def biomarker_fixture():
                 "NA",
             ],
             "COH_COHTMN": [
-                "BRAF Non-V600 activating mutations" "some target",
+                "BRAF Non-V600 activating mutations",
+                "NA",
                 "BRCA1 stop-gain deletion",
                 "NA",
-                "NA",
+                "some other info",
             ],
         }
     )
@@ -452,13 +454,52 @@ class TestImpressHarmonizer:
         )
         assert harmonizer.patient_data["IMPRESS-X_0005_1"].date_of_death is None
 
-    # def test_biomarker_processing(self, biomarker_fixture):
-    #     harmonizer = ImpressHarmonizer(data=biomarker_fixture, trial_id="IMPRESS_TEST")
-    #
-    #     for subject_id in biomarker_fixture.select("SubjectId").unique().to_series().to_list():
-    #         harmonizer.patient_data[subject_id] = Patient(trial_id="IMPRESS_TEST", patient_id=subject_id)
-    #
-    #     harmonizer._process_biomarkers()
+    def test_biomarker_processing(self, biomarker_fixture):
+        harmonizer = ImpressHarmonizer(data=biomarker_fixture, trial_id="IMPRESS_TEST")
+
+        for subject_id in (
+            biomarker_fixture.select("SubjectId").unique().to_series().to_list()
+        ):
+            harmonizer.patient_data[subject_id] = Patient(
+                trial_id="IMPRESS_TEST", patient_id=subject_id
+            )
+
+        harmonizer._process_biomarkers()
+
+        assert harmonizer.patient_data["IMPRESS-X_0001_1"].biomarker == Biomarkers(
+            gene_and_mutation="BRAF activating mutations",
+            gene_and_mutation_code=21,
+            cohort_target_name="BRAF Non-V600activating mutations",
+            cohort_target_mutation="BRAF Non-V600 activating mutations",
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0002_1"].biomarker == Biomarkers(
+            gene_and_mutation=None,
+            gene_and_mutation_code=None,
+            cohort_target_name="some info",
+            cohort_target_mutation=None,
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0003_1"].biomarker == Biomarkers(
+            gene_and_mutation="BRCA1 inactivating mutation",
+            gene_and_mutation_code=2,
+            cohort_target_name="BRCA1 stop-gain del exon 11",
+            cohort_target_mutation="BRCA1 stop-gain deletion",
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0004_1"].biomarker == Biomarkers(
+            gene_and_mutation="SDHAF2 mutation",
+            gene_and_mutation_code=-1,
+            cohort_target_name="more info",
+            cohort_target_mutation=None,
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0005_1"].biomarker == Biomarkers(
+            gene_and_mutation=None,
+            gene_and_mutation_code=10,
+            cohort_target_name=None,
+            cohort_target_mutation="some other info",
+        )
 
     # def test_lost_to_followup(self, lost_to_followup_fixture):
     #     # harmonizer = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="IMPRESS_TEST")
@@ -477,16 +518,16 @@ class TestImpressHarmonizer:
         assert isinstance(harmonizer.patient_data, dict)
 
 
-def test_date_parser_helper():
+def test_partial_date_parsing():
     df = pl.DataFrame({"dates": ["1900-02-02", "1900", "1950-06"]})
 
-    result_colname_as_str = df.with_columns(parsed_dates=date_parser_helper("dates"))
+    result_colname_as_str = df.with_columns(parsed_dates=parse_flexible_date("dates"))
 
-    result_column = df.with_columns(parsed_dates=date_parser_helper(pl.col("dates")))
+    result_column = df.with_columns(parsed_dates=parse_flexible_date(pl.col("dates")))
 
-    assert result_colname_as_str["parsed_dates"][0] == "1900-02-02"
-    assert result_colname_as_str["parsed_dates"][1] == "1900-01-01"
-    assert result_colname_as_str["parsed_dates"][2] == "1950-06-01"
-    assert result_column["parsed_dates"][0] == "1900-02-02"
-    assert result_column["parsed_dates"][1] == "1900-01-01"
-    assert result_column["parsed_dates"][2] == "1950-06-01"
+    assert result_colname_as_str["parsed_dates"][0] == dt.datetime(1900, 2, 2)
+    assert result_colname_as_str["parsed_dates"][1] == dt.datetime(1900, 1, 1)
+    assert result_colname_as_str["parsed_dates"][2] == dt.datetime(1950, 6, 1)
+    assert result_column["parsed_dates"][0] == dt.datetime(1900, 2, 2)
+    assert result_column["parsed_dates"][1] == dt.datetime(1900, 1, 1)
+    assert result_column["parsed_dates"][2] == dt.datetime(1900, 6, 1)
