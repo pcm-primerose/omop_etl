@@ -13,24 +13,6 @@ class TumorType:
     cohort_tumor_type: Optional[str] = None
     other_tumor_type: Optional[str] = None
 
-    "COH_ICD10COD"  # tumor type ICD10 code
-    "COH_ICD10DES"  # tumor type ICD10 description
-    # mutually exlusive (either COHTTYPE and COHTTYPECD or COHTTYPE__2 and COHTTYPE__2CD):
-    "COH_COHTTYPE"  # tumor type
-    "COH_COHTTYPECD"  # tumor type code
-    "COH_COHTTYPE__2"  # tumor type 2
-    "COH_COHTTYPE__2CD"  # tumor type 2 code
-    "COH_COHTT"  # cohort tumor type --> cohort_tumor_type
-    "COH_COHTTOSP"  # other tumor type --> other_tumor_type
-
-    # in DRUP:
-    # "TumourType" --> tumor_type,
-    # "TumourTypeOther" --> other_tumor_type
-    # "ICD10Code"
-    # "ICD10Description"
-    # "TumourType2" --> cohort tumor type? or just rename to tumor type 3? is it important to track the source from eCRF?
-    # or is this the same as in IMPRESS, being mutually exclusive drop-down lists?
-
 
 @dataclass
 class StudyDrugs:

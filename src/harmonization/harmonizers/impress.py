@@ -309,6 +309,27 @@ class ImpressHarmonizer(BaseHarmonizer):
                 date_lost_to_followup=date_lost_to_followup,
             )
 
+    def _process_evaluability(self):
+        # if tumor evaluation has been done,
+        # or if patient has been evaluated to have progressive disease
+        """
+        All patients who received at least one dose of therapy and started treatment 16 weeks prior to date of evaluation.
+        The Response Evaluable Population consists of the subset of FAS patients who have received at least 1 cycle of treatment
+        in case of oral medication or 2 treatment administrations[1] in case of intravenous medication,
+        and if the response is radiologically evaluable (at the treating physician’s discretion) as defined in the protocols.
+        Clinical evaluation of unequivocal progressive disease (PD) is accepted as an evaluation method
+        in case of inability to perform radiological evaluation.
+
+        IOT: Answer: On treatment more than 4 weeks + radiological/clinical evaluation of any kind:
+        response in e.g. RESIST (tumor assessment) or EOT due to progressive disease.
+        We don’t need W16 data - find EOT variables in the EOT sheet, take all patients and remove the ones that
+        lack response evaluation or EOT. Remove all patients that have stopped treatment before 4 weeks due to toxicity.
+        """
+        pass
+
+    def _process_treatments(self):
+        pass
+
 
 """
 
