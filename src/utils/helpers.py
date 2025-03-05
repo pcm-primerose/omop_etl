@@ -55,7 +55,7 @@ def parse_date(date_str):
 
 def parse_flexible_date(
     date_str: str, default_day: Optional[int] = 15, default_month: Optional[int] = 7
-) -> None | dt.datetime:
+) -> Optional[dt.datetime]:
     """Takes any date string and allows partial parsing to datetime objects"""
     if date_str == "NA" or not date_str:
         return None
@@ -75,25 +75,26 @@ def parse_flexible_date(
                     year = int(date_str)
                     if 1900 <= year <= 2100:
                         # default to middle of year
-                        return dt.datetime(year, default_month, 1)
+                        return dt.datetime(year, default_month, default_day)
                     return None
                 except (ValueError, TypeError):
                     return None
     else:
-        print(f"Must pass str, got {type(date_str)}")
+        return None
 
 
 def parse_date_column(
     column: Union[str, pl.Expr],
     default_day: int = 15,
     default_month: int = 7,
-    na_values=None,
-) -> pl.Expr:
+    na_values: Optional[List[str]] = None,
+) -> Optional[pl.expr]:
     """
     Vectorized date parser that handles partial dates in Polars.
     """
     if na_values is None:
-        na_values = ["NA", ""]
+        na_values = ["NA"]
+
     if isinstance(column, str):
         column = pl.col(column)
 
@@ -101,20 +102,23 @@ def parse_date_column(
         column = pl.when(column == na_value).then(None).otherwise(column)
 
     return (
+        # year only: YYYY
         pl.when(column.str.len_chars() == 4)
         .then(
             pl.concat_str(
                 column, pl.lit(f"-{default_month:02d}-{default_day:02d}")
             ).str.strptime(pl.Datetime, "%Y-%m-%d", strict=False)
         )
+        # year and month: YYYY-MM
         .when(column.str.len_chars() == 7)
         .then(
             pl.concat_str(column, pl.lit(f"-{default_day:02d}")).str.strptime(
                 pl.Datetime, "%Y-%m-%d", strict=False
             )
         )
+        # full date: YYYY-MM-DD
         .when(column.str.len_chars() == 10)
         .then(column.str.strptime(pl.Datetime, "%Y-%m-%d", strict=False))
-        # every other format becomes None
+        # everything else becomes None
         .otherwise(None)
     )
