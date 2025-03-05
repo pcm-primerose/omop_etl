@@ -1,5 +1,226 @@
 import pytest
 import polars as pl
 
-# TODO store full mock data for trials and use in intragation test
+# TODO: also store full mock data for trials and use in intragation test
 #   and maybe move fixture to conf test later if needed
+
+
+@pytest.fixture
+def subject_id_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+        }
+    )
+
+
+@pytest.fixture
+def cohort_name_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "COH_COHORTNAME": [
+                "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib",
+                "NA",
+                "NA",
+                "",
+                "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab",
+            ],
+        }
+    )
+
+
+@pytest.fixture
+def age_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "DM_BRTHDAT": ["1900-06-02", "1950", "2000-02-14", "1970", "1990-12-07"],
+            "TR_TRC1_DT": ["1990-01-30", "1990-01-01", "2020-03-25", "2000", "2000-01"],
+        }
+    )
+
+
+@pytest.fixture
+def gender_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "DM_SEX": ["Female", "Male", "female", "male", "error"],
+        }
+    )
+
+
+@pytest.fixture
+def tumor_type_fixture():
+    # note that COH_COHTTYPE/CD and COH_COHTTYPE__2/CD are mutually exlusive
+    # two separate dropdown lists
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "COH_ICD10COD": ["C30", "C40.50", "C07", "C70.1", "C23.20"],
+            "COH_ICD10DES": ["tumor1", "CRC", "tumor2", "tumor3", "tumor4"],
+            "COH_COHTTYPE": [
+                "tumor1_subtype1",
+                "NA",
+                "tumor2_subtype1",
+                "tumor3_subtype1",
+                "NA",
+            ],
+            "COH_COHTTYPECD": ["50", "NA", "70", "10", "NA"],
+            "COH_COHTTYPE__2": ["NA", "CRC_subtype", "NA", "NA", "tumor4_subtype1"],
+            "COH_COHTTYPE__2CD": ["NA", "40", "NA", "NA", "30"],
+            "COH_COHTT": ["tumor1_subtype2", "NA", "tumor2_subtype2", "NA", "NA"],
+            "COH_COHTTOSP": [
+                "tumor1_subtype3",
+                "NA",
+                "NA",
+                "tumor3_subtype2",
+                "tumor4_subtype2",
+            ],
+        }
+    )
+
+
+@pytest.fixture
+def study_drugs_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "COH_COHALLO1": ["NA", "some drug", "mismatch_1", "NA", "partial"],
+            "COH_COHALLO1CD": ["NA", "99", "10", "NA", "NA"],
+            "COH_COHALLO1__2": ["Traztuzumab", "NA", "NA", "mismatch_2", "NA"],
+            "COH_COHALLO1__2CD": ["31", "NA", "NA", "50", "NA"],
+            "COH_COHALLO2": ["NA", "some drug 2", "NA", "mismatch_2_1", "NA"],
+            "COH_COHALLO2CD": ["NA", "1", "NA", "60", "NA"],
+            "COH_COHALLO2__2": ["Tafinlar", "NA", "mismatch_1_2", "NA", "NA"],
+            "COH_COHALLO2__2CD": ["10", "NA", "12", "NA", "5"],
+        }
+    )
+
+
+@pytest.fixture
+def biomarker_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "COH_GENMUT1": [
+                "BRAF activating mutations",
+                "NA",
+                "BRCA1 inactivating mutation",
+                "SDHAF2 mutation",
+                "NA",
+            ],
+            "COH_GENMUT1CD": ["21", "NA", "2", "-1", "10"],
+            "COH_COHCTN": [
+                "BRAF Non-V600activating mutations",
+                "some info",
+                "BRCA1 stop-gain del exon 11",
+                "more info",
+                "NA",
+            ],
+            "COH_COHTMN": [
+                "BRAF Non-V600 activating mutations",
+                "NA",
+                "BRCA1 stop-gain deletion",
+                "NA",
+                "some other info",
+            ],
+        }
+    )
+
+
+@pytest.fixture
+def date_of_death_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "EOS_DEATHDTC": [
+                "1990-10-02",
+                "1961-09-12",
+                "NA",
+                "1999-09-09",
+                "not a date",
+            ],
+            "FU_FUPDEDAT": [
+                "1990-10-02",
+                "2016-09-12",
+                "1900-01-01",
+                "NA",
+                "invalid date",
+            ],
+        }
+    )
+
+
+@pytest.fixture
+def lost_to_followup_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "FU_FUPALDAT": [
+                "1990-10-02",
+                "NA",
+                "1900-01-01",
+                "1999-09-09",
+                "not a date",
+            ],
+            "FU_FUPDEDAT": ["NA", "1980-09-12", "NA", "NA", "invalid date"],
+            "FU_FUPSST": ["Alive", "Death", "lost to follow up", "alive", "NA"],
+            "FU_FUPSSTCD": ["1", "2", "3", "NA", "NA"],
+        }
+    )

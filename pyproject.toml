@@ -30,6 +30,6 @@ setup = "setup:main"
 [tool.ruff]
 line-length = 170
 select = ["E", "F"]
-ignore = ["E203", "F401"]
+ignore = ["E203", "F401", "F811"]
 
 
