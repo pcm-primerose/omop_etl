@@ -1,10 +1,15 @@
 import pytest
 import polars as pl
 import datetime as dt
-
-from src.harmonization.datamodels import TumorType, StudyDrugs, Patient, Biomarkers
 from src.harmonization.harmonizers.impress import ImpressHarmonizer
 from src.harmonization.harmonizers.base import BaseHarmonizer
+from src.harmonization.datamodels import (
+    TumorType,
+    StudyDrugs,
+    Patient,
+    Biomarkers,
+    FollowUp,
+)
 from src.utils.helpers import parse_flexible_date, parse_date_column
 
 
@@ -218,11 +223,11 @@ def lost_to_followup_fixture():
             "FU_FUPALDAT": [
                 "1990-10-02",
                 "NA",
-                "1800-01-01",
+                "1900-01-01",
                 "1999-09-09",
                 "not a date",
             ],
-            "FU_FUPDEDAT": ["NA", "206-09-12", "NA", "NA", "invalid date"],
+            "FU_FUPDEDAT": ["NA", "1980-09-12", "NA", "NA", "invalid date"],
             "FU_FUPSST": ["Alive", "Death", "lost to follow up", "alive", "NA"],
             "FU_FUPSSTCD": ["1", "2", "3", "NA", "NA"],
         }
@@ -501,10 +506,38 @@ class TestImpressHarmonizer:
             cohort_target_mutation="some other info",
         )
 
-    # def test_lost_to_followup(self, lost_to_followup_fixture):
-    #     # harmonizer = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="IMPRESS_TEST")
-    #     # harmonizer._process_patient_id()
-    #     pass
+    def test_lost_to_followup(self, lost_to_followup_fixture):
+        harmonizer = ImpressHarmonizer(
+            data=lost_to_followup_fixture, trial_id="IMPRESS_TEST"
+        )
+        for subject_id in (
+            lost_to_followup_fixture.select("SubjectId").unique().to_series().to_list()
+        ):
+            harmonizer.patient_data[subject_id] = Patient(
+                patient_id=subject_id, trial_id="IMPRESS_TEST"
+            )
+
+        harmonizer._process_date_lost_to_followup()
+
+        assert harmonizer.patient_data["IMPRESS-X_0001_1"].lost_to_followup == FollowUp(
+            lost_to_followup=False, date_lost_to_followup=None
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0002_1"].lost_to_followup == FollowUp(
+            lost_to_followup=False, date_lost_to_followup=None
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0003_1"].lost_to_followup == FollowUp(
+            lost_to_followup=True, date_lost_to_followup=dt.datetime(1900, 1, 1)
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0004_1"].lost_to_followup == FollowUp(
+            lost_to_followup=False, date_lost_to_followup=None
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0005_1"].lost_to_followup == FollowUp(
+            lost_to_followup=False, date_lost_to_followup=None
+        )
 
     def test_basic_inheritance(self, subject_id_fixture):
         harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
