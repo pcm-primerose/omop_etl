@@ -70,8 +70,10 @@ def process_impress(file: Path) -> HarmonizedData:
 
 
 if __name__ == "__main__":
-    # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.txt"
-    impress_file = Path(__file__).parents[2] / ".data" / "impress_mockdata_2025-02-18.csv"
+    # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.csv"
+    impress_file = (
+        Path(__file__).parents[2] / ".data" / "impress_mockdata_2025-02-18.csv"
+    )
     impress = process_impress(impress_file)
     print("\n")
     # drup = process_drup(drup_file)

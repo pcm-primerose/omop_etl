@@ -1,13 +1,22 @@
 import polars as pl
+import datetime as dt
+from typing import Optional
+from src.harmonization.harmonizers.base import BaseHarmonizer
 from src.harmonization.datamodels import (
     HarmonizedData,
     Patient,
     TumorType,
     StudyDrugs,
     Biomarkers,
+    FollowUp,
 )
-from src.harmonization.harmonizers.base import BaseHarmonizer
-from src.utils.helpers import date_parser_helper
+from src.utils.helpers import (
+    date_parser_helper,
+    safe_get,
+    safe_int,
+    parse_date,
+    parse_flexible_date,
+)
 
 
 class ImpressHarmonizer(BaseHarmonizer):
@@ -80,43 +89,46 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_age(self):
         """Process and calculate age and update patient object"""
-        birth_date_data = (
-            self.data.filter(pl.col("DM_BRTHDAT") != "NA")
-            .select("SubjectId", "DM_BRTHDAT")
-            .with_columns(parsed_date=date_parser_helper("DM_BRTHDAT"))
-            .with_columns(birth_date=pl.col("parsed_date").str.to_date())
-            .select("SubjectId", "birth_date")
+        birth_dates = self.data.filter(pl.col("DM_BRTHDAT") != "NA").select(
+            "SubjectId", "DM_BRTHDAT"
         )
 
-        treatment_dates = (
-            self.data.filter(pl.col("TR_TRC1_DT") != "NA")
-            .select("SubjectId", "TR_TRC1_DT")
-            .with_columns(parsed_date=date_parser_helper("TR_TRC1_DT"))
-            .with_columns(parsed_treatment_date=pl.col("parsed_date").str.to_date())
-            .group_by("SubjectId")
-            .agg(latest_treatment_date=pl.col("parsed_treatment_date").max())
+        treatment_dates = self.data.filter(pl.col("TR_TRC1_DT") != "NA").select(
+            "SubjectId", "TR_TRC1_DT"
         )
 
-        combined_data = birth_date_data.join(
-            treatment_dates, on="SubjectId", how="inner"
-        )
+        # update patient age
+        for patient_id in self.patient_data:
+            birth_rows = birth_dates.filter(pl.col("SubjectId") == patient_id)
+            if birth_rows.height == 0:
+                continue
 
-        with_age = combined_data.with_columns(
-            age_at_treatment=(
-                (pl.col("latest_treatment_date") - pl.col("birth_date")).dt.total_days()
-                / 365.25
-            )
-            .round(0)
-            .cast(pl.Int8)
-        )
+            birth_row = birth_rows.row(0, named=True)
+            birth_date = parse_flexible_date(birth_row["DM_BRTHDAT"])
+            if birth_date is None:
+                continue
 
-        # update patient objects
-        for row in with_age.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            age = row["age_at_treatment"]
+            treatment_rows = treatment_dates.filter(pl.col("SubjectId") == patient_id)
+            if treatment_rows.height == 0:
+                continue
 
-            if patient_id in self.patient_data:
-                self.patient_data[patient_id].age = age
+            latest_treatment_date = None
+            for row in treatment_rows.iter_rows(named=True):
+                treatment_date = parse_flexible_date(row["TR_TRC1_DT"])
+                if treatment_date is not None:
+                    if (
+                        latest_treatment_date is None
+                        or treatment_date > latest_treatment_date
+                    ):
+                        latest_treatment_date = treatment_date
+
+            if latest_treatment_date is None:
+                continue
+
+            age_delta = latest_treatment_date - birth_date
+            age_years = int(age_delta.days / 365.25)
+
+            self.patient_data[patient_id].age = age_years
 
     def _process_tumor_type(self):
         tumor_data = (
@@ -193,28 +205,44 @@ class ImpressHarmonizer(BaseHarmonizer):
         # such that 1 <--> 2 & 1__2 <--> 2__2 and != 1 <--> 2__2 & 1__2 <--> 2
         for row in drug_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
+            if patient_id not in self.patient_data:
+                continue
+
+            # process primary drug
             primary_drug = None
-            secondary_drug = None
             primary_drug_code = None
+
+            if safe_get(row["COH_COHALLO1"]) is not None:
+                primary_drug = row["COH_COHALLO1"]
+                primary_drug_code = safe_int(row["COH_COHALLO1CD"])
+
+            elif safe_get(row["COH_COHALLO1__2"]) is not None:
+                primary_drug = row["COH_COHALLO1__2"]
+                primary_drug_code = safe_int(row["COH_COHALLO1__2CD"])
+
+            # use code if no drugs found
+            elif safe_get(row["COH_COHALLO1CD"]) is not None:
+                primary_drug_code = safe_int(row["COH_COHALLO1CD"])
+            elif safe_get(row["COH_COHALLO1__2CD"]) is not None:
+                primary_drug_code = safe_int(row["COH_COHALLO1__2CD"])
+
+            # process seconadry drug
+            secondary_drug = None
             secondary_drug_code = None
 
-            # get mutally exclusive drugs 1 and 2
-            if row["COH_COHALLO1"] != "NA":
-                primary_drug = row["COH_COHALLO1"]
-                primary_drug_code = int(row["COH_COHALLO1CD"])
-            elif row["COH_COHALLO1__2"] != "NA":
-                primary_drug = row["COH_COHALLO1__2"]
-                primary_drug_code = int(row["COH_COHALLO1__2CD"])
-            if row["COH_COHALLO2"] != "NA":
+            if safe_get(row["COH_COHALLO2"]) is not None:
                 secondary_drug = row["COH_COHALLO2"]
-                secondary_drug_code = int(row["COH_COHALLO2CD"])
-            elif row["COH_COHALLO2__2"] != "NA":
-                secondary_drug = row["COH_COHALLO2__2"]
-                secondary_drug_code = int(row["COH_COHALLO2__2CD"])
+                secondary_drug_code = safe_int(row["COH_COHALLO2CD"])
 
-                print(
-                    f"Primary: {primary_drug}, primary code: {primary_drug_code}, secondary: {secondary_drug}, secondary code: {secondary_drug_code}"
-                )
+            elif safe_get(row["COH_COHALLO2__2"]) is not None:
+                secondary_drug = row["COH_COHALLO2__2"]
+                secondary_drug_code = safe_int(row["COH_COHALLO2__2CD"])
+
+            # use code if no drugs found
+            elif safe_get(row["COH_COHALLO2CD"]) is not None:
+                secondary_drug_code = safe_int(row["COH_COHALLO2CD"])
+            elif safe_get(row["COH_COHALLO2__2CD"]) is not None:
+                secondary_drug_code = safe_int(row["COH_COHALLO2__2CD"])
 
             self.patient_data[patient_id].study_drugs = StudyDrugs(
                 primary_treatment_drug=primary_drug,
@@ -254,13 +282,18 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         for row in death_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
+            death_date = None
 
-            if row["EOS_DEATHDTC"] != "NA":
-                death_date = row["EOS_DEATHDTC"]
-            elif row["FU_FUPDEDAT"] != "NA":
-                death_date = row["FU_FUPDEDAT"]
-            else:
-                death_date = None
+            eos_date = parse_date(row["EOS_DEATHDTC"])
+            fu_date = parse_date(row["FU_FUPDEDAT"])
+
+            # use latest date
+            if eos_date and fu_date:
+                death_date = max(eos_date, fu_date)
+            elif eos_date:
+                death_date = eos_date
+            elif fu_date:
+                death_date = fu_date
 
             self.patient_data[patient_id].date_of_death = death_date
 
@@ -268,14 +301,37 @@ class ImpressHarmonizer(BaseHarmonizer):
         # TODO: What do we actually want to store here? Just a bool or date + bool, or all the info?
         followup_data = self.data.select(
             "SubjectId", "FU_FUPALDAT", "FU_FUPDEDAT", "FU_FUPSST", "FU_FUPSSTCD"
-        ).filter(
-            (pl.col("FU_FUPALDAT") != "NA")
-            | (pl.col("FU_FUPDEDAT") != "NA")
-            | (pl.col("FU_FUPSST") != "NA")
-            | (pl.col("FU_FUPSSTCD") != "NA")
-        )
+        )  # .filter(
+        # (pl.col("FU_FUPALDAT") != "NA")
+        # | (pl.col("FU_FUPSST") != "NA")
+        # )
+
+        # TODO: Problem = Not all patients match these filter conditions, so for some we get None instead of instantiateed FollowUp class
+        #   FIX!
+        #   Yes - some patients just have NA for all conditions, we just need another way to get the rows instead of filtering (
 
         print(followup_data)
+
+        for row in followup_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+
+            if patient_id not in self.patient_data:
+                continue
+
+            lost_to_followup_status: bool = False
+            date_lost_to_followup: Optional[dt.datetime] = None
+            # if this row is Death or Alive, exit with lost_to_followup = False
+            # if this row is something else, set status to True and get date
+            if row["FU_FUPSST"] not in ["Alive", "Death"]:
+                lost_to_followup_status = True
+                if row["FU_FUPALDAT"] != "NA":
+                    date_lost_to_followup = row["FU_FUPALDAT"]
+
+            if patient_id in self.patient_data:
+                self.patient_data[patient_id].lost_to_followup = FollowUp(
+                    lost_to_followup=lost_to_followup_status,
+                    date_lost_to_followup=date_lost_to_followup,
+                )
 
 
 """

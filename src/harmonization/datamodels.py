@@ -51,9 +51,7 @@ class Biomarkers:
 @dataclass
 class FollowUp:
     lost_to_followup: bool
-    alive: bool
-    date_of_death: dt.datetime
-    date_last_known_alive: dt.datetime
+    date_lost_to_followup: Optional[dt.datetime] = None  # date last known alive
 
 
 @dataclass
@@ -115,7 +113,7 @@ class Patient:
     study_drugs: Optional[StudyDrugs] = None
     biomarker: Optional[Biomarkers] = None
     date_of_death: Optional[dt.datetime] = None
-    date_lost_to_followup: Optional[dt.datetime] = None
+    lost_to_followup: Optional[FollowUp] = None
     evaluable_for_efficacy_analysis: Optional[bool] = None
     treatment_start_first_dose: Optional[dt.datetime] = None
     type_of_tumor_assessment: Optional[str] = None
