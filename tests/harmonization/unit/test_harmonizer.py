@@ -20,6 +20,7 @@ from tests.harmonization.fixtures.impress_fixtures import (
     biomarker_fixture,
     date_of_death_fixture,
     lost_to_followup_fixture,
+    evaluability_fixture,
 )
 
 
@@ -326,6 +327,52 @@ class TestImpressHarmonizer:
 
         assert harmonizer.patient_data["IMPRESS-X_0005_1"].lost_to_followup == FollowUp(
             lost_to_followup=False, date_lost_to_followup=None
+        )
+
+    def test_evaluability(self, evaluability_fixture):
+        harmonizer = ImpressHarmonizer(
+            data=evaluability_fixture, trial_id="IMPRESS_TEST"
+        )
+        for subject_id in (
+            evaluability_fixture.select("SubjectId").unique().to_series().to_list()
+        ):
+            harmonizer.patient_data[subject_id] = Patient(
+                patient_id=subject_id, trial_id="IMPRESS_TEST"
+            )
+
+        harmonizer._process_evaluability()
+
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0001_1"].evaluable_for_efficacy_analysis
+            is True
+        )
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0002_1"].evaluable_for_efficacy_analysis
+            is True
+        )
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0003_1"].evaluable_for_efficacy_analysis
+            is True
+        )
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0004_1"].evaluable_for_efficacy_analysis
+            is False
+        )
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0005_1"].evaluable_for_efficacy_analysis
+            is False
+        )
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0006_1"].evaluable_for_efficacy_analysis
+            is False
+        )
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0007_1"].evaluable_for_efficacy_analysis
+            is False
+        )
+        assert (
+            harmonizer.patient_data["IMPRESS-X_0008_1"].evaluable_for_efficacy_analysis
+            is False
         )
 
     def test_basic_inheritance(self, subject_id_fixture):

@@ -224,3 +224,92 @@ def lost_to_followup_fixture():
             "FU_FUPSSTCD": ["1", "2", "3", "NA", "NA"],
         }
     )
+
+
+@pytest.fixture
+def evaluability_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",  # evaluable no tumor assessment
+                "IMPRESS-X_0002_1",  # evaluable no EOT
+                "IMPRESS-X_0003_1",  # evaluable all
+                "IMPRESS-X_0004_1",  # not evaluable wrong treatment length
+                "IMPRESS-X_0005_1",  # not evaluable missing assessment and EOT
+                "IMPRESS-X_0006_1",  # not evaluable missing treatment dates
+                "IMPRESS-X_0007_1",  # not evaluable negative treatment length
+                "IMPRESS-X_0008_1",  # not evaluable all data missing
+            ],
+            "TR_TRO_STDT": [
+                "2001-01-01",
+                "2001-01-02",
+                "2001-01-01",
+                "2001-01-01",
+                "2001-01-01",
+                "NA",
+                "2001-01-01",
+                "NA",
+            ],
+            "TR_TROSTPDT": [
+                "2001-03-01",
+                "2001-05-01",
+                "2001-04-10",
+                "2001-01-05",
+                "2001-03-01",
+                "NA",
+                "1999-01-01",
+                "NA",
+            ],
+            "RA_EventDate": [
+                "NA",
+                "2001-01-02",
+                "2001-01-01",
+                "NA",
+                "NA",
+                "NA",
+                "2000-01-01",
+                "NA",
+            ],
+            "RNRSP_EventDate": [
+                "NA",
+                "NA",
+                "2002-01-01",
+                "2001-01-01",
+                "NA",
+                "NA",
+                "NA",
+                "NA",
+            ],
+            "RCNT_EventDate": ["NA", "NA", "2003-01-01", "NA", "NA", "NA", "NA", "NA"],
+            "RNTMNT_EventDate": [
+                "NA",
+                "NA",
+                "2004-01-01",
+                "NA",
+                "NA",
+                "2002-05-01",
+                "NA",
+                "NA",
+            ],
+            "LUGRSP_EventDate": [
+                "NA",
+                "NA",
+                "2005-01-01",
+                "NA",
+                "NA",
+                "NA",
+                "NA",
+                "NA",
+            ],
+            "EOT_EventDate": [
+                "2007-03-01",
+                "NA",
+                "2006-01-01",
+                "2002-01-01",
+                "NA",
+                "2003-01-01",
+                "2001-02-01",
+                "NA",
+            ],
+        }
+    )
