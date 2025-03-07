@@ -13,7 +13,6 @@ from src.harmonization.datamodels import (
 from src.utils.helpers import (
     safe_get,
     safe_int,
-    parse_date,
     parse_flexible_date,
 )
 
@@ -32,6 +31,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_biomarkers()
         self._process_date_of_death()
         self._process_date_lost_to_followup()
+        self._process_evaluability()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -290,9 +290,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         for row in followup_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
 
-            if patient_id not in self.patient_data:
-                continue
-
             lost_to_followup_status = False
             date_lost_to_followup = None
 
@@ -310,8 +307,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
     def _process_evaluability(self):
-        # if tumor evaluation has been done,
-        # or if patient has been evaluated to have progressive disease
         """
         All patients who received at least one dose of therapy and started treatment 16 weeks prior to date of evaluation.
         The Response Evaluable Population consists of the subset of FAS patients who have received at least 1 cycle of treatment
@@ -324,8 +319,102 @@ class ImpressHarmonizer(BaseHarmonizer):
         response in e.g. RESIST (tumor assessment) or EOT due to progressive disease.
         We don’t need W16 data - find EOT variables in the EOT sheet, take all patients and remove the ones that
         lack response evaluation or EOT. Remove all patients that have stopped treatment before 4 weeks due to toxicity.
+
+        TODO: Unsure if this is correct criteria!
         """
-        pass
+        evaluability_data = self.data.select(
+            "SubjectId",
+            "TR_TROSTPDT",
+            "TR_TRO_STDT",
+            "RA_EventDate",
+            "RNRSP_EventDate",
+            "RCNT_EventDate",
+            "RNTMNT_EventDate",
+            "LUGRSP_EventDate",
+            "EOT_EventDate",
+        )
+
+        # # Check treatment length - ensure patient has been on treatment at least 4 weeks
+        # sufficient_treatment_length = False
+        # start_cycle_date = parse_flexible_date(row["TR_TRO_STDT"])
+        # end_cycle_date = parse_flexible_date(row["TR_TROSTPDT"])
+        #
+        # if start_cycle_date is not None and end_cycle_date is not None:
+        #     sufficient_treatment_length = (end_cycle_date - start_cycle_date) >= dt.timedelta(days=28)
+        #
+        # # Check if patient has received any assessment
+        # has_evaluation = any([
+        #     parse_flexible_date(row["RA_EventDate"]) is not None,
+        #     parse_flexible_date(row["RNRSP_EventDate"]) is not None,
+        #     parse_flexible_date(row["RCNT_EventDate"]) is not None,
+        #     parse_flexible_date(row["RNTMNT_EventDate"]) is not None,
+        #     parse_flexible_date(row["LUGRSP_EventDate"]) is not None
+        # ])
+        #
+        # # Check if patient has end-of-treatment evaluation
+        # has_eot_evaluation = parse_flexible_date(row["EOT_EventDate"]) is not None
+        #
+        # # Determine final evaluability status using the correct logic
+        # evaluable_status = (sufficient_treatment_length and has_evaluation) or has_eot_evaluation
+        #
+        # # Update patient instance with evaluability status
+        # self.patient_data[patient_id].evaluable_for_efficacy_analysis = evaluable_status
+
+        # TODO Figure out why test patient 1 does not meet filtering requirements
+        #   we're checking row by row instead of aggregating over patients
+        #   since the data is all in different rows, we need to aggregate the status for each patient
+        for patient_id in self.patient_data:
+            # filter data for this patient
+            patient_data = evaluability_data.filter(pl.col("SubjectId") == patient_id)
+
+            start_dates = []
+            end_dates = []
+
+            has_tumor_evaluation = False
+            has_eot_evaluation = False
+
+            # check all evaluations
+            for row in patient_data.iter_rows(named=True):
+                start_date = parse_flexible_date(row["TR_TRO_STDT"])
+                if start_date is not None:
+                    start_dates.append(start_date)
+
+                end_date = parse_flexible_date(row["TR_TROSTPDT"])
+                if end_date is not None:
+                    end_dates.append(end_date)
+
+                if any(
+                    [
+                        parse_flexible_date(row["RA_EventDate"]) is not None,
+                        parse_flexible_date(row["RNRSP_EventDate"]) is not None,
+                        parse_flexible_date(row["RCNT_EventDate"]) is not None,
+                        parse_flexible_date(row["RNTMNT_EventDate"]) is not None,
+                        parse_flexible_date(row["LUGRSP_EventDate"]) is not None,
+                    ]
+                ):
+                    has_tumor_evaluation = True
+
+                # check for end-of-treatment evaluatuon
+                if parse_flexible_date(row["EOT_EventDate"]) is not None:
+                    has_eot_evaluation = True
+
+            # check treatment length
+            sufficient_treatment_length = False
+            if start_dates and end_dates:
+                earliest_start = min(start_dates)
+                latest_end = max(end_dates)
+                sufficient_treatment_length = (
+                    latest_end - earliest_start
+                ) >= dt.timedelta(days=28)
+
+            # apply criteria filters
+            evaluable_status = (
+                sufficient_treatment_length and has_tumor_evaluation
+            ) or has_eot_evaluation
+
+            self.patient_data[
+                patient_id
+            ].evaluable_for_efficacy_analysis = evaluable_status
 
     def _process_treatments(self):
         pass

@@ -18,17 +18,6 @@ def safe_int(value):
         return None
 
 
-def parse_date(date_str):
-    if date_str == "NA" or not date_str:
-        return None
-    try:
-        # parse to datetime obj
-        return dt.datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
-        # use logger later
-        return None
-
-
 def parse_flexible_date(
     date_str: str, default_day: Optional[int] = 15, default_month: Optional[int] = 7
 ) -> Optional[dt.datetime]:
