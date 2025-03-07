@@ -7,20 +7,20 @@ from src.harmonization.datamodels import HarmonizedData
 # TODO refactor to functional approach later
 #   where each processing methods returns corresponding datamodel instance
 #   use patient ID as foreign key and store trial ID
-#   then in the process method instantiate the harmonized data class
-#   and in main handle the renaming of patient IDs (and other stuff) that is common to all data
+#   then in the process method instantiate the harmonized .data class
+#   and in main handle the renaming of patient IDs (and other stuff) that is common to all .data
 
 
 class BaseHarmonizer(ABC):
     """
     Abstract base class that defines the methods needed to produce
     each final output variable. The idea is that each output variable
-    is computed by a dedicated method, which may pull data from different
+    is computed by a dedicated method, which may pull .data from different
     sheets (i.e. from differently prefixed columns in the combined DataFrame).
 
     Each processing methods updates the corresponding instance attributes.
     The return objects are iteratively built during processing and returned
-    as one instance of the HarmonizedData class storing the harmonized data.
+    as one instance of the HarmonizedData class storing the harmonized .data.
     """
 
     def __init__(self, data: pl.DataFrame, trial_id: str):
@@ -36,7 +36,7 @@ class BaseHarmonizer(ABC):
 
     @abstractmethod
     def process(self) -> HarmonizedData:
-        """Processes all data and returns a complete, harmonized structure"""
+        """Processes all .data and returns a complete, harmonized structure"""
         pass
 
     @abstractmethod

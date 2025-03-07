@@ -19,7 +19,9 @@ def setup_logging(log_path: Optional[Path] = None) -> None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # create formatters and handlers
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     # console handler
     console_handler = logging.StreamHandler(sys.stdout)
@@ -28,7 +30,9 @@ def setup_logging(log_path: Optional[Path] = None) -> None:
     # file handler if log_path is provided
     handlers: List[logging.Handler] = [console_handler]
     if log_path:
-        file_handler = logging.FileHandler(log_path / f"ecrf_processing_{timestamp}.log")
+        file_handler = logging.FileHandler(
+            log_path / f"ecrf_processing_{timestamp}.log"
+        )
         file_handler.setFormatter(formatter)
         handlers.append(file_handler)
 
@@ -38,7 +42,7 @@ def setup_logging(log_path: Optional[Path] = None) -> None:
 
 @dataclass
 class SheetConfig:
-    """Stores what data is extracted from which sheet/file"""
+    """Stores what .data is extracted from which sheet/file"""
 
     key: str
     usecols: List[str]
@@ -46,7 +50,7 @@ class SheetConfig:
 
 @dataclass
 class SheetData:
-    """Stores input data"""
+    """Stores input .data"""
 
     key: str
     data: pd.DataFrame
@@ -55,7 +59,7 @@ class SheetData:
 
 @dataclass
 class EcrfConfig:
-    """Stores all configs with their data"""
+    """Stores all configs with their .data"""
 
     configs: List[SheetConfig]
     data: Optional[List[SheetData]] = None
@@ -67,30 +71,32 @@ class EcrfConfig:
         return next((config for config in self.configs if config.key == key), None)
 
     def validate_data(self, data: Dict[str, pd.DataFrame]) -> None:
-        """Validate that data matches configurations"""
+        """Validate that .data matches configurations"""
         for config in self.configs:
             if config.key not in data:
-                raise ValueError(f"Missing data for key: {config.key}")
+                raise ValueError(f"Missing .data for key: {config.key}")
             for col in config.usecols:
                 if col not in data[config.key].columns:
-                    raise ValueError(f"Column: {col} not found in data for key: {config.key}")
+                    raise ValueError(
+                        f"Column: {col} not found in .data for key: {config.key}"
+                    )
 
     def add_data(self, sheet_data: SheetData) -> None:
-        """Add processed data for a sheet"""
+        """Add processed .data for a sheet"""
         if self.data is None:
             self.data = []
         self.data.append(sheet_data)
 
     def get_all_data(self) -> List[SheetData]:
-        """Ensure data is loaded and return the self.data"""
+        """Ensure .data is loaded and return the self..data"""
         if self.data is None:
-            raise ValueError("No data has been loaded into the config")
+            raise ValueError("No .data has been loaded into the config")
         return self.data
 
     def get_sheet_data(self, key: str) -> SheetData:
         """Get SheetData instance by key or raise if not found"""
         if self.data is None:
-            raise ValueError("No data has been loaded into the config")
+            raise ValueError("No .data has been loaded into the config")
 
         sheet_data = next((d for d in self.data if d.key == key), None)
         if sheet_data is None:
@@ -100,7 +106,7 @@ class EcrfConfig:
 
     @property
     def is_data_loaded(self) -> bool:
-        """Check if data has been loaded into the config"""
+        """Check if .data has been loaded into the config"""
         return self.data is not None and len(self.data) > 0
 
     @classmethod
@@ -113,7 +119,10 @@ class EcrfConfig:
             config_data = json.load(config)
 
         # instantiate SheetConfig
-        configs = [SheetConfig(key=key.upper(), usecols=columns) for key, columns in config_data.items()]
+        configs = [
+            SheetConfig(key=key.upper(), usecols=columns)
+            for key, columns in config_data.items()
+        ]
 
         return cls(configs=configs)
 
@@ -125,7 +134,7 @@ class InputResolver:
 
         Args:
             input_path: Path to input (Excel file or directory of CSVs)
-            ecrf_config: Configuration containing sheet configs and optional data
+            ecrf_config: Configuration containing sheet configs and optional .data
         """
         self.input_path = input_path
         self.ecrf_config = ecrf_config
@@ -133,7 +142,7 @@ class InputResolver:
 
     def resolve(self) -> EcrfConfig:
         """
-        Load data according to configs and return updated EcrfConfig with loaded data.
+        Load .data according to configs and return updated EcrfConfig with loaded .data.
         """
         try:
             if self.source_type == "excel":
@@ -144,7 +153,7 @@ class InputResolver:
             return self.ecrf_config
 
         except Exception as e:
-            logger.error(f"Error resolving input data: {e}")
+            logger.error(f"Error resolving input .data: {e}")
             raise
 
     def _determine_source_type(self) -> str:
@@ -156,7 +165,7 @@ class InputResolver:
         raise ValueError(f"Unsupported input type: {self.input_path}")
 
     def _load_excel(self) -> None:
-        """Load data from Excel sheets based on configs"""
+        """Load .data from Excel sheets based on configs"""
         excel_file = pd.ExcelFile(self.input_path)
         print(excel_file.sheet_names)
 
@@ -175,9 +184,15 @@ class InputResolver:
                 logger.error(f"Failed to load sheet '{config.key}': {e}")
 
     def _load_csv(self) -> None:
-        """Load data from CSV files based on configs"""
+        """Load .data from CSV files based on configs"""
         for config in self.ecrf_config.configs:
-            matching_files = [file for file in self.input_path.iterdir() if file.is_file() and file.suffix.lower() == ".csv" and config.key == file.stem.split("_")[-1]]
+            matching_files = [
+                file
+                for file in self.input_path.iterdir()
+                if file.is_file()
+                and file.suffix.lower() == ".csv"
+                and config.key == file.stem.split("_")[-1]
+            ]
 
             if not matching_files:
                 logger.warning(f"No CSV file found for key: {config.key}")
@@ -214,7 +229,7 @@ class InputResolver:
                 print(f"Ordered actual cols: {ordered_actual_columns}")
 
             else:
-                logger.warning(f"Expected column '{expected}' not found in data.")
+                logger.warning(f"Expected column '{expected}' not found in .data.")
 
         # reindex the DataFrame
         df_reordered = df.reindex(columns=ordered_actual_columns)
@@ -234,14 +249,16 @@ class DataCombiner:
         Combine all sheets into one DataFrame, preserving SubjectId relationships
         and multiple rows per subject where they exist.
         """
-        logger.info("Starting data combination process...")
+        logger.info("Starting .data combination process...")
 
         processed_dfs = []
         for sheet_data in self.ecrf_config.get_all_data():
             # add sheet prefix to all columns except SubjectId
             df = sheet_data.data.copy()
             cols_to_rename = [col for col in df.columns if col != "SubjectId"]
-            df = df.rename(columns={col: f"{sheet_data.key}_{col}" for col in cols_to_rename})
+            df = df.rename(
+                columns={col: f"{sheet_data.key}_{col}" for col in cols_to_rename}
+            )
 
             processed_dfs.append(df)
             logger.info(f"Processed {sheet_data.key}: {len(df)} rows")
@@ -250,28 +267,35 @@ class DataCombiner:
         combined_df = pd.concat(processed_dfs, axis=0, ignore_index=True)
         combined_df = combined_df.sort_values("SubjectId").reset_index(drop=True)
         print(f"Combined df: {combined_df}")
-        logger.info(f"Combination complete. Final dataset has {len(combined_df)} rows " f"for {combined_df['SubjectId'].nunique()} unique subjects")
+        logger.info(
+            f"Combination complete. Final dataset has {len(combined_df)} rows "
+            f"for {combined_df['SubjectId'].nunique()} unique subjects"
+        )
 
         return combined_df
 
     @staticmethod
     def get_summary(df: pd.DataFrame) -> dict:
-        """Generate summary of the combined data"""
+        """Generate summary of the combined .data"""
         return {
             "total_rows": len(df),
             "unique_patients": df["SubjectId"].nunique(),
             "rows_per_patient": df.groupby("SubjectId").size().describe().to_dict(),
             "sheet_columns": {
                 sheet: [col for col in df.columns if col.startswith(f"{sheet}_")]
-                for sheet in {col.split("_")[0] for col in df.columns if "_" in col and col != "ProcessingTimestamp"}
+                for sheet in {
+                    col.split("_")[0]
+                    for col in df.columns
+                    if "_" in col and col != "ProcessingTimestamp"
+                }
             },
         }
 
 
 class OutputFormatter:
     """
-    Class to process combined data to final pre-processed output, updating in place.
-    Handles patient data aggregation with conflict detection and resolution.
+    Class to process combined .data to final pre-processed output, updating in place.
+    Handles patient .data aggregation with conflict detection and resolution.
     """
 
     def __init__(self, combined_data: pd.DataFrame):
@@ -285,7 +309,14 @@ class OutputFormatter:
         """
         print(f"Initial shape: {self.original_shape}")
 
-        steps = [self._process_cohort_name, self._process_ecog, self._process_trial_id, self._process_subject_id, self._aggregate_on_id, self._reorder_columns]
+        steps = [
+            self._process_cohort_name,
+            self._process_ecog,
+            self._process_trial_id,
+            self._process_subject_id,
+            self._aggregate_on_id,
+            self._reorder_columns,
+        ]
 
         for step in steps:
             step()
@@ -306,17 +337,21 @@ class OutputFormatter:
         )
 
         # get subjects with at least one valid cohort name
-        valid_subjects = self.combined_data.groupby("SubjectId")["COH_COHORTNAME"].transform(lambda x: valid_mask[x.index].any())
+        valid_subjects = self.combined_data.groupby("SubjectId")[
+            "COH_COHORTNAME"
+        ].transform(lambda x: valid_mask[x.index].any())
 
         self.combined_data = self.combined_data[valid_subjects]
         print(f"After filtering by cohort: {self.combined_data.shape}")
 
     def _process_ecog(self):
         """
-        For rows that have ECOG data, only keep rows where ECOG_EventId is "V00".
-        Rows without any ECOG data (i.e. ECOG_EventId is NaN) are kept.
+        For rows that have ECOG .data, only keep rows where ECOG_EventId is "V00".
+        Rows without any ECOG .data (i.e. ECOG_EventId is NaN) are kept.
         """
-        mask = self.combined_data["ECOG_EventId"].isna() | (self.combined_data["ECOG_EventId"] == "V00")
+        mask = self.combined_data["ECOG_EventId"].isna() | (
+            self.combined_data["ECOG_EventId"] == "V00"
+        )
         self.combined_data = self.combined_data[mask]
         print(f"After filtering ECOG rows: {self.combined_data.shape}")
 
@@ -365,12 +400,16 @@ class OutputFormatter:
             merged_row = {}
             for col in group.columns:
                 non_null_vals = group[col].dropna()
-                merged_row[col] = non_null_vals.iloc[0] if len(non_null_vals) > 0 else None
+                merged_row[col] = (
+                    non_null_vals.iloc[0] if len(non_null_vals) > 0 else None
+                )
 
             return pd.DataFrame([merged_row])
 
         # process each group and concatenate results
-        result_dfs = [merge_group(group) for _, group in self.combined_data.groupby("SubjectId")]
+        result_dfs = [
+            merge_group(group) for _, group in self.combined_data.groupby("SubjectId")
+        ]
 
         self.combined_data = pd.concat(result_dfs, ignore_index=True)
         print(f"After aggregation on SubjectId: {self.combined_data.shape}")
@@ -381,7 +420,11 @@ class OutputFormatter:
         Remaining columns follow in their original order.
         """
         # get all columns except SubjectId and Trial
-        other_cols = [col for col in self.combined_data.columns if col not in ["SubjectId", "Trial"]]
+        other_cols = [
+            col
+            for col in self.combined_data.columns
+            if col not in ["SubjectId", "Trial"]
+        ]
 
         # create new column order
         new_order = ["SubjectId", "Trial"] + other_cols
@@ -396,7 +439,9 @@ class Output:
 
     SUPPORTED_FORMATS: Set[str] = {"csv", "txt"}
 
-    def __init__(self, output_path: Path, data: pd.DataFrame, output_format: str = "csv"):
+    def __init__(
+        self, output_path: Path, data: pd.DataFrame, output_format: str = "csv"
+    ):
         self.output_path = output_path
         self.data = data
         self.format = output_format.lower()  # normalize format string
@@ -407,21 +452,25 @@ class Output:
             self._validate_format()
             self._validate_path()
 
-            logger.info(f"Writing output to {self.output_path} in {self.format} format...")
+            logger.info(
+                f"Writing output to {self.output_path} in {self.format} format..."
+            )
 
             if self.format == "csv":
                 self._write_csv()
             elif self.format == "txt":
                 self._write_tsv()
 
-            logger.info(f"Successfully wrote {len(self.data)} rows to {self.output_path}")
+            logger.info(
+                f"Successfully wrote {len(self.data)} rows to {self.output_path}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to write output: {str(e)}")
             raise
 
     def _write_csv(self) -> None:
-        """Write data to CSV file."""
+        """Write .data to CSV file."""
         try:
             self.data.to_csv(
                 self.output_path,
@@ -434,7 +483,7 @@ class Output:
             raise
 
     def _write_tsv(self) -> None:
-        """Write data to tab-separated text file."""
+        """Write .data to tab-separated text file."""
         try:
             self.data.to_csv(
                 self.output_path,
@@ -464,12 +513,17 @@ class Output:
 
         # check if file already exists
         if self.output_path.exists():
-            logger.warning(f"Output file already exists and will be overwritten: {self.output_path}")
+            logger.warning(
+                f"Output file already exists and will be overwritten: {self.output_path}"
+            )
 
         # validate file extension matches format
         expected_extension = f".{self.format}"
         if self.output_path.suffix != expected_extension:
-            logger.warning(f"Output file extension '{self.output_path.suffix}' doesn't match format '{self.format}'. " f"Expected extension: '{expected_extension}'")
+            logger.warning(
+                f"Output file extension '{self.output_path.suffix}' doesn't match format '{self.format}'. "
+                f"Expected extension: '{expected_extension}'"
+            )
 
 
 def validate_paths(input_path: Path, output_path: Path) -> None:
@@ -478,7 +532,9 @@ def validate_paths(input_path: Path, output_path: Path) -> None:
         raise FileNotFoundError(f"Input path does not exist: {input_path}")
 
     if not output_path.parent.exists():
-        raise FileNotFoundError(f"Output directory does not exist: {output_path.parent}")
+        raise FileNotFoundError(
+            f"Output directory does not exist: {output_path.parent}"
+        )
 
 
 def main(
@@ -489,23 +545,23 @@ def main(
     output_format: str = "csv",
 ) -> None:
     """
-    Process eCRF data for the IMPRESS trial and write the merged DataFrame to a file.
+    Process eCRF .data for the IMPRESS trial and write the merged DataFrame to a file.
 
     Args:
-        input_path (Path): Path to the input data (Excel file or CSV directory).
+        input_path (Path): Path to the input .data (Excel file or CSV directory).
         output_path (Path): Path to save the output file.
         log_path (Optional[Path]): Path to save log files. If None, logs only to console.
         output_format (str): Format of output file ('csv' or 'txt'). Defaults to 'csv'.
 
     Raises:
         FileNotFoundError: If input path doesn't exist or output directory is invalid.
-        ValueError: If sheet configurations are invalid or data processing fails.
+        ValueError: If sheet configurations are invalid or .data processing fails.
         Exception: For other unexpected errors during processing.
     """
     try:
         # set up logging
         setup_logging(log_path)
-        logger.info(f"Starting eCRF data processing at {datetime.now()}")
+        logger.info(f"Starting eCRF .data processing at {datetime.now()}")
 
         # validate paths
         validate_paths(input_path, output_path)
@@ -516,17 +572,17 @@ def main(
         logger.info(f"Output format: {output_format}")
 
         # load config, instantiate SheetConfig and EcrfConfig
-        logger.info("Loading config data from json..")
+        logger.info("Loading config .data from json..")
         ecrf_config = EcrfConfig.from_json(config_path)
         ecrf_config.trial = "impress"
 
-        # use InputResolver to load data based on configs
-        logger.info("Resolving input data...")
+        # use InputResolver to load .data based on configs
+        logger.info("Resolving input .data...")
         resolver = InputResolver(input_path=input_path, ecrf_config=ecrf_config)
         ecrf_config = resolver.resolve()
 
-        # combine data
-        logger.info("Combining data from all sheets...")
+        # combine .data
+        logger.info("Combining .data from all sheets...")
         combiner = DataCombiner(ecrf_config)
         combined_data = combiner.combine()
 
@@ -536,13 +592,15 @@ def main(
         logger.info(f"Total rows: {summary['total_rows']}")
         logger.info(f"Unique patients: {summary['unique_patients']}")
 
-        # filter data
+        # filter .data
         formatter = OutputFormatter(combined_data)
         output_data = formatter.run()
 
         # write output
         logger.info(f"Writing output to {output_path}...")
-        output = Output(output_path=output_path, data=output_data, output_format=output_format)
+        output = Output(
+            output_path=output_path, data=output_data, output_format=output_format
+        )
         output.write_output()
 
         logger.info("Processing completed successfully!")
@@ -567,10 +625,14 @@ def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
     """
     if custom_config_path:
         if not custom_config_path.exists():
-            raise FileNotFoundError(f"Custom config file not found: {custom_config_path}")
+            raise FileNotFoundError(
+                f"Custom config file not found: {custom_config_path}"
+            )
         return custom_config_path
 
-    default_config: Path = Path(__file__).parents[3] / "configs" / "impress_ecrf_variables.json"
+    default_config: Path = (
+        Path(__file__).parents[3] / "configs" / "impress_ecrf_variables.json"
+    )
     print(f"Default config: {default_config}")
     with open(default_config) as f:
         config_data = json.load(f)
@@ -582,23 +644,31 @@ def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process eCRF data for clinical trials.")
+    parser = argparse.ArgumentParser(
+        description="Process eCRF .data for clinical trials."
+    )
     parser.add_argument(
         "-i",
         "--input",
         type=Path,
         required=True,
-        help="Path to input data (Excel file or CSV directory)",
+        help="Path to input .data (Excel file or CSV directory)",
     )
-    parser.add_argument("-o", "--output", type=Path, required=True, help="Path for output file")
-    parser.add_argument("-t", "--trial", type=str, required=True, help="Trial ID (e.g., 'impress')")
+    parser.add_argument(
+        "-o", "--output", type=Path, required=True, help="Path for output file"
+    )
+    parser.add_argument(
+        "-t", "--trial", type=str, required=True, help="Trial ID (e.g., 'impress')"
+    )
     parser.add_argument(
         "-c",
         "--config",
         type=Path,
         help="Optional: Path to custom JSON configuration file (overrides default)",
     )
-    parser.add_argument("-l", "--log-path", type=Path, help="Path for log files (optional)")
+    parser.add_argument(
+        "-l", "--log-path", type=Path, help="Path for log files (optional)"
+    )
     parser.add_argument(
         "-f",
         "--format",

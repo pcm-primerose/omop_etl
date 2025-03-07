@@ -29,6 +29,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_date_lost_to_followup()
         self._process_evaluability()
         self._process_ecog()
+        self._process_previous_treatment_lines()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -141,7 +142,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         ).filter(
             pl.col("COH_ICD10COD") != "NA"
-        )  # Note: assumes tumor type data is always on the same row and we don't have multiple,
+        )  # Note: assumes tumor type .data is always on the same row and we don't have multiple,
         # if this is not always the case, can use List[TumorType] in Patient class with default factory and store multiple
 
         # update patient objects
@@ -173,7 +174,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 tumor_type = row["COH_COHTTYPE__2"]
                 tumor_type_code = safe_int(row["COH_COHTTYPE__2CD"])
 
-            # create and instantiate TumorType object, assign to patient data
+            # create and instantiate TumorType object, assign to patient .data
             self.patient_data[patient_id].tumor_type = TumorType(
                 icd10_code=icd10_code,
                 icd10_description=icd10_description,
@@ -201,7 +202,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             | (pl.col("COH_COHALLO2__2") != "NA")
         )
 
-        # assuming we have all drug data in one row and that 1 / 1__2 & 2 / 2__2 vars are mutally exclusive
+        # assuming we have all drug .data in one row and that 1 / 1__2 & 2 / 2__2 vars are mutally exclusive
         # such that 1 <--> 2 & 1__2 <--> 2__2 and != 1 <--> 2__2 & 1__2 <--> 2
         for row in drug_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -278,8 +279,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[patient_id].date_of_death = death_date
 
     def _process_date_lost_to_followup(self):
-        """Process lost to follow-up status and date from follow-up data"""
-        # select all relevant follow-up data without filtering
+        """Process lost to follow-up status and date from follow-up .data"""
+        # select all relevant follow-up .data without filtering
         followup_data = self.data.select(
             "SubjectId", "FU_FUPALDAT", "FU_FUPDEDAT", "FU_FUPSST", "FU_FUPSSTCD"
         )
@@ -307,7 +308,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         """
         Current filtering criteria for marking patient as evaluable for efficacy analysis:
             - must have treatment length over 28 days (taking treatment length of first treatment) and either one of:
-            - tumor assessment (all rows in assessments suffice, EventDate always has data)
+            - tumor assessment (all rows in assessments suffice, EventDate always has .data)
             - clinical assessment (EventId from EOT sheet)
 
         Unsure if these are correct criteria!
@@ -396,3 +397,28 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[patient_id].ecog = Ecog(
                 description=ecog_description, grade=ecog_grade
             )
+
+    def _process_medical_history(self):
+        # MHTER, MHSTDAT, MHONGO, MHONGOCD
+        # TODO: Implement when we know if we need this, and after eCRF extraction upadate
+        pass
+
+    def _process_previous_treatment_lines(self):
+        # TODO: Add CT_CTTYPESP when eCRF extraction update
+        #   it contains e.g. "horomonal therapy"
+        treatment_lines_data = self.data.select(
+            "SubjectId",
+            "CT_CTTYPE",
+            "CT_CTTYPECD",
+            "CT_CTSTDAT",
+            "CT_CTENDAT",
+            "CT_CTSPID",
+        )
+
+        for row in treatment_lines_data.iter_rows(named=True):
+            print(row)
+
+        # TODO
+        #   Just implement intended data in test fixtures and make sure implementation works
+        #   and stop spending so much time on mock data (can also just add some empty cols with NA for new data)
+        #   but need to re-run eCRF script now anyways
