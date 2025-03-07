@@ -9,6 +9,7 @@ from src.harmonization.datamodels import (
     Patient,
     Biomarkers,
     FollowUp,
+    Ecog,
 )
 from tests.harmonization.fixtures.impress_fixtures import (
     subject_id_fixture,
@@ -21,6 +22,7 @@ from tests.harmonization.fixtures.impress_fixtures import (
     date_of_death_fixture,
     lost_to_followup_fixture,
     evaluability_fixture,
+    ecog_fixture,
 )
 
 
@@ -373,6 +375,38 @@ class TestImpressHarmonizer:
         assert (
             harmonizer.patient_data["IMPRESS-X_0008_1"].evaluable_for_efficacy_analysis
             is False
+        )
+
+    def test_ecog(self, ecog_fixture):
+        harmonizer = ImpressHarmonizer(data=ecog_fixture, trial_id="IMPRESS_TEST")
+
+        for subject_id in (
+            ecog_fixture.select("SubjectId").unique().to_series().to_list()
+        ):
+            harmonizer.patient_data[subject_id] = Patient(
+                patient_id=subject_id, trial_id="IMPRESS_TEST"
+            )
+
+        harmonizer._process_ecog()
+
+        assert harmonizer.patient_data["IMPRESS-X_0001_1"].ecog == Ecog(
+            description="all", grade=1
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0002_1"].ecog == Ecog(
+            description="no code", grade=None
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0003_1"].ecog == Ecog(
+            description=None, grade=2
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0004_1"].ecog == Ecog(
+            description="wrong ID", grade=3
+        )
+
+        assert harmonizer.patient_data["IMPRESS-X_0005_1"].ecog == Ecog(
+            description=None, grade=None
         )
 
     def test_basic_inheritance(self, subject_id_fixture):

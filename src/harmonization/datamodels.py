@@ -1,39 +1,52 @@
 from typing import List, Optional
 from dataclasses import field
+from pydantic import Field
 from pydantic.dataclasses import dataclass
 import datetime as dt
 
 
-@dataclass
-class TumorType:
-    icd10_code: Optional[str] = None
-    icd10_description: Optional[str] = None
-    tumor_type: Optional[str] = None
-    tumor_type_code: Optional[int] = None
-    cohort_tumor_type: Optional[str] = None
-    other_tumor_type: Optional[str] = None
+"""
+Flat data
+    Patient = Cohort Name, Trial, ID, Age, Sex, Death, Lost to follow-up, Evaluability, 
+    Date End of Treatment, Reason EOT, Best Overall Response, Clinical benefit
+    
+Nested data: 
 
+TumorType = Tumor Type
+StudyDrugs = 
+Biomarker = 
+ECOG/WHO performance status = 
+Medical History 
+Treatments = 
+    Treatment start 
+    Treatment start cycle
+    Treatment end cycle
+    Treatment start last cycle
+    Treatment end
+    Dose delivered 
+Previous treatment lines = 
+Concomitant medication
+Adverse Event (AE) =
+    AE grade
+    AE CTCAE Term
+    AE start date
+    AE end date
+    AE outcome
+    AE management
+    Number of AEs
+    SAE
+    Related to Treatment 
+    Expectedness
+    
+Tumor Assessment = 
+    Type Tumor Assessment
+    Event date assessment
+    Baseline evaluation
+    Change from baseline
+Response assessment
+Quality of Life assessment
 
-@dataclass
-class StudyDrugs:
-    primary_treatment_drug: Optional[str] = None
-    primary_treatment_drug_code: Optional[int] = None
-    secondary_treatment_drug: Optional[str] = None
-    secondary_treatment_drug_code: Optional[int] = None
-
-
-@dataclass
-class Biomarkers:
-    gene_and_mutation: Optional[str] = None  # genmut
-    gene_and_mutation_code: Optional[int] = None
-    cohort_target_name: Optional[str] = None  # cohctn
-    cohort_target_mutation: Optional[str] = None  # cohtmn
-
-
-@dataclass
-class FollowUp:
-    lost_to_followup: bool
-    date_lost_to_followup: Optional[dt.datetime] = None  # date last known alive
+"""
 
 
 @dataclass
@@ -84,6 +97,80 @@ class QualityOfLife:
     c30: str
 
 
+# TODO
+"""
+ECOG/WHO performance status
+Medical History 
+Previous treatment lines
+Treatment start 
+Treatment start cycle
+Treatment end cycle
+Treatment start last cycle
+Treatment end
+Dose delivered 
+Concomitant medication
+Adverse Event (AE)
+AE grade
+AE CTCAE Term
+AE start date
+AE end date
+AE outcome
+AE management
+Number of AEs
+SAE
+Related to Treatment 
+Expectedness
+Type Tumor Assessment
+Event date assessment
+Baseline evaluation
+Change from baseline
+Response assessment
+Date End of Treatment
+Reason EOT
+Best Overall Response
+Clinical benefit
+Quality of Life assessment
+"""
+
+
+@dataclass
+class TumorType:
+    icd10_code: Optional[str] = None
+    icd10_description: Optional[str] = None
+    tumor_type: Optional[str] = None
+    tumor_type_code: Optional[int] = None
+    cohort_tumor_type: Optional[str] = None
+    other_tumor_type: Optional[str] = None
+
+
+@dataclass
+class StudyDrugs:
+    primary_treatment_drug: Optional[str] = None
+    primary_treatment_drug_code: Optional[int] = None
+    secondary_treatment_drug: Optional[str] = None
+    secondary_treatment_drug_code: Optional[int] = None
+
+
+@dataclass
+class Biomarkers:
+    gene_and_mutation: Optional[str] = None  # genmut
+    gene_and_mutation_code: Optional[int] = None
+    cohort_target_name: Optional[str] = None  # cohctn
+    cohort_target_mutation: Optional[str] = None  # cohtmn
+
+
+@dataclass
+class FollowUp:
+    lost_to_followup: bool
+    date_lost_to_followup: Optional[dt.datetime] = None  # date last known alive
+
+
+@dataclass
+class Ecog:
+    description: Optional[str] = None
+    grade: Optional[int] = Field(None, ge=1, le=5)
+
+
 @dataclass
 class Patient:
     patient_id: str
@@ -97,14 +184,7 @@ class Patient:
     date_of_death: Optional[dt.datetime] = None
     lost_to_followup: Optional[FollowUp] = None
     evaluable_for_efficacy_analysis: Optional[bool] = None
-    treatment_start_first_dose: Optional[dt.datetime] = None
-    type_of_tumor_assessment: Optional[str] = None
-    tumor_assessment_date: Optional[dt.datetime] = None
-    baseline_evaluation: Optional[str] = None
-    change_from_baseline: Optional[int] = None
-    end_of_treatment_date: Optional[dt.datetime] = None
-    end_of_treatment_reason: Optional[str] = None
-    best_overall_response: Optional[str] = None
+    ecog: Optional[Ecog] = None
 
 
 @dataclass

@@ -1,6 +1,5 @@
 import polars as pl
 import datetime as dt
-from typing import Optional
 from src.harmonization.harmonizers.base import BaseHarmonizer
 from src.harmonization.datamodels import (
     HarmonizedData,
@@ -9,12 +8,9 @@ from src.harmonization.datamodels import (
     StudyDrugs,
     Biomarkers,
     FollowUp,
+    Ecog,
 )
-from src.utils.helpers import (
-    safe_get,
-    safe_int,
-    parse_flexible_date,
-)
+from src.utils.helpers import safe_get, safe_int, parse_flexible_date
 
 
 class ImpressHarmonizer(BaseHarmonizer):
@@ -32,6 +28,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_date_of_death()
         self._process_date_lost_to_followup()
         self._process_evaluability()
+        self._process_ecog()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -314,6 +311,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             - clinical assessment (EventId from EOT sheet)
 
         Unsure if these are correct criteria!
+
+        TODO:
+            - distinguish between oral and IV drug treatment lengt requirements (4 --> IV, 8 --> oral)?
         """
         evaluability_data = self.data.select(
             "SubjectId",
@@ -379,24 +379,20 @@ class ImpressHarmonizer(BaseHarmonizer):
                 patient_id
             ].evaluable_for_efficacy_analysis = evaluable_status
 
-    def _process_treatments(self):
-        pass
+    def _process_ecog(self):
+        # parse ECOG description and grade
+        ecog_data = self.data.select(
+            "SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD"
+        )
 
+        for row in ecog_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            ecog_description = None
+            ecog_grade = None
+            if safe_get(row["ECOG_EventId"]):
+                ecog_description = safe_get(row["ECOG_ECOGS"])
+                ecog_grade = safe_int(row["ECOG_ECOGSCD"])
 
-"""
-
-"""
-
-
-"""
-@dataclass
-class Patient:
-        treatment_start_first_dose: Optional[dt.datetime] = None
-    type_of_tumor_assessment: Optional[str] = None
-    tumor_assessment_date: Optional[dt.datetime] = None
-        baseline_evaluation: Optional[str] = None
-    change_from_baseline: Optional[int] = None
-    end_of_treatment_date: Optional[dt.datetime] = None
-    end_of_treatment_reason: Optional[str] = None
-    best_overall_response: Optional[str] = None
-"""
+            self.patient_data[patient_id].ecog = Ecog(
+                description=ecog_description, grade=ecog_grade
+            )

@@ -313,3 +313,21 @@ def evaluability_fixture():
             ],
         }
     )
+
+
+@pytest.fixture
+def ecog_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",  # all data
+                "IMPRESS-X_0002_1",  # EventId no code
+                "IMPRESS-X_0003_1",  # EventId no description
+                "IMPRESS-X_0004_1",  # wrong event ID with data
+                "IMPRESS-X_0005_1",  # no event ID with data
+            ],
+            "ECOG_EventId": ["V00", "V00", "V00", "V02", "NA"],
+            "ECOG_ECOGS": ["all", "no code", "NA", "wrong ID", "NA data"],
+            "ECOG_ECOGSCD": ["1", "NA", "2", "3", "NA"],
+        }
+    )
