@@ -90,7 +90,7 @@
     "SubjectId",
     "CMTRT",
     "CMMHYN",
-    "CMHYNCD",
+    "CMMHYNCD",
     "CMSTDAT",
     "CMONGO",
     "CMONGOCD",
@@ -183,6 +183,12 @@
     "EventDate",
     "LUGOVRL",
     "LUGOVRLCD"
+  ],
+  "mh": [
+    "MHTERM",
+    "MHSTDAT",
+    "MHONGO",
+    "MHONGOCD"
   ],
   "eq5d": [
     "SubjectId",
