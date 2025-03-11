@@ -1,9 +1,10 @@
 .venv
+mock_data
 .env
 .DS_STORE
 .pyc
 .vscode
-.data
+data
 .idea
 .test_data
 __pycache__

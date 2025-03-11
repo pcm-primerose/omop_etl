@@ -18,6 +18,10 @@ def safe_int(value):
         return None
 
 
+# TODO:
+#   add date handling for YYYY-NK-NK & YYYY-mm-NK as well (used in IMPRESS)
+
+
 def parse_flexible_date(
     date_str: str, default_day: Optional[int] = 15, default_month: Optional[int] = 7
 ) -> Optional[dt.datetime]:

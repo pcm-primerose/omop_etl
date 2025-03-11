@@ -1,7 +1,7 @@
 import pytest
 import polars as pl
 
-# TODO: also store full mock .data for trials and use in intragation test
+# TODO: also store full mock data for trials and use in intragation test
 #   and maybe move fixture to conf test later if needed
 
 
@@ -238,7 +238,7 @@ def evaluability_fixture():
                 "IMPRESS-X_0005_1",  # not evaluable missing assessment and EOT
                 "IMPRESS-X_0006_1",  # not evaluable missing treatment dates
                 "IMPRESS-X_0007_1",  # not evaluable negative treatment length
-                "IMPRESS-X_0008_1",  # not evaluable all .data missing
+                "IMPRESS-X_0008_1",  # not evaluable all data missing
             ],
             "TR_TRO_STDT": [
                 "2001-01-01",
@@ -320,14 +320,14 @@ def ecog_fixture():
     return pl.DataFrame(
         data={
             "SubjectId": [
-                "IMPRESS-X_0001_1",  # all .data
+                "IMPRESS-X_0001_1",  # all data
                 "IMPRESS-X_0002_1",  # EventId no code
                 "IMPRESS-X_0003_1",  # EventId no description
-                "IMPRESS-X_0004_1",  # wrong event ID with .data
-                "IMPRESS-X_0005_1",  # no event ID with .data
+                "IMPRESS-X_0004_1",  # wrong event ID with data
+                "IMPRESS-X_0005_1",  # no event ID with data
             ],
             "ECOG_EventId": ["V00", "V00", "V00", "V02", "NA"],
-            "ECOG_ECOGS": ["all", "no code", "NA", "wrong ID", "NA .data"],
+            "ECOG_ECOGS": ["all", "no code", "NA", "wrong ID", "NA data"],
             "ECOG_ECOGSCD": ["1", "NA", "2", "3", "NA"],
         }
     )

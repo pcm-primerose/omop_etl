@@ -185,6 +185,7 @@
     "LUGOVRLCD"
   ],
   "mh": [
+    "SubjectId",
     "MHTERM",
     "MHSTDAT",
     "MHONGO",

@@ -6,11 +6,11 @@ import datetime as dt
 
 
 """
-Flat .data
+Flat data
     Patient = Cohort Name, Trial, ID, Age, Sex, Death, Lost to follow-up, Evaluability, 
     Date End of Treatment, Reason EOT, Best Overall Response, Clinical benefit
     
-Nested .data: 
+Nested data: 
 
 TumorType = Tumor Type
 StudyDrugs = 
@@ -202,7 +202,7 @@ class HarmonizedData:
     clinical_benefits: List[ClinicalBenefit] = field(default_factory=list)
     quality_of_life_assessments: List[QualityOfLife] = field(default_factory=list)
 
-    # add get specific patient .data method
-    # and get all patient .data
-    # and specific trial .data
+    # add get specific patient data method
+    # and get all patient data
+    # and specific trial data
     # return as dict instead of object? yes

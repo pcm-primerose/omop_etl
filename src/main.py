@@ -32,7 +32,7 @@
 
 
 # class HarmonizedData:
-#     def __init__(self, .data: DataFrame):
+#     def __init__(self, data: DataFrame):
 #         self.validate_schema()
 #         # pydantic models for each OMOP table
 

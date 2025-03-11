@@ -8,6 +8,8 @@ from datetime import datetime
 import sys
 import json
 
+from mypy.types_utils import store_argument_type
+
 # configure logger
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -42,7 +44,7 @@ def setup_logging(log_path: Optional[Path] = None) -> None:
 
 @dataclass
 class SheetConfig:
-    """Stores what .data is extracted from which sheet/file"""
+    """Stores what data is extracted from which sheet/file"""
 
     key: str
     usecols: List[str]
@@ -50,7 +52,7 @@ class SheetConfig:
 
 @dataclass
 class SheetData:
-    """Stores input .data"""
+    """Stores input data"""
 
     key: str
     data: pd.DataFrame
@@ -59,7 +61,7 @@ class SheetData:
 
 @dataclass
 class EcrfConfig:
-    """Stores all configs with their .data"""
+    """Stores all configs with their data"""
 
     configs: List[SheetConfig]
     data: Optional[List[SheetData]] = None
@@ -71,32 +73,32 @@ class EcrfConfig:
         return next((config for config in self.configs if config.key == key), None)
 
     def validate_data(self, data: Dict[str, pd.DataFrame]) -> None:
-        """Validate that .data matches configurations"""
+        """Validate that data matches configurations"""
         for config in self.configs:
             if config.key not in data:
-                raise ValueError(f"Missing .data for key: {config.key}")
+                raise ValueError(f"Missing data for key: {config.key}")
             for col in config.usecols:
                 if col not in data[config.key].columns:
                     raise ValueError(
-                        f"Column: {col} not found in .data for key: {config.key}"
+                        f"Column: {col} not found in data for key: {config.key}"
                     )
 
     def add_data(self, sheet_data: SheetData) -> None:
-        """Add processed .data for a sheet"""
+        """Add processed data for a sheet"""
         if self.data is None:
             self.data = []
         self.data.append(sheet_data)
 
     def get_all_data(self) -> List[SheetData]:
-        """Ensure .data is loaded and return the self..data"""
+        """Ensure data is loaded and return the self.data"""
         if self.data is None:
-            raise ValueError("No .data has been loaded into the config")
+            raise ValueError("No data has been loaded into the config")
         return self.data
 
     def get_sheet_data(self, key: str) -> SheetData:
         """Get SheetData instance by key or raise if not found"""
         if self.data is None:
-            raise ValueError("No .data has been loaded into the config")
+            raise ValueError("No data has been loaded into the config")
 
         sheet_data = next((d for d in self.data if d.key == key), None)
         if sheet_data is None:
@@ -106,7 +108,7 @@ class EcrfConfig:
 
     @property
     def is_data_loaded(self) -> bool:
-        """Check if .data has been loaded into the config"""
+        """Check if data has been loaded into the config"""
         return self.data is not None and len(self.data) > 0
 
     @classmethod
@@ -128,21 +130,24 @@ class EcrfConfig:
 
 
 class InputResolver:
-    def __init__(self, input_path: Path, ecrf_config: EcrfConfig):
+    def __init__(
+        self, input_path: Path, ecrf_config: EcrfConfig, from_mock_data: bool = False
+    ):
         """
         Initialize InputResolver with input path and ECRF configuration.
 
         Args:
             input_path: Path to input (Excel file or directory of CSVs)
-            ecrf_config: Configuration containing sheet configs and optional .data
+            ecrf_config: Configuration containing sheet configs and optional data
         """
         self.input_path = input_path
         self.ecrf_config = ecrf_config
         self.source_type = self._determine_source_type()
+        self.from_mock_data = from_mock_data
 
     def resolve(self) -> EcrfConfig:
         """
-        Load .data according to configs and return updated EcrfConfig with loaded .data.
+        Load data according to configs and return updated EcrfConfig with loaded data.
         """
         try:
             if self.source_type == "excel":
@@ -153,7 +158,7 @@ class InputResolver:
             return self.ecrf_config
 
         except Exception as e:
-            logger.error(f"Error resolving input .data: {e}")
+            logger.error(f"Error resolving input data: {e}")
             raise
 
     def _determine_source_type(self) -> str:
@@ -165,7 +170,7 @@ class InputResolver:
         raise ValueError(f"Unsupported input type: {self.input_path}")
 
     def _load_excel(self) -> None:
-        """Load .data from Excel sheets based on configs"""
+        """Load data from Excel sheets based on configs"""
         excel_file = pd.ExcelFile(self.input_path)
         print(excel_file.sheet_names)
 
@@ -184,15 +189,25 @@ class InputResolver:
                 logger.error(f"Failed to load sheet '{config.key}': {e}")
 
     def _load_csv(self) -> None:
-        """Load .data from CSV files based on configs"""
+        """Load data from CSV files based on configs"""
         for config in self.ecrf_config.configs:
-            matching_files = [
-                file
-                for file in self.input_path.iterdir()
-                if file.is_file()
-                and file.suffix.lower() == ".csv"
-                and config.key == file.stem.split("_")[-1]
-            ]
+            if not self.from_mock_data:
+                matching_files = [
+                    file
+                    for file in self.input_path.iterdir()
+                    if file.is_file()
+                    and file.suffix.lower() == ".csv"
+                    and config.key == file.stem.split("_")[-1]
+                ]
+
+            else:
+                matching_files = [
+                    file
+                    for file in self.input_path.iterdir()
+                    if file.is_file()
+                    and file.suffix.lower() == ".csv"
+                    and config.key.lower() == file.stem.lower()
+                ]
 
             if not matching_files:
                 logger.warning(f"No CSV file found for key: {config.key}")
@@ -202,7 +217,11 @@ class InputResolver:
 
             try:
                 # Read the CSV fully without skiprows if the header is in the first row.
-                df = pd.read_csv(file_path, skiprows=[0])
+                if not self.from_mock_data:
+                    df = pd.read_csv(file_path, skiprows=[0])
+
+                else:
+                    df = pd.read_csv(file_path)
 
                 # Use the helper function to reorder and rename the DataFrame columns.
                 df = self._reorder_rename_df(df, config.usecols)
@@ -229,7 +248,7 @@ class InputResolver:
                 print(f"Ordered actual cols: {ordered_actual_columns}")
 
             else:
-                logger.warning(f"Expected column '{expected}' not found in .data.")
+                logger.warning(f"Expected column '{expected}' not found in data.")
 
         # reindex the DataFrame
         df_reordered = df.reindex(columns=ordered_actual_columns)
@@ -249,7 +268,7 @@ class DataCombiner:
         Combine all sheets into one DataFrame, preserving SubjectId relationships
         and multiple rows per subject where they exist.
         """
-        logger.info("Starting .data combination process...")
+        logger.info("Starting data combination process...")
 
         processed_dfs = []
         for sheet_data in self.ecrf_config.get_all_data():
@@ -276,7 +295,7 @@ class DataCombiner:
 
     @staticmethod
     def get_summary(df: pd.DataFrame) -> dict:
-        """Generate summary of the combined .data"""
+        """Generate summary of the combined data"""
         return {
             "total_rows": len(df),
             "unique_patients": df["SubjectId"].nunique(),
@@ -294,8 +313,8 @@ class DataCombiner:
 
 class OutputFormatter:
     """
-    Class to process combined .data to final pre-processed output, updating in place.
-    Handles patient .data aggregation with conflict detection and resolution.
+    Class to process combined data to final pre-processed output, updating in place.
+    Handles patient data aggregation with conflict detection and resolution.
     """
 
     def __init__(self, combined_data: pd.DataFrame):
@@ -329,6 +348,11 @@ class OutputFormatter:
         A valid COHORTNAME is one that is not NaN, not an empty string after stripping,
         and not "NA" (case-insensitive).
         """
+
+        self.combined_data["SubjectId"] = self.combined_data["SubjectId"].fillna(
+            "missing id"
+        )
+
         # create mask for valid cohort names
         valid_mask = (
             pd.notna(self.combined_data["COH_COHORTNAME"])
@@ -336,18 +360,23 @@ class OutputFormatter:
             & (~self.combined_data["COH_COHORTNAME"].str.upper().eq("NA"))
         )
 
-        # get subjects with at least one valid cohort name
-        valid_subjects = self.combined_data.groupby("SubjectId")[
+        # group by SubjectId and check if any row for each subject has a valid cohort name
+        subjects_with_valid_cohort = self.combined_data.groupby("SubjectId")[
             "COH_COHORTNAME"
-        ].transform(lambda x: valid_mask[x.index].any())
+        ].transform(lambda x: valid_mask.loc[x.index].any())
 
-        self.combined_data = self.combined_data[valid_subjects]
-        print(f"After filtering by cohort: {self.combined_data.shape}")
+        self.combined_data = self.combined_data[subjects_with_valid_cohort]
+
+        rows_kept = len(self.combined_data)
+        rows_removed = self.original_shape[0] - rows_kept
+        print(
+            f"Processed cohort names: Kept {rows_kept} rows, removed {rows_removed} rows"
+        )
 
     def _process_ecog(self):
         """
-        For rows that have ECOG .data, only keep rows where ECOG_EventId is "V00".
-        Rows without any ECOG .data (i.e. ECOG_EventId is NaN) are kept.
+        For rows that have ECOG data, only keep rows where ECOG_EventId is "V00".
+        Rows without any ECOG data (i.e. ECOG_EventId is NaN) are kept.
         """
         mask = self.combined_data["ECOG_EventId"].isna() | (
             self.combined_data["ECOG_EventId"] == "V00"
@@ -470,7 +499,7 @@ class Output:
             raise
 
     def _write_csv(self) -> None:
-        """Write .data to CSV file."""
+        """Write data to CSV file."""
         try:
             self.data.to_csv(
                 self.output_path,
@@ -483,7 +512,7 @@ class Output:
             raise
 
     def _write_tsv(self) -> None:
-        """Write .data to tab-separated text file."""
+        """Write data to tab-separated text file."""
         try:
             self.data.to_csv(
                 self.output_path,
@@ -543,25 +572,26 @@ def main(
     config_path: Path,
     log_path: Optional[Path] = None,
     output_format: str = "csv",
+    mock_data: Optional[bool] = False,
 ) -> None:
     """
-    Process eCRF .data for the IMPRESS trial and write the merged DataFrame to a file.
+    Process eCRF data for the IMPRESS trial and write the merged DataFrame to a file.
 
     Args:
-        input_path (Path): Path to the input .data (Excel file or CSV directory).
+        input_path (Path): Path to the input data (Excel file or CSV directory).
         output_path (Path): Path to save the output file.
         log_path (Optional[Path]): Path to save log files. If None, logs only to console.
         output_format (str): Format of output file ('csv' or 'txt'). Defaults to 'csv'.
 
     Raises:
         FileNotFoundError: If input path doesn't exist or output directory is invalid.
-        ValueError: If sheet configurations are invalid or .data processing fails.
+        ValueError: If sheet configurations are invalid or data processing fails.
         Exception: For other unexpected errors during processing.
     """
     try:
         # set up logging
         setup_logging(log_path)
-        logger.info(f"Starting eCRF .data processing at {datetime.now()}")
+        logger.info(f"Starting eCRF data processing at {datetime.now()}")
 
         # validate paths
         validate_paths(input_path, output_path)
@@ -572,17 +602,19 @@ def main(
         logger.info(f"Output format: {output_format}")
 
         # load config, instantiate SheetConfig and EcrfConfig
-        logger.info("Loading config .data from json..")
+        logger.info("Loading config data from json..")
         ecrf_config = EcrfConfig.from_json(config_path)
         ecrf_config.trial = "impress"
 
-        # use InputResolver to load .data based on configs
-        logger.info("Resolving input .data...")
-        resolver = InputResolver(input_path=input_path, ecrf_config=ecrf_config)
+        # use InputResolver to load data based on configs
+        logger.info("Resolving input data...")
+        resolver = InputResolver(
+            input_path=input_path, ecrf_config=ecrf_config, from_mock_data=mock_data
+        )
         ecrf_config = resolver.resolve()
 
-        # combine .data
-        logger.info("Combining .data from all sheets...")
+        # combine data
+        logger.info("Combining data from all sheets...")
         combiner = DataCombiner(ecrf_config)
         combined_data = combiner.combine()
 
@@ -592,7 +624,7 @@ def main(
         logger.info(f"Total rows: {summary['total_rows']}")
         logger.info(f"Unique patients: {summary['unique_patients']}")
 
-        # filter .data
+        # filter data
         formatter = OutputFormatter(combined_data)
         output_data = formatter.run()
 
@@ -645,14 +677,14 @@ def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Process eCRF .data for clinical trials."
+        description="Process eCRF data for clinical trials."
     )
     parser.add_argument(
         "-i",
         "--input",
         type=Path,
         required=True,
-        help="Path to input .data (Excel file or CSV directory)",
+        help="Path to input data (Excel file or CSV directory)",
     )
     parser.add_argument(
         "-o", "--output", type=Path, required=True, help="Path for output file"
@@ -676,6 +708,12 @@ if __name__ == "__main__":
         default="csv",
         help="Output format (default: csv)",
     )
+    parser.add_argument(
+        "--mock_data",
+        "-md",
+        action="store_true",
+        help="Set flag if running from mock data instead of real eCRF data",
+    )
 
     args = parser.parse_args()
     config_path = get_config_path(custom_config_path=args.config)
@@ -686,4 +724,5 @@ if __name__ == "__main__":
         config_path=config_path,
         log_path=args.log_path,
         output_format=args.format,
+        mock_data=args.mock_data,
     )
