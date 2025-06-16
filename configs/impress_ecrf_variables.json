@@ -57,6 +57,7 @@
   ],
   "tr": [
     "SubjectId",
+    "TRNAME",
     "TRIVDS1",
     "TRIVU1",
     "TRIVDELYN1",

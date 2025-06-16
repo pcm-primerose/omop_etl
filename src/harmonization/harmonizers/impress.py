@@ -157,7 +157,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             cohort_tumor_type = safe_get(row["COH_COHTT"])
             other_tumor_type = safe_get(row["COH_COHTTOSP"])
 
-            # determine tumor type (mutually exclusive options)
+            # determine tumor type (mutually exclusive options)˛
             tumor_type = None
             tumor_type_code = None
 
@@ -184,6 +184,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 other_tumor_type=other_tumor_type,
             )
 
+    # todo: add cohallo1__3 and cohallo2__3 as well
     def _process_study_drugs(self):
         drug_data = self.data.select(
             "SubjectId",
@@ -291,7 +292,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             lost_to_followup_status = False
             date_lost_to_followup = None
 
-            # get followup status and conver to lowercase
+            # get followup status and convert to lowercase
             fu_status = safe_get(row["FU_FUPSST"])
             if fu_status is not None:
                 fu_status = fu_status.lower()
@@ -422,3 +423,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         #   Just implement intended data in test fixtures and make sure implementation works
         #   and stop spending so much time on mock data (can also just add some empty cols with NA for new data)
         #   but need to re-run eCRF script now anyways
+
+
+# TODO after making nice mock data add dates to everything

@@ -172,7 +172,7 @@ class Ecog:
 
 @dataclass
 class MedicalHistory:
-    placeholer: str
+    placeholder: str
 
 
 @dataclass

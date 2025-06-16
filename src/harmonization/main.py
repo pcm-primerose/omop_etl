@@ -2,6 +2,7 @@ import polars as pl
 from pathlib import Path
 from src.harmonization.datamodels import HarmonizedData
 from src.harmonization.harmonizers.impress import ImpressHarmonizer
+from src.pre_processing.impress.impress_ecrf import impress_preprocessor
 from src.harmonization.harmonizers.drup import DrupHarmonizer
 
 
@@ -71,7 +72,9 @@ def process_impress(file: Path) -> HarmonizedData:
 
 if __name__ == "__main__":
     # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.csv"
+    # impress_file = Path(__file__).parents[3] / "ecrf_mocker" / "output"
     impress_file = Path(__file__).parents[2] / ".data" / "autogen_impress.csv"
+    # /Users/gabriebs/projects/ecrf_mocker/output
     impress = process_impress(impress_file)
     print("\n")
     # drup = process_drup(drup_file)

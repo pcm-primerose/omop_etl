@@ -1,3 +1,40 @@
+from pathlib import Path
+import polars as pl
+from src.pre_processing.impress.impress_ecrf import impress_preprocessor
+from src.harmonization.harmonizers.impress import ImpressHarmonizer
+
+
+def output_dir() -> Path:
+    return Path(__file__).parent / ".data"
+
+
+def raw_impress_data() -> Path:
+    return Path(__file__).parents[2] / "ecrf_mocker" / "output"
+
+
+def config_path() -> Path:
+    return Path(__file__).parents[1] / "configs" / "impress_ecrf_variables.json"
+
+
+def main():
+    # pre-process synthetic data to one file
+    pre_processed_data: Path = impress_preprocessor(
+        input_path=raw_impress_data(),
+        output_path=output_dir(),
+        config_path=config_path(),
+    )
+
+    # harmonize synthetic data
+    impress_df = pl.scan_csv(pre_processed_data)
+    harmonizer = ImpressHarmonizer(data=impress_df, trial_id="IMPRESS")
+    harmonized_data = harmonizer.process()
+    print(harmonized_data)
+
+
+if __name__ == "__main__":
+    main()
+
+
 # basic structure from workshop:
 # def some_query_function():
 #     # actual SQL query should just

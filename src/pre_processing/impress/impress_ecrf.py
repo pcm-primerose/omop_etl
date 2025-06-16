@@ -216,14 +216,12 @@ class InputResolver:
             file_path = matching_files[0]
 
             try:
-                # Read the CSV fully without skiprows if the header is in the first row.
                 if not self.from_mock_data:
                     df = pd.read_csv(file_path, skiprows=[0])
 
                 else:
                     df = pd.read_csv(file_path)
 
-                # Use the helper function to reorder and rename the DataFrame columns.
                 df = self._reorder_rename_df(df, config.usecols)
 
                 self.ecrf_config.add_data(SheetData(key=config.key, data=df))
@@ -566,14 +564,14 @@ def validate_paths(input_path: Path, output_path: Path) -> None:
         )
 
 
-def main(
+def impress_preprocessor(
     input_path: Path,
     output_path: Path,
     config_path: Path,
     log_path: Optional[Path] = None,
     output_format: str = "csv",
     mock_data: Optional[bool] = False,
-) -> None:
+) -> Path:
     """
     Process eCRF data for the IMPRESS trial and write the merged DataFrame to a file.
 
@@ -634,8 +632,9 @@ def main(
             output_path=output_path, data=output_data, output_format=output_format
         )
         output.write_output()
-
         logger.info("Processing completed successfully!")
+
+        return output_path
 
     except FileNotFoundError as e:
         logger.error(f"File not found error: {e}")
@@ -718,7 +717,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config_path = get_config_path(custom_config_path=args.config)
 
-    main(
+    impress_preprocessor(
         input_path=args.input,
         output_path=args.output,
         config_path=config_path,
