@@ -1,9 +1,13 @@
-from typing import List, Optional
-from dataclasses import field
-from pydantic import Field
-from pydantic.dataclasses import dataclass
+from email.policy import default
+from typing import List, Optional, Set
+from dataclasses import dataclass, field
+
+# from pydantic import Field
+# from pydantic.dataclasses import dataclass
 import datetime as dt
 
+from src.harmonization.validators.patient_validators import PatientValidator
+from src.harmonization.validators.tumor_validators import TumorTypeValidator
 
 """
 Flat data
@@ -49,54 +53,6 @@ Quality of Life assessment
 """
 
 
-@dataclass
-class MedicalHistory:
-    patient_id: str
-    treatment_type: str
-    treatment_type_code: int
-    treatment_specification: str
-    treatment_start_date: str
-    treatment_end_date: str
-    previous_treatment_lines: int
-
-
-@dataclass
-class PreviousTreatmentLine:
-    patient_id: str
-    treatment: str
-
-
-@dataclass
-class Ecog:
-    patient_id: str
-    ecog: str
-
-
-@dataclass
-class AdverseEvent:
-    patient_id: str
-    ae_term: str
-
-
-@dataclass
-class ResponseAssessment:
-    patient_id: str
-    response: str
-
-
-@dataclass
-class ClinicalBenefit:
-    patient_id: str
-    best_overall_response: str
-
-
-@dataclass
-class QualityOfLife:
-    patient_id: str
-    eq5d: str
-    c30: str
-
-
 # TODO
 """
 Medical History 
@@ -132,14 +88,69 @@ Quality of Life assessment
 """
 
 
-@dataclass
 class TumorType:
-    icd10_code: Optional[str] = None
-    icd10_description: Optional[str] = None
-    tumor_type: Optional[str] = None
-    tumor_type_code: Optional[int] = None
-    cohort_tumor_type: Optional[str] = None
-    other_tumor_type: Optional[str] = None
+    def __init__(self):
+        self._icd10_code: Optional[str] = None
+        self._icd10_description: Optional[str] = None
+        self._tumor_type: Optional[str] = None
+        self._tumor_type_code: Optional[int] = None
+        self._cohort_tumor_type: Optional[str] = None
+        self._other_tumor_type: Optional[str] = None
+        self._updated_values: Set = field(default_factory=Set)
+
+    @property
+    def icd10_code(self) -> Optional[int]:
+        return self._icd10_code
+
+    @icd10_code.setter
+    def icd10_code(self, value: int | str | None) -> None:
+        self._icd10_code = TumorTypeValidator.validate_icd10_code(value)
+        self._updated_values.add(value)
+
+    @property
+    def icd10_description(self) -> Optional[str]:
+        return self._icd10_description
+
+    @icd10_description.setter
+    def icd10_description(self, value: str | None) -> None:
+        self._icd10_description = TumorTypeValidator.validate_icd10_description(value)
+        self._updated_values.add(value)
+
+    @property
+    def tumor_type(self) -> Optional[str]:
+        return self._tumor_type
+
+    @tumor_type.setter
+    def tumor_type(self, value: str | None) -> None:
+        self._tumor_type = TumorTypeValidator.validate_tumor_type(value)
+        self._updated_values.add(value)
+
+    @property
+    def tumor_type_code(self) -> Optional[int]:
+        return self._tumor_type_code
+
+    @tumor_type_code.setter
+    def tumor_type_code(self, value: int | str | None) -> None:
+        self._tumor_type_code = TumorTypeValidator.validate_tumor_type_code(value)
+        self._updated_values.add(value)
+
+    @property
+    def cohort_tumor_type(self) -> Optional[str]:
+        return self._cohort_tumor_type
+
+    @cohort_tumor_type.setter
+    def cohort_tumor_type(self, value: str | None) -> None:
+        self._cohort_tumor_type = TumorTypeValidator.validate_cohort_tumor_type(value)
+        self._updated_values.add(value)
+
+    @property
+    def other_tumor_type(self) -> Optional[str]:
+        return self._other_tumor_type
+
+    @other_tumor_type.setter
+    def other_tumor_type(self, value: str | None) -> None:
+        self._other_tumor_type = TumorTypeValidator.validate_other_tumor_type(value)
+        self._updated_values.add(value)
 
 
 @dataclass
@@ -167,28 +178,108 @@ class FollowUp:
 @dataclass
 class Ecog:
     description: Optional[str] = None
-    grade: Optional[int] = Field(None, ge=1, le=5)
+    grade: Optional[int] = None
 
 
 @dataclass
 class MedicalHistory:
-    placeholder: str
+    patient_id: str
+    treatment_type: str
+    treatment_type_code: int
+    treatment_specification: str
+    treatment_start_date: str
+    treatment_end_date: str
+    previous_treatment_lines: int
 
 
 @dataclass
-class Patient:
+class PreviousTreatmentLine:
     patient_id: str
-    trial_id: str
-    cohort_name: Optional[str] = None
-    age: Optional[int] = None
-    sex: Optional[str] = None
-    tumor_type: Optional[TumorType] = None
-    study_drugs: Optional[StudyDrugs] = None
-    biomarker: Optional[Biomarkers] = None
-    date_of_death: Optional[dt.datetime] = None
-    lost_to_followup: Optional[FollowUp] = None
-    evaluable_for_efficacy_analysis: Optional[bool] = None
-    ecog: Optional[Ecog] = None
+    treatment: str
+
+
+@dataclass
+class AdverseEvent:
+    patient_id: str
+    ae_term: str
+
+
+@dataclass
+class ResponseAssessment:
+    patient_id: str
+    response: str
+
+
+@dataclass
+class ClinicalBenefit:
+    patient_id: str
+    best_overall_response: str
+
+
+@dataclass
+class QualityOfLife:
+    patient_id: str
+    eq5d: str
+    c30: str
+
+
+class Patient:
+    def __init__(self, patient_id: str, trial_id: str):
+        # immutable
+        self._patient_id = patient_id
+        self._trial_id = trial_id
+        # mutable
+        self._patient_id: Optional[str] = patient_id
+        self._cohort_name: Optional[str] = None
+        self._age: Optional[int] = None
+        self._sex: Optional[str] = None
+        self._tumor_type: Optional[TumorType] = None
+        self._study_drugs: Optional[StudyDrugs] = None
+        self._biomarker: Optional[Biomarkers] = None
+        self._date_of_death: Optional[dt.datetime] = None
+        self._lost_to_followup: Optional[FollowUp] = None
+        self._evaluable_for_efficacy_analysis: Optional[bool] = None
+        self._ecog: Optional[Ecog] = None
+        self._updated_fields: set = field(default_factory=set)
+
+    @property
+    def patient_id(self) -> str:
+        """Patient ID (immutable)"""
+        return self._patient_id
+
+    @property
+    def trial_id(self) -> str:
+        """Trial ID (immutable)"""
+        return self._trial_id
+
+    @property
+    def cohort_name(self) -> str:
+        return self._cohort_name
+
+    @property
+    def age(self):
+        return self._age
+
+    @age.setter
+    def age(self, value: Optional[str | int | None]) -> None:
+        """Set age with validation"""
+        self._age = PatientValidator.validate_age(value)
+        self._updated_fields.add("age")
+
+    @property
+    def sex(self):
+        return self._sex
+
+    @sex.setter
+    def sex(self, value: Optional[str | None]) -> None:
+        """Set sex with validation"""
+        self._sex = PatientValidator.validate_sex(value)
+        self._updated_fields.add("sex")
+
+    def get_updated_fields(self) -> Set[str]:
+        return self._updated_fields
+
+    # TODO nested repr, to str, to dict, to polars df, etc
 
 
 @dataclass

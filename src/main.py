@@ -4,8 +4,8 @@ from src.pre_processing.impress.impress_ecrf import impress_preprocessor
 from src.harmonization.harmonizers.impress import ImpressHarmonizer
 
 
-def output_dir() -> Path:
-    return Path(__file__).parent / ".data"
+def output_dir_preprocessing() -> Path:
+    return Path(__file__).parents[1] / ".data" / "preprocessing"
 
 
 def raw_impress_data() -> Path:
@@ -20,7 +20,7 @@ def main():
     # pre-process synthetic data to one file
     pre_processed_data: Path = impress_preprocessor(
         input_path=raw_impress_data(),
-        output_path=output_dir(),
+        output_path=output_dir_preprocessing() / "preprocessed_impress_synthetic.csv",
         config_path=config_path(),
     )
 
