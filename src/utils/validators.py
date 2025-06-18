@@ -111,3 +111,16 @@ class CoreValidators:
         raise TypeError(
             f"Excpected datetime.date or None for field {field_name}, got {type(value)} with value {value}"
         )
+
+    @staticmethod
+    def validate_optional_bool(value: Any, field_name: str) -> Optional[bool]:
+        if value is None:
+            return None
+
+        elif isinstance(value, bool):
+            return value
+
+        else:
+            raise TypeError(
+                f"Excpected bool or None for field {field_name}, got {type(value)} with value {value}"
+            )
