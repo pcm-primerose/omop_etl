@@ -3,21 +3,21 @@ from typing import Optional, Any, List
 import datetime as dt
 
 
-class CoreValidators:
-    def __init__(self, logger: Optional[logging.Logger]):
-        self.logger = logger or logging.getLogger(__name__)
+class StrictValidators:
+    """
+    Strict validators to validate harmonized data models
+    """
 
     MISSING = {"", "na", "n/a", "none", "unknown", "missing", "null"}
 
-    def validate_optional_str(self, value: Any, field_name: str) -> Optional[str]:
+    @staticmethod
+    def validate_optional_str(value: Any, field_name: str) -> Optional[str]:
         if value is None:
             return None
 
         if isinstance(value, str):
             cleaned = value.strip().lower()
-            if cleaned in self.MISSING:
-                if self.logger:
-                    self.logger.debug(f"Field {field_name} has missing value: {value}")
+            if cleaned in StrictValidators.MISSING:
                 return None
 
             return cleaned

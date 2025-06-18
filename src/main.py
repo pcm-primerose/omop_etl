@@ -5,7 +5,11 @@ from src.harmonization.harmonizers.impress import ImpressHarmonizer
 
 
 def output_dir_preprocessing() -> Path:
-    return Path(__file__).parents[1] / ".data" / "preprocessing"
+    outpath = Path(__file__).parents[1] / ".data" / "preprocessing"
+    if not outpath.exists():
+        outpath.mkdir(parents=True, exist_ok=True)
+
+    return outpath
 
 
 def raw_impress_data() -> Path:
@@ -25,7 +29,7 @@ def main():
     )
 
     # harmonize synthetic data
-    impress_df = pl.scan_csv(pre_processed_data)
+    impress_df = pl.read_csv(pre_processed_data)
     harmonizer = ImpressHarmonizer(data=impress_df, trial_id="IMPRESS")
     harmonized_data = harmonizer.process()
     print(harmonized_data)

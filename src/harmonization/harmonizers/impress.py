@@ -1,5 +1,6 @@
 import polars as pl
 import datetime as dt
+from src.harmonization.parsing.core import CoreParsers
 from src.harmonization.harmonizers.base import BaseHarmonizer
 from src.harmonization.datamodels import (
     HarmonizedData,
@@ -10,7 +11,6 @@ from src.harmonization.datamodels import (
     FollowUp,
     Ecog,
 )
-from src.utils.helpers import safe_get, safe_int, parse_flexible_date
 
 
 class ImpressHarmonizer(BaseHarmonizer):
@@ -68,6 +68,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             patient_id = row["SubjectId"]
             cohort_name = row["COH_COHORTNAME"]
 
+            # todo: fix
             if patient_id in self.patient_data:
                 self.patient_data[patient_id].cohort_name = cohort_name
 
@@ -101,7 +102,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 continue
 
             birth_row = birth_rows.row(0, named=True)
-            birth_date = parse_flexible_date(birth_row["DM_BRTHDAT"])
+            birth_date = CoreParsers.parse_optional_date(birth_row["DM_BRTHDAT"])
             if birth_date is None:
                 continue
 
@@ -112,7 +113,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             latest_treatment_date = None
             for row in treatment_rows.iter_rows(named=True):
-                treatment_date = parse_flexible_date(row["TR_TRC1_DT"])
+                treatment_date = CoreParsers.parse_optional_date(row["TR_TRC1_DT"])
                 if treatment_date is not None and (
                     latest_treatment_date is None
                     or treatment_date > latest_treatment_date
@@ -152,28 +153,29 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id not in self.patient_data:
                 continue
 
-            icd10_code = safe_get(row["COH_ICD10COD"])
-            icd10_description = safe_get(row["COH_ICD10DES"])
-            cohort_tumor_type = safe_get(row["COH_COHTT"])
-            other_tumor_type = safe_get(row["COH_COHTTOSP"])
+            icd10_code = CoreParsers.parse_safe_get(row["COH_ICD10COD"])
+            icd10_description = CoreParsers.parse_safe_get(row["COH_ICD10DES"])
+            cohort_tumor_type = CoreParsers.parse_safe_get(row["COH_COHTT"])
+            other_tumor_type = CoreParsers.parse_safe_get(row["COH_COHTTOSP"])
 
             # determine tumor type (mutually exclusive options)˛
             tumor_type = None
             tumor_type_code = None
 
             if (
-                safe_get(row["COH_COHTTYPE"]) is not None
-                and safe_get(row["COH_COHTTYPECD"]) is not None
+                CoreParsers.parse_safe_get(row["COH_COHTTYPE"]) is not None
+                and CoreParsers.parse_safe_get(row["COH_COHTTYPECD"]) is not None
             ):
                 tumor_type = row["COH_COHTTYPE"]
-                tumor_type_code = safe_int(row["COH_COHTTYPECD"])
+                tumor_type_code = CoreParsers.safe_int(row["COH_COHTTYPECD"])
             elif (
-                safe_get(row["COH_COHTTYPE__2"]) is not None
-                and safe_get(row["COH_COHTTYPE__2CD"]) is not None
+                CoreParsers.parse_safe_get(row["COH_COHTTYPE__2"]) is not None
+                and CoreParsers.parse_safe_get(row["COH_COHTTYPE__2CD"]) is not None
             ):
                 tumor_type = row["COH_COHTTYPE__2"]
-                tumor_type_code = safe_int(row["COH_COHTTYPE__2CD"])
+                tumor_type_code = CoreParsers.safe_int(row["COH_COHTTYPE__2CD"])
 
+            # todo: fix
             # create and instantiate TumorType object, assign to patient data
             self.patient_data[patient_id].tumor_type = TumorType(
                 icd10_code=icd10_code,
@@ -211,19 +213,20 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id not in self.patient_data:
                 continue
 
-            primary_drug = safe_get(row["COH_COHALLO1"]) or safe_get(
-                row["COH_COHALLO1__2"]
-            )
-            primary_drug_code = safe_int(row["COH_COHALLO1CD"]) or safe_int(
-                row["COH_COHALLO1__2CD"]
-            )
-            secondary_drug = safe_get(row["COH_COHALLO2"]) or safe_get(
-                row["COH_COHALLO2__2"]
-            )
-            secondary_drug_code = safe_int(row["COH_COHALLO2CD"]) or safe_int(
-                row["COH_COHALLO2__2CD"]
-            )
+            primary_drug = CoreParsers.parse_safe_get(
+                row["COH_COHALLO1"]
+            ) or CoreParsers.parse_safe_get(row["COH_COHALLO1__2"])
+            primary_drug_code = CoreParsers.safe_int(
+                row["COH_COHALLO1CD"]
+            ) or CoreParsers.safe_int(row["COH_COHALLO1__2CD"])
+            secondary_drug = CoreParsers.parse_safe_get(
+                row["COH_COHALLO2"]
+            ) or CoreParsers.parse_safe_get(row["COH_COHALLO2__2"])
+            secondary_drug_code = CoreParsers.safe_int(
+                row["COH_COHALLO2CD"]
+            ) or CoreParsers.safe_int(row["COH_COHALLO2__2CD"])
 
+            # todo: fix
             self.patient_data[patient_id].study_drugs = StudyDrugs(
                 primary_treatment_drug=primary_drug,
                 primary_treatment_drug_code=primary_drug_code,
@@ -246,12 +249,12 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             if patient_id not in self.patient_data:
                 continue
-
+            # todo: fix
             self.patient_data[patient_id].biomarker = Biomarkers(
-                gene_and_mutation=safe_get(row["COH_GENMUT1"]),
-                gene_and_mutation_code=safe_int(row["COH_GENMUT1CD"]),
-                cohort_target_name=safe_get(row["COH_COHCTN"]),
-                cohort_target_mutation=safe_get(row["COH_COHTMN"]),
+                gene_and_mutation=CoreParsers.parse_safe_get(["COH_GENMUT1"]),
+                gene_and_mutation_code=CoreParsers.safe_int(row["COH_GENMUT1CD"]),
+                cohort_target_name=CoreParsers.parse_safe_get(row["COH_COHCTN"]),
+                cohort_target_mutation=CoreParsers.parse_safe_get(row["COH_COHTMN"]),
             )
 
     def _process_date_of_death(self):
@@ -265,8 +268,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id not in self.patient_data:
                 continue
 
-            eos_date = parse_flexible_date(row["EOS_DEATHDTC"])
-            fu_date = parse_flexible_date(row["FU_FUPDEDAT"])
+            eos_date = CoreParsers.parse_optional_date(row["EOS_DEATHDTC"])
+            fu_date = CoreParsers.parse_optional_date(row["FU_FUPDEDAT"])
 
             # use latest date
             death_date = None
@@ -276,7 +279,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 death_date = eos_date
             elif fu_date:
                 death_date = fu_date
-
+            # todo: fix
             self.patient_data[patient_id].date_of_death = death_date
 
     def _process_date_lost_to_followup(self):
@@ -293,13 +296,15 @@ class ImpressHarmonizer(BaseHarmonizer):
             date_lost_to_followup = None
 
             # get followup status and convert to lowercase
-            fu_status = safe_get(row["FU_FUPSST"])
+            fu_status = CoreParsers.parse_safe_get(row["FU_FUPSST"])
             if fu_status is not None:
                 fu_status = fu_status.lower()
                 if fu_status not in ["alive", "death"]:
                     lost_to_followup_status = True
-                    date_lost_to_followup = parse_flexible_date(row["FU_FUPALDAT"])
-
+                    date_lost_to_followup = CoreParsers.parse_optional_date(
+                        row["FU_FUPALDAT"]
+                    )
+            # todo: fix
             self.patient_data[patient_id].lost_to_followup = FollowUp(
                 lost_to_followup=lost_to_followup_status,
                 date_lost_to_followup=date_lost_to_followup,
@@ -340,27 +345,27 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             # check all evaluations
             for row in patient_data.iter_rows(named=True):
-                start_date = parse_flexible_date(row["TR_TRO_STDT"])
+                start_date = CoreParsers.parse_optional_date(row["TR_TRO_STDT"])
                 if start_date:
                     start_dates.append(start_date)
 
-                end_date = parse_flexible_date(row["TR_TROSTPDT"])
+                end_date = CoreParsers.parse_optional_date(row["TR_TROSTPDT"])
                 if end_date:
                     end_dates.append(end_date)
 
                 if any(
                     [
-                        parse_flexible_date(row["RA_EventDate"]),
-                        parse_flexible_date(row["RNRSP_EventDate"]),
-                        parse_flexible_date(row["RCNT_EventDate"]),
-                        parse_flexible_date(row["RNTMNT_EventDate"]),
-                        parse_flexible_date(row["LUGRSP_EventDate"]),
+                        CoreParsers.parse_optional_date(row["RA_EventDate"]),
+                        CoreParsers.parse_optional_date(row["RNRSP_EventDate"]),
+                        CoreParsers.parse_optional_date(row["RCNT_EventDate"]),
+                        CoreParsers.parse_optional_date(row["RNTMNT_EventDate"]),
+                        CoreParsers.parse_optional_date(row["LUGRSP_EventDate"]),
                     ]
                 ):
                     has_tumor_evaluation = True
 
                 # check for end-of-treatment evaluatuon
-                if parse_flexible_date(row["EOT_EventDate"]):
+                if CoreParsers.parse_optional_date(row["EOT_EventDate"]):
                     has_eot_evaluation = True
 
             # check treatment length
@@ -376,7 +381,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             evaluable_status = sufficient_treatment_length and (
                 has_tumor_evaluation or has_eot_evaluation
             )
-
+            # todo: fix
             self.patient_data[
                 patient_id
             ].evaluable_for_efficacy_analysis = evaluable_status
@@ -391,10 +396,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             patient_id = row["SubjectId"]
             ecog_description = None
             ecog_grade = None
-            if safe_get(row["ECOG_EventId"]):
-                ecog_description = safe_get(row["ECOG_ECOGS"])
-                ecog_grade = safe_int(row["ECOG_ECOGSCD"])
-
+            if CoreParsers.parse_safe_get(row["ECOG_EventId"]):
+                ecog_description = CoreParsers.parse_safe_get(row["ECOG_ECOGS"])
+                ecog_grade = CoreParsers.safe_int(row["ECOG_ECOGSCD"])
+            # todo: fix
             self.patient_data[patient_id].ecog = Ecog(
                 description=ecog_description, grade=ecog_grade
             )

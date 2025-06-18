@@ -1,13 +1,8 @@
-from email.policy import default
+import logging
 from typing import List, Optional, Set
 from dataclasses import dataclass, field
-
-# from pydantic import Field
-# from pydantic.dataclasses import dataclass
 import datetime as dt
-
-from src.harmonization.validators.patient_validators import PatientValidator
-from src.harmonization.validators.tumor_validators import TumorTypeValidator
+from src.harmonization.validation.validators import StrictValidators
 
 """
 Flat data
@@ -87,16 +82,22 @@ Clinical benefit
 Quality of Life assessment
 """
 
+# todo:
+#   just do validation here,
+#   [ ] finish getters/setters and dunders methods (when parsers, coercers, validators done)
+#   [ ] make type hint assertions in setters (yes)
+
 
 class TumorType:
-    def __init__(self):
+    def __init__(self, logger: Optional[logging.Logger] = None):
         self._icd10_code: Optional[str] = None
         self._icd10_description: Optional[str] = None
         self._tumor_type: Optional[str] = None
         self._tumor_type_code: Optional[int] = None
         self._cohort_tumor_type: Optional[str] = None
         self._other_tumor_type: Optional[str] = None
-        self._updated_values: Set = field(default_factory=Set)
+        self._updated_fields: Set = field(default_factory=Set)
+        self.logger = logger if logger else logging.Logger
 
     @property
     def icd10_code(self) -> Optional[int]:
@@ -104,8 +105,10 @@ class TumorType:
 
     @icd10_code.setter
     def icd10_code(self, value: int | str | None) -> None:
-        self._icd10_code = TumorTypeValidator.validate_icd10_code(value)
-        self._updated_values.add(value)
+        self._icd10_code = StrictValidators.validate_optional_str(
+            value=value, field_name="icd10_code"
+        )
+        self._updated_fields.add("icd10_code")
 
     @property
     def icd10_description(self) -> Optional[str]:
@@ -113,8 +116,10 @@ class TumorType:
 
     @icd10_description.setter
     def icd10_description(self, value: str | None) -> None:
-        self._icd10_description = TumorTypeValidator.validate_icd10_description(value)
-        self._updated_values.add(value)
+        self._icd10_description = StrictValidators.validate_optional_str(
+            value=value, field_name="icd10_description"
+        )
+        self._updated_fields.add("icd10_description")
 
     @property
     def tumor_type(self) -> Optional[str]:
@@ -122,8 +127,10 @@ class TumorType:
 
     @tumor_type.setter
     def tumor_type(self, value: str | None) -> None:
-        self._tumor_type = TumorTypeValidator.validate_tumor_type(value)
-        self._updated_values.add(value)
+        self._tumor_type = StrictValidators.validate_optional_str(
+            value=value, field_name="tumor type"
+        )
+        self._updated_fields.add(value)
 
     @property
     def tumor_type_code(self) -> Optional[int]:
@@ -131,8 +138,10 @@ class TumorType:
 
     @tumor_type_code.setter
     def tumor_type_code(self, value: int | str | None) -> None:
-        self._tumor_type_code = TumorTypeValidator.validate_tumor_type_code(value)
-        self._updated_values.add(value)
+        self._tumor_type_code = StrictValidators.validate_optional_int(
+            value=value, field_name="tumor_type_code"
+        )
+        self._updated_fields.add(value)
 
     @property
     def cohort_tumor_type(self) -> Optional[str]:
@@ -140,8 +149,10 @@ class TumorType:
 
     @cohort_tumor_type.setter
     def cohort_tumor_type(self, value: str | None) -> None:
-        self._cohort_tumor_type = TumorTypeValidator.validate_cohort_tumor_type(value)
-        self._updated_values.add(value)
+        self._cohort_tumor_type = StrictValidators.validate_optional_str(
+            value=value, field_name="cohort_tumor_type"
+        )
+        self._updated_fields.add(value)
 
     @property
     def other_tumor_type(self) -> Optional[str]:
@@ -149,8 +160,10 @@ class TumorType:
 
     @other_tumor_type.setter
     def other_tumor_type(self, value: str | None) -> None:
-        self._other_tumor_type = TumorTypeValidator.validate_other_tumor_type(value)
-        self._updated_values.add(value)
+        self._other_tumor_type = StrictValidators.validate_optional_str(
+            value=value, field_name="other_tumor_type"
+        )
+        self._updated_fields.add(value)
 
 
 @dataclass
@@ -263,7 +276,9 @@ class Patient:
     @age.setter
     def age(self, value: Optional[str | int | None]) -> None:
         """Set age with validation"""
-        self._age = PatientValidator.validate_age(value)
+        self._age = StrictValidators.validate_optional_int(
+            value=value, field_name="age"
+        )
         self._updated_fields.add("age")
 
     @property
@@ -273,7 +288,9 @@ class Patient:
     @sex.setter
     def sex(self, value: Optional[str | None]) -> None:
         """Set sex with validation"""
-        self._sex = PatientValidator.validate_sex(value)
+        self._sex = StrictValidators.validate_optional_str(
+            value=value, field_name="sex"
+        )
         self._updated_fields.add("sex")
 
     def get_updated_fields(self) -> Set[str]:

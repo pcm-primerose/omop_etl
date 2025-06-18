@@ -2,7 +2,10 @@ import polars as pl
 import datetime as dt
 from src.harmonization.harmonizers.impress import ImpressHarmonizer
 from src.harmonization.harmonizers.base import BaseHarmonizer
-from src.utils.helpers import parse_flexible_date, parse_date_column
+from src.harmonization.parsers.helpers import (
+    parse_optional_date,
+    parse_optional_date_column,
+)
 from src.harmonization.datamodels import (
     TumorType,
     StudyDrugs,
@@ -422,9 +425,9 @@ class TestImpressHarmonizer:
 
 
 def test_parse_flexible_date_function():
-    assert parse_flexible_date("1900-02-02") == dt.datetime(1900, 2, 2)
-    assert parse_flexible_date("1950-06") == dt.datetime(1950, 6, 15)
-    assert parse_flexible_date("1900") == dt.datetime(1900, 7, 15)
+    assert parse_optional_date("1900-02-02") == dt.datetime(1900, 2, 2)
+    assert parse_optional_date("1950-06") == dt.datetime(1950, 6, 15)
+    assert parse_optional_date("1900") == dt.datetime(1900, 7, 15)
 
 
 def test_parse_date_column_function():
@@ -432,13 +435,15 @@ def test_parse_date_column_function():
     df = pl.DataFrame({"dates": ["1900-02-02", "1950-06", "1900"]})
 
     # with col name
-    result_by_name = df.with_columns(parsed_dates=parse_date_column("dates"))
+    result_by_name = df.with_columns(parsed_dates=parse_optional_date_column("dates"))
     assert result_by_name["parsed_dates"][0] == dt.datetime(1900, 2, 2)
     assert result_by_name["parsed_dates"][1] == dt.datetime(1950, 6, 15)
     assert result_by_name["parsed_dates"][2] == dt.datetime(1900, 7, 15)
 
     # with col expression
-    result_by_expr = df.with_columns(parsed_dates=parse_date_column(pl.col("dates")))
+    result_by_expr = df.with_columns(
+        parsed_dates=parse_optional_date_column(pl.col("dates"))
+    )
     assert result_by_expr["parsed_dates"][0] == dt.datetime(1900, 2, 2)
     assert result_by_expr["parsed_dates"][1] == dt.datetime(1950, 6, 15)
     assert result_by_expr["parsed_dates"][2] == dt.datetime(1900, 7, 15)
