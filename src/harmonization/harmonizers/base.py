@@ -4,11 +4,7 @@ from typing import Optional, List, Dict
 from src.harmonization.datamodels import Patient
 from src.harmonization.datamodels import HarmonizedData
 
-# TODO refactor to functional approach later
-#   where each processing methods returns corresponding datamodel instance
-#   use patient ID as foreign key and store trial ID
-#   then in the process method instantiate the harmonized data class
-#   and in main handle the renaming of patient IDs (and other stuff) that is common to all data
+PatientDict = Dict[str, Patient]
 
 
 class BaseHarmonizer(ABC):
@@ -26,13 +22,13 @@ class BaseHarmonizer(ABC):
     def __init__(self, data: pl.DataFrame, trial_id: str):
         self.data = data
         self.trial_id = trial_id
-        self.patient_data: Optional[Dict[str, Patient]] = {}
+        self.patient_data: PatientDict = {}
         self.medical_histories: Optional[List] = []
-        self.previous_treatment_lines: List = []
-        self.ecog_assessments: List = []
-        self.adverse_events: List = []
-        self.clinical_benefits: List = []
-        self.quality_of_life_assessment: List = []
+        self.previous_treatment_lines: Optional[List] = []
+        self.ecog_assessments: Optional[List] = []
+        self.adverse_events: Optional[List] = []
+        self.clinical_benefits: Optional[List] = []
+        self.quality_of_life_assessment: Optional[List] = []
 
     @abstractmethod
     def process(self) -> HarmonizedData:

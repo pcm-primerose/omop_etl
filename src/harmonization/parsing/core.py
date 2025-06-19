@@ -1,67 +1,107 @@
 import polars as pl
 import datetime as dt
-from typing import Optional, List, Union, Any
+from typing import Optional, List, Union, Any, Set
 from src.harmonization.parsing.coercion import TypeCoercion
-
-# todo:
-#   fix remaining static methods (see specific todos)
-#   fix calls from implementation to use this class instead
 
 
 class CoreParsers:
     """Domain-agnostic parsers that handle common data patterns"""
 
+    STANDARD_DATE_FORMATS = [
+        "%Y-%m-%d",  # 2023-12-25
+        "%m/%d/%Y",  # 12/25/2023
+        "%d/%m/%Y",  # 25/12/2023
+        "%Y%m%d",  # 20231225
+        "%d-%b-%Y",  # 25-Dec-2023
+        "%B %d, %Y",  # December 25, 2023
+        "%Y-%m",  # 2023-12 (partial)
+        "%Y",  # 2023 (year only)
+    ]
+
     @staticmethod
-    def parse_date_flexible(value: Any) -> Optional[dt.date]:
-        """Parse dates from various common formats"""
+    def parse_date_flexible(
+        value: Any, default_day: int = 15, default_month: int = 7
+    ) -> Optional[dt.date]:
+        """Parse dates from various formats including partial dates"""
+        # coerce
         str_value = TypeCoercion.to_optional_string(value)
         if str_value is None:
             return None
 
+        # early ret on date obj
         if isinstance(value, dt.date):
             return value
         if isinstance(value, dt.datetime):
             return value.date()
 
-        # todo include NK formats
-        #   add as static set
-        formats = [
-            "%Y-%m-%d",  # 2023-12-25
-            "%m/%d/%Y",  # 12/25/2023
-            "%d/%m/%Y",  # 25/12/2023
-            "%Y%m%d",  # 20231225
-            "%d-%b-%Y",  # 25-Dec-2023
-            "%B %d, %Y",  # December 25, 2023
-        ]
+        # process NK formats (YYYY-NK-NK, YYYY-MM-NK)
+        if "-nk" in str_value.lower():
+            return CoreParsers._parse_nk_date(str_value, default_day, default_month)
 
-        for fmt in formats:
+        # try to parse partial dates
+        for fmt in CoreParsers.STANDARD_DATE_FORMATS:
             try:
-                return dt.datetime.strptime(str_value, fmt).date()
+                parsed_date = dt.datetime.strptime(str_value, fmt)
+                if fmt == "%Y":
+                    return parsed_date.replace(
+                        month=default_month, day=default_day
+                    ).date()
+                elif fmt == "%Y-%m":
+                    return parsed_date.replace(day=default_day).date()
+                else:
+                    return parsed_date.date()
+
             except ValueError:
                 continue
 
-        raise ValueError(f"Cannot parse date from: '{value}'")
+        raise ValueError(f"Cannot parse date from: {value}")
 
     @staticmethod
-    def parse_numeric_range(
-        value: Any, min_val: float, max_val: float
-    ) -> Optional[float]:
-        float_value = TypeCoercion.to_optional_float(value)
-        if float_value is None:
-            return None
+    def _parse_nk_date(
+        date_str: str, default_day: int, default_month: int
+    ) -> Optional[dt.date]:
+        """Parse clinical dates with NK (Not Known) components"""
+        parts = date_str.upper().split("-")
+        if len(parts) != 3:
+            raise ValueError(f"Invalid NK date format: {date_str}")
 
-        if not (min_val <= float_value <= max_val):
-            raise ValueError(
-                f"Value {float_value} outside valid range [{min_val}, {max_val}]"
-            )
+        year_str, month_str, day_str = parts
 
-        return float_value
+        try:
+            year = int(year_str)
+        except ValueError:
+            raise ValueError(f"Invalid year in NK date: {year_str}")
+
+        # NK month
+        if month_str == "NK":
+            month = default_month
+        else:
+            try:
+                month = int(month_str)
+            except ValueError:
+                raise ValueError(f"Invalid month in NK date: {month_str}")
+
+        # NK day
+        if day_str == "NK":
+            day = default_day
+        else:
+            try:
+                day = int(day_str)
+            except ValueError:
+                raise ValueError(f"Invalid day in NK date: {day_str}")
+
+        try:
+            return dt.date(year, month, day)
+
+        except ValueError as e:
+            raise ValueError(f"Invalid date components: {e}")
 
     @staticmethod
     def parse_categorical(
-        value: Any, valid_values: set, case_sensitive: bool = False
+        value: Any, valid_values: Set[str], case_sensitive: bool = False
     ) -> Optional[str]:
         """Parse categorical value against allowed list"""
+        # coerce
         str_value = TypeCoercion.to_optional_string(value)
         if str_value is None:
             return None
@@ -73,7 +113,7 @@ class CoreParsers:
         )
 
         if check_value not in valid_set:
-            raise ValueError(f"Value {value} not in valid options: {valid_values}")
+            raise ValueError(f"Value '{value}' not in valid options: {valid_values}")
 
         # return original case from valid_values if found
         if not case_sensitive:
@@ -88,104 +128,126 @@ class CoreParsers:
         value: Any, max_length: int = None, title_case: bool = False
     ) -> Optional[str]:
         """Parse text with normalization options"""
+        # coerce
         str_value = TypeCoercion.to_optional_string(value)
         if str_value is None:
             return None
 
+        # normalize
         if title_case:
             str_value = str_value.title()
 
+        # check length constraint
         if max_length and len(str_value) > max_length:
             raise ValueError(f"Text exceeds maximum length {max_length}: '{str_value}'")
 
         return str_value
 
-    # todo: fix this
-    #   add date handling for YYYY-NK-NK & YYYY-mm-NK as well (used in IMPRESS)
     @staticmethod
-    def parse_optional_date(
-        date_str: str, default_day: Optional[int] = 15, default_month: Optional[int] = 7
-    ) -> Optional[dt.datetime]:
-        """Takes any date string and allows partial parsing to datetime objects"""
-        if date_str == "NA" or not date_str:
+    def parse_int_range(value: Any, min_val: int, max_val: int) -> Optional[int]:
+        """Parse integer value and validate range"""
+        # coerce
+        int_value = TypeCoercion.to_optional_int(value)
+        if int_value is None:
             return None
 
-        elif isinstance(date_str, str):
-            try:
-                return dt.datetime.strptime(date_str, "%Y-%m-%d")
+        # validate range
+        if not (min_val <= int_value <= max_val):
+            raise ValueError(
+                f"Value {int_value} outside valid range [{min_val}, {max_val}]"
+            )
 
-            except ValueError:
-                try:
-                    date = dt.datetime.strptime(date_str, "%Y-%m")
-                    # default to middle of month
-                    return date.replace(day=default_day)
+        return int_value
 
-                except ValueError:
-                    try:
-                        year = int(date_str)
-                        if 1900 <= year <= 2100:
-                            # default to middle of year
-                            return dt.datetime(year, default_month, default_day)
-                        return None
-                    except (ValueError, TypeError):
-                        return None
-        else:
+    @staticmethod
+    def parse_numeric_range(
+        value: Any, min_val: float, max_val: float
+    ) -> Optional[float]:
+        """Parse numeric value to float and validate range"""
+        # coerce
+        float_value = TypeCoercion.to_optional_float(value)
+        if float_value is None:
             return None
 
-    # todo: fix this and rename
-    @staticmethod
-    def parse_safe_get(value, default=None):
-        return value if value != "NA" else default
+        # validate range
+        if not (min_val <= float_value <= max_val):
+            raise ValueError(
+                f"Value {float_value} outside valid range [{min_val}, {max_val}]"
+            )
 
-    # todo: fix this and rename
-    @staticmethod
-    def safe_int(value):
-        if value == "NA":
-            return None
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            return None
+        return float_value
 
-    # todo: fix this and rename
-    #   add date handling for YYYY-NK-NK & YYYY-mm-NK as well (used in IMPRESS)
-    @staticmethod
-    def parse_optional_date_column(
-        column: Union[str, pl.Expr],
-        default_day: int = 15,
-        default_month: int = 7,
-        na_values: Optional[List[str]] = None,
-    ) -> Optional[pl.expr]:
-        """
-        Vectorized date parser that handles partial dates in Polars.
-        """
-        if na_values is None:
-            na_values = ["NA"]
 
+class PolarsParsers:
+    """
+    Polars-specific parsing utilities for vectorized operations over columns, rows or expressions.
+    TODO Should refactor to use these in harmonizers over time instead (much faster, compatible with lazy computation).
+    """
+
+    NA_VALUES = {"na", "n/a", "null", "", "unknown", "none"}
+
+    @staticmethod
+    def parse_date_column(
+        column: Union[str, pl.Expr], default_day: int = 15, default_month: int = 7
+    ) -> pl.Expr:
+        """Vectorized date parser for Polars columns"""
         if isinstance(column, str):
             column = pl.col(column)
 
-        for na_value in na_values:
+        # handle NA vals
+        for na_value in PolarsParsers.NA_VALUES:
             column = pl.when(column == na_value).then(None).otherwise(column)
 
         return (
+            # NK patterns
+            pl.when(column.str.contains("-NK"))
+            .then(PolarsParsers._handle_nk_dates(column, default_day, default_month))
             # year only: YYYY
-            pl.when(column.str.len_chars() == 4)
+            .when(column.str.len_chars() == 4)
             .then(
                 pl.concat_str(
                     column, pl.lit(f"-{default_month:02d}-{default_day:02d}")
-                ).str.strptime(pl.Datetime, "%Y-%m-%d", strict=False)
+                ).str.strptime(pl.Datetime, "%Y-%m-%d", strict=True)
             )
             # year and month: YYYY-MM
             .when(column.str.len_chars() == 7)
             .then(
                 pl.concat_str(column, pl.lit(f"-{default_day:02d}")).str.strptime(
-                    pl.Datetime, "%Y-%m-%d", strict=False
+                    pl.Datetime, "%Y-%m-%d", strict=True
                 )
             )
             # full date: YYYY-MM-DD
             .when(column.str.len_chars() == 10)
-            .then(column.str.strptime(pl.Datetime, "%Y-%m-%d", strict=False))
+            .then(column.str.strptime(pl.Datetime, "%Y-%m-%d", strict=True))
             # everything else becomes None
             .otherwise(None)
         )
+
+    @staticmethod
+    def _handle_nk_dates(
+        column: pl.Expr, default_day: int, default_month: int
+    ) -> pl.Expr:
+        """Handle NK date patterns in Polars"""
+        return (
+            column.str.replace("-NK-NK$", f"-{default_month:02d}-{default_day:02d}")
+            .str.replace("-NK$", f"-{default_day:02d}")
+            .str.strptime(pl.Datetime, "%Y-%m-%d", strict=True)
+        )
+
+    @staticmethod
+    def safe_numeric_conversion(
+        column: Union[str, pl.Expr], target_type: str = "int"
+    ) -> pl.Expr:
+        """Safely convert column to numeric type with NA handling"""
+        if isinstance(column, str):
+            column = pl.col(column)
+
+        for na_value in PolarsParsers.NA_VALUES:
+            column = pl.when(column == na_value).then(None).otherwise(column)
+
+        if target_type == "int":
+            return column.cast(pl.Int64, strict=True)
+        elif target_type == "float":
+            return column.cast(pl.Float64, strict=True)
+        else:
+            raise ValueError(f"Unsupported target type: {target_type}")

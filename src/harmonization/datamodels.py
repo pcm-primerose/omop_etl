@@ -2,6 +2,9 @@ import logging
 from typing import List, Optional, Set
 from dataclasses import dataclass, field
 import datetime as dt
+
+from mypy.messages import format_item_name_list
+
 from src.harmonization.validation.validators import StrictValidators
 
 """
@@ -86,162 +89,359 @@ Quality of Life assessment
 #   just do validation here,
 #   [ ] finish getters/setters and dunders methods (when parsers, coercers, validators done)
 #   [ ] make type hint assertions in setters (yes)
+#   [ ] fix current implementation
+#   [ ] then add fields for all datamodels (see docs)
+
+# todo:
+#  Models represent final PRIME-ROSE structure, just implement from docs with some modifications
+#  i.e. don't structure by sheet origin, but by meta vars (group same e.g. treatments)
+#  but ofc needs to work well across trials
+#  [ ] add rest of models
+#   -- write down end structure (what exact vars and how to group them in model)
+#   Validate current models:
+#   [ ] TumorType
+#   [ ] StudyDrugs (add additional data, don't separte sd1/sd2)
+#   [ ] Biomarkers
+#   [ ] FollowUp
+#   [ ] Ecog
+#   [ ] MedicalHistory
+#   Add rest of models
+#   [ ] Treatments (combine to one)
+#   [ ] DoseDelivered (oral, iv, injection)
+#   [ ] PreviousTreatments
+#   [ ] Evaluability
+#   [ ] ConcomitantMedication
+#   [ ] AdverseEvents
+#   [ ] TumorAssessments (group all, make assessment type ID?)
+#   [ ] Evaluations (?) (group best response, clinical benefit, EOT, etc?)
+#   [ ] QoL (C30, EQ5D)
 
 
 class TumorType:
     def __init__(self, logger: Optional[logging.Logger] = None):
         self._icd10_code: Optional[str] = None
         self._icd10_description: Optional[str] = None
-        self._tumor_type: Optional[str] = None
-        self._tumor_type_code: Optional[int] = None
+        self._main_tumor_type: Optional[str] = None
+        self._main_tumor_type_code: Optional[int] = None
         self._cohort_tumor_type: Optional[str] = None
         self._other_tumor_type: Optional[str] = None
-        self._updated_fields: Set = field(default_factory=Set)
-        self.logger = logger if logger else logging.Logger
+        self.updated_fields: Set[str] = set()
+        # self.logger = logger if logger else logging.Logger todo: add logging later
 
     @property
     def icd10_code(self) -> Optional[int]:
         return self._icd10_code
 
     @icd10_code.setter
-    def icd10_code(self, value: int | str | None) -> None:
+    def icd10_code(self, value: Optional[str]) -> None:
         self._icd10_code = StrictValidators.validate_optional_str(
-            value=value, field_name="icd10_code"
+            value=value, field_name=self.__class__.icd10_code.fset.__name__
         )
-        self._updated_fields.add("icd10_code")
+        self.updated_fields.add(self.__class__.icd10_code.fset.__name__)
 
     @property
     def icd10_description(self) -> Optional[str]:
         return self._icd10_description
 
     @icd10_description.setter
-    def icd10_description(self, value: str | None) -> None:
+    def icd10_description(self, value: Optional[str]) -> None:
         self._icd10_description = StrictValidators.validate_optional_str(
-            value=value, field_name="icd10_description"
+            value=value, field_name=self.__class__.icd10_description.fset.__name__
         )
-        self._updated_fields.add("icd10_description")
+        self.updated_fields.add(self.__class__.icd10_description.fset.__name__)
 
     @property
-    def tumor_type(self) -> Optional[str]:
-        return self._tumor_type
+    def main_tumor_type(self) -> Optional[str]:
+        return self._main_tumor_type
 
-    @tumor_type.setter
-    def tumor_type(self, value: str | None) -> None:
-        self._tumor_type = StrictValidators.validate_optional_str(
-            value=value, field_name="tumor type"
+    @main_tumor_type.setter
+    def main_tumor_type(self, value: Optional[str]) -> None:
+        self._main_tumor_type = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.main_tumor_type.fset.__name__
         )
-        self._updated_fields.add(value)
+        self.updated_fields.add(self.__class__.main_tumor_type.fset.__name__)
 
     @property
-    def tumor_type_code(self) -> Optional[int]:
-        return self._tumor_type_code
+    def main_tumor_type_code(self) -> Optional[int]:
+        return self._main_tumor_type_code
 
-    @tumor_type_code.setter
-    def tumor_type_code(self, value: int | str | None) -> None:
-        self._tumor_type_code = StrictValidators.validate_optional_int(
-            value=value, field_name="tumor_type_code"
+    @main_tumor_type_code.setter
+    def main_tumor_type_code(self, value: Optional[int]) -> None:
+        self._main_tumor_type_code = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.main_tumor_type_code.fset.__name__
         )
-        self._updated_fields.add(value)
+        self.updated_fields.add(self.__class__.main_tumor_type_code.fset.__name__)
 
     @property
     def cohort_tumor_type(self) -> Optional[str]:
         return self._cohort_tumor_type
 
     @cohort_tumor_type.setter
-    def cohort_tumor_type(self, value: str | None) -> None:
+    def cohort_tumor_type(self, value: Optional[str]) -> None:
         self._cohort_tumor_type = StrictValidators.validate_optional_str(
-            value=value, field_name="cohort_tumor_type"
+            value=value, field_name=self.__class__.cohort_tumor_type.fset.__name__
         )
-        self._updated_fields.add(value)
+        self.updated_fields.add(self.__class__.cohort_tumor_type.fset.__name__)
 
     @property
     def other_tumor_type(self) -> Optional[str]:
         return self._other_tumor_type
 
     @other_tumor_type.setter
-    def other_tumor_type(self, value: str | None) -> None:
+    def other_tumor_type(self, value: Optional[str]) -> None:
         self._other_tumor_type = StrictValidators.validate_optional_str(
-            value=value, field_name="other_tumor_type"
+            value=value, field_name=self.__class__.other_tumor_type.fset.__name__
         )
-        self._updated_fields.add(value)
+        self.updated_fields.add(self.__class__.other_tumor_type.fset.__name__)
 
 
-@dataclass
 class StudyDrugs:
-    primary_treatment_drug: Optional[str] = None
-    primary_treatment_drug_code: Optional[int] = None
-    secondary_treatment_drug: Optional[str] = None
-    secondary_treatment_drug_code: Optional[int] = None
+    def __init__(self):
+        self._primary_treatment_drug: Optional[str] = None
+        self._primary_treatment_drug_code: Optional[int] = None
+        self._secondary_treatment_drug: Optional[str] = None
+        self._secondary_treatment_drug_code: Optional[int] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def primary_treatment_drug(self) -> Optional[str]:
+        return self._primary_treatment_drug
+
+    @primary_treatment_drug.setter
+    def primary_treatment_drug(self, value: Optional[str]) -> None:
+        self._primary_treatment_drug = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.primary_treatment_drug.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.primary_treatment_drug.fset.__name__)
+
+    @property
+    def secondary_treatment_drug(self) -> Optional[str]:
+        return self._secondary_treatment_drug
+
+    @secondary_treatment_drug.setter
+    def secondary_treatment_drug(self, value: Optional[str]) -> None:
+        self._secondary_treatment_drug = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.secondary_treatment_drug.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.secondary_treatment_drug.fset.__name__)
+
+    @property
+    def primary_treatment_drug_code(self) -> Optional[int]:
+        return self._primary_treatment_drug_code
+
+    @primary_treatment_drug_code.setter
+    def primary_treatment_drug_code(self, value: Optional[int]) -> None:
+        self._primary_treatment_drug_code = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.primary_treatment_drug_code.fset.__name__,
+        )
+        self.updated_fields.add(
+            self.__class__.primary_treatment_drug_code.fset.__name__
+        )
+
+    @property
+    def secondary_treatment_drug_code(self) -> Optional[int]:
+        return self._secondary_treatment_drug_code
+
+    @secondary_treatment_drug_code.setter
+    def secondary_treatment_drug_code(self, value: Optional[int]) -> None:
+        self._secondary_treatment_drug_code = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.secondary_treatment_drug_code.fset.__name__,
+        )
+        self.updated_fields.add(
+            self.__class__.secondary_treatment_drug_code.fset.__name__
+        )
 
 
-@dataclass
 class Biomarkers:
-    gene_and_mutation: Optional[str] = None  # genmut
-    gene_and_mutation_code: Optional[int] = None
-    cohort_target_name: Optional[str] = None  # cohctn
-    cohort_target_mutation: Optional[str] = None  # cohtmn
+    def __init__(self):
+        self._gene_and_mutation: Optional[str] = None
+        self._gene_and_mutation_code: Optional[int] = None
+        self._cohort_target_name: Optional[str] = None
+        self._cohort_target_mutation: Optional[str] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def gene_and_mutation(self) -> Optional[str]:
+        return self._gene_and_mutation
+
+    @gene_and_mutation.setter
+    def gene_and_mutation(self, value: Optional[str]) -> None:
+        self._gene_and_mutation = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.gene_and_mutation.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.gene_and_mutation.fset.__name__)
+
+    @property
+    def gene_and_mutation_code(self) -> Optional[int]:
+        return self._gene_and_mutation_code
+
+    @gene_and_mutation_code.setter
+    def gene_and_mutation_code(self, value: Optional[int]) -> None:
+        self._gene_and_mutation_code = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.gene_and_mutation_code.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.gene_and_mutation_code.fset.__name__)
+
+    @property
+    def cohort_target_name(self) -> Optional[str]:
+        return self._cohort_target_name
+
+    @cohort_target_name.setter
+    def cohort_target_name(self, value: Optional[str]) -> None:
+        self._cohort_target_name = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.cohort_target_name.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.cohort_target_name.fset.__name__)
+
+    @property
+    def cohort_target_mutation(self) -> Optional[str]:
+        return self._cohort_target_mutation
+
+    @cohort_target_mutation.setter
+    def cohort_target_mutation(self, value: Optional[str]) -> None:
+        self._cohort_target_mutation = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.cohort_target_mutation.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.cohort_target_mutation.fset.__name__)
 
 
-@dataclass
 class FollowUp:
-    lost_to_followup: bool
-    date_lost_to_followup: Optional[dt.datetime] = None  # date last known alive
+    def __init__(self):
+        self._lost_to_followup: Optional[bool] = None
+        self._date_lost_to_followup: Optional[dt.datetime] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def lost_to_followup(self) -> Optional[bool]:
+        return self._lost_to_followup
+
+    @lost_to_followup.setter
+    def lost_to_followup(self, value: Optional[bool]) -> None:
+        self._lost_to_followup = StrictValidators.validate_optional_bool(
+            value=value, field_name=self.__class__.lost_to_followup.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.lost_to_followup.fset.__name__)
+
+    @property
+    def date_lost_to_followup(self) -> Optional[dt.date]:
+        return self._date_lost_to_followup
+
+    @date_lost_to_followup.setter
+    def date_lost_to_followup(self, value: Optional[dt.date]) -> None:
+        self._date_lost_to_followup = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.date_lost_to_followup.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.date_lost_to_followup.fset.__name__)
 
 
-@dataclass
 class Ecog:
-    description: Optional[str] = None
-    grade: Optional[int] = None
+    def __init__(self):
+        self._description: Optional[str] = None
+        self._grade: Optional[int] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @description.setter
+    def description(self, value: Optional[str]) -> None:
+        self._description = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.description.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.description.fset.__name__)
+
+    @property
+    def grade(self) -> Optional[int]:
+        return self._grade
+
+    @grade.setter
+    def grade(self, value: Optional[int]) -> None:
+        self._grade = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.grade.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.grade.fset.__name__)
 
 
-@dataclass
 class MedicalHistory:
-    patient_id: str
-    treatment_type: str
-    treatment_type_code: int
-    treatment_specification: str
-    treatment_start_date: str
-    treatment_end_date: str
-    previous_treatment_lines: int
+    def __init__(self):
+        self._treatment_type: Optional[str] = None
+        self._treatment_type_code: Optional[int] = None
+        self._treatment_specification: Optional[str] = None
+        self._treatment_start_date: Optional[dt.date] = None
+        self._treatment_end_date: Optional[dt.date] = None
+        self._num_previous_treatment_lines: Optional[int] = None
+        self.updated_fields: Set[str] = set()
 
+    @property
+    def treatment_type(self) -> Optional[str]:
+        return self._treatment_type
 
-@dataclass
-class PreviousTreatmentLine:
-    patient_id: str
-    treatment: str
+    @treatment_type.setter
+    def treatment_type(self, value: Optional[str]) -> None:
+        self._treatment_type = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.treatment_type.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.treatment_type.fset.__name__)
 
+    @property
+    def treatment_type_code(self) -> Optional[int]:
+        return self._treatment_type_code
 
-@dataclass
-class AdverseEvent:
-    patient_id: str
-    ae_term: str
+    @treatment_type_code.setter
+    def treatment_type_code(self, value: Optional[int]) -> None:
+        self._treatment_type_code = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.treatment_type_code.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.treatment_type_code.fset.__name__)
 
+    @property
+    def treatment_specification(self) -> Optional[str]:
+        return self._treatment_specification
 
-@dataclass
-class ResponseAssessment:
-    patient_id: str
-    response: str
+    @treatment_specification.setter
+    def treatment_specification(self, value: Optional[str]) -> None:
+        self._treatment_specification = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.treatment_specification.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.treatment_specification.fset.__name__)
 
+    @property
+    def treatment_start_date(self) -> Optional[dt.date]:
+        return self._treatment_start_date
 
-@dataclass
-class ClinicalBenefit:
-    patient_id: str
-    best_overall_response: str
+    @treatment_start_date.setter
+    def treatment_start_date(self, value: Optional[dt.date]) -> None:
+        self._treatment_start_date = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.treatment_start_date.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
 
+    @property
+    def treatment_end_date(self) -> Optional[dt.date]:
+        return self._treatment_end_date
 
-@dataclass
-class QualityOfLife:
-    patient_id: str
-    eq5d: str
-    c30: str
+    @treatment_end_date.setter
+    def treatment_end_date(self, value: Optional[dt.date]) -> None:
+        self._treatment_end_date = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.treatment_end_date.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.treatment_end_date.fset.__name__)
 
 
 class Patient:
+    """
+    Stores all data for a patient
+    """
+
     def __init__(self, patient_id: str, trial_id: str):
         # immutable
         self._patient_id = patient_id
         self._trial_id = trial_id
-        # mutable
+
         self._patient_id: Optional[str] = patient_id
         self._cohort_name: Optional[str] = None
         self._age: Optional[int] = None
@@ -253,21 +453,43 @@ class Patient:
         self._lost_to_followup: Optional[FollowUp] = None
         self._evaluable_for_efficacy_analysis: Optional[bool] = None
         self._ecog: Optional[Ecog] = None
-        self._updated_fields: set = field(default_factory=set)
+        self.updated_fields: Set[str] = set()
 
     @property
     def patient_id(self) -> str:
         """Patient ID (immutable)"""
         return self._patient_id
 
+    @patient_id.setter
+    def patient_id(self, value: Optional[str]) -> None:
+        self._patient_id = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.patient_id.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.patient_id.fset.__name__)
+
     @property
     def trial_id(self) -> str:
         """Trial ID (immutable)"""
         return self._trial_id
 
+    @trial_id.setter
+    def trial_id(self, value: Optional[str]) -> None:
+        """Trial ID (immutable)"""
+        self._trial_id = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.trial_id.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.trial_id.fset.__name__)
+
     @property
     def cohort_name(self) -> str:
         return self._cohort_name
+
+    @cohort_name.setter
+    def cohort_name(self, value: Optional[str]) -> None:
+        self._cohort_name = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.cohort_name.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.cohort_name.fset.__name__)
 
     @property
     def age(self):
@@ -277,9 +499,9 @@ class Patient:
     def age(self, value: Optional[str | int | None]) -> None:
         """Set age with validation"""
         self._age = StrictValidators.validate_optional_int(
-            value=value, field_name="age"
+            value=value, field_name=self.__class__.age.fset.__name__
         )
-        self._updated_fields.add("age")
+        self.updated_fields.add(self.__class__.age.fset.__name__)
 
     @property
     def sex(self):
@@ -289,28 +511,129 @@ class Patient:
     def sex(self, value: Optional[str | None]) -> None:
         """Set sex with validation"""
         self._sex = StrictValidators.validate_optional_str(
-            value=value, field_name="sex"
+            value=value, field_name=self.__class__.sex.fset.__name__
         )
-        self._updated_fields.add("sex")
+        self.updated_fields.add(self.__class__.sex.fset.__name__)
+
+    @property
+    def date_of_death(self):
+        return self._date_of_death
+
+    @date_of_death.setter
+    def date_of_death(self, value: Optional[dt.date | None]) -> None:
+        """Set date of death with validation"""
+        self._date_of_death = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.date_of_death.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.date_of_death.fset.__name__)
+
+    @property
+    def evaluable_for_efficacy_analysis(self):
+        return self._evaluable_for_efficacy_analysis
+
+    @evaluable_for_efficacy_analysis.setter
+    def evaluable_for_efficacy_analysis(self, value: Optional[bool | None]) -> None:
+        """Set evaluable for efficacy analysis status with validation"""
+        self._date_of_death = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=f"{self.__class__.evaluable_for_efficacy_analysis.fset.__name__}",
+        )
+        self.updated_fields.add(
+            self.__class__.evaluable_for_efficacy_analysis.fset.__name__
+        )
+
+    @property
+    def tumor_type(self) -> Optional[TumorType]:
+        return self._tumor_type
+
+    @tumor_type.setter
+    def tumor_type(self, value: Optional[TumorType | None]) -> None:
+        if value and not isinstance(value, TumorType):
+            raise ValueError(
+                f"tumor_type must be {TumorType.__name__} instance or None, got {value} with type {type(value)}"
+            )
+
+        self._tumor_type = value
+        self.updated_fields.add(TumorType.__name__)
+
+    @property
+    def study_drugs(self) -> Optional[StudyDrugs]:
+        return self._study_drugs
+
+    @study_drugs.setter
+    def study_drugs(self, value: Optional[StudyDrugs | None]) -> None:
+        if value and not isinstance(value, StudyDrugs):
+            raise ValueError(
+                f"study_drugs must be {StudyDrugs.__name__} instance or None, got {value} with type {type(value)}"
+            )
+
+        self._study_drugs = value
+        self.updated_fields.add(StudyDrugs.__name__)
+
+    @property
+    def biomarker(self) -> Optional[Biomarkers]:
+        return self._biomarker
+
+    @biomarker.setter
+    def biomarker(self, value: Optional[Biomarkers | None]) -> None:
+        if value and not isinstance(value, Biomarkers):
+            raise ValueError(
+                f"biomarker must be {Biomarkers.__name__} instance or None, got {value} with type {type(value)}"
+            )
+
+        self._biomarker = value
+        self.updated_fields.add(Biomarkers.__name__)
+
+    @property
+    def lost_to_followup(self) -> Optional[FollowUp]:
+        return self._lost_to_followup
+
+    @lost_to_followup.setter
+    def lost_to_followup(self, value: Optional[FollowUp | None]) -> None:
+        if value and not isinstance(value, FollowUp):
+            raise ValueError(
+                f"lost_to_followup must be {FollowUp.__name__} instance or None, got {value} with type {type(value)}"
+            )
+
+        self._biomarker = value
+        self.updated_fields.add(FollowUp.__name__)
+
+    @property
+    def ecog(self) -> Optional[Ecog]:
+        return self._ecog
+
+    @ecog.setter
+    def ecog(self, value: Optional[Ecog | None]) -> None:
+        if value and not isinstance(value, Ecog):
+            raise ValueError(
+                f"ecog must be {Ecog.__name__} instance or None, got {value} with type {type(value)}"
+            )
+
+        self._biomarker = value
+        self.updated_fields.add(Ecog.__name__)
 
     def get_updated_fields(self) -> Set[str]:
-        return self._updated_fields
+        return self.updated_fields
 
     # TODO nested repr, to str, to dict, to polars df, etc
 
 
 @dataclass
 class HarmonizedData:
+    """
+    Stores all patient data for a processed trial
+    """
+
     trial_id: str
     patients: List[Patient] = field(default_factory=list)
-    medical_histories: List[MedicalHistory] = field(default_factory=list)
-    previous_treatments: List[PreviousTreatmentLine] = field(default_factory=list)
-    ecog_assessments: List[Ecog] = field(default_factory=list)
-    adverse_events: List[AdverseEvent] = field(default_factory=list)
-    clinical_benefits: List[ClinicalBenefit] = field(default_factory=list)
-    quality_of_life_assessments: List[QualityOfLife] = field(default_factory=list)
+    # medical_histories: List[MedicalHistory] = field(default_factory=list)
+    # previous_treatments: List[PreviousTreatmentLine] = field(default_factory=list)
+    # ecog_assessments: List[Ecog] = field(default_factory=list)
+    # adverse_events: List[AdverseEvent] = field(default_factory=list)
+    # clinical_benefits: List[ClinicalBenefit] = field(default_factory=list)
+    # quality_of_life_assessments: List[QualityOfLife] = field(default_factory=list)
 
     # add get specific patient data method
     # and get all patient data
     # and specific trial data
-    # return as dict instead of object? yes
+    # return as dict method etc

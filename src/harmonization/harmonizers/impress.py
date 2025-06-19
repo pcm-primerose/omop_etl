@@ -1,5 +1,6 @@
 import polars as pl
 import datetime as dt
+from src.harmonization.parsing.coercion import TypeCoercion
 from src.harmonization.parsing.core import CoreParsers
 from src.harmonization.harmonizers.base import BaseHarmonizer
 from src.harmonization.datamodels import (
@@ -27,9 +28,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_biomarkers()
         self._process_date_of_death()
         self._process_date_lost_to_followup()
-        self._process_evaluability()
-        self._process_ecog()
-        self._process_previous_treatment_lines()
+        # self._process_evaluability()
+        # self._process_ecog()
+        # self._process_previous_treatment_lines()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -68,7 +69,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             patient_id = row["SubjectId"]
             cohort_name = row["COH_COHORTNAME"]
 
-            # todo: fix
             if patient_id in self.patient_data:
                 self.patient_data[patient_id].cohort_name = cohort_name
 
@@ -102,7 +102,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 continue
 
             birth_row = birth_rows.row(0, named=True)
-            birth_date = CoreParsers.parse_optional_date(birth_row["DM_BRTHDAT"])
+            birth_date = CoreParsers.parse_date_flexible(birth_row["DM_BRTHDAT"])
             if birth_date is None:
                 continue
 
@@ -113,7 +113,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             latest_treatment_date = None
             for row in treatment_rows.iter_rows(named=True):
-                treatment_date = CoreParsers.parse_optional_date(row["TR_TRC1_DT"])
+                treatment_date = CoreParsers.parse_date_flexible(row["TR_TRC1_DT"])
                 if treatment_date is not None and (
                     latest_treatment_date is None
                     or treatment_date > latest_treatment_date
@@ -153,40 +153,43 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id not in self.patient_data:
                 continue
 
-            icd10_code = CoreParsers.parse_safe_get(row["COH_ICD10COD"])
-            icd10_description = CoreParsers.parse_safe_get(row["COH_ICD10DES"])
-            cohort_tumor_type = CoreParsers.parse_safe_get(row["COH_COHTT"])
-            other_tumor_type = CoreParsers.parse_safe_get(row["COH_COHTTOSP"])
+            icd10_code = TypeCoercion.to_optional_string(row["COH_ICD10COD"])
+            icd10_description = TypeCoercion.to_optional_string(row["COH_ICD10DES"])
+            cohort_tumor_type = TypeCoercion.to_optional_string(row["COH_COHTT"])
+            other_tumor_type = TypeCoercion.to_optional_string(row["COH_COHTTOSP"])
 
             # determine tumor type (mutually exclusive options)˛
-            tumor_type = None
-            tumor_type_code = None
+            main_tumor_type = None
+            main_tumor_type_code = None
 
             if (
-                CoreParsers.parse_safe_get(row["COH_COHTTYPE"]) is not None
-                and CoreParsers.parse_safe_get(row["COH_COHTTYPECD"]) is not None
+                TypeCoercion.to_optional_string(row["COH_COHTTYPE"]) is not None
+                and TypeCoercion.to_optional_int(row["COH_COHTTYPECD"]) is not None
             ):
-                tumor_type = row["COH_COHTTYPE"]
-                tumor_type_code = CoreParsers.safe_int(row["COH_COHTTYPECD"])
+                main_tumor_type = row["COH_COHTTYPE"]
+                main_tumor_type_code = TypeCoercion.to_optional_int(
+                    row["COH_COHTTYPECD"]
+                )
             elif (
-                CoreParsers.parse_safe_get(row["COH_COHTTYPE__2"]) is not None
-                and CoreParsers.parse_safe_get(row["COH_COHTTYPE__2CD"]) is not None
+                TypeCoercion.to_optional_string(row["COH_COHTTYPE__2"]) is not None
+                and TypeCoercion.to_optional_int(row["COH_COHTTYPE__2CD"]) is not None
             ):
-                tumor_type = row["COH_COHTTYPE__2"]
-                tumor_type_code = CoreParsers.safe_int(row["COH_COHTTYPE__2CD"])
+                main_tumor_type = row["COH_COHTTYPE__2"]
+                main_tumor_type_code = TypeCoercion.to_optional_int(
+                    row["COH_COHTTYPE__2CD"]
+                )
 
-            # todo: fix
-            # create and instantiate TumorType object, assign to patient data
-            self.patient_data[patient_id].tumor_type = TumorType(
-                icd10_code=icd10_code,
-                icd10_description=icd10_description,
-                tumor_type=tumor_type,
-                tumor_type_code=tumor_type_code,
-                cohort_tumor_type=cohort_tumor_type,
-                other_tumor_type=other_tumor_type,
-            )
+            tumor_type = TumorType()
+            tumor_type.icd10_code = icd10_code
+            tumor_type.icd10_description = icd10_description
+            tumor_type.main_tumor_type = main_tumor_type
+            tumor_type.main_tumor_type_code = main_tumor_type_code
+            tumor_type.cohort_tumor_type = cohort_tumor_type
+            tumor_type.other_tumor_type = other_tumor_type
 
-    # todo: add cohallo1__3 and cohallo2__3 as well
+            # assign complete object to patient
+            self.patient_data[patient_id].tumor_type = tumor_type
+
     def _process_study_drugs(self):
         drug_data = self.data.select(
             "SubjectId",
@@ -194,45 +197,60 @@ class ImpressHarmonizer(BaseHarmonizer):
             "COH_COHALLO1CD",
             "COH_COHALLO1__2",
             "COH_COHALLO1__2CD",
+            "COH_COHALLO1__3",
+            "COH_COHALLO1__3CD",
             "COH_COHALLO2",
             "COH_COHALLO2CD",
             "COH_COHALLO2__2",
             "COH_COHALLO2__2CD",
+            "COH_COHALLO2__3",
+            "COH_COHALLO2__3CD",
         ).filter(
             (pl.col("COH_COHALLO1") != "NA")
             | (pl.col("COH_COHALLO1__2") != "NA")
+            | (pl.col("COH_COHALLO1__3") != "NA")
             | (pl.col("COH_COHALLO2") != "NA")
             | (pl.col("COH_COHALLO2__2") != "NA")
+            | (pl.col("COH_COHALLO2__3") != "NA")
         )
 
-        # assuming we have all drug data in one row and that 1 / 1__2 & 2 / 2__2 vars are mutally exclusive
-        # such that 1 <--> 2 & 1__2 <--> 2__2 and != 1 <--> 2__2 & 1__2 <--> 2
         for row in drug_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
 
             if patient_id not in self.patient_data:
                 continue
 
-            primary_drug = CoreParsers.parse_safe_get(
-                row["COH_COHALLO1"]
-            ) or CoreParsers.parse_safe_get(row["COH_COHALLO1__2"])
-            primary_drug_code = CoreParsers.safe_int(
-                row["COH_COHALLO1CD"]
-            ) or CoreParsers.safe_int(row["COH_COHALLO1__2CD"])
-            secondary_drug = CoreParsers.parse_safe_get(
-                row["COH_COHALLO2"]
-            ) or CoreParsers.parse_safe_get(row["COH_COHALLO2__2"])
-            secondary_drug_code = CoreParsers.safe_int(
-                row["COH_COHALLO2CD"]
-            ) or CoreParsers.safe_int(row["COH_COHALLO2__2CD"])
-
-            # todo: fix
-            self.patient_data[patient_id].study_drugs = StudyDrugs(
-                primary_treatment_drug=primary_drug,
-                primary_treatment_drug_code=primary_drug_code,
-                secondary_treatment_drug=secondary_drug,
-                secondary_treatment_drug_code=secondary_drug_code,
+            primary_drug = (
+                TypeCoercion.to_optional_string(row["COH_COHALLO1"])
+                or TypeCoercion.to_optional_string(row["COH_COHALLO1__2"])
+                or TypeCoercion.to_optional_string(row["COH_COHALLO1__3"])
             )
+
+            primary_drug_code = (
+                TypeCoercion.to_optional_int(row["COH_COHALLO1CD"])
+                or TypeCoercion.to_optional_int(row["COH_COHALLO1__2CD"])
+                or TypeCoercion.to_optional_int(row["COH_COHALLO1__3CD"])
+            )
+
+            secondary_drug = (
+                TypeCoercion.to_optional_string(row["COH_COHALLO2"])
+                or TypeCoercion.to_optional_string(row["COH_COHALLO2__2"])
+                or TypeCoercion.to_optional_string(row["COH_COHALLO2__3"])
+            )
+
+            secondary_drug_code = (
+                TypeCoercion.to_optional_int(row["COH_COHALLO2CD"])
+                or TypeCoercion.to_optional_int(row["COH_COHALLO2__2CD"])
+                or TypeCoercion.to_optional_int(row["COH_COHALLO2__3CD"])
+            )
+
+            study_drugs = StudyDrugs()
+            study_drugs.primary_treatment_drug = primary_drug
+            study_drugs.secondary_treatment_drug = secondary_drug
+            study_drugs.primary_treatment_drug_code = primary_drug_code
+            study_drugs.secondary_treatment_drug_code = secondary_drug_code
+
+            self.patient_data[patient_id].study_drugs = study_drugs
 
     def _process_biomarkers(self):
         biomarker_data = self.data.select(
@@ -249,13 +267,22 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             if patient_id not in self.patient_data:
                 continue
-            # todo: fix
-            self.patient_data[patient_id].biomarker = Biomarkers(
-                gene_and_mutation=CoreParsers.parse_safe_get(["COH_GENMUT1"]),
-                gene_and_mutation_code=CoreParsers.safe_int(row["COH_GENMUT1CD"]),
-                cohort_target_name=CoreParsers.parse_safe_get(row["COH_COHCTN"]),
-                cohort_target_mutation=CoreParsers.parse_safe_get(row["COH_COHTMN"]),
+
+            biomarkers = Biomarkers()
+            biomarkers.gene_and_mutation = TypeCoercion.to_optional_string(
+                ["COH_GENMUT1"]
             )
+            biomarkers.gene_and_mutation_code = TypeCoercion.to_optional_int(
+                row["COH_GENMUT1CD"]
+            )
+            biomarkers.cohort_target_mutation = TypeCoercion.to_optional_string(
+                row["COH_COHCTN"]
+            )
+            biomarkers.cohort_target_name = TypeCoercion.to_optional_string(
+                row["COH_COHTMN"]
+            )
+
+            self.patient_data[patient_id].biomarkers = biomarkers
 
     def _process_date_of_death(self):
         death_data = self.data.select(
@@ -268,8 +295,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id not in self.patient_data:
                 continue
 
-            eos_date = CoreParsers.parse_optional_date(row["EOS_DEATHDTC"])
-            fu_date = CoreParsers.parse_optional_date(row["FU_FUPDEDAT"])
+            eos_date = CoreParsers.parse_date_flexible(row["EOS_DEATHDTC"])
+            fu_date = CoreParsers.parse_date_flexible(row["FU_FUPDEDAT"])
 
             # use latest date
             death_date = None
@@ -279,7 +306,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 death_date = eos_date
             elif fu_date:
                 death_date = fu_date
-            # todo: fix
+
             self.patient_data[patient_id].date_of_death = death_date
 
     def _process_date_lost_to_followup(self):
@@ -296,138 +323,142 @@ class ImpressHarmonizer(BaseHarmonizer):
             date_lost_to_followup = None
 
             # get followup status and convert to lowercase
-            fu_status = CoreParsers.parse_safe_get(row["FU_FUPSST"])
+            fu_status = TypeCoercion.to_optional_string(row["FU_FUPSST"])
             if fu_status is not None:
                 fu_status = fu_status.lower()
                 if fu_status not in ["alive", "death"]:
                     lost_to_followup_status = True
-                    date_lost_to_followup = CoreParsers.parse_optional_date(
+                    date_lost_to_followup = CoreParsers.parse_date_flexible(
                         row["FU_FUPALDAT"]
                     )
-            # todo: fix
-            self.patient_data[patient_id].lost_to_followup = FollowUp(
-                lost_to_followup=lost_to_followup_status,
-                date_lost_to_followup=date_lost_to_followup,
-            )
 
-    def _process_evaluability(self):
-        """
-        Current filtering criteria for marking patient as evaluable for efficacy analysis:
-            - must have treatment length over 28 days (taking treatment length of first treatment) and either one of:
-            - tumor assessment (all rows in assessments suffice, EventDate always has data)
-            - clinical assessment (EventId from EOT sheet)
+            followup = FollowUp()
+            followup.lost_to_followup = lost_to_followup_status
+            followup.date_lost_to_followup = date_lost_to_followup
 
-        Unsure if these are correct criteria!
-
-        TODO:
-            - distinguish between oral and IV drug treatment lengt requirements (4 --> IV, 8 --> oral)?
-        """
-        evaluability_data = self.data.select(
-            "SubjectId",
-            "TR_TROSTPDT",
-            "TR_TRO_STDT",
-            "RA_EventDate",
-            "RNRSP_EventDate",
-            "RCNT_EventDate",
-            "RNTMNT_EventDate",
-            "LUGRSP_EventDate",
-            "EOT_EventDate",
-        )
-
-        for patient_id in self.patient_data:
-            patient_data = evaluability_data.filter(pl.col("SubjectId") == patient_id)
-
-            start_dates = []
-            end_dates = []
-
-            has_tumor_evaluation = False
-            has_eot_evaluation = False
-
-            # check all evaluations
-            for row in patient_data.iter_rows(named=True):
-                start_date = CoreParsers.parse_optional_date(row["TR_TRO_STDT"])
-                if start_date:
-                    start_dates.append(start_date)
-
-                end_date = CoreParsers.parse_optional_date(row["TR_TROSTPDT"])
-                if end_date:
-                    end_dates.append(end_date)
-
-                if any(
-                    [
-                        CoreParsers.parse_optional_date(row["RA_EventDate"]),
-                        CoreParsers.parse_optional_date(row["RNRSP_EventDate"]),
-                        CoreParsers.parse_optional_date(row["RCNT_EventDate"]),
-                        CoreParsers.parse_optional_date(row["RNTMNT_EventDate"]),
-                        CoreParsers.parse_optional_date(row["LUGRSP_EventDate"]),
-                    ]
-                ):
-                    has_tumor_evaluation = True
-
-                # check for end-of-treatment evaluatuon
-                if CoreParsers.parse_optional_date(row["EOT_EventDate"]):
-                    has_eot_evaluation = True
-
-            # check treatment length
-            sufficient_treatment_length = False
-            if start_dates and end_dates:
-                earliest_start = min(start_dates)
-                latest_end = max(end_dates)
-                sufficient_treatment_length = (
-                    latest_end - earliest_start
-                ) >= dt.timedelta(days=28)
-
-            # apply criteria filters
-            evaluable_status = sufficient_treatment_length and (
-                has_tumor_evaluation or has_eot_evaluation
-            )
-            # todo: fix
-            self.patient_data[
-                patient_id
-            ].evaluable_for_efficacy_analysis = evaluable_status
-
-    def _process_ecog(self):
-        # parse ECOG description and grade
-        ecog_data = self.data.select(
-            "SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD"
-        )
-
-        for row in ecog_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            ecog_description = None
-            ecog_grade = None
-            if CoreParsers.parse_safe_get(row["ECOG_EventId"]):
-                ecog_description = CoreParsers.parse_safe_get(row["ECOG_ECOGS"])
-                ecog_grade = CoreParsers.safe_int(row["ECOG_ECOGSCD"])
-            # todo: fix
-            self.patient_data[patient_id].ecog = Ecog(
-                description=ecog_description, grade=ecog_grade
-            )
-
-    def _process_medical_history(self):
-        # MHTER, MHSTDAT, MHONGO, MHONGOCD
-        # TODO: Implement when we know if we need this, and after eCRF extraction upadate
-        pass
-
-    def _process_previous_treatment_lines(self):
-        # TODO: Add CT_CTTYPESP when eCRF extraction update
-        #   it contains e.g. "horomonal therapy"
-        treatment_lines_data = self.data.select(
-            "SubjectId",
-            "CT_CTTYPE",
-            "CT_CTTYPECD",
-            "CT_CTSTDAT",
-            "CT_CTENDAT",
-            "CT_CTSPID",
-        )
-
-        for row in treatment_lines_data.iter_rows(named=True):
-            print(row)
-
-        # TODO
-        #   Just implement intended data in test fixtures and make sure implementation works
-        #   and stop spending so much time on mock data (can also just add some empty cols with NA for new data)
-        #   but need to re-run eCRF script now anyways
+            self.patient_data[patient_id].lost_to_followup = followup
 
 
-# TODO after making nice mock data add dates to everything
+#     def _process_evaluability(self):
+#         """
+#         Current filtering criteria for marking patient as evaluable for efficacy analysis:
+#             - must have treatment length over 28 days (taking treatment length of first treatment) and either one of:
+#             - tumor assessment (all rows in assessments suffice, EventDate always has data)
+#             - clinical assessment (EventId from EOT sheet)
+#
+#         Unsure if these are correct criteria!
+#
+#         TODO:
+#             - distinguish between oral and IV drug treatment lengt requirements (4 --> IV, 8 --> oral)?
+#         """
+#         evaluability_data = self.data.select(
+#             "SubjectId",
+#             CoreParsers.parse_date_flexible(pl.col("TR_TROSTPDT")),
+#             CoreParsers.parse_date_flexible(pl.col("TR_TRO_STDT")),
+#             CoreParsers.parse_date_flexible(pl.col("RA_EventDate")),
+#             CoreParsers.parse_date_flexible(pl.col("RNRSP_EventDate")),
+#             CoreParsers.parse_date_flexible(pl.col("RCNT_EventDate")),
+#             CoreParsers.parse_date_flexible(pl.col("RNTMNT_EventDate")),
+#             CoreParsers.parse_date_flexible(pl.col("LUGRSP_EventDate")),
+#             CoreParsers.parse_date_flexible(pl.col("EOT_EventDate")),
+#         )
+#
+#         for patient_id in self.patient_data:
+#             patient_data = evaluability_data.filter(pl.col("SubjectId") == patient_id)
+#
+#             start_dates = []
+#             end_dates = []
+#
+#             has_tumor_evaluation = False
+#             has_eot_evaluation = False
+#
+#             # check all evaluations
+#             for row in patient_data.iter_rows(named=True):
+#                 start_date = CoreParsers.parse_date_flexible(row["TR_TRO_STDT"])
+#                 if start_date:
+#                     start_dates.append(start_date)
+#
+#                 end_date = CoreParsers.parse_date_flexible(row["TR_TROSTPDT"])
+#                 if end_date:
+#                     end_dates.append(end_date)
+#
+#                 if any(
+#                     [
+#                         CoreParsers.parse_date_flexible(row["RA_EventDate"]),
+#                         CoreParsers.parse_date_flexible(row["RNRSP_EventDate"]),
+#                         CoreParsers.parse_date_flexible(row["RCNT_EventDate"]),
+#                         CoreParsers.parse_date_flexible(row["RNTMNT_EventDate"]),
+#                         CoreParsers.parse_date_flexible(row["LUGRSP_EventDate"]),
+#                     ]
+#                 ):
+#                     has_tumor_evaluation = True
+#
+#                 # check for end-of-treatment evaluatuon
+#                 if CoreParsers.parse_date_flexible(row["EOT_EventDate"]):
+#                     has_eot_evaluation = True
+#
+#             # check treatment length
+#             sufficient_treatment_length = False
+#             if start_dates and end_dates:
+#                 earliest_start = min(start_dates)
+#                 latest_end = max(end_dates)
+#                 sufficient_treatment_length = (
+#                     latest_end - earliest_start
+#                 ) >= dt.timedelta(days=28)
+#
+#             # apply criteria filters
+#             evaluable_status = sufficient_treatment_length and (
+#                 has_tumor_evaluation or has_eot_evaluation
+#             )
+#
+#             self.patient_data[
+#                 patient_id
+#             ].evaluable_for_efficacy_analysis = evaluable_status
+#
+#     def _process_ecog(self):
+#         # parse ECOG description and grade
+#         ecog_data = self.data.select(
+#             "SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD"
+#         )
+#
+#         for row in ecog_data.iter_rows(named=True):
+#             patient_id = row["SubjectId"]
+#             ecog_description = None
+#             ecog_grade = None
+#             if TypeCoercion.to_optional_string(row["ECOG_EventId"]):
+#                 ecog_description = TypeCoercion.to_optional_string(row["ECOG_ECOGS"])
+#                 ecog_grade = TypeCoercion.to_optional_int(row["ECOG_ECOGSCD"])
+#
+#             ecog = Ecog()
+#             ecog.grade = ecog_grade
+#             ecog.description = ecog_description
+#
+#             self.patient_data[patient_id].ecog = ecog
+#
+#     def _process_medical_history(self):
+#         # MHTER, MHSTDAT, MHONGO, MHONGOCD
+#         # TODO: Implement when we know if we need this, and after eCRF extraction upadate
+#         pass
+#
+#     def _process_previous_treatment_lines(self):
+#         # TODO: Add CT_CTTYPESP when eCRF extraction update
+#         #   it contains e.g. "horomonal therapy"
+#         treatment_lines_data = self.data.select(
+#             "SubjectId",
+#             "CT_CTTYPE",
+#             "CT_CTTYPECD",
+#             "CT_CTSTDAT",
+#             "CT_CTENDAT",
+#             "CT_CTSPID",
+#         )
+#
+#         for row in treatment_lines_data.iter_rows(named=True):
+#             print(row)
+#
+#         # TODO
+#         #   Just implement intended data in test fixtures and make sure implementation works
+#         #   and stop spending so much time on mock data (can also just add some empty cols with NA for new data)
+#         #   but need to re-run eCRF script now anyways
+#
+#
+# # TODO after making nice mock data add dates to everything

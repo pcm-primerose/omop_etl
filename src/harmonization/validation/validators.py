@@ -1,5 +1,4 @@
-import logging
-from typing import Optional, Any, List
+from typing import Optional, Any
 import datetime as dt
 
 
@@ -8,59 +7,61 @@ class StrictValidators:
     Strict validators to validate harmonized data models
     """
 
-    MISSING = {"", "na", "n/a", "none", "unknown", "missing", "null"}
-
     @staticmethod
-    def validate_optional_str(value: Any, field_name: str) -> Optional[str]:
+    def validate_optional_str(value: Optional[str], field_name: str) -> Optional[str]:
+        """Strict validation - only accepts string or None (already parsed)"""
         if value is None:
             return None
 
-        if isinstance(value, str):
-            cleaned = value.strip().lower()
-            if cleaned in StrictValidators.MISSING:
-                return None
+        if not isinstance(value, str):
+            raise TypeError(
+                f"{field_name} must be string or None, got {type(value)}: {value}"
+            )
 
-            return cleaned
-
-        raise TypeError(
-            f"Unsupported type for str coercion for field {field_name} with type {type(value)} and value {value}"
-        )
+        return value
 
     @staticmethod
-    def validate_optional_int(value: Any, field_name: str) -> Optional[int]:
+    def validate_optional_int(value: Optional[int], field_name: str) -> Optional[int]:
+        """Strict validation - only accepts int or None (already parsed)"""
         if value is None:
             return None
 
-        if isinstance(value, int):
-            return value
+        if not isinstance(value, int):
+            raise TypeError(
+                f"{field_name} must be int or None, got {type(value)}: {value}"
+            )
 
-        raise TypeError(
-            f"Expected int or None for field {field_name}, got {type(value)} with value {value}"
-        )
+        return value
 
     @staticmethod
-    def validate_optional_float(value: Any, field_name: str) -> Optional[float]:
+    def validate_optional_float(
+        value: Optional[float], field_name: str
+    ) -> Optional[float]:
+        """Strict validation - only accepts int or None (already parsed)"""
         if value is None:
             return None
 
-        if isinstance(value, float):
-            return value
+        if not isinstance(value, float):
+            raise TypeError(
+                f"{field_name} must be int or None, got {type(value)}: {value}"
+            )
 
-        raise TypeError(
-            f"Excpected float or None for field {field_name}, got {type(value)} with value {value}"
-        )
+        return value
 
     @staticmethod
-    def validate_optional_date(value: Any, field_name: str) -> Optional[dt.date]:
+    def validate_optional_date(
+        value: Optional[dt.date], field_name: str
+    ) -> Optional[dt.date]:
+        """Strict validation - only accepts date or None (already parsed)"""
         if value is None:
             return None
 
-        if isinstance(value, dt.date):
-            return value
+        if not isinstance(value, dt.date):
+            raise TypeError(
+                f"{field_name} must be date or None, got {type(value)}: {value}"
+            )
 
-        raise TypeError(
-            f"Excpected datetime.date or None for field {field_name}, got {type(value)} with value {value}"
-        )
+        return value
 
     @staticmethod
     def validate_optional_positive_int(value: Any, field_name: str) -> Optional[int]:
@@ -124,3 +125,23 @@ class StrictValidators:
             raise TypeError(
                 f"Excpected bool or None for field {field_name}, got {type(value)} with value {value}"
             )
+
+    @staticmethod
+    def validate_optional_int_range(
+        value: Optional[int], field_name: str, min_val: int, max_val: int
+    ) -> Optional[int]:
+        """Strict validation with range checking"""
+        if value is None:
+            return None
+
+        if not isinstance(value, int):
+            raise TypeError(
+                f"{field_name} must be int or None, got {type(value)}: {value}"
+            )
+
+        if not (min_val <= value <= max_val):
+            raise ValueError(
+                f"{field_name} must be between {min_val} and {max_val}, got {value}"
+            )
+
+        return value
