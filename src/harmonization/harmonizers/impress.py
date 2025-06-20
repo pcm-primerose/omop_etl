@@ -1,3 +1,5 @@
+from typing import Optional
+
 import polars as pl
 import datetime as dt
 from src.harmonization.parsing.coercion import TypeCoercion
@@ -28,9 +30,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_biomarkers()
         self._process_date_of_death()
         self._process_date_lost_to_followup()
-        # self._process_evaluability()
-        # self._process_ecog()
-        # self._process_previous_treatment_lines()
+        self._process_evaluability()
+        self._process_ecog()
+        self._process_previous_treatment_lines()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -254,7 +256,12 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_biomarkers(self):
         biomarker_data = self.data.select(
-            "SubjectId", "COH_GENMUT1", "COH_GENMUT1CD", "COH_COHCTN", "COH_COHTMN"
+            "SubjectId",
+            "COH_GENMUT1",
+            "COH_GENMUT1CD",
+            "COH_COHCTN",
+            "COH_COHTMN",
+            "COH_EventDate",
         ).filter(
             (pl.col("COH_GENMUT1") != "NA")
             | (pl.col("COH_GENMUT1CD") != "NA")
@@ -269,8 +276,11 @@ class ImpressHarmonizer(BaseHarmonizer):
                 continue
 
             biomarkers = Biomarkers()
+            biomarkers.event_date = CoreParsers.parse_date_flexible(
+                row["COH_EventDate"]
+            )
             biomarkers.gene_and_mutation = TypeCoercion.to_optional_string(
-                ["COH_GENMUT1"]
+                row["COH_GENMUT1"]
             )
             biomarkers.gene_and_mutation_code = TypeCoercion.to_optional_int(
                 row["COH_GENMUT1CD"]
@@ -338,127 +348,134 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].lost_to_followup = followup
 
+    def _process_evaluability(self):
+        """
+        Current filtering criteria for marking patient as evaluable for efficacy analysis:
+            - must have treatment length over 28 days (taking treatment length of first treatment) and either one of:
+            - tumor assessment (all rows in assessments suffice, EventDate always has data)
+            - clinical assessment (EventId from EOT sheet)
 
-#     def _process_evaluability(self):
-#         """
-#         Current filtering criteria for marking patient as evaluable for efficacy analysis:
-#             - must have treatment length over 28 days (taking treatment length of first treatment) and either one of:
-#             - tumor assessment (all rows in assessments suffice, EventDate always has data)
-#             - clinical assessment (EventId from EOT sheet)
-#
-#         Unsure if these are correct criteria!
-#
-#         TODO:
-#             - distinguish between oral and IV drug treatment lengt requirements (4 --> IV, 8 --> oral)?
-#         """
-#         evaluability_data = self.data.select(
-#             "SubjectId",
-#             CoreParsers.parse_date_flexible(pl.col("TR_TROSTPDT")),
-#             CoreParsers.parse_date_flexible(pl.col("TR_TRO_STDT")),
-#             CoreParsers.parse_date_flexible(pl.col("RA_EventDate")),
-#             CoreParsers.parse_date_flexible(pl.col("RNRSP_EventDate")),
-#             CoreParsers.parse_date_flexible(pl.col("RCNT_EventDate")),
-#             CoreParsers.parse_date_flexible(pl.col("RNTMNT_EventDate")),
-#             CoreParsers.parse_date_flexible(pl.col("LUGRSP_EventDate")),
-#             CoreParsers.parse_date_flexible(pl.col("EOT_EventDate")),
-#         )
-#
-#         for patient_id in self.patient_data:
-#             patient_data = evaluability_data.filter(pl.col("SubjectId") == patient_id)
-#
-#             start_dates = []
-#             end_dates = []
-#
-#             has_tumor_evaluation = False
-#             has_eot_evaluation = False
-#
-#             # check all evaluations
-#             for row in patient_data.iter_rows(named=True):
-#                 start_date = CoreParsers.parse_date_flexible(row["TR_TRO_STDT"])
-#                 if start_date:
-#                     start_dates.append(start_date)
-#
-#                 end_date = CoreParsers.parse_date_flexible(row["TR_TROSTPDT"])
-#                 if end_date:
-#                     end_dates.append(end_date)
-#
-#                 if any(
-#                     [
-#                         CoreParsers.parse_date_flexible(row["RA_EventDate"]),
-#                         CoreParsers.parse_date_flexible(row["RNRSP_EventDate"]),
-#                         CoreParsers.parse_date_flexible(row["RCNT_EventDate"]),
-#                         CoreParsers.parse_date_flexible(row["RNTMNT_EventDate"]),
-#                         CoreParsers.parse_date_flexible(row["LUGRSP_EventDate"]),
-#                     ]
-#                 ):
-#                     has_tumor_evaluation = True
-#
-#                 # check for end-of-treatment evaluatuon
-#                 if CoreParsers.parse_date_flexible(row["EOT_EventDate"]):
-#                     has_eot_evaluation = True
-#
-#             # check treatment length
-#             sufficient_treatment_length = False
-#             if start_dates and end_dates:
-#                 earliest_start = min(start_dates)
-#                 latest_end = max(end_dates)
-#                 sufficient_treatment_length = (
-#                     latest_end - earliest_start
-#                 ) >= dt.timedelta(days=28)
-#
-#             # apply criteria filters
-#             evaluable_status = sufficient_treatment_length and (
-#                 has_tumor_evaluation or has_eot_evaluation
-#             )
-#
-#             self.patient_data[
-#                 patient_id
-#             ].evaluable_for_efficacy_analysis = evaluable_status
-#
-#     def _process_ecog(self):
-#         # parse ECOG description and grade
-#         ecog_data = self.data.select(
-#             "SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD"
-#         )
-#
-#         for row in ecog_data.iter_rows(named=True):
-#             patient_id = row["SubjectId"]
-#             ecog_description = None
-#             ecog_grade = None
-#             if TypeCoercion.to_optional_string(row["ECOG_EventId"]):
-#                 ecog_description = TypeCoercion.to_optional_string(row["ECOG_ECOGS"])
-#                 ecog_grade = TypeCoercion.to_optional_int(row["ECOG_ECOGSCD"])
-#
-#             ecog = Ecog()
-#             ecog.grade = ecog_grade
-#             ecog.description = ecog_description
-#
-#             self.patient_data[patient_id].ecog = ecog
-#
-#     def _process_medical_history(self):
-#         # MHTER, MHSTDAT, MHONGO, MHONGOCD
-#         # TODO: Implement when we know if we need this, and after eCRF extraction upadate
-#         pass
-#
-#     def _process_previous_treatment_lines(self):
-#         # TODO: Add CT_CTTYPESP when eCRF extraction update
-#         #   it contains e.g. "horomonal therapy"
-#         treatment_lines_data = self.data.select(
-#             "SubjectId",
-#             "CT_CTTYPE",
-#             "CT_CTTYPECD",
-#             "CT_CTSTDAT",
-#             "CT_CTENDAT",
-#             "CT_CTSPID",
-#         )
-#
-#         for row in treatment_lines_data.iter_rows(named=True):
-#             print(row)
-#
-#         # TODO
-#         #   Just implement intended data in test fixtures and make sure implementation works
-#         #   and stop spending so much time on mock data (can also just add some empty cols with NA for new data)
-#         #   but need to re-run eCRF script now anyways
-#
-#
-# # TODO after making nice mock data add dates to everything
+        Unsure if these are correct criteria!
+
+        TODO:
+            - distinguish between oral and IV drug treatment lengt requirements (4 --> IV, 8 --> oral)?
+        """
+        evaluability_data = self.data.select(
+            "SubjectId",
+            "TR_TROSTPDT",
+            "TR_TRO_STDT",
+            "RA_EventDate",
+            "RNRSP_EventDate",
+            "RCNT_EventDate",
+            "RNTMNT_EventDate",
+            "EOT_EventDate",
+        )
+
+        # lugrsp data is missing in synthetic data (fix later)
+        optional_lugrsp: Optional[pl.Series] = self.data.get_column(
+            name="LUGRSP_EventDate", default=None
+        )
+        if optional_lugrsp:
+            evaluability_data.join(optional_lugrsp)
+
+        for patient_id in self.patient_data:
+            patient_data = evaluability_data.filter(pl.col("SubjectId") == patient_id)
+
+            start_dates = []
+            end_dates = []
+
+            has_tumor_evaluation = False
+            has_eot_evaluation = False
+
+            # check all evaluations
+            for row in patient_data.iter_rows(named=True):
+                start_date = CoreParsers.parse_date_flexible(row["TR_TRO_STDT"])
+                if start_date:
+                    start_dates.append(start_date)
+
+                end_date = CoreParsers.parse_date_flexible(row["TR_TROSTPDT"])
+                if end_date:
+                    end_dates.append(end_date)
+
+                if any(
+                    [
+                        CoreParsers.parse_date_flexible(row["RA_EventDate"]),
+                        CoreParsers.parse_date_flexible(row["RNRSP_EventDate"]),
+                        CoreParsers.parse_date_flexible(row["RCNT_EventDate"]),
+                        CoreParsers.parse_date_flexible(row["RNTMNT_EventDate"]),
+                        CoreParsers.parse_date_flexible(row["LUGRSP_EventDate"]),
+                    ]
+                ):
+                    has_tumor_evaluation = True
+
+                # check for end-of-treatment evaluatuon
+                if CoreParsers.parse_date_flexible(row["EOT_EventDate"]):
+                    has_eot_evaluation = True
+
+            # check treatment length
+            sufficient_treatment_length = False
+            if start_dates and end_dates:
+                earliest_start = min(start_dates)
+                latest_end = max(end_dates)
+                sufficient_treatment_length = (
+                    latest_end - earliest_start
+                ) >= dt.timedelta(days=28)
+
+            # apply criteria filters
+            evaluable_status = sufficient_treatment_length and (
+                has_tumor_evaluation or has_eot_evaluation
+            )
+
+            print(f"Evaluability status: {evaluable_status}")
+
+            self.patient_data[
+                patient_id
+            ].evaluable_for_efficacy_analysis = evaluable_status
+
+    def _process_ecog(self):
+        # parse ECOG description and grade
+        ecog_data = self.data.select(
+            "SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD"
+        )
+
+        for row in ecog_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            ecog_description = None
+            ecog_grade = None
+            if TypeCoercion.to_optional_string(row["ECOG_EventId"]):
+                ecog_description = TypeCoercion.to_optional_string(row["ECOG_ECOGS"])
+                ecog_grade = TypeCoercion.to_optional_int(row["ECOG_ECOGSCD"])
+
+            ecog = Ecog()
+            ecog.grade = ecog_grade
+            ecog.description = ecog_description
+
+            self.patient_data[patient_id].ecog = ecog
+
+    def _process_medical_history(self):
+        # MHTER, MHSTDAT, MHONGO, MHONGOCD
+        # TODO: Implement when we know if we need this, and after eCRF extraction upadate
+        pass
+
+    def _process_previous_treatment_lines(self):
+        # TODO: Add CT_CTTYPESP when eCRF extraction update
+        #   it contains e.g. "horomonal therapy"
+        treatment_lines_data = self.data.select(
+            "SubjectId",
+            "CT_CTTYPE",
+            "CT_CTTYPECD",
+            "CT_CTSTDAT",
+            "CT_CTENDAT",
+            "CT_CTSPID",
+        )
+
+        for row in treatment_lines_data.iter_rows(named=True):
+            print(row)
+
+        # TODO
+        #   Just implement intended data in test fixtures and make sure implementation works
+        #   and stop spending so much time on mock data (can also just add some empty cols with NA for new data)
+        #   but need to re-run eCRF script now anyways
+
+
+# TODO after making nice mock data add dates to everything

@@ -1,6 +1,6 @@
 import polars as pl
 import datetime as dt
-from typing import Optional, List, Union, Any, Set
+from typing import Optional, Union, Any, Set
 from src.harmonization.parsing.coercion import TypeCoercion
 
 
@@ -54,7 +54,7 @@ class CoreParsers:
             except ValueError:
                 continue
 
-        raise ValueError(f"Cannot parse date from: {value}")
+        raise ValueError(f"Cannot parse date from: {str(value)}")
 
     @staticmethod
     def _parse_nk_date(

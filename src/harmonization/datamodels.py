@@ -5,108 +5,16 @@ import datetime as dt
 from src.harmonization.validation.validators import StrictValidators
 
 # These models represent validated, transformed and cleaned harmonized data
-# as intermediate structures they don't map 1:1 to the CDM table,s
-
-"""
-Flat data
-    Patient = Cohort Name, Trial, ID, Age, Sex, Death, Lost to follow-up, Evaluability, 
-    Date End of Treatment, Reason EOT, Best Overall Response, Clinical benefit
-    
-Nested data: 
-
-TumorType = Tumor Type
-StudyDrugs = 
-Biomarker = 
-ECOG/WHO performance status = 
-Medical History 
-Treatments = 
-    Treatment start 
-    Treatment start cycle
-    Treatment end cycle
-    Treatment start last cycle
-    Treatment end
-    Dose delivered 
-Previous treatment lines = 
-Concomitant medication
-Adverse Event (AE) =
-    AE grade
-    AE CTCAE Term
-    AE start date
-    AE end date
-    AE outcome
-    AE management
-    Number of AEs
-    SAE
-    Related to Treatment 
-    Expectedness
-    
-Tumor Assessment = 
-    Type Tumor Assessment
-    Event date assessment
-    Baseline evaluation
-    Change from baseline
-Response assessment
-Quality of Life assessment
-
-"""
-
-
-# TODO
-"""
-Medical History 
-Previous treatment lines
-Treatment start 
-Treatment start cycle
-Treatment end cycle
-Treatment start last cycle
-Treatment end
-Dose delivered 
-Concomitant medication
-Adverse Event (AE)
-AE grade
-AE CTCAE Term
-AE start date
-AE end date
-AE outcome
-AE management
-Number of AEs
-SAE
-Related to Treatment 
-Expectedness
-Type Tumor Assessment
-Event date assessment
-Baseline evaluation
-Change from baseline
-Response assessment
-Date End of Treatment
-Reason EOT
-Best Overall Response
-Clinical benefit
-Quality of Life assessment
-"""
+# as intermediate structures they don't map 1:1 to the CDM table.
+# Basic flow is:
+# 1. add method to subclass, implement it to process some data, see docs for what to extract
+# 2. once data extracted, make datamodel storing this, using getters/setters, valiation/parsers, implement specific parsers if needed
+# 3. add to patient collection class then done!
 
 # todo:
-#   just do validation here,
-#   [x] finish getters/setters and dunders methods (when parsers, coercers, validators done)
-#   [x] make type hint assertions in setters (yes)
-#   [x] fix current implementation
 #   [ ] add str, len, repr etc
-#   [ ] then add fields for all datamodels (see docs)
-
-# todo:
-#  Models represent final PRIME-ROSE structure, just implement from docs with some modifications
-#  i.e. don't structure by sheet origin, but by meta vars (group same e.g. treatments)
-#  but ofc needs to work well across trials
-#  [ ] add rest of models
-#   -- write down end structure (what exact vars and how to group them in model)
-#   Validate current models, fine as long as they have all required data
-#   [ ] TumorType
-#   [ ] StudyDrugs (add additional data, don't separte sd1/sd2)
-#   [ ] Biomarkers
-#   [ ] FollowUp
-#   [ ] Ecog
-#   [ ] MedicalHistory
-#   Add rest of models
+#   [ ] then add fields for all datamodels (see docs):
+#  .....
 #   [ ] Treatments (combine to one)
 #   [ ] DoseDelivered (oral, iv, injection)
 #   [ ] PreviousTreatments
@@ -114,23 +22,9 @@ Quality of Life assessment
 #   [ ] ConcomitantMedication
 #   [ ] AdverseEvents
 #   [ ] TumorAssessments (group all, make assessment type ID?)
+#   [ ] Ecog
 #   [ ] Evaluations (?) (group best response, clinical benefit, EOT, etc?)
 #   [ ] QoL (C30, EQ5D)
-
-# TODO
-#  Idk how much to transform and groyp the data, I could structure it just like the OMOP CDM
-#  expects, or I can just group it more logically now and access whatever data I'd need from the data models
-#  when loading into the OMOP CDM. First I'd need to do sematic mapping of the data in the dataclasses anyways,
-#  and return those values as addition fields in the datamodels (or make new datamodels, or just map to a dict).
-#  regardless the datamodels here don't represent the final data that should be loaded into the database,
-#  and as long as I have all data, it's validated, and I can access it, it shouldn't be that important how it is grouped
-#  in these models? As an example, the study drugs is in one place (StudyDrugs) and the treatment regiement data elsewhere (Treatments),
-#  for one example of an OMOP table, I'd need to grab data from both the data models (the drug names from StudyDrugs, and the treatment dates from Treatments).
-#  For instance, I'd need to do semantic mapping of the TumorType class, using multiple fields to find
-#  the best standardized concept representing the tumor type. How should I handle this?
-#  1. Make entire set of new datamodels, just holding the standardized data?
-#  2. Add fields to existing datamodels, and add the standardized data (e.g. standard tumor type) after semantic mapping?
-#  Something else?
 
 
 class TumorType:
@@ -294,6 +188,7 @@ class Biomarkers:
         self._gene_and_mutation_code: Optional[int] = None
         self._cohort_target_name: Optional[str] = None
         self._cohort_target_mutation: Optional[str] = None
+        self._event_date: Optional[dt.date] = None
         self.updated_fields: Set[str] = set()
 
     @property
@@ -340,12 +235,24 @@ class Biomarkers:
         )
         self.updated_fields.add(self.__class__.cohort_target_mutation.fset.__name__)
 
+    @property
+    def event_date(self) -> Optional[dt.date]:
+        return self._event_date
+
+    @event_date.setter
+    def event_date(self, value: Optional[dt.date]) -> None:
+        self._event_date = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.event_date.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.event_date.fset.__name__)
+
     def __str__(self):
         return (
             f"Gene and mutation: {self.gene_and_mutation}, "
             f"Gene and mutation code: {self.gene_and_mutation_code}, "
             f"Cohort target name: {self.cohort_target_name}, "
-            f"Cohort target mutation: {self.cohort_target_mutation}"
+            f"Cohort target mutation: {self.cohort_target_mutation}, "
+            f"Event date: {self.event_date}"
         )
 
 
@@ -388,6 +295,7 @@ class Ecog:
     def __init__(self):
         self._description: Optional[str] = None
         self._grade: Optional[int] = None
+        self._date: Optional[dt.date] = None
         self.updated_fields: Set[str] = set()
 
     @property
@@ -412,8 +320,23 @@ class Ecog:
         )
         self.updated_fields.add(self.__class__.grade.fset.__name__)
 
+    @property
+    def date(self) -> Optional[dt.date]:
+        return self._date
+
+    @date.setter
+    def date(self, value: Optional[dt.date]) -> None:
+        self._date = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.date.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.date.fset.__name__)
+
     def __str__(self):
-        return f"Ecog description: {self.description}, " f"Ecog grade: {self.grade}"
+        return (
+            f"Ecog description: {self.description},  "
+            f"Ecog grade: {self.grade}, "
+            f"Ecog date: {self.date}"
+        )
 
 
 class MedicalHistory:
@@ -524,7 +447,7 @@ class Patient:
         self._biomarker: Optional[Biomarkers] = None
         self._date_of_death: Optional[dt.datetime] = None
         self._lost_to_followup: Optional[FollowUp] = None
-        self._evaluable_for_efficacy_analysis: Optional[bool] = None
+        self._evaluable_for_efficacy_analysis: bool = False
         self._ecog: Optional[Ecog] = None
         self.updated_fields: Set[str] = set()
 
@@ -605,11 +528,11 @@ class Patient:
         return self._evaluable_for_efficacy_analysis
 
     @evaluable_for_efficacy_analysis.setter
-    def evaluable_for_efficacy_analysis(self, value: Optional[bool | None]) -> None:
+    def evaluable_for_efficacy_analysis(self, value: Optional[bool]) -> None:
         """Set evaluable for efficacy analysis status with validation"""
         self._date_of_death = StrictValidators.validate_optional_bool(
             value=value,
-            field_name=f"{self.__class__.evaluable_for_efficacy_analysis.fset.__name__}",
+            field_name=self.__class__.evaluable_for_efficacy_analysis.fset.__name__,
         )
         self.updated_fields.add(
             self.__class__.evaluable_for_efficacy_analysis.fset.__name__
