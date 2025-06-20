@@ -11,3 +11,5 @@
 #         # or just call sql methods directly
 #         # log and use sa session
 #         pass
+
+# or just have mapped data in dataclass and load this into a omop dataclass then dump as dict then bulk load to postgres:

@@ -2,10 +2,10 @@ import logging
 from typing import List, Optional, Set
 from dataclasses import dataclass, field
 import datetime as dt
-
-from mypy.messages import format_item_name_list
-
 from src.harmonization.validation.validators import StrictValidators
+
+# These models represent validated, transformed and cleaned harmonized data
+# as intermediate structures they don't map 1:1 to the CDM table,s
 
 """
 Flat data
@@ -87,9 +87,10 @@ Quality of Life assessment
 
 # todo:
 #   just do validation here,
-#   [ ] finish getters/setters and dunders methods (when parsers, coercers, validators done)
-#   [ ] make type hint assertions in setters (yes)
-#   [ ] fix current implementation
+#   [x] finish getters/setters and dunders methods (when parsers, coercers, validators done)
+#   [x] make type hint assertions in setters (yes)
+#   [x] fix current implementation
+#   [ ] add str, len, repr etc
 #   [ ] then add fields for all datamodels (see docs)
 
 # todo:
@@ -98,7 +99,7 @@ Quality of Life assessment
 #  but ofc needs to work well across trials
 #  [ ] add rest of models
 #   -- write down end structure (what exact vars and how to group them in model)
-#   Validate current models:
+#   Validate current models, fine as long as they have all required data
 #   [ ] TumorType
 #   [ ] StudyDrugs (add additional data, don't separte sd1/sd2)
 #   [ ] Biomarkers
@@ -115,6 +116,21 @@ Quality of Life assessment
 #   [ ] TumorAssessments (group all, make assessment type ID?)
 #   [ ] Evaluations (?) (group best response, clinical benefit, EOT, etc?)
 #   [ ] QoL (C30, EQ5D)
+
+# TODO
+#  Idk how much to transform and groyp the data, I could structure it just like the OMOP CDM
+#  expects, or I can just group it more logically now and access whatever data I'd need from the data models
+#  when loading into the OMOP CDM. First I'd need to do sematic mapping of the data in the dataclasses anyways,
+#  and return those values as addition fields in the datamodels (or make new datamodels, or just map to a dict).
+#  regardless the datamodels here don't represent the final data that should be loaded into the database,
+#  and as long as I have all data, it's validated, and I can access it, it shouldn't be that important how it is grouped
+#  in these models? As an example, the study drugs is in one place (StudyDrugs) and the treatment regiement data elsewhere (Treatments),
+#  for one example of an OMOP table, I'd need to grab data from both the data models (the drug names from StudyDrugs, and the treatment dates from Treatments).
+#  For instance, I'd need to do semantic mapping of the TumorType class, using multiple fields to find
+#  the best standardized concept representing the tumor type. How should I handle this?
+#  1. Make entire set of new datamodels, just holding the standardized data?
+#  2. Add fields to existing datamodels, and add the standardized data (e.g. standard tumor type) after semantic mapping?
+#  Something else?
 
 
 class TumorType:
@@ -194,6 +210,15 @@ class TumorType:
         )
         self.updated_fields.add(self.__class__.other_tumor_type.fset.__name__)
 
+    def __str__(self):
+        return (
+            f"ICD10 description: {self.icd10_description}, "
+            f"ICD10 code: {self.icd10_code}, "
+            f"Main tumor type: {self.main_tumor_type}, "
+            f"Other tumor type: {self.other_tumor_type}, "
+            f"Cohort tumor type: {self.cohort_tumor_type}"
+        )
+
 
 class StudyDrugs:
     def __init__(self):
@@ -254,6 +279,14 @@ class StudyDrugs:
             self.__class__.secondary_treatment_drug_code.fset.__name__
         )
 
+    def __str__(self):
+        return (
+            f"Primary treatment drug: {self.primary_treatment_drug}, "
+            f"Primary treatment drug code: {self.primary_treatment_drug_code}, "
+            f"Secondary treatment drug: {self.secondary_treatment_drug}, "
+            f"Secondary treatment drug code: {self.secondary_treatment_drug_code}"
+        )
+
 
 class Biomarkers:
     def __init__(self):
@@ -307,6 +340,14 @@ class Biomarkers:
         )
         self.updated_fields.add(self.__class__.cohort_target_mutation.fset.__name__)
 
+    def __str__(self):
+        return (
+            f"Gene and mutation: {self.gene_and_mutation}, "
+            f"Gene and mutation code: {self.gene_and_mutation_code}, "
+            f"Cohort target name: {self.cohort_target_name}, "
+            f"Cohort target mutation: {self.cohort_target_mutation}"
+        )
+
 
 class FollowUp:
     def __init__(self):
@@ -336,6 +377,12 @@ class FollowUp:
         )
         self.updated_fields.add(self.__class__.date_lost_to_followup.fset.__name__)
 
+    def __str__(self):
+        return (
+            f"Lost to followup status: {self.lost_to_followup}, "
+            f"Date lost to followup: {self.date_lost_to_followup}"
+        )
+
 
 class Ecog:
     def __init__(self):
@@ -364,6 +411,9 @@ class Ecog:
             value=value, field_name=self.__class__.grade.fset.__name__
         )
         self.updated_fields.add(self.__class__.grade.fset.__name__)
+
+    def __str__(self):
+        return f"Ecog description: {self.description}, " f"Ecog grade: {self.grade}"
 
 
 class MedicalHistory:
@@ -430,6 +480,29 @@ class MedicalHistory:
             value=value, field_name=self.__class__.treatment_end_date.fset.__name__
         )
         self.updated_fields.add(self.__class__.treatment_end_date.fset.__name__)
+
+    @property
+    def num_previous_treatment_lines(self) -> Optional[int]:
+        return self._num_previous_treatment_lines
+
+    @num_previous_treatment_lines.setter
+    def num_previous_treatment_lines(self, value: Optional[int]) -> None:
+        self._num_previous_treatment_lines = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.num_previous_treatment_lines.fset.__name__,
+        )
+        self.updated_fields.add(
+            self.__class__.num_previous_treatment_lines.fset.__name__
+        )
+
+    def __str__(self):
+        return (
+            f"Treatment type: {self.treatment_type}, "
+            f"Treatment specification: {self.treatment_specification}, "
+            f"Treatment start date: {self.treatment_start_date}, "
+            f"Treatment end date: {self.treatment_end_date}, "
+            f"Number of previous treatments: {self.num_previous_treatment_lines}"
+        )
 
 
 class Patient:
@@ -595,7 +668,7 @@ class Patient:
                 f"lost_to_followup must be {FollowUp.__name__} instance or None, got {value} with type {type(value)}"
             )
 
-        self._biomarker = value
+        self._lost_to_followup = value
         self.updated_fields.add(FollowUp.__name__)
 
     @property
@@ -609,13 +682,27 @@ class Patient:
                 f"ecog must be {Ecog.__name__} instance or None, got {value} with type {type(value)}"
             )
 
-        self._biomarker = value
+        self._ecog = value
         self.updated_fields.add(Ecog.__name__)
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
 
-    # TODO nested repr, to str, to dict, to polars df, etc
+    def __str__(self):
+        return (
+            f"Patient {self.patient_id}: \n"
+            f"trial_id={self.trial_id} \n"
+            f"cohort_name={self.cohort_name} \n"
+            f"sex={self.sex} \n"
+            f"age={self.age} \n"
+            f"tumor_type={self.tumor_type} \n"
+            f"study_drugs={self.study_drugs} \n"
+            f"biomarkers={self.biomarker} \n"
+            f"date_of_death={self.date_of_death} \n"
+            f"lost_to_followup={self.lost_to_followup} \n"
+            f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
+            f"ecog={self.ecog} \n"
+        )
 
 
 @dataclass
@@ -626,6 +713,11 @@ class HarmonizedData:
 
     trial_id: str
     patients: List[Patient] = field(default_factory=list)
+
+    def __str__(self):
+        patient_str = "\n".join(str(p) for p in self.patients)
+        return f"Trial ID: {self.trial_id}\nPatients:\n{patient_str}"
+
     # medical_histories: List[MedicalHistory] = field(default_factory=list)
     # previous_treatments: List[PreviousTreatmentLine] = field(default_factory=list)
     # ecog_assessments: List[Ecog] = field(default_factory=list)

@@ -282,7 +282,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 row["COH_COHTMN"]
             )
 
-            self.patient_data[patient_id].biomarkers = biomarkers
+            self.patient_data[patient_id].biomarker = biomarkers
 
     def _process_date_of_death(self):
         death_data = self.data.select(

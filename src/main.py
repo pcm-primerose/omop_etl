@@ -32,7 +32,16 @@ def main():
     impress_df = pl.read_csv(pre_processed_data)
     harmonizer = ImpressHarmonizer(data=impress_df, trial_id="IMPRESS")
     harmonized_data = harmonizer.process()
-    print(harmonized_data)
+    str(harmonized_data)
+
+    # want something like this:
+    # where semantic mapping is separate from the harmonization/pre-processing:
+    # need to make a new layer of dataclasses to store mapped concepts,
+    # this is nice because it decouples mapping from other stages, and allows for easier provenance, auditing, testing etc
+
+    # omop_transformer = OmopTransformer(concept_mapper)
+    # omop_data = omop_transformer.transform(harmonized_data)  # semantic mapping
+    # loader.load_to_database(omop_data)  # strucural mapping (load to cdm)
 
 
 if __name__ == "__main__":
