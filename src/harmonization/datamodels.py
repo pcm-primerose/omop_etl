@@ -9,7 +9,7 @@ from src.harmonization.validation.validators import StrictValidators
 # Basic flow is:
 # 1. add method to subclass, implement it to process some data, see docs for what to extract
 # 2. once data extracted, make datamodel storing this, using getters/setters, valiation/parsers, implement specific parsers if needed
-# 3. add to patient collection class then done!
+# 3. add field to patient collection class
 
 # todo:
 #   [ ] add str, len, repr etc
@@ -434,10 +434,8 @@ class Patient:
     """
 
     def __init__(self, patient_id: str, trial_id: str):
-        # immutable
         self._patient_id = patient_id
         self._trial_id = trial_id
-
         self._patient_id: Optional[str] = patient_id
         self._cohort_name: Optional[str] = None
         self._age: Optional[int] = None
