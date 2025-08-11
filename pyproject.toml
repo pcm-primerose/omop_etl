@@ -1,32 +1,39 @@
-[tool.poetry]
+[project]
 name = "omop-etl"
 version = "0.1.0"
 description = "ETL for PRIME ROSE to OMOP CDM"
-authors = ["Gabriel B. Stav"]
+authors = [{ name = "Gabriel B. Stav" }]
+requires-python = ">=3.10"
 readme = "README.md"
-packages = [{include = "*", from = "src"}]
+dependencies = [
+    "python-dotenv>=1.0.0,<2",
+    "openpyxl>=3.1.5,<4",
+    "pandas>=2.2.3,<3",
+    "pydantic>=2.10.4,<3",
+    "ruff>=0.9.0,<0.10",
+    "mypy>=1.14.1,<2",
+    "ns>=0.1,<0.2",
+    "polars>=1.22.0,<2",
+    "faker>=37.0.0,<38",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10"
-python-dotenv = "^1.0.0"
-openpyxl = "^3.1.5"
-pandas = "^2.2.3"
-pydantic = "^2.10.4"
-ruff = "^0.9.0"
-mypy = "^1.14.1"
-ns = "^0.1"
-polars = "^1.22.0"
-faker = "^37.0.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.0.0"
-pre-commit = "^3.0.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 setup = "setup:main"
 
-#[tool.black]
-#line-length = 200
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0,<8",
+    "pre-commit>=3.0.0,<4",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/*"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src/*"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/*" = "*"
 
 [tool.ruff]
 line-length = 170
