@@ -1,7 +1,7 @@
 from pathlib import Path
 import polars as pl
-from src.pre_processing.impress.impress_ecrf import impress_preprocessor
-from src.harmonization.harmonizers.impress import ImpressHarmonizer
+from src.omop_etl.pre_processing.impress.impress_ecrf import impress_preprocessor
+from src.omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 
 
 def output_dir_preprocessing() -> Path:

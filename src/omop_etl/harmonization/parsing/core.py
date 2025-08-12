@@ -1,7 +1,7 @@
 import polars as pl
 import datetime as dt
 from typing import Optional, Union, Any, Set
-from src.harmonization.parsing.coercion import TypeCoercion
+from omop_etl.harmonization.parsing.coercion import TypeCoercion
 
 
 class CoreParsers:

@@ -1,15 +1,17 @@
 from dataclasses import dataclass
-import pandas as pd  # type: ignore
+import pandas as pd
 from pathlib import Path
-from typing import Optional, List, Dict, Set
+from typing import Optional, List, Dict, Set, Mapping
 import logging as logging
 import argparse
 from datetime import datetime
 import sys
 import json
+from importlib.resources import files
 
-from mypy.types_utils import store_argument_type
+from src.omop_etl.main import config_path
 
+# TODO: remove after logging module implemented
 # configure logger
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -110,6 +112,14 @@ class EcrfConfig:
     def is_data_loaded(self) -> bool:
         """Check if data has been loaded into the config"""
         return self.data is not None and len(self.data) > 0
+
+    @classmethod
+    def from_mapping(cls, config_data: Mapping[str, list[str]]) -> "EcrfConfig":
+        configs = [
+            SheetConfig(key=key.upper(), usecols=cols)
+            for key, cols in config_data.items()
+        ]
+        return cls(configs=configs)
 
     @classmethod
     def from_json(cls, ecrf_config: Path) -> "EcrfConfig":
@@ -567,7 +577,7 @@ def validate_paths(input_path: Path, output_path: Path) -> None:
 def impress_preprocessor(
     input_path: Path,
     output_path: Path,
-    config_path: Path,
+    config_path: dict,
     log_path: Optional[Path] = None,
     output_format: str = "csv",
     mock_data: Optional[bool] = False,
@@ -580,6 +590,7 @@ def impress_preprocessor(
         output_path (Path): Path to save the output file.
         log_path (Optional[Path]): Path to save log files. If None, logs only to console.
         output_format (str): Format of output file ('csv' or 'txt'). Defaults to 'csv'.
+        config_path (dict): Config object.
 
     Raises:
         FileNotFoundError: If input path doesn't exist or output directory is invalid.
@@ -601,7 +612,9 @@ def impress_preprocessor(
 
         # load config, instantiate SheetConfig and EcrfConfig
         logger.info("Loading config data from json..")
-        ecrf_config = EcrfConfig.from_json(config_path)
+        # ecrf_config = EcrfConfig.from_json(config_path)
+        ecrf_config = EcrfConfig.from_mapping(config_path)
+        # ecrf_config = EcrfConfig.get_config("impress")
         ecrf_config.trial = "impress"
 
         # use InputResolver to load data based on configs
@@ -649,29 +662,41 @@ def impress_preprocessor(
         logger.info(f"Processing finished at {datetime.now()}")
 
 
-# TODO: Move this when extracting to spearate packages
-def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
-    """
-    Get configuration file path, either provided at runtime or default ones based on trial ID?
-    """
+def load_ecrf_config(custom_config_path: Optional[Path] = None) -> dict:
     if custom_config_path:
-        if not custom_config_path.exists():
-            raise FileNotFoundError(
-                f"Custom config file not found: {custom_config_path}"
-            )
-        return custom_config_path
+        p = Path(custom_config_path)
+        if not p.exists():
+            raise FileNotFoundError(f"Custom config file not found: {p}")
+        return json.loads(p.read_text())
 
-    default_config: Path = (
-        Path(__file__).parents[3] / "configs" / "impress_ecrf_variables.json"
-    )
-    print(f"Default config: {default_config}")
-    with open(default_config) as f:
-        config_data = json.load(f)
-    print(config_data)
-    if not default_config.exists():
-        raise FileNotFoundError(f"Default config file not found: {default_config}")
+    resource = files("omop_etl.resources") / "impress_ecrf_variables.json"
+    with resource.open("r") as f:
+        return json.load(f)
 
-    return default_config
+
+# TODO: Move this when extracting to spearate packages
+# def get_config_path(custom_config_path: Optional[Path] = None) -> Path:
+#     """
+#     Get configuration file path, either provided at runtime or default ones based on trial ID?
+#     """
+#     if custom_config_path:
+#         if not custom_config_path.exists():
+#             raise FileNotFoundError(
+#                 f"Custom config file not found: {custom_config_path}"
+#             )
+#         return custom_config_path
+#
+#     default_config: Path = (
+#         Path(__file__).parents[3] / "configs" / "impress_ecrf_variables.json"
+#     )
+#
+#     with open(default_config) as f:
+#         config_data = json.load(f)
+#     print(config_data)
+#     if not default_config.exists():
+#         raise FileNotFoundError(f"Default config file not found: {default_config}")
+#
+#     return default_config
 
 
 if __name__ == "__main__":
@@ -715,7 +740,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    config_path = get_config_path(custom_config_path=args.config)
+    config_path = load_ecrf_config()
+    # config_path = get_config_path(custom_config_path=args.config)
 
     impress_preprocessor(
         input_path=args.input,

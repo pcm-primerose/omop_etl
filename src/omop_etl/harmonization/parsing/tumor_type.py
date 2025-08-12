@@ -1,7 +1,7 @@
 from typing import Any, Optional
 import re
-from src.harmonization.parsing.coercion import TypeCoercion
-from src.harmonization.parsing.core import CoreParsers
+from src.omop_etl.harmonization.parsing.coercion import TypeCoercion
+
 
 # todo: layer 3 (consider keeping in one class for now)
 #   acts on domain-specific data (in specific data model)

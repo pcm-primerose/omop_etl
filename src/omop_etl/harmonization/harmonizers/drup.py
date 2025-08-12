@@ -1,6 +1,6 @@
 import polars as pl
-from src.harmonization.harmonizers.base import BaseHarmonizer
-from src.harmonization.datamodels import HarmonizedData, Patient
+from src.omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from src.omop_etl.harmonization.datamodels import HarmonizedData, Patient
 
 
 class DrupHarmonizer(BaseHarmonizer):
@@ -33,7 +33,9 @@ class DrupHarmonizer(BaseHarmonizer):
 
         # create initial patient object
         for patient_id in patient_ids:
-            self.patient_data[patient_id] = Patient(trial_id=self.trial_id, patient_id=patient_id)
+            self.patient_data[patient_id] = Patient(
+                trial_id=self.trial_id, patient_id=patient_id
+            )
 
     def _process_cohort_name(self):
         """Process cohort names and update patient objects"""

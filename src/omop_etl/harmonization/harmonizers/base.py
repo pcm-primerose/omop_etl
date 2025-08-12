@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import polars as pl
 from typing import Optional, List, Dict
-from src.harmonization.datamodels import Patient
-from src.harmonization.datamodels import HarmonizedData
+from omop_etl.harmonization.datamodels import Patient
+from omop_etl.harmonization.datamodels import HarmonizedData
 
 PatientDict = Dict[str, Patient]
 

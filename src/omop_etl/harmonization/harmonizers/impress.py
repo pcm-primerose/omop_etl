@@ -2,10 +2,10 @@ from typing import Optional
 
 import polars as pl
 import datetime as dt
-from src.harmonization.parsing.coercion import TypeCoercion
-from src.harmonization.parsing.core import CoreParsers
-from src.harmonization.harmonizers.base import BaseHarmonizer
-from src.harmonization.datamodels import (
+from omop_etl.harmonization.parsing.coercion import TypeCoercion
+from omop_etl.harmonization.parsing.core import CoreParsers
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.datamodels import (
     HarmonizedData,
     Patient,
     TumorType,

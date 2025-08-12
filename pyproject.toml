@@ -6,38 +6,91 @@ authors = [{ name = "Gabriel B. Stav" }]
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
-    "python-dotenv>=1.0.0,<2",
-    "openpyxl>=3.1.5,<4",
-    "pandas>=2.2.3,<3",
-    "pydantic>=2.10.4,<3",
-    "ruff>=0.9.0,<0.10",
-    "mypy>=1.14.1,<2",
-    "ns>=0.1,<0.2",
-    "polars>=1.22.0,<2",
-    "faker>=37.0.0,<38",
+  "python-dotenv>=1,<2",
+  "openpyxl>=3.1,<4",
+  "pandas>=2.2,<3",
+  "pydantic>=2.10,<3",
+  "ruff>=0.9,<0.10",
+  "mypy>=1.14,<2",
+  "ns>=0.1,<0.2",
+  "polars>=1.22,<2",
+  "faker>=37,<38",
+  "typer>=0.16.0",
 ]
 
 [project.scripts]
-setup = "setup:main"
+omop-harmonize = "omop_etl.cli.harmonize:main"
+omop-preprocess = "omop_etl.cli.pre_process:main"
 
 [dependency-groups]
-dev = [
-    "pytest>=7.0.0,<8",
-    "pre-commit>=3.0.0,<4",
-]
+dev = ["pytest>=7,<9", "pre-commit>=3,<4"]
 
-[tool.hatch.build.targets.sdist]
-include = ["src/*"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-include = ["src/*"]
-
-[tool.hatch.build.targets.wheel.sources]
-"src/*" = "*"
+packages = ["src/omop_etl"]
+package-data = { "omop_etl" = ["resources/*.json"] }
 
 [tool.ruff]
 line-length = 170
+target-version = "py310"
+
+[tool.ruff.lint]
 select = ["E", "F"]
-ignore = ["E203", "F401", "F811"]
+ignore = ["E203", "F401", "F811", "F821", "F841"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 
+#[project]
+#name = "omop-etl"
+#version = "0.1.0"
+#description = "ETL for PRIME ROSE to OMOP CDM"
+#authors = [{ name = "Gabriel B. Stav" }]
+#requires-python = ">=3.10"
+#readme = "README.md"
+#dependencies = [
+#    "python-dotenv>=1.0.0,<2",
+#    "openpyxl>=3.1.5,<4",
+#    "pandas>=2.2.3,<3",
+#    "pydantic>=2.10.4,<3",
+#    "ruff>=0.9.0,<0.10",
+#    "mypy>=1.14.1,<2",
+#    "ns>=0.1,<0.2",
+#    "polars>=1.22.0,<2",
+#    "faker>=37.0.0,<38",
+#]
+#
+#[project.scripts]
+#setup = "setup:main"
+#
+#[dependency-groups]
+#dev = [
+#    "pytest>=7.0.0,<8",
+#    "pre-commit>=3.0.0,<4",
+#]
+#
+#[build-system]
+#requires = ["hatchling"]
+#build-backend = "hatchling.build"
+#[tool.hatch.build.targets.wheel]
+#packages = ["src/omop_etl"]
+#
+##[tool.hatch.build.targets.sdist]
+##include = ["src/*"]
+##
+##[tool.hatch.build.targets.wheel]
+##include = ["src/*"]
+##
+##[tool.hatch.build.targets.wheel.sources]
+##"src/*" = "*"
+#
+#[tool.ruff]
+#line-length = 170
+#select = ["E", "F"]
+#ignore = ["E203", "F401", "F811"]
+#
+#

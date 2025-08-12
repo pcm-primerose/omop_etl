@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional, Set
 from dataclasses import dataclass, field
 import datetime as dt
-from src.harmonization.validation.validators import StrictValidators
+from omop_etl.harmonization.validation.validators import StrictValidators
 
 # These models represent validated, transformed and cleaned harmonized data
 # as intermediate structures they don't map 1:1 to the CDM table.

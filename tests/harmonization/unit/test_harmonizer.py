@@ -1,12 +1,12 @@
 import polars as pl
 import datetime as dt
-from src.harmonization.harmonizers.impress import ImpressHarmonizer
-from src.harmonization.harmonizers.base import BaseHarmonizer
-from src.harmonization.parsers.helpers import (
+from src.omop_etl.harmonization.harmonizers import ImpressHarmonizer
+from src.omop_etl.harmonization.harmonizers import BaseHarmonizer
+from src.omop_etl.harmonization import (
     parse_optional_date,
     parse_optional_date_column,
 )
-from src.harmonization.datamodels import (
+from src.omop_etl.harmonization.datamodels import (
     TumorType,
     StudyDrugs,
     Patient,
