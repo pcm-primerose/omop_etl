@@ -9,7 +9,8 @@ import sys
 import json
 from importlib.resources import files
 
-from src.omop_etl.main import config_path
+# TODO: if more trials need pre-processing, extract and modularize to clean framework instead
+#
 
 # TODO: remove after logging module implemented
 # configure logger
@@ -17,6 +18,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
+# TODO: remove
 def setup_logging(log_path: Optional[Path] = None) -> None:
     """Configure logging for the application.
     Only use if provided as arg to main."""
@@ -44,6 +46,7 @@ def setup_logging(log_path: Optional[Path] = None) -> None:
     logging.basicConfig(level=logging.INFO, handlers=handlers)
 
 
+# TODO: move to types
 @dataclass
 class SheetConfig:
     """Stores what data is extracted from which sheet/file"""
@@ -139,6 +142,7 @@ class EcrfConfig:
         return cls(configs=configs)
 
 
+# TODO: extract reorder_rename method (trial specific), move rest to input file
 class InputResolver:
     def __init__(
         self, input_path: Path, ecrf_config: EcrfConfig, from_mock_data: bool = False
@@ -267,6 +271,7 @@ class InputResolver:
         return df_reordered
 
 
+# TODO: move to combine.py and generalize to any trial
 class DataCombiner:
     def __init__(self, ecrf_config: EcrfConfig):
         self.ecrf_config = ecrf_config
@@ -319,6 +324,7 @@ class DataCombiner:
         }
 
 
+# TODO: move to trial_specific/impress
 class OutputFormatter:
     """
     Class to process combined data to final pre-processed output, updating in place.
@@ -471,6 +477,7 @@ class OutputFormatter:
         self.combined_data = self.combined_data[existing_cols]
 
 
+# TODO: move to output formatter
 class Output:
     """Handles writing of processed dataframes to various output formats."""
 
@@ -563,6 +570,7 @@ class Output:
             )
 
 
+# TODO: move to IO or helpers
 def validate_paths(input_path: Path, output_path: Path) -> None:
     """Validate input and output paths."""
     if not input_path.exists():
@@ -574,10 +582,11 @@ def validate_paths(input_path: Path, output_path: Path) -> None:
         )
 
 
+# TODO: remove logging and cli
 def impress_preprocessor(
     input_path: Path,
     output_path: Path,
-    config_path: dict,
+    config: Mapping[str, list[str]],
     log_path: Optional[Path] = None,
     output_format: str = "csv",
     mock_data: Optional[bool] = False,
@@ -613,7 +622,7 @@ def impress_preprocessor(
         # load config, instantiate SheetConfig and EcrfConfig
         logger.info("Loading config data from json..")
         # ecrf_config = EcrfConfig.from_json(config_path)
-        ecrf_config = EcrfConfig.from_mapping(config_path)
+        ecrf_config = EcrfConfig.from_mapping(config)
         # ecrf_config = EcrfConfig.get_config("impress")
         ecrf_config.trial = "impress"
 
@@ -662,6 +671,7 @@ def impress_preprocessor(
         logger.info(f"Processing finished at {datetime.now()}")
 
 
+# TODO: move to config
 def load_ecrf_config(custom_config_path: Optional[Path] = None) -> dict:
     if custom_config_path:
         p = Path(custom_config_path)
@@ -698,7 +708,7 @@ def load_ecrf_config(custom_config_path: Optional[Path] = None) -> dict:
 #
 #     return default_config
 
-
+# TODO: remove now that we use clicker
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Process eCRF data for clinical trials."
@@ -746,7 +756,7 @@ if __name__ == "__main__":
     impress_preprocessor(
         input_path=args.input,
         output_path=args.output,
-        config_path=config_path,
+        config=config_path,
         log_path=args.log_path,
         output_format=args.format,
         mock_data=args.mock_data,

@@ -1,3 +1,11 @@
+// Not yet implemented in synthetic data (has no entries in actual ecrf data):
+// "lugrsp": [
+//   "SubjectId",
+//   "EventDate",
+//   "LUGOVRL",
+//   "LUGOVRLCD"
+//]
+
 {
   "coh": [
     "SubjectId",
@@ -182,12 +190,6 @@
     "SubjectId",
     "EventDate",
     "RNTMNTNOB"
-  ],
-  "lugrsp": [
-    "SubjectId",
-    "EventDate",
-    "LUGOVRL",
-    "LUGOVRLCD"
   ],
   "mh": [
     "SubjectId",

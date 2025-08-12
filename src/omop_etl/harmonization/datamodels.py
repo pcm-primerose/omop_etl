@@ -11,21 +11,6 @@ from omop_etl.harmonization.validation.validators import StrictValidators
 # 2. once data extracted, make datamodel storing this, using getters/setters, valiation/parsers, implement specific parsers if needed
 # 3. add field to patient collection class
 
-# todo:
-#   [ ] add str, len, repr etc
-#   [ ] then add fields for all datamodels (see docs):
-#  .....
-#   [ ] Treatments (combine to one)
-#   [ ] DoseDelivered (oral, iv, injection)
-#   [ ] PreviousTreatments
-#   [ ] Evaluability
-#   [ ] ConcomitantMedication
-#   [ ] AdverseEvents
-#   [ ] TumorAssessments (group all, make assessment type ID?)
-#   [ ] Ecog
-#   [ ] Evaluations (?) (group best response, clinical benefit, EOT, etc?)
-#   [ ] QoL (C30, EQ5D)
-
 
 class TumorType:
     def __init__(self, logger: Optional[logging.Logger] = None):

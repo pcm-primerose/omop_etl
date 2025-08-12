@@ -2,14 +2,18 @@ import polars as pl
 from pathlib import Path
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
+import typer
 
-
-app = typer.Typer(add_completion=False)
+app = typer.Typer(add_completion=True)
 
 
 def process_impress(file: Path) -> HarmonizedData:
     df = pl.read_csv(file)
     return ImpressHarmonizer(df, trial_id="IMPRESS").process()
+
+
+def process_drup(file: Path) -> HarmonizedData:
+    raise NotImplementedError
 
 
 @app.command()
@@ -22,41 +26,41 @@ def main():
     app()
 
 
-# src/omop_etl/cli/harmonize.py
-
-
-def drup_data(file: Path) -> pl.DataFrame:
-    data = pl.read_csv(file)
-    return data
-
-
-def impress_data(file: Path) -> pl.DataFrame:
-    data = pl.read_csv(file)
-    return data
-
-
-def process_impress(file: Path) -> HarmonizedData:
-    data = impress_data(file)
-    harmonizer = ImpressHarmonizer(data, trial_id="IMPRESS")
-    return harmonizer.process()
-
-
-# def process_drup(file: Path) -> HarmonizedData:
-#     data = drup_data(file)
-#     harmonizer = DrupHarmonizer(data=data, trial_id="DRUP")
+# # src/omop_etl/cli/harmonize.py
+#
+#
+# def drup_data(file: Path) -> pl.DataFrame:
+#     data = pl.read_csv(file)
+#     return data
+#
+#
+# def impress_data(file: Path) -> pl.DataFrame:
+#     data = pl.read_csv(file)
+#     return data
+#
+#
+# def process_impress(file: Path) -> HarmonizedData:
+#     data = impress_data(file)
+#     harmonizer = ImpressHarmonizer(data, trial_id="IMPRESS")
 #     return harmonizer.process()
-
-
-if __name__ == "__main__":
-    # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.csv"
-    # impress_file = Path(__file__).parents[3] / "ecrf_mocker" / "output"
-    impress_file = (
-        Path(__file__).parents[3]
-        / ".data"
-        / "preprocessed"
-        / "preprocessed_impress_synthetic.csv"
-    )
-    # /Users/gabriebs/projects/ecrf_mocker/output
-    impress = process_impress(impress_file)
-    print("\n")
-    # drup = process_drup(drup_file)
+#
+#
+# # def process_drup(file: Path) -> HarmonizedData:
+# #     data = drup_data(file)
+# #     harmonizer = DrupHarmonizer(data=data, trial_id="DRUP")
+# #     return harmonizer.process()
+#
+#
+# if __name__ == "__main__":
+#     # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.csv"
+#     # impress_file = Path(__file__).parents[3] / "ecrf_mocker" / "output"
+#     impress_file = (
+#         Path(__file__).parents[3]
+#         / ".data"
+#         / "preprocessed"
+#         / "preprocessed_impress_synthetic.csv"
+#     )
+#     # /Users/gabriebs/projects/ecrf_mocker/output
+#     impress = process_impress(impress_file)
+#     print("\n")
+#     # drup = process_drup(drup_file)
