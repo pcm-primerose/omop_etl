@@ -4,7 +4,7 @@ from typing import Protocol, Sequence
 import polars as pl
 from .types import EcrfConfig, SheetData
 
-# TODO: need to extend IO for new trials
+# future todo: need to extend IO for new trials
 
 
 class DataSourceReader(Protocol):
@@ -18,7 +18,11 @@ class DataSourceReader(Protocol):
 class ExcelReader:
     @staticmethod
     def can_read(path: Path) -> bool:
-        return path.is_file() and path.suffix.lower() in {".xls", ".xlsx"}
+        return (
+            path.exists()
+            and not path.is_dir()
+            and path.suffix.lower() in {".xls", ".xlsx", ".xlsb"}
+        )
 
     @staticmethod
     def load(path: Path, cfg: EcrfConfig) -> EcrfConfig:
@@ -41,7 +45,6 @@ class CsvDirReader:
 
     @staticmethod
     def _match_files(dirpath: Path, key: str) -> list[Path]:
-        print(f"key: {key}")
         out = [
             file
             for file in dirpath.iterdir()
@@ -63,6 +66,7 @@ class CsvDirReader:
             file_path = index[key]
             df = pl.read_csv(file_path, skip_rows=1)
             df = _ensure_schema(df, source_config.usecols)
+            df = _csv_like_numeric_cast(df)
             cfg.data = (cfg.data or []) + [SheetData(source_config.key, df, file_path)]
 
         return cfg
@@ -74,6 +78,32 @@ def _index_dir(dir_path: Path) -> dict[str, Path]:
         if p.is_file() and p.suffix.lower() == ".csv":
             idx[p.stem.lower().split("_")[-1]] = p
     return idx
+
+
+def _csv_like_numeric_cast(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Mimic CSV inference for ints:
+    if a Utf8 column is all digits (ignoring nulls/space), cast to Int64 (e.g. '01' -> 1).
+    """
+    _INT_RE = r"^[+-]?\d+$"
+    int_cols: list[str] = []
+    for c, dt in df.schema.items():
+        if dt != pl.Utf8:
+            continue
+        # are non-null values are intish:
+        ok = df.select(
+            (
+                pl.col(c).is_null()
+                | pl.col(c).cast(pl.Utf8).str.strip().str.contains(_INT_RE)
+            ).all()  # type: ignore
+        ).item()
+        if ok:
+            int_cols.append(c)
+
+    if not int_cols:
+        return df
+
+    return df.with_columns([pl.col(int_cols).cast(pl.Int64)])
 
 
 def resolve_input(path: Path, cfg: EcrfConfig) -> EcrfConfig:

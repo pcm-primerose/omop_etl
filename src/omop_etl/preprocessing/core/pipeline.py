@@ -14,8 +14,6 @@ def run_pipeline(
     pre=None,
     post=None,
 ) -> pl.DataFrame:
-    print(f"sources: {SOURCES}")
-
     if source not in SOURCES:
         raise ValueError(f"Unknown source '{source}'. Available: {', '.join(SOURCES)}")
 
