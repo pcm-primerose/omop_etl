@@ -1,9 +1,12 @@
 import polars as pl
-from ..core.registry import register
-from ..core.types import EcrfConfig
+from ..core.registry import register_trial
+from ..core.models import EcrfConfig, RunOptions
 
 
 def _filter_valid_cohort(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Keep every row for subjects that have at least one valid cohort row.
+    """
     name = pl.col("COH_COHORTNAME")
     valid = (
         name.is_not_null()
@@ -35,21 +38,28 @@ def _prefix_subject(df: pl.DataFrame, trial: str) -> pl.DataFrame:
 
 
 def _aggregate_no_conflicts(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Mark cols in rows woth conflics, aggregate on SubjectID if possible,
+    for conflicts keep raw data as is (multi-row).
+    """
     cols = [c for c in df.columns if c != "SubjectId"]
+
+    # count non-null values per SubjectId per column
     nuniqs = df.group_by("SubjectId").agg(
         [pl.col(c).drop_nulls().n_unique().alias(f"{c}__n") for c in cols]
     )
+    # keep raw rows for conflicted subjects
     conflicted = nuniqs.with_columns(
         pl.max_horizontal([pl.col(f"{c}__n") > 1 for c in cols]).alias("conflicted")
     )
     keep_raw = df.join(
         conflicted.filter(pl.col("conflicted")), on="SubjectId", how="semi"
     )
+    # collapse non-conflicted to one row
     agg = (
         df.join(conflicted.filter(~pl.col("conflicted")), on="SubjectId", how="semi")
         .group_by("SubjectId")
         .agg([pl.col(c).drop_nulls().first().alias(c) for c in cols])
-        .with_columns(pl.col("SubjectId"))
     )
     return pl.concat([keep_raw, agg]).sort("SubjectId")
 
@@ -59,12 +69,14 @@ def _reorder_subject_trial_first(df: pl.DataFrame) -> pl.DataFrame:
     return df.select(["SubjectId", "Trial", *cols])
 
 
-@register("impress")
-def preprocess_impress(df: pl.DataFrame, cfg: EcrfConfig) -> pl.DataFrame:
-    trial = (cfg.trial or "IMPRESS").upper()
+@register_trial("impress")
+def preprocess_impress(
+    df: pl.DataFrame, ecfg: EcrfConfig, run_opts: RunOptions
+) -> pl.DataFrame:
+    trial = (ecfg.trial or "IMPRESS").upper()
+    base = _filter_valid_cohort(df) if run_opts.filter_valid_cohort else df
     return (
-        df.pipe(_filter_valid_cohort)
-        .pipe(_keep_ecog_v00_or_na)
+        base.pipe(_keep_ecog_v00_or_na)
         .pipe(_add_trial, trial)
         .pipe(_prefix_subject, trial)
         .pipe(_aggregate_no_conflicts)

@@ -1,30 +1,30 @@
 from pathlib import Path
+from typing import Optional
 import polars as pl
-from .types import EcrfConfig
+
+from .models import EcrfConfig, RunOptions
 from .io import resolve_input
 from .combine import combine
-from .registry import SOURCES
+from .registry import TRIAL_PROCESSORS
 
 
 def run_pipeline(
-    source: str,
+    trial: str,
     input_path: Path,
-    cfg: EcrfConfig,
+    ecfg: EcrfConfig,
+    run_opts: Optional[RunOptions] = None,
     combine_on: str = "SubjectId",
-    pre=None,
-    post=None,
 ) -> pl.DataFrame:
-    if source not in SOURCES:
-        raise ValueError(f"Unknown source '{source}'. Available: {', '.join(SOURCES)}")
+    if trial not in TRIAL_PROCESSORS:
+        raise ValueError(
+            f"Unknown source '{trial}'. Available: {', '.join(TRIAL_PROCESSORS)}"
+        )
 
-    cfg.trial = source
-    cfg = resolve_input(input_path, cfg)
-    df = combine(cfg, on=combine_on)
-    if pre:
-        df = pre(df, cfg)
+    ecfg.trial = trial
+    ecfg = resolve_input(input_path, ecfg)
+    df = combine(ecfg, on=combine_on)
 
-    # call source-specific function
-    df = SOURCES[source](df, cfg)
-    if post:
-        df = post(df, cfg)
+    # source-specific processing
+    df = TRIAL_PROCESSORS[trial](df, ecfg, run_opts)
+
     return df

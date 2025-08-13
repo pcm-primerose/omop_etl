@@ -1,17 +1,14 @@
-# src/omop_etl/cli/preprocess.py
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 import typer
-import polars as pl
 
-from omop_etl.preprocessing.core.config_loader import load_ecrf_config
-from omop_etl.preprocessing.core.types import EcrfConfig
-from omop_etl.preprocessing.core.pipeline import run_pipeline
-from omop_etl.preprocessing.core.registry import SOURCES
-
-# import source modules for each trial
-from omop_etl.preprocessing.sources import impress  # noqa: F401
+from omop_etl.preprocessing.api import (
+    preprocess_trial,
+    make_ecrf_config,
+    list_trials,
+    RunOptions,
+)
 
 app = typer.Typer(
     add_completion=True,
@@ -20,71 +17,72 @@ app = typer.Typer(
 )
 
 
+@app.command("list-sources")
+def list_sources_cmd() -> None:
+    from omop_etl.preprocessing.api import list_trials
+
+    typer.echo(", ".join(list_trials()))
+
+
 @app.command()
 def run(
     input_path: Path = typer.Option(
-        None, "--input", "-i", help="Excel file or directory of CSVs."
+        ...,
+        "--input",
+        "-i",
+        help="Excel file or directory of CSVs.",
+        exists=True,
+        readable=True,
     ),
     source: str = typer.Option(
         "impress", "--source", "-s", help="Source pipeline to use."
     ),
     output: Optional[Path] = typer.Option(
-        None, "--output", "-o", help="Output file path."
+        None,
+        "--output",
+        "-o",
+        help=(
+            "Output path. If it has a known extension (csv/tsv/parquet), it's used as the exact file. "
+            "If it's a directory, the file will be auto-named (preprocessed_{source}.{fmt}). "
+            "If omitted, writes to ./.data/preprocessing/preprocessed_{source}.{fmt}."
+        ),
     ),
     config: Optional[Path] = typer.Option(
-        None, "--config", "-c", help="Override default JSON config."
+        None, "--config", "-c", help="Override default JSON/JSON5 config."
     ),
     key: str = typer.Option(
         "SubjectId", "--key", "-k", help="Join key used when combining sheets."
     ),
-    fmt: str = typer.Option("csv", "--format", "-f", help="csv or tsv/txt"),
-    list_sources: bool = typer.Option(
-        False, "--list-sources", help="List available sources and exit."
+    only_cohort: bool = typer.Option(
+        False, "--only-cohort", "-oc", help="Only keep subjects in cohorts."
     ),
+    fmt: str = typer.Option("csv", "--format", "-f", help="csv | tsv | parquet"),
 ) -> None:
-    # discover and validate source
-    if list_sources:
-        typer.echo(", ".join(sorted(SOURCES.keys())))
-        raise typer.Exit()
-
-    if source not in SOURCES:
+    trials = set(list_trials())
+    if source not in trials:
         typer.secho(
-            f"Unknown source '{source}'. Available: {', '.join(sorted(SOURCES))}",
+            f"Unknown source: {source}. Available: {', '.join(sorted(trials))}",
             fg=typer.colors.RED,
         )
         raise typer.Exit(code=2)
 
-    # load config
-    cfg_map = load_ecrf_config(custom_config_path=config, trial=source)
-    cfg = EcrfConfig.from_mapping(cfg_map)
-    cfg.trial = source
+    # build runtime options and config
+    run_opts = RunOptions(filter_valid_cohort=only_cohort)
+    ecfg = make_ecrf_config(source, custom_config_path=config)
+    ecfg.trial = source
 
-    # run pipeline
-    df: pl.DataFrame = run_pipeline(
-        source=source,
+    # API handles output-path policy
+    result = preprocess_trial(
+        trial=source,
         input_path=input_path,
-        cfg=cfg,
+        cfg=ecfg,
+        run_opts=run_opts,
+        output=output,
+        fmt=fmt,
         combine_on=key,
     )
 
-    # output handling
-    fmt = fmt.lower()
-    if output is None:
-        ext = "csv" if fmt == "csv" else "txt"
-        output = Path.cwd() / ".data" / "preprocessing" / f"preprocessed_{source}.{ext}"
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    if fmt == "csv":
-        df.write_csv(output, null_value="NA")
-    elif fmt in ("tsv", "txt"):
-        df.write_csv(output, separator="\t", null_value="NA")
-    else:
-        typer.secho(
-            "Unsupported --format. Use 'csv' or 'tsv/txt'.", fg=typer.colors.RED
-        )
-        raise typer.Exit(code=2)
-
-    typer.echo(str(output))
+    typer.echo(str(result.path))
 
 
 def main():
