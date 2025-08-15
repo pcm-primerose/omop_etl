@@ -1,3 +1,4 @@
+# registry.py
 from typing import Callable, Dict
 import polars as pl
 
