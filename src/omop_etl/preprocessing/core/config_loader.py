@@ -1,11 +1,13 @@
-# core/config_loader.py
 from __future__ import annotations
 from importlib.resources import files
 from pathlib import Path
 from typing import Optional
 import json5 as json
+from logging import getLogger
 
 _BASE = files("omop_etl.resources") / "ecrf_variables"
+
+log = getLogger(__name__)
 
 
 def load_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> dict:
@@ -27,9 +29,13 @@ def load_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> d
 
 
 def available_trials() -> list[str]:
-    return sorted(
-        p.name.strip(".json5") for p in _BASE.iterdir() if p.name.endswith(".json5")
+    out = sorted(
+        p.name.removesuffix(".json5")
+        for p in _BASE.iterdir()
+        if p.name.endswith(".json5")
     )
+    log.info("Available trials: {out}")
+    return out
 
 
 def _validate(config: dict) -> dict:

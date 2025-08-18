@@ -1,13 +1,11 @@
-# core/output_manager.py
 from __future__ import annotations
-
 import logging
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 import json
 import polars as pl
 from logging import getLogger
+from logging.handlers import RotatingFileHandler
 
 from .models import OutputFormat, RunContext, OutputPath
 from ...infra.logging_setup import add_file_handler
@@ -84,8 +82,6 @@ class OutputManager:
         # create structured dir
         directory = base / ctx.trial.lower() / f"{ctx.timestamp}_{ctx.run_id}"
         directory.mkdir(parents=True, exist_ok=True)
-
-        print(f"stem in base {filename_stem}")
 
         # determine format and build paths
         fmt = self._normalize_format(fmt)
@@ -225,14 +221,15 @@ class OutputManager:
         try:
             self.write_dataframe(df, output_path)
 
-            # pass log file status
             log_file_created = self.enable_logfile and not disable_log_file
             self.write_manifest(
-                output_path, ctx, df, input_path, options, log_file_created
+                output_path=output_path,
+                ctx=ctx,
+                df=df,
+                input_path=input_path,
+                options=options,
+                log_file_created=log_file_created,
             )
-            # todo: fix:
-            #   Expected type 'dict | None', got 'bool' instead
-            #   for options and log_file_created
 
             log.info(
                 "Output written successfully",
