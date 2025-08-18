@@ -196,7 +196,7 @@ def test_empty_ecrf_config_raises_error():
         combine(e, on="SubjectId")
 
 
-def test_custom_key_column(self, df_subjects):
+def test_custom_key_column(df_subjects):
     df_renamed = df_subjects.rename({"SubjectId": "PatientId"})
     e = ecfg(sheet("patients", df_renamed))
     out = combine(e, on="PatientId")
