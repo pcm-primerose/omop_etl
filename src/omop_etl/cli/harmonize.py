@@ -3,8 +3,11 @@ from pathlib import Path
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 import typer
+from logging import getLogger
 
 app = typer.Typer(add_completion=True)
+
+log = getLogger(__name__)
 
 
 def process_impress(file: Path) -> HarmonizedData:

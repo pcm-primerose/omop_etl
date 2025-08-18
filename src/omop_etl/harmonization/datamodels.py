@@ -1,7 +1,7 @@
-import logging
 from typing import List, Optional, Set
 from dataclasses import dataclass, field
 import datetime as dt
+from logging import getLogger
 from omop_etl.harmonization.validation.validators import StrictValidators
 
 # These models represent validated, transformed and cleaned harmonized data
@@ -11,9 +11,11 @@ from omop_etl.harmonization.validation.validators import StrictValidators
 # 2. once data extracted, make datamodel storing this, using getters/setters, valiation/parsers, implement specific parsers if needed
 # 3. add field to patient collection class
 
+log = getLogger(__name__)
+
 
 class TumorType:
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self):
         self._icd10_code: Optional[str] = None
         self._icd10_description: Optional[str] = None
         self._main_tumor_type: Optional[str] = None
@@ -21,7 +23,6 @@ class TumorType:
         self._cohort_tumor_type: Optional[str] = None
         self._other_tumor_type: Optional[str] = None
         self.updated_fields: Set[str] = set()
-        # self.logger = logger if logger else logging.Logger todo: add logging later
 
     @property
     def icd10_code(self) -> Optional[int]:

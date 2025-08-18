@@ -1,10 +1,11 @@
 import polars as pl
 import datetime as dt
-from src.omop_etl.harmonization.harmonizers import ImpressHarmonizer
-from src.omop_etl.harmonization.harmonizers import BaseHarmonizer
-from src.omop_etl.harmonization import (
-    parse_optional_date,
-    parse_optional_date_column,
+from src.omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
+from src.omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from src.omop_etl.harmonization.parsing.core import (
+    CoreParsers,
+    PolarsParsers,
+    TypeCoercion,
 )
 from src.omop_etl.harmonization.datamodels import (
     TumorType,
@@ -120,62 +121,58 @@ class TestImpressHarmonizer:
         assert harmonizer.patient_data["IMPRESS-X_0004_1"].age == 30
         assert harmonizer.patient_data["IMPRESS-X_0005_1"].age == 9
 
-    def test_tumor_processing(self, tumor_type_fixture):
-        harmonizer = ImpressHarmonizer(data=tumor_type_fixture, trial_id="IMPRESS_TEST")
 
-        for subject_id in (
-            tumor_type_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                trial_id="IMPRESS_TEST", patient_id=subject_id
-            )
+def test_tumor_processing(tumor_type_fixture):
+    harmonizer = ImpressHarmonizer(data=tumor_type_fixture, trial_id="IMPRESS_TEST")
 
-        harmonizer._process_tumor_type()
-
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].tumor_type == TumorType(
-            icd10_code="C30",
-            icd10_description="tumor1",
-            tumor_type="tumor1_subtype1",
-            tumor_type_code=50,
-            cohort_tumor_type="tumor1_subtype2",
-            other_tumor_type="tumor1_subtype3",
+    for subject_id in (
+        tumor_type_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            trial_id="IMPRESS_TEST", patient_id=subject_id
         )
 
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].tumor_type == TumorType(
-            icd10_code="C40.50",
-            icd10_description="CRC",
-            tumor_type="CRC_subtype",
-            tumor_type_code=40,
-            cohort_tumor_type=None,
-            other_tumor_type=None,
-        )
+    harmonizer._process_tumor_type()  # todo fix: fails here
 
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].tumor_type == TumorType(
-            icd10_code="C07",
-            icd10_description="tumor2",
-            tumor_type="tumor2_subtype1",
-            tumor_type_code=70,
-            cohort_tumor_type="tumor2_subtype2",
-            other_tumor_type=None,
-        )
+    tumor_instance_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].tumor_type
+    assert tumor_instance_1.icd10_code == "C30"
+    assert tumor_instance_1.icd10_description == "tumor1"
+    assert tumor_instance_1.main_tumor_type == "tumor1_subtype1"
+    assert tumor_instance_1.main_tumor_type_code == 50
+    assert tumor_instance_1.cohort_tumor_type == "tumor1_subtype2"
+    assert tumor_instance_1.other_tumor_type == "tumor1_subtype3"
 
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].tumor_type == TumorType(
-            icd10_code="C70.1",
-            icd10_description="tumor3",
-            tumor_type="tumor3_subtype1",
-            tumor_type_code=10,
-            cohort_tumor_type=None,
-            other_tumor_type="tumor3_subtype2",
-        )
+    tumor_instance_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].tumor_type
+    assert tumor_instance_2.icd10_code == "C07"
+    assert tumor_instance_2.icd10_description == "tumor2"
+    assert tumor_instance_2.main_tumor_type == "tumor2_subtype1"
+    assert tumor_instance_2.main_tumor_type_code == 70
+    assert tumor_instance_2.cohort_tumor_type == "tumor2_subtype2"
+    assert tumor_instance_2.other_tumor_type is None
 
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].tumor_type == TumorType(
-            icd10_code="C23.20",
-            icd10_description="tumor4",
-            tumor_type="tumor4_subtype1",
-            tumor_type_code=30,
-            cohort_tumor_type=None,
-            other_tumor_type="tumor4_subtype2",
-        )
+    tumor_instance_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].tumor_type
+    assert tumor_instance_3.icd10_code == "C07"
+    assert tumor_instance_3.icd10_description == "tumor2"
+    assert tumor_instance_3.main_tumor_type == "tumor2_subtype1"
+    assert tumor_instance_3.main_tumor_type_code == 70
+    assert tumor_instance_3.cohort_tumor_type == "tumor2_subtype2"
+    assert tumor_instance_3.other_tumor_type is None
+
+    tumor_instance_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].tumor_type
+    assert tumor_instance_4.icd10_code == "C70.1"
+    assert tumor_instance_4.icd10_description == "tumor3"
+    assert tumor_instance_4.main_tumor_type == "tumor3_subtype1"
+    assert tumor_instance_4.main_tumor_type_code == 10
+    assert tumor_instance_4.cohort_tumor_type is None
+    assert tumor_instance_4.other_tumor_type == "tumor3_subtype2"
+
+    tumor_instance_5 = harmonizer.patient_data["IMPRESS-X_0005_1"].tumor_type
+    assert tumor_instance_5.icd10_code == "C23.20"
+    assert tumor_instance_5.icd10_description == "tumor4"
+    assert tumor_instance_5.main_tumor_type == "tumor4_subtype1"
+    assert tumor_instance_5.main_tumor_type_code == 30
+    assert tumor_instance_5.cohort_tumor_type is None
+    assert tumor_instance_5.other_tumor_type == "tumor4_subtype2"
 
     def test_study_drugs_processing(self, study_drugs_fixture):
         harmonizer = ImpressHarmonizer(
@@ -191,25 +188,25 @@ class TestImpressHarmonizer:
 
         harmonizer._process_study_drugs()
 
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].study_drugs == StudyDrugs(
-            primary_treatment_drug="Traztuzumab",
-            primary_treatment_drug_code=31,
-            secondary_treatment_drug="Tafinlar",
-            secondary_treatment_drug_code=10,
+        assert harmonizer.patient_data["IMPRESS-X_0001_1"].study_drugs == (
+            StudyDrugs.primary_treatment_drug == "Traztuzumab",
+            StudyDrugs.primary_treatment_drug_code == 31,
+            StudyDrugs.secondary_treatment_drug == "Tafinlar",
+            StudyDrugs.secondary_treatment_drug_code == 10,
         )
 
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].study_drugs == StudyDrugs(
-            primary_treatment_drug="some drug",
-            primary_treatment_drug_code=99,
-            secondary_treatment_drug="some drug 2",
-            secondary_treatment_drug_code=1,
+        assert harmonizer.patient_data["IMPRESS-X_0002_1"].study_drugs == (
+            StudyDrugs.primary_treatment_drug == "some drug",
+            StudyDrugs.primary_treatment_drug_code == 99,
+            StudyDrugs.secondary_treatment_drug == "some drug 2",
+            StudyDrugs.secondary_treatment_drug_code == 1,
         )
 
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].study_drugs == StudyDrugs(
-            primary_treatment_drug="mismatch_1",
-            primary_treatment_drug_code=10,
-            secondary_treatment_drug="mismatch_1_2",
-            secondary_treatment_drug_code=12,
+        assert harmonizer.patient_data["IMPRESS-X_0003_1"].study_drugs == (
+            StudyDrugs.primary_treatment_drug == "mismatch_1",
+            StudyDrugs.primary_treatment_drug_code == 10,
+            StudyDrugs.secondary_treatment_drug == "mismatch_1_2",
+            StudyDrugs.secondary_treatment_drug_code == 12,
         )
 
         assert harmonizer.patient_data["IMPRESS-X_0004_1"].study_drugs == StudyDrugs(
