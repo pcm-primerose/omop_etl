@@ -90,13 +90,14 @@ class TumorType:
         )
         self.updated_fields.add(self.__class__.other_tumor_type.fset.__name__)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
-            f"ICD10 description: {self.icd10_description}, "
-            f"ICD10 code: {self.icd10_code}, "
-            f"Main tumor type: {self.main_tumor_type}, "
-            f"Other tumor type: {self.other_tumor_type}, "
-            f"Cohort tumor type: {self.cohort_tumor_type}"
+            f"icd10_code={self.icd10_code} {'\n'}"
+            f"icd10_description={self.icd10_description} {'\n'}"
+            f"main_tumor_type={self.main_tumor_type} {'\n'}"
+            f"main_tumor_type_code={self.main_tumor_type_code} {'\n'}"
+            f"other_tumor_type={self.other_tumor_type} {'\n'}"
+            f"cohort_tumor_type={self.cohort_tumor_type} {'\n'}"
         )
 
 

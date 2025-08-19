@@ -29,41 +29,45 @@ def main():
     app()
 
 
-# # src/omop_etl/cli/harmonize.py
-#
-#
-# def drup_data(file: Path) -> pl.DataFrame:
-#     data = pl.read_csv(file)
-#     return data
-#
-#
-# def impress_data(file: Path) -> pl.DataFrame:
-#     data = pl.read_csv(file)
-#     return data
-#
-#
-# def process_impress(file: Path) -> HarmonizedData:
-#     data = impress_data(file)
-#     harmonizer = ImpressHarmonizer(data, trial_id="IMPRESS")
+# src/omop_etl/cli/harmonize.py
+
+
+def drup_data(file: Path) -> pl.DataFrame:
+    data = pl.read_csv(file)
+    return data
+
+
+def impress_data(file: Path) -> pl.DataFrame:
+    data = pl.read_csv(file)
+    return data
+
+
+def process_impress(file: Path) -> HarmonizedData:
+    data = impress_data(file)
+    harmonizer = ImpressHarmonizer(data, trial_id="IMPRESS")
+    return harmonizer.process()
+
+
+# def process_drup(file: Path) -> HarmonizedData:
+#     data = drup_data(file)
+#     harmonizer = DrupHarmonizer(data=data, trial_id="DRUP")
 #     return harmonizer.process()
-#
-#
-# # def process_drup(file: Path) -> HarmonizedData:
-# #     data = drup_data(file)
-# #     harmonizer = DrupHarmonizer(data=data, trial_id="DRUP")
-# #     return harmonizer.process()
-#
-#
-# if __name__ == "__main__":
-#     # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.csv"
-#     # impress_file = Path(__file__).parents[3] / "ecrf_mocker" / "output"
-#     impress_file = (
-#         Path(__file__).parents[3]
-#         / ".data"
-#         / "preprocessed"
-#         / "preprocessed_impress_synthetic.csv"
-#     )
-#     # /Users/gabriebs/projects/ecrf_mocker/output
-#     impress = process_impress(impress_file)
-#     print("\n")
-#     # drup = process_drup(drup_file)
+
+
+if __name__ == "__main__":
+    # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.csv"
+    # impress_file = Path(__file__).parents[3] / "ecrf_mocker" / "output"
+    impress_file = (
+        Path(__file__).parents[3]
+        / ".data"
+        / "preprocessing"
+        / "impress"
+        / "20250818T134310Z_59a9dc98"
+        / "data_preprocessed.csv"
+    )
+
+    # /Users/gabriebs/projects/omop_etl/.data/preprocessing/impress/20250818T134310Z_59a9dc98
+    # /Users/gabriebs/projects/ecrf_mocker/output
+    impress = process_impress(impress_file)
+    print("\n")
+    # drup = process_drup(drup_file)

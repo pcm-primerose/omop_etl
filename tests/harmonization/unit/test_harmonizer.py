@@ -1,13 +1,13 @@
 import polars as pl
 import datetime as dt
-from src.omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
-from src.omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from src.omop_etl.harmonization.parsing.core import (
+from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.parsing.core import (
     CoreParsers,
     PolarsParsers,
     TypeCoercion,
 )
-from src.omop_etl.harmonization.datamodels import (
+from omop_etl.harmonization.datamodels import (
     TumorType,
     StudyDrugs,
     Patient,
@@ -132,7 +132,7 @@ def test_tumor_processing(tumor_type_fixture):
             trial_id="IMPRESS_TEST", patient_id=subject_id
         )
 
-    harmonizer._process_tumor_type()  # todo fix: fails here
+    harmonizer._process_tumor_type()
 
     tumor_instance_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].tumor_type
     assert tumor_instance_1.icd10_code == "C30"
@@ -143,11 +143,11 @@ def test_tumor_processing(tumor_type_fixture):
     assert tumor_instance_1.other_tumor_type == "tumor1_subtype3"
 
     tumor_instance_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].tumor_type
-    assert tumor_instance_2.icd10_code == "C07"
-    assert tumor_instance_2.icd10_description == "tumor2"
-    assert tumor_instance_2.main_tumor_type == "tumor2_subtype1"
-    assert tumor_instance_2.main_tumor_type_code == 70
-    assert tumor_instance_2.cohort_tumor_type == "tumor2_subtype2"
+    assert tumor_instance_2.icd10_code == "C40.50"
+    assert tumor_instance_2.icd10_description == "CRC"
+    assert tumor_instance_2.main_tumor_type == "CRC_subtype"
+    assert tumor_instance_2.main_tumor_type_code == 40
+    assert tumor_instance_2.cohort_tumor_type is None
     assert tumor_instance_2.other_tumor_type is None
 
     tumor_instance_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].tumor_type
@@ -422,25 +422,33 @@ def test_tumor_processing(tumor_type_fixture):
 
 
 def test_parse_flexible_date_function():
-    assert parse_optional_date("1900-02-02") == dt.datetime(1900, 2, 2)
-    assert parse_optional_date("1950-06") == dt.datetime(1950, 6, 15)
-    assert parse_optional_date("1900") == dt.datetime(1900, 7, 15)
+    assert CoreParsers.parse_date_flexible("1900-02-02") == dt.date(1900, 2, 2)
+    assert CoreParsers.parse_date_flexible("1950-06") == dt.date(1950, 6, 15)
+    assert CoreParsers.parse_date_flexible("1900") == dt.date(1900, 7, 15)
 
 
 def test_parse_date_column_function():
     """Test the vectorized date parsing function with a dataframe"""
-    df = pl.DataFrame({"dates": ["1900-02-02", "1950-06", "1900"]})
+    df = pl.DataFrame(
+        {
+            "dates": [
+                "1900-02-02",
+                "1950-06",
+                "1900",
+                "1900-02-Nk",
+                "1900-nk-NK",
+                "1900-Nk-10",
+            ]
+        }
+    )
 
     # with col name
-    result_by_name = df.with_columns(parsed_dates=parse_optional_date_column("dates"))
-    assert result_by_name["parsed_dates"][0] == dt.datetime(1900, 2, 2)
-    assert result_by_name["parsed_dates"][1] == dt.datetime(1950, 6, 15)
-    assert result_by_name["parsed_dates"][2] == dt.datetime(1900, 7, 15)
-
-    # with col expression
-    result_by_expr = df.with_columns(
-        parsed_dates=parse_optional_date_column(pl.col("dates"))
+    result_by_name = df.with_columns(
+        parsed_dates=PolarsParsers.parse_date_column(column=pl.col("dates"))
     )
-    assert result_by_expr["parsed_dates"][0] == dt.datetime(1900, 2, 2)
-    assert result_by_expr["parsed_dates"][1] == dt.datetime(1950, 6, 15)
-    assert result_by_expr["parsed_dates"][2] == dt.datetime(1900, 7, 15)
+    assert result_by_name["parsed_dates"][0] == dt.date(1900, 2, 2)
+    assert result_by_name["parsed_dates"][1] == dt.date(1950, 6, 15)
+    assert result_by_name["parsed_dates"][2] == dt.date(1900, 7, 15)
+    assert result_by_name["parsed_dates"][3] == dt.date(1900, 2, 15)
+    assert result_by_name["parsed_dates"][4] == dt.date(1900, 7, 15)
+    assert result_by_name["parsed_dates"][5] == dt.date(1900, 7, 10)

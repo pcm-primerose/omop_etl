@@ -189,6 +189,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             tumor_type.cohort_tumor_type = cohort_tumor_type
             tumor_type.other_tumor_type = other_tumor_type
 
+            str(f"tumor type inst {tumor_type}")
+
             # assign complete object to patient
             self.patient_data[patient_id].tumor_type = tumor_type
 
@@ -263,10 +265,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             "COH_COHTMN",
             "COH_EventDate",
         ).filter(
-            (pl.col("COH_GENMUT1") != "NA")
-            | (pl.col("COH_GENMUT1CD") != "NA")
-            | (pl.col("COH_COHCTN") != "NA")
-            | (pl.col("COH_COHTMN") != "NA")
+            (pl.col("COH_GENMUT1") is not None)
+            | (pl.col("COH_GENMUT1CD") is not None)
+            | (pl.col("COH_COHCTN") is not None)
+            | (pl.col("COH_COHTMN") is not None)
         )
 
         for row in biomarker_data.iter_rows(named=True):
@@ -371,7 +373,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "EOT_EventDate",
         )
 
-        # lugrsp data is missing in synthetic data (fix later)
+        # lugrsp data is missing in synthetic data (becuase no subject in eCRF have lugano data)
         optional_lugrsp: Optional[pl.Series] = self.data.get_column(
             name="LUGRSP_EventDate", default=None
         )
@@ -403,7 +405,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                         CoreParsers.parse_date_flexible(row["RNRSP_EventDate"]),
                         CoreParsers.parse_date_flexible(row["RCNT_EventDate"]),
                         CoreParsers.parse_date_flexible(row["RNTMNT_EventDate"]),
-                        CoreParsers.parse_date_flexible(row["LUGRSP_EventDate"]),
+                        # CoreParsers.parse_date_flexible(row["LUGRSP_EventDate"]), note: no data for this in ecrf, not yet implemented
                     ]
                 ):
                     has_tumor_evaluation = True

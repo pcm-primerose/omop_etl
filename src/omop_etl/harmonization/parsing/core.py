@@ -7,7 +7,7 @@ from omop_etl.harmonization.parsing.coercion import TypeCoercion
 class CoreParsers:
     """Domain-agnostic parsers that handle common data patterns"""
 
-    STANDARD_DATE_FORMATS = [
+    STANDARD_DATE_FORMATS = (
         "%Y-%m-%d",  # 2023-12-25
         "%m/%d/%Y",  # 12/25/2023
         "%d/%m/%Y",  # 25/12/2023
@@ -16,7 +16,7 @@ class CoreParsers:
         "%B %d, %Y",  # December 25, 2023
         "%Y-%m",  # 2023-12 (partial)
         "%Y",  # 2023 (year only)
-    ]
+    )
 
     @staticmethod
     def parse_date_flexible(
@@ -181,7 +181,6 @@ class CoreParsers:
 class PolarsParsers:
     """
     Polars-specific parsing utilities for vectorized operations over columns, rows or expressions.
-    TODO Should refactor to use these in harmonizers over time instead (much faster, compatible with lazy computation).
     """
 
     NA_VALUES = {"na", "n/a", "null", "", "unknown", "none"}
@@ -191,37 +190,37 @@ class PolarsParsers:
         column: Union[str, pl.Expr], default_day: int = 15, default_month: int = 7
     ) -> pl.Expr:
         """Vectorized date parser for Polars columns"""
-        if isinstance(column, str):
-            column = pl.col(column)
+        c = pl.col(column) if isinstance(column, str) else column
 
-        # handle NA vals
-        for na_value in PolarsParsers.NA_VALUES:
-            column = pl.when(column == na_value).then(None).otherwise(column)
+        # NA values to None
+        c = pl.when(c.is_in(PolarsParsers.NA_VALUES)).then(None).otherwise(c)
 
-        return (
-            # NK patterns
-            pl.when(column.str.contains("-NK"))
-            .then(PolarsParsers._handle_nk_dates(column, default_day, default_month))
-            # year only: YYYY
-            .when(column.str.len_chars() == 4)
+        standardized = (
+            c
+            # replace NK patterns (case-insensitive) with default values
+            .str.replace_all("(?i)nk", "NK")  # Normalize to uppercase first
+            .str.replace(
+                "NK-NK$", f"{default_month:02d}-{default_day:02d}"
+            )  # YYYY-NK-NK to YYYY-MM-DD
+            .str.replace("-NK$", f"-{default_day:02d}")  # YYYY-MM-NK to YYYY-MM-DD
+            .str.replace("-NK-", f"-{default_month:02d}-")  # YYYY-NK-DD to YYYY-MM-DD
+        )
+
+        # process partial dates
+        result = (
+            pl.when(standardized.str.len_chars() == 4)  # YYYY
             .then(
                 pl.concat_str(
-                    column, pl.lit(f"-{default_month:02d}-{default_day:02d}")
-                ).str.strptime(pl.Datetime, "%Y-%m-%d", strict=True)
-            )
-            # year and month: YYYY-MM
-            .when(column.str.len_chars() == 7)
-            .then(
-                pl.concat_str(column, pl.lit(f"-{default_day:02d}")).str.strptime(
-                    pl.Datetime, "%Y-%m-%d", strict=True
+                    [standardized, pl.lit(f"-{default_month:02d}-{default_day:02d}")]
                 )
             )
-            # full date: YYYY-MM-DD
-            .when(column.str.len_chars() == 10)
-            .then(column.str.strptime(pl.Datetime, "%Y-%m-%d", strict=True))
-            # everything else becomes None
-            .otherwise(None)
+            .when(standardized.str.len_chars() == 7)  # YYYY-MM
+            .then(pl.concat_str([standardized, pl.lit(f"-{default_day:02d}")]))
+            .otherwise(standardized)  # already YYYY-MM-DD format or other
         )
+
+        # try to parse as date with error handling
+        return result.str.strptime(pl.Date, "%Y-%m-%d", strict=False)
 
     @staticmethod
     def _handle_nk_dates(
@@ -231,7 +230,7 @@ class PolarsParsers:
         return (
             column.str.replace("-NK-NK$", f"-{default_month:02d}-{default_day:02d}")
             .str.replace("-NK$", f"-{default_day:02d}")
-            .str.strptime(pl.Datetime, "%Y-%m-%d", strict=True)
+            .str.strptime(pl.Date, "%Y-%m-%d", strict=True)
         )
 
     @staticmethod
