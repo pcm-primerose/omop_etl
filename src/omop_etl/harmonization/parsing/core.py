@@ -223,17 +223,6 @@ class PolarsParsers:
         return result.str.strptime(pl.Date, "%Y-%m-%d", strict=False)
 
     @staticmethod
-    def _handle_nk_dates(
-        column: pl.Expr, default_day: int, default_month: int
-    ) -> pl.Expr:
-        """Handle NK date patterns in Polars"""
-        return (
-            column.str.replace("-NK-NK$", f"-{default_month:02d}-{default_day:02d}")
-            .str.replace("-NK$", f"-{default_day:02d}")
-            .str.strptime(pl.Date, "%Y-%m-%d", strict=True)
-        )
-
-    @staticmethod
     def safe_numeric_conversion(
         column: Union[str, pl.Expr], target_type: str = "int"
     ) -> pl.Expr:

@@ -1,3 +1,5 @@
+# harmoinzation/datamodels.py
+
 from typing import List, Optional, Set
 from dataclasses import dataclass, field
 import datetime as dt
@@ -25,7 +27,7 @@ class TumorType:
         self.updated_fields: Set[str] = set()
 
     @property
-    def icd10_code(self) -> Optional[int]:
+    def icd10_code(self) -> Optional[str]:
         return self._icd10_code
 
     @icd10_code.setter

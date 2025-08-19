@@ -1,3 +1,5 @@
+# tests/harmonization/unit/test_harmonizer.py
+
 import polars as pl
 import datetime as dt
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
@@ -28,6 +30,10 @@ from tests.harmonization.fixtures.impress_fixtures import (
     evaluability_fixture,
     ecog_fixture,
 )
+
+# TODO:
+#   [ ] should instead set up base, then make a new test trial using diff data standards
+#   [ ] later can just set up integration test and diff input from output
 
 
 class TestImpressHarmonizer:
@@ -174,257 +180,251 @@ def test_tumor_processing(tumor_type_fixture):
     assert tumor_instance_5.cohort_tumor_type is None
     assert tumor_instance_5.other_tumor_type == "tumor4_subtype2"
 
-    def test_study_drugs_processing(self, study_drugs_fixture):
-        harmonizer = ImpressHarmonizer(
-            data=study_drugs_fixture, trial_id="IMPRESS_TEST"
+
+def test_study_drugs_processing(study_drugs_fixture):
+    harmonizer = ImpressHarmonizer(data=study_drugs_fixture, trial_id="IMPRESS_TEST")
+
+    for subject_id in (
+        study_drugs_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            trial_id="IMPRESS_TEST", patient_id=subject_id
         )
 
-        for subject_id in (
-            study_drugs_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                trial_id="IMPRESS_TEST", patient_id=subject_id
-            )
+    harmonizer._process_study_drugs()
 
-        harmonizer._process_study_drugs()
+    study_drug_instance_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].study_drugs
+    assert study_drug_instance_1.primary_treatment_drug == "Traztuzumab"
+    assert study_drug_instance_1.primary_treatment_drug_code == 31
+    assert study_drug_instance_1.secondary_treatment_drug == "Tafinlar"
+    assert study_drug_instance_1.secondary_treatment_drug_code == 10
 
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].study_drugs == (
-            StudyDrugs.primary_treatment_drug == "Traztuzumab",
-            StudyDrugs.primary_treatment_drug_code == 31,
-            StudyDrugs.secondary_treatment_drug == "Tafinlar",
-            StudyDrugs.secondary_treatment_drug_code == 10,
+    study_drug_instance_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].study_drugs
+    assert study_drug_instance_2.primary_treatment_drug == "some drug"
+    assert study_drug_instance_2.primary_treatment_drug_code == 99
+    assert study_drug_instance_2.secondary_treatment_drug == "some drug 2"
+    assert study_drug_instance_2.secondary_treatment_drug_code == 1
+
+    study_drug_instance_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].study_drugs
+    assert study_drug_instance_3.primary_treatment_drug == "mismatch_1"
+    assert study_drug_instance_3.primary_treatment_drug_code == 10
+    assert study_drug_instance_3.secondary_treatment_drug == "mismatch_1_2"
+    assert study_drug_instance_3.secondary_treatment_drug_code == 12
+
+    study_drug_instance_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].study_drugs
+    assert study_drug_instance_4.primary_treatment_drug == "mismatch_2"
+    assert study_drug_instance_4.primary_treatment_drug_code == 50
+    assert study_drug_instance_4.secondary_treatment_drug == "mismatch_2_1"
+    assert study_drug_instance_4.secondary_treatment_drug_code == 60
+
+    # data with mutually exclusive fields colliding is logged, and returned as None
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].study_drugs is None
+
+
+def test_date_of_death_processing(date_of_death_fixture):
+    harmonizer = ImpressHarmonizer(data=date_of_death_fixture, trial_id="IMPRESS_TEST")
+
+    for subject_id in (
+        date_of_death_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            trial_id="IMPRESS_TEST", patient_id=subject_id
         )
 
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].study_drugs == (
-            StudyDrugs.primary_treatment_drug == "some drug",
-            StudyDrugs.primary_treatment_drug_code == 99,
-            StudyDrugs.secondary_treatment_drug == "some drug 2",
-            StudyDrugs.secondary_treatment_drug_code == 1,
+    harmonizer._process_date_of_death()
+
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].date_of_death == dt.datetime(
+        1990, 10, 2
+    )
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].date_of_death == dt.datetime(
+        2016, 9, 12
+    )
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].date_of_death == dt.datetime(
+        1900, 1, 1
+    )
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].date_of_death == dt.datetime(
+        1999, 9, 9
+    )
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].date_of_death is None
+
+
+def test_biomarker_processing(biomarker_fixture):
+    harmonizer = ImpressHarmonizer(data=biomarker_fixture, trial_id="IMPRESS_TEST")
+
+    for subject_id in (
+        biomarker_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            trial_id="IMPRESS_TEST", patient_id=subject_id
         )
 
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].study_drugs == (
-            StudyDrugs.primary_treatment_drug == "mismatch_1",
-            StudyDrugs.primary_treatment_drug_code == 10,
-            StudyDrugs.secondary_treatment_drug == "mismatch_1_2",
-            StudyDrugs.secondary_treatment_drug_code == 12,
+    harmonizer._process_biomarkers()
+
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].biomarker == Biomarkers(
+        gene_and_mutation="BRAF activating mutations",
+        gene_and_mutation_code=21,
+        cohort_target_name="BRAF Non-V600activating mutations",
+        cohort_target_mutation="BRAF Non-V600 activating mutations",
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].biomarker == Biomarkers(
+        gene_and_mutation=None,
+        gene_and_mutation_code=None,
+        cohort_target_name="some info",
+        cohort_target_mutation=None,
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].biomarker == Biomarkers(
+        gene_and_mutation="BRCA1 inactivating mutation",
+        gene_and_mutation_code=2,
+        cohort_target_name="BRCA1 stop-gain del exon 11",
+        cohort_target_mutation="BRCA1 stop-gain deletion",
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].biomarker == Biomarkers(
+        gene_and_mutation="SDHAF2 mutation",
+        gene_and_mutation_code=-1,
+        cohort_target_name="more info",
+        cohort_target_mutation=None,
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].biomarker == Biomarkers(
+        gene_and_mutation=None,
+        gene_and_mutation_code=10,
+        cohort_target_name=None,
+        cohort_target_mutation="some other info",
+    )
+
+
+def test_lost_to_followup(lost_to_followup_fixture):
+    harmonizer = ImpressHarmonizer(
+        data=lost_to_followup_fixture, trial_id="IMPRESS_TEST"
+    )
+    for subject_id in (
+        lost_to_followup_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            patient_id=subject_id, trial_id="IMPRESS_TEST"
         )
 
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].study_drugs == StudyDrugs(
-            primary_treatment_drug="mismatch_2",
-            primary_treatment_drug_code=50,
-            secondary_treatment_drug="mismatch_2_1",
-            secondary_treatment_drug_code=60,
+    harmonizer._process_date_lost_to_followup()
+
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].lost_to_followup == FollowUp(
+        lost_to_followup=False, date_lost_to_followup=None
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].lost_to_followup == FollowUp(
+        lost_to_followup=False, date_lost_to_followup=None
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].lost_to_followup == FollowUp(
+        lost_to_followup=True, date_lost_to_followup=dt.datetime(1900, 1, 1)
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].lost_to_followup == FollowUp(
+        lost_to_followup=False, date_lost_to_followup=None
+    )
+
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].lost_to_followup == FollowUp(
+        lost_to_followup=False, date_lost_to_followup=None
+    )
+
+
+def test_evaluability(evaluability_fixture):
+    harmonizer = ImpressHarmonizer(data=evaluability_fixture, trial_id="IMPRESS_TEST")
+    for subject_id in (
+        evaluability_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            patient_id=subject_id, trial_id="IMPRESS_TEST"
         )
 
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].study_drugs == StudyDrugs(
-            primary_treatment_drug="partial",
-            primary_treatment_drug_code=None,
-            secondary_treatment_drug=None,
-            secondary_treatment_drug_code=5,
+    harmonizer._process_evaluability()
+
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0001_1"].evaluable_for_efficacy_analysis
+        is True
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0002_1"].evaluable_for_efficacy_analysis
+        is True
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0003_1"].evaluable_for_efficacy_analysis
+        is True
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0004_1"].evaluable_for_efficacy_analysis
+        is False
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0005_1"].evaluable_for_efficacy_analysis
+        is False
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0006_1"].evaluable_for_efficacy_analysis
+        is False
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0007_1"].evaluable_for_efficacy_analysis
+        is False
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0008_1"].evaluable_for_efficacy_analysis
+        is False
+    )
+
+
+def test_ecog(ecog_fixture):
+    harmonizer = ImpressHarmonizer(data=ecog_fixture, trial_id="IMPRESS_TEST")
+
+    for subject_id in ecog_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[subject_id] = Patient(
+            patient_id=subject_id, trial_id="IMPRESS_TEST"
         )
 
-    def test_date_of_death_processing(self, date_of_death_fixture):
-        harmonizer = ImpressHarmonizer(
-            data=date_of_death_fixture, trial_id="IMPRESS_TEST"
-        )
+    harmonizer._process_ecog()
 
-        for subject_id in (
-            date_of_death_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                trial_id="IMPRESS_TEST", patient_id=subject_id
-            )
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].ecog == Ecog(
+        description="all", grade=1
+    )
 
-        harmonizer._process_date_of_death()
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].ecog == Ecog(
+        description="no code", grade=None
+    )
 
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].date_of_death == dt.datetime(
-            1990, 10, 2
-        )
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].date_of_death == dt.datetime(
-            2016, 9, 12
-        )
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].date_of_death == dt.datetime(
-            1900, 1, 1
-        )
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].date_of_death == dt.datetime(
-            1999, 9, 9
-        )
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].date_of_death is None
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].ecog == Ecog(
+        description=None, grade=2
+    )
 
-    def test_biomarker_processing(self, biomarker_fixture):
-        harmonizer = ImpressHarmonizer(data=biomarker_fixture, trial_id="IMPRESS_TEST")
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].ecog == Ecog(
+        description="wrong ID", grade=3
+    )
 
-        for subject_id in (
-            biomarker_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                trial_id="IMPRESS_TEST", patient_id=subject_id
-            )
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].ecog == Ecog(
+        description=None, grade=None
+    )
 
-        harmonizer._process_biomarkers()
 
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].biomarker == Biomarkers(
-            gene_and_mutation="BRAF activating mutations",
-            gene_and_mutation_code=21,
-            cohort_target_name="BRAF Non-V600activating mutations",
-            cohort_target_mutation="BRAF Non-V600 activating mutations",
-        )
+def test_basic_inheritance(subject_id_fixture):
+    harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
 
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].biomarker == Biomarkers(
-            gene_and_mutation=None,
-            gene_and_mutation_code=None,
-            cohort_target_name="some info",
-            cohort_target_mutation=None,
-        )
+    assert isinstance(harmonizer, BaseHarmonizer)
 
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].biomarker == Biomarkers(
-            gene_and_mutation="BRCA1 inactivating mutation",
-            gene_and_mutation_code=2,
-            cohort_target_name="BRCA1 stop-gain del exon 11",
-            cohort_target_mutation="BRCA1 stop-gain deletion",
-        )
+    assert harmonizer.data is subject_id_fixture
+    assert harmonizer.trial_id == "IMPRESS_TEST"
 
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].biomarker == Biomarkers(
-            gene_and_mutation="SDHAF2 mutation",
-            gene_and_mutation_code=-1,
-            cohort_target_name="more info",
-            cohort_target_mutation=None,
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].biomarker == Biomarkers(
-            gene_and_mutation=None,
-            gene_and_mutation_code=10,
-            cohort_target_name=None,
-            cohort_target_mutation="some other info",
-        )
-
-    def test_lost_to_followup(self, lost_to_followup_fixture):
-        harmonizer = ImpressHarmonizer(
-            data=lost_to_followup_fixture, trial_id="IMPRESS_TEST"
-        )
-        for subject_id in (
-            lost_to_followup_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                patient_id=subject_id, trial_id="IMPRESS_TEST"
-            )
-
-        harmonizer._process_date_lost_to_followup()
-
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].lost_to_followup == FollowUp(
-            lost_to_followup=False, date_lost_to_followup=None
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].lost_to_followup == FollowUp(
-            lost_to_followup=False, date_lost_to_followup=None
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].lost_to_followup == FollowUp(
-            lost_to_followup=True, date_lost_to_followup=dt.datetime(1900, 1, 1)
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].lost_to_followup == FollowUp(
-            lost_to_followup=False, date_lost_to_followup=None
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].lost_to_followup == FollowUp(
-            lost_to_followup=False, date_lost_to_followup=None
-        )
-
-    def test_evaluability(self, evaluability_fixture):
-        harmonizer = ImpressHarmonizer(
-            data=evaluability_fixture, trial_id="IMPRESS_TEST"
-        )
-        for subject_id in (
-            evaluability_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                patient_id=subject_id, trial_id="IMPRESS_TEST"
-            )
-
-        harmonizer._process_evaluability()
-
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0001_1"].evaluable_for_efficacy_analysis
-            is True
-        )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0002_1"].evaluable_for_efficacy_analysis
-            is True
-        )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0003_1"].evaluable_for_efficacy_analysis
-            is True
-        )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0004_1"].evaluable_for_efficacy_analysis
-            is False
-        )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0005_1"].evaluable_for_efficacy_analysis
-            is False
-        )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0006_1"].evaluable_for_efficacy_analysis
-            is False
-        )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0007_1"].evaluable_for_efficacy_analysis
-            is False
-        )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0008_1"].evaluable_for_efficacy_analysis
-            is False
-        )
-
-    def test_ecog(self, ecog_fixture):
-        harmonizer = ImpressHarmonizer(data=ecog_fixture, trial_id="IMPRESS_TEST")
-
-        for subject_id in (
-            ecog_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                patient_id=subject_id, trial_id="IMPRESS_TEST"
-            )
-
-        harmonizer._process_ecog()
-
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].ecog == Ecog(
-            description="all", grade=1
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].ecog == Ecog(
-            description="no code", grade=None
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].ecog == Ecog(
-            description=None, grade=2
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].ecog == Ecog(
-            description="wrong ID", grade=3
-        )
-
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].ecog == Ecog(
-            description=None, grade=None
-        )
-
-    def test_basic_inheritance(self, subject_id_fixture):
-        harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
-
-        assert isinstance(harmonizer, BaseHarmonizer)
-
-        assert harmonizer.data is subject_id_fixture
-        assert harmonizer.trial_id == "IMPRESS_TEST"
-
-        assert hasattr(harmonizer, "patient_data")
-        assert isinstance(harmonizer.patient_data, dict)
+    assert hasattr(harmonizer, "patient_data")
+    assert isinstance(harmonizer.patient_data, dict)
 
 
 def test_parse_flexible_date_function():
     assert CoreParsers.parse_date_flexible("1900-02-02") == dt.date(1900, 2, 2)
     assert CoreParsers.parse_date_flexible("1950-06") == dt.date(1950, 6, 15)
     assert CoreParsers.parse_date_flexible("1900") == dt.date(1900, 7, 15)
+    assert CoreParsers.parse_date_flexible("1900-02-Nk") == dt.date(1900, 2, 15)
+    assert CoreParsers.parse_date_flexible("1900-nK-NK") == dt.date(1900, 7, 15)
+    assert CoreParsers.parse_date_flexible("1900-nK-10") == dt.date(1900, 7, 10)
 
 
 def test_parse_date_column_function():
@@ -442,13 +442,12 @@ def test_parse_date_column_function():
         }
     )
 
-    # with col name
-    result_by_name = df.with_columns(
+    parsed_df: pl.DataFrame = df.with_columns(
         parsed_dates=PolarsParsers.parse_date_column(column=pl.col("dates"))
     )
-    assert result_by_name["parsed_dates"][0] == dt.date(1900, 2, 2)
-    assert result_by_name["parsed_dates"][1] == dt.date(1950, 6, 15)
-    assert result_by_name["parsed_dates"][2] == dt.date(1900, 7, 15)
-    assert result_by_name["parsed_dates"][3] == dt.date(1900, 2, 15)
-    assert result_by_name["parsed_dates"][4] == dt.date(1900, 7, 15)
-    assert result_by_name["parsed_dates"][5] == dt.date(1900, 7, 10)
+    assert parsed_df["parsed_dates"][0] == dt.date(1900, 2, 2)
+    assert parsed_df["parsed_dates"][1] == dt.date(1950, 6, 15)
+    assert parsed_df["parsed_dates"][2] == dt.date(1900, 7, 15)
+    assert parsed_df["parsed_dates"][3] == dt.date(1900, 2, 15)
+    assert parsed_df["parsed_dates"][4] == dt.date(1900, 7, 15)
+    assert parsed_df["parsed_dates"][5] == dt.date(1900, 7, 10)

@@ -121,14 +121,21 @@ def study_drugs_fixture():
                 "IMPRESS-X_0004_1",
                 "IMPRESS-X_0005_1",
             ],
-            "COH_COHALLO1": ["NA", "some drug", "mismatch_1", "NA", "partial"],
+            # sd1
+            # note: collision in mutually exclusive fields are logged and returned as None (source data is wrong)
+            "COH_COHALLO1": ["NA", "some drug", "mismatch_1", "NA", "collision"],
             "COH_COHALLO1CD": ["NA", "99", "10", "NA", "NA"],
             "COH_COHALLO1__2": ["Traztuzumab", "NA", "NA", "mismatch_2", "NA"],
             "COH_COHALLO1__2CD": ["31", "NA", "NA", "50", "NA"],
+            "COH_COHALLO1__3": ["NA", "NA", "NA", "NA", "some_drug_3"],
+            "COH_COHALLO1__3CD": ["NA", "NA", "NA", "NA", "99"],
+            # sd2
             "COH_COHALLO2": ["NA", "some drug 2", "NA", "mismatch_2_1", "NA"],
             "COH_COHALLO2CD": ["NA", "1", "NA", "60", "NA"],
             "COH_COHALLO2__2": ["Tafinlar", "NA", "mismatch_1_2", "NA", "NA"],
             "COH_COHALLO2__2CD": ["10", "NA", "12", "NA", "5"],
+            "COH_COHALLO2__3": ["NA", "NA", "NA", "NA", "some_drug_3_2"],
+            "COH_COHALLO2__3CD": ["NA", "NA", "NA", "NA", "999"],
         }
     )
 

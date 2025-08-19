@@ -1,7 +1,10 @@
-from typing import Optional
+# harmonization/impress.py
 
+from typing import Optional
 import polars as pl
 import datetime as dt
+from logging import getLogger
+
 from omop_etl.harmonization.parsing.coercion import TypeCoercion
 from omop_etl.harmonization.parsing.core import CoreParsers
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
@@ -14,6 +17,9 @@ from omop_etl.harmonization.datamodels import (
     FollowUp,
     Ecog,
 )
+from omop_etl.harmonization.utils import detect_paired_field_collisions
+
+log = getLogger(__name__)
 
 
 class ImpressHarmonizer(BaseHarmonizer):
@@ -222,6 +228,31 @@ class ImpressHarmonizer(BaseHarmonizer):
             patient_id = row["SubjectId"]
 
             if patient_id not in self.patient_data:
+                continue
+
+            # study drugs should always be mutually exclusive,
+            # if they aren't, log and return None for entire model
+            primary_drug_pairs = [
+                ("COH_COHALLO1", "COH_COHALLO1CD"),
+                ("COH_COHALLO1__2", "COH_COHALLO1__2CD"),
+                ("COH_COHALLO1__3", "COH_COHALLO1__3CD"),
+            ]
+
+            secondary_drug_pairs = [
+                ("COH_COHALLO2", "COH_COHALLO2CD"),
+                ("COH_COHALLO2__2", "COH_COHALLO2__2CD"),
+                ("COH_COHALLO2__3", "COH_COHALLO2__3CD"),
+            ]
+
+            primary_collision, _ = detect_paired_field_collisions(
+                row, primary_drug_pairs, patient_id, "primary_study_drug"
+            )
+
+            secondary_collision, _ = detect_paired_field_collisions(
+                row, secondary_drug_pairs, patient_id, "secondary_study_drug"
+            )
+
+            if primary_collision or secondary_collision:
                 continue
 
             primary_drug = (
