@@ -77,8 +77,6 @@ def gender_fixture():
 
 @pytest.fixture
 def tumor_type_fixture():
-    # note that COH_COHTTYPE/CD and COH_COHTTYPE__2/CD are mutually exlusive
-    # two separate dropdown lists
     return pl.DataFrame(
         data={
             "SubjectId": [
