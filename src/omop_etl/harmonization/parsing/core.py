@@ -1,3 +1,5 @@
+import logging
+
 import polars as pl
 import datetime as dt
 from typing import Optional, Union, Any, Set
@@ -54,7 +56,9 @@ class CoreParsers:
             except ValueError:
                 continue
 
-        raise ValueError(f"Cannot parse date from: {str(value)}")
+        if not isinstance(value, dt.date):
+            logging.warning(f"Cannot parse date from: {str(value)}, returning as None")
+            return None
 
     @staticmethod
     def _parse_nk_date(

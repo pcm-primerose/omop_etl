@@ -319,10 +319,10 @@ class ImpressHarmonizer(BaseHarmonizer):
                 row["COH_GENMUT1CD"]
             )
             biomarkers.cohort_target_mutation = TypeCoercion.to_optional_string(
-                row["COH_COHCTN"]
+                row["COH_COHTMN"]
             )
             biomarkers.cohort_target_name = TypeCoercion.to_optional_string(
-                row["COH_COHTMN"]
+                row["COH_COHCTN"]
             )
 
             self.patient_data[patient_id].biomarker = biomarkers
@@ -458,8 +458,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             evaluable_status = sufficient_treatment_length and (
                 has_tumor_evaluation or has_eot_evaluation
             )
-
-            print(f"Evaluability status: {evaluable_status}")
 
             self.patient_data[
                 patient_id

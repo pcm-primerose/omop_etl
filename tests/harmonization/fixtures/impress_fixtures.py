@@ -160,7 +160,7 @@ def biomarker_fixture():
             ],
             "COH_GENMUT1CD": ["21", "NA", "2", "-1", "10"],
             "COH_COHCTN": [
-                "BRAF Non-V600activating mutations",
+                "BRAF Non-V600 activating mutations",
                 "some info",
                 "BRCA1 stop-gain del exon 11",
                 "more info",
@@ -172,6 +172,13 @@ def biomarker_fixture():
                 "BRCA1 stop-gain deletion",
                 "NA",
                 "some other info",
+            ],
+            "COH_EventDate": [
+                "1900-nk-nk",
+                "1980-02-nk",
+                "not a date",
+                "1999-nk-11",
+                "",
             ],
         }
     )
@@ -293,16 +300,6 @@ def evaluability_fixture():
                 "NA",
                 "NA",
                 "2002-05-01",
-                "NA",
-                "NA",
-            ],
-            "LUGRSP_EventDate": [
-                "NA",
-                "NA",
-                "2005-01-01",
-                "NA",
-                "NA",
-                "NA",
                 "NA",
                 "NA",
             ],

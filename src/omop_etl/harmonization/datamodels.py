@@ -517,7 +517,7 @@ class Patient:
     @evaluable_for_efficacy_analysis.setter
     def evaluable_for_efficacy_analysis(self, value: Optional[bool]) -> None:
         """Set evaluable for efficacy analysis status with validation"""
-        self._date_of_death = StrictValidators.validate_optional_bool(
+        self._evaluable_for_efficacy_analysis = StrictValidators.validate_optional_bool(
             value=value,
             field_name=self.__class__.evaluable_for_efficacy_analysis.fset.__name__,
         )
