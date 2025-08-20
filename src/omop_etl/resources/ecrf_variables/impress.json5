@@ -193,8 +193,10 @@
   ],
   "mh": [
     "SubjectId",
+    "MHSPID",
     "MHTERM",
     "MHSTDAT",
+    "MHENDAT",
     "MHONGO",
     "MHONGOCD"
   ],

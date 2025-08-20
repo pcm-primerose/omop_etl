@@ -448,6 +448,16 @@ def test_medical_history(medical_history_fixture):
     assert p5.medical_history.status_code == 1
 
 
+# todo: implement
+def test_previous_treatments():
+    pass
+
+
+# todo: implement
+def test_treatment_start():
+    pass
+
+
 def test_basic_inheritance(subject_id_fixture):
     harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
 

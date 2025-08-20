@@ -62,11 +62,11 @@ if __name__ == "__main__":
         / ".data"
         / "preprocessing"
         / "impress"
-        / "20250818T134310Z_59a9dc98"
+        / "20250820T124427Z_7f12c7c1"
         / "data_preprocessed.csv"
     )
 
-    # /Users/gabriebs/projects/omop_etl/.data/preprocessing/impress/20250818T134310Z_59a9dc98
+    # /Users/gabriebs/projects/omop_etl/.data/preprocessing/impress/20250820T124427Z_7f12c7c1
     # /Users/gabriebs/projects/ecrf_mocker/output
     impress = process_impress(impress_file)
     print("\n")

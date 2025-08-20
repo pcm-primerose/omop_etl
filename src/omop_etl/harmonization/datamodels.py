@@ -515,6 +515,17 @@ class PreviousTreatments:
         )
         self.updated_fields.add(self.__class__.additional_treatment.fset.__name__)
 
+    def __str__(self):
+        return (
+            f"patient_id={self._patient_id!r}\n"
+            f"treatment={self.treatment!r}\n"
+            f"treatment_code={self.treatment_code!r}\n"
+            f"treatment_sequence_number={self.treatment_sequence_number!r}\n"
+            f"start_date={self.start_date!r}\n"
+            f"end_date={self.end_date!r}\n"
+            f"additional_treatment={self.additional_treatment!r}\n"
+        )
+
 
 class Patient:
     """
@@ -537,6 +548,7 @@ class Patient:
         self._ecog: Optional[Ecog] = None
         self._medical_history: Optional[MedicalHistory] = None
         self._previous_treatments: Optional[PreviousTreatments] = None
+        self._treatment_start_date: Optional[dt.date] = None
 
     @property
     def patient_id(self) -> str:
@@ -719,7 +731,43 @@ class Patient:
             value._patient_id = self._patient_id
 
         self._medical_history = value
-        self.updated_fields.add("medical_history")
+        self.updated_fields.add(MedicalHistory.__name__)
+
+    @property
+    def previous_treatments(self) -> Optional[PreviousTreatments]:
+        return self._previous_treatments
+
+    @previous_treatments.setter
+    def previous_treatments(self, value: Optional[PreviousTreatments]) -> None:
+        if value is not None and not isinstance(value, PreviousTreatments):
+            raise ValueError(
+                f"previous_treatments must be {PreviousTreatments.__name__} or None, got {type(value)}"
+            )
+        if value is not None:
+            value._patient_id = self._patient_id
+
+        self._previous_treatments = value
+        self.updated_fields.add(PreviousTreatments.__name__)
+
+    @property
+    def treatment_start_date(self) -> Optional[dt.date]:
+        return self._treatment_start_date
+
+    @treatment_start_date.setter
+    def treatment_start_date(self, value: Optional[dt.date]) -> None:
+        if value is not None and not isinstance(value, dt.date):
+            raise ValueError(
+                f"treatment start date must be {self.__class__.treatment_start_date.fset.__name__} or None,"
+                f"got {type(value)}"
+                f"In patient: {self.patient_id}"
+            )
+
+        self._treatment_start_date = value
+        self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
+
+        self._treatment_start_date = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.treatment_start_date.fset.__name__
+        )
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields

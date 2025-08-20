@@ -17,6 +17,7 @@ from omop_etl.harmonization.datamodels import (
     FollowUp,
     Ecog,
     MedicalHistory,
+    PreviousTreatments,
 )
 from omop_etl.harmonization.utils import detect_paired_field_collisions
 
@@ -330,7 +331,9 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_date_of_death(self):
         death_data = self.data.select(
             "SubjectId", "EOS_DEATHDTC", "FU_FUPDEDAT"
-        ).filter((pl.col("EOS_DEATHDTC") != "NA") | (pl.col("FU_FUPDEDAT") != "NA"))
+        ).filter(
+            (pl.col("EOS_DEATHDTC") is not None) | (pl.col("FU_FUPDEDAT") is not None)
+        )
 
         for row in death_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -402,7 +405,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "RCNT_EventDate",
             "RNTMNT_EventDate",
             "EOT_EventDate",
-        )
+        ).filter(pl.col("SubjectId") is not None)
 
         # lugrsp data is missing in synthetic data (becuase no subject in eCRF have lugano data)
         optional_lugrsp: Optional[pl.Series] = self.data.get_column(
@@ -495,7 +498,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "MH_MHENDAT",
             "MH_MHONGO",
             "MH_MHONGOCD",
-        )
+        ).filter((pl.col("MH_MHTERM") is not None))
 
         for row in mh_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -516,25 +519,48 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[patient_id].medical_history = mh
 
     def _process_previous_treatment_lines(self):
+        # TODO: unsure what logic to implement rn
         treatment_lines_data = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
             "CT_CTTYPECD",
-            "CT_CTTYPESP",
+            "CT_CTSPID",
             "CT_CTSTDAT",
             "CT_CTENDAT",
-            "CT_CTSPID",
-        )
+            "CT_CTTYPESP",
+        ).filter((pl.col("CT_CTTYPE") is not None))
 
         for row in treatment_lines_data.iter_rows(named=True):
-            print(f"ct row: {row}")
+            patient_id = row["SubjectId"]
 
-        pass
+            pt = PreviousTreatments(patient_id=patient_id)
+            pt.treatment = TypeCoercion.to_optional_string(row["CT_CTTYPE"])
+            pt.treatment_code = TypeCoercion.to_optional_int(row["CT_CTTYPECD"])
+            pt.treatment_sequence_number = TypeCoercion.to_optional_int(
+                row["CT_CTSPID"]
+            )
+            pt.start_date = CoreParsers.parse_date_flexible(row["CT_CTSTDAT"])
+            pt.end_date = CoreParsers.parse_date_flexible(row["CT_CTENDAT"])
+            pt.additional_treatment = TypeCoercion.to_optional_string(
+                row["CT_CTTYPESP"]
+            )
 
-        # TODO
-        #   Just implement intended data in test fixtures and make sure implementation works
-        #   and stop spending so much time on mock data (can also just add some empty cols with NA for new data)
-        #   but need to re-run eCRF script now anyways
+            self.patient_data[patient_id].previous_treatments = pt
 
+    # todo process all treatment-related dates
+    def _process_treatment_start(self):
+        """
+        First dose in first cycle.
+        """
+        treatment_lines_data = self.data.select(
+            "SubjectId",
+            "CT_CTTYPE",
+            "CT_CTTYPECD",
+            "CT_CTSPID",
+            "CT_CTSTDAT",
+            "CT_CTENDAT",
+            "CT_CTTYPESP",
+        ).filter((pl.col("CT_CTTYPE") is not None))
 
-# TODO after making nice mock data add dates to everything
+        for row in treatment_lines_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
