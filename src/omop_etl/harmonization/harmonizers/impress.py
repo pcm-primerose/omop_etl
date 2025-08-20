@@ -6,7 +6,7 @@ import datetime as dt
 from logging import getLogger
 
 from omop_etl.harmonization.parsing.coercion import TypeCoercion
-from omop_etl.harmonization.parsing.core import CoreParsers
+from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
 from omop_etl.harmonization.datamodels import (
     HarmonizedData,
@@ -16,6 +16,7 @@ from omop_etl.harmonization.datamodels import (
     Biomarkers,
     FollowUp,
     Ecog,
+    MedicalHistory,
 )
 from omop_etl.harmonization.utils import detect_paired_field_collisions
 
@@ -39,6 +40,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_evaluability()
         self._process_ecog()
         self._process_previous_treatment_lines()
+        self._process_medical_history()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -187,15 +189,13 @@ class ImpressHarmonizer(BaseHarmonizer):
                     row["COH_COHTTYPE__2CD"]
                 )
 
-            tumor_type = TumorType()
+            tumor_type = TumorType(patient_id=patient_id)
             tumor_type.icd10_code = icd10_code
             tumor_type.icd10_description = icd10_description
             tumor_type.main_tumor_type = main_tumor_type
             tumor_type.main_tumor_type_code = main_tumor_type_code
             tumor_type.cohort_tumor_type = cohort_tumor_type
             tumor_type.other_tumor_type = other_tumor_type
-
-            str(f"tumor type inst {tumor_type}")
 
             # assign complete object to patient
             self.patient_data[patient_id].tumor_type = tumor_type
@@ -279,7 +279,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 or TypeCoercion.to_optional_int(row["COH_COHALLO2__3CD"])
             )
 
-            study_drugs = StudyDrugs()
+            study_drugs = StudyDrugs(patient_id=patient_id)
             study_drugs.primary_treatment_drug = primary_drug
             study_drugs.secondary_treatment_drug = secondary_drug
             study_drugs.primary_treatment_drug_code = primary_drug_code
@@ -308,7 +308,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id not in self.patient_data:
                 continue
 
-            biomarkers = Biomarkers()
+            biomarkers = Biomarkers(patient_id=patient_id)
             biomarkers.event_date = CoreParsers.parse_date_flexible(
                 row["COH_EventDate"]
             )
@@ -384,7 +384,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_evaluability(self):
         """
         Current filtering criteria for marking patient as evaluable for efficacy analysis:
-            - must have treatment length over 28 days (taking treatment length of first treatment) and either one of:
+            - must have treatment length over 28 days (and 21 for IV?) (taking treatment length of first treatment) and either one of:
             - tumor assessment (all rows in assessments suffice, EventDate always has data)
             - clinical assessment (EventId from EOT sheet)
 
@@ -477,31 +477,59 @@ class ImpressHarmonizer(BaseHarmonizer):
                 ecog_description = TypeCoercion.to_optional_string(row["ECOG_ECOGS"])
                 ecog_grade = TypeCoercion.to_optional_int(row["ECOG_ECOGSCD"])
 
-            ecog = Ecog()
+            ecog = Ecog(patient_id=patient_id)
             ecog.grade = ecog_grade
             ecog.description = ecog_description
 
             self.patient_data[patient_id].ecog = ecog
 
     def _process_medical_history(self):
-        # MHTER, MHSTDAT, MHONGO, MHONGOCD
-        # TODO: Implement when we know if we need this, and after eCRF extraction upadate
-        pass
+        # TODO: unsure how to process, latest update is to omit this
+        #   currently just converts types and validates
+
+        mh_data = self.data.select(
+            "SubjectId",
+            "MH_MHSPID",
+            "MH_MHTERM",
+            "MH_MHSTDAT",
+            "MH_MHENDAT",
+            "MH_MHONGO",
+            "MH_MHONGOCD",
+        )
+
+        for row in mh_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+
+            mh = MedicalHistory(patient_id=patient_id)
+            mh.term = TypeCoercion.to_optional_string(row["MH_MHTERM"])
+            mh.sequence_id = TypeCoercion.to_optional_int(row["MH_MHSPID"])
+            mh.start_date = CoreParsers.parse_date_flexible(row["MH_MHSTDAT"])
+            mh.end_date = CoreParsers.parse_date_flexible(row["MH_MHENDAT"])
+            mh.status = TypeCoercion.to_optional_string(row["MH_MHONGO"])
+            mh.status_code = TypeCoercion.to_optional_int(row["MH_MHONGOCD"])
+
+            if mh.end_date and mh.start_date and mh.end_date < mh.start_date:
+                log.warning(
+                    f"{patient_id} has end date: {mh.end_date} before start date: {mh.start_date}"
+                )
+
+            self.patient_data[patient_id].medical_history = mh
 
     def _process_previous_treatment_lines(self):
-        # TODO: Add CT_CTTYPESP when eCRF extraction update
-        #   it contains e.g. "horomonal therapy"
         treatment_lines_data = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
             "CT_CTTYPECD",
+            "CT_CTTYPESP",
             "CT_CTSTDAT",
             "CT_CTENDAT",
             "CT_CTSPID",
         )
 
         for row in treatment_lines_data.iter_rows(named=True):
-            print(row)
+            print(f"ct row: {row}")
+
+        pass
 
         # TODO
         #   Just implement intended data in test fixtures and make sure implementation works

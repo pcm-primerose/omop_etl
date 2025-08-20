@@ -335,6 +335,14 @@ def ecog_fixture():
     )
 
 
+"""
+SubjectId,MHSPID,MHTERM,MHSTDAT,MHONGO,MHONGOCD,MHENDAT
+Y_3466_1,01,Abdominal pain,1998-03-18,Current/active,3,
+P_8841_1,01,Hypertension,1965-02-23,Current/active,3,
+P_8841_1,02,Pain right leg,1923-12-21,Past,1,1978-01-12
+"""
+
+
 @pytest.fixture
 def medical_history_fixture():
     return pl.DataFrame(
@@ -345,6 +353,36 @@ def medical_history_fixture():
                 "IMPRESS-X_0003_1",
                 "IMPRESS-X_0004_1",
                 "IMPRESS-X_0005_1",
+            ],
+            "MH_MHTERM": ["pain", "hypertension", "dizziness", "pain", "rigor mortis"],
+            "MH_MHSPID": ["01", "02", "03", "01", "01"],
+            "MH_MHSTDAT": [
+                "1900-09-NK",
+                "1901-10-02",
+                "1902-nk-nk",
+                "1840-02-02",
+                "1740-02-02",
+            ],
+            "MH_MHENDAT": [
+                "",  # ongoing
+                "1901-11-02",  # ended
+                "1903-nk-nk",  # ongoing
+                "1940-nk-02",  # ongoing
+                "1940-02-02",  # ended
+            ],
+            "MH_MHONGO": [
+                "Current/active",
+                "Past",  # ended
+                "Present/dormant",  # ongoing
+                "Past",  # conflict w. ongoing
+                "Past",  # ended
+            ],
+            "MH_MHONGOCD": [
+                "1",
+                "3",  # ended
+                "2",  # ongoing
+                "3",  # conflict w. ongoing
+                "1",  # wrong code
             ],
         }
     )

@@ -30,6 +30,7 @@ from tests.harmonization.fixtures.impress_fixtures import (
     lost_to_followup_fixture,
     evaluability_fixture,
     ecog_fixture,
+    medical_history_fixture,
 )
 
 # TODO:
@@ -37,96 +38,89 @@ from tests.harmonization.fixtures.impress_fixtures import (
 #   [ ] later can just set up integration test and diff input from output
 
 
-class TestImpressHarmonizer:
+def test_impress_subject_id_processing(subject_id_fixture):
+    harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
+    harmonizer._process_patient_id()
 
-    """Tests for IMRPESS harmonization"""
+    assert len(harmonizer.patient_data) == 5
 
-    def test_impress_subject_id_processing(self, subject_id_fixture):
-        harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
-        harmonizer._process_patient_id()
+    expected_ids = [
+        "IMPRESS-X_0001_1",
+        "IMPRESS-X_0002_1",
+        "IMPRESS-X_0003_1",
+        "IMPRESS-X_0004_1",
+        "IMPRESS-X_0005_1",
+    ]
+    assert set(expected_ids) == set(harmonizer.patient_data)
 
-        assert len(harmonizer.patient_data) == 5
+    for patient_id, patient_data in harmonizer.patient_data.items():
+        assert patient_data.patient_id == patient_id
+        assert patient_data.trial_id == "IMPRESS_TEST"
 
-        expected_ids = [
-            "IMPRESS-X_0001_1",
-            "IMPRESS-X_0002_1",
-            "IMPRESS-X_0003_1",
-            "IMPRESS-X_0004_1",
-            "IMPRESS-X_0005_1",
-        ]
-        assert set(expected_ids) == set(harmonizer.patient_data)
 
-        for patient_id, patient_data in harmonizer.patient_data.items():
-            assert patient_data.patient_id == patient_id
-            assert patient_data.trial_id == "IMPRESS_TEST"
+def test_impress_cohort_name_processing(cohort_name_fixture):
+    harmonizer = ImpressHarmonizer(data=cohort_name_fixture, trial_id="IMPRESS_TEST")
 
-    def test_impress_cohort_name_processing(self, cohort_name_fixture):
-        harmonizer = ImpressHarmonizer(
-            data=cohort_name_fixture, trial_id="IMPRESS_TEST"
+    for subject_id in (
+        cohort_name_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            trial_id="IMPRESS_TEST", patient_id=subject_id
         )
 
-        for subject_id in (
-            cohort_name_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                trial_id="IMPRESS_TEST", patient_id=subject_id
-            )
+    harmonizer._process_cohort_name()
 
-        harmonizer._process_cohort_name()
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0001_1"].cohort_name
+        == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name is None
+        or harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name == ""
+    )
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name is None
+        or harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name == ""
+    )
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].cohort_name == ""
+    assert (
+        harmonizer.patient_data["IMPRESS-X_0005_1"].cohort_name
+        == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
+    )
 
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0001_1"].cohort_name
-            == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
+
+def test_gender_processing(gender_fixture):
+    harmonizer = ImpressHarmonizer(data=gender_fixture, trial_id="IMPRESS_TEST")
+
+    for subject_id in gender_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[subject_id] = Patient(
+            trial_id="IMPRESS_TEST", patient_id=subject_id
         )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name is None
-            or harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name == ""
+
+    harmonizer._process_gender()
+
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].sex == "female"
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].sex == "male"
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].sex == "female"
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].sex == "male"
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].sex is None
+
+
+def test_age_processing(age_fixture):
+    harmonizer = ImpressHarmonizer(data=age_fixture, trial_id="IMPRESS_TEST")
+
+    for subject_id in age_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[subject_id] = Patient(
+            trial_id="IMPRESS_TEST", patient_id=subject_id
         )
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name is None
-            or harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name == ""
-        )
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].cohort_name == ""
-        assert (
-            harmonizer.patient_data["IMPRESS-X_0005_1"].cohort_name
-            == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
-        )
 
-    def test_gender_processing(self, gender_fixture):
-        harmonizer = ImpressHarmonizer(data=gender_fixture, trial_id="IMPRESS_TEST")
+    harmonizer._process_age()
 
-        for subject_id in (
-            gender_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                trial_id="IMPRESS_TEST", patient_id=subject_id
-            )
-
-        harmonizer._process_gender()
-
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].sex == "female"
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].sex == "male"
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].sex == "female"
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].sex == "male"
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].sex is None
-
-    def test_age_processing(self, age_fixture):
-        harmonizer = ImpressHarmonizer(data=age_fixture, trial_id="IMPRESS_TEST")
-
-        for subject_id in (
-            age_fixture.select("SubjectId").unique().to_series().to_list()
-        ):
-            harmonizer.patient_data[subject_id] = Patient(
-                trial_id="IMPRESS_TEST", patient_id=subject_id
-            )
-
-        harmonizer._process_age()
-
-        assert harmonizer.patient_data["IMPRESS-X_0001_1"].age == 89
-        assert harmonizer.patient_data["IMPRESS-X_0002_1"].age == 39
-        assert harmonizer.patient_data["IMPRESS-X_0003_1"].age == 20
-        assert harmonizer.patient_data["IMPRESS-X_0004_1"].age == 30
-        assert harmonizer.patient_data["IMPRESS-X_0005_1"].age == 9
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].age == 89
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].age == 39
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].age == 20
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].age == 30
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].age == 9
 
 
 def test_tumor_processing(tumor_type_fixture):
@@ -269,7 +263,6 @@ def test_biomarker_processing(biomarker_fixture):
     assert biomarker_1.event_date == dt.date(1900, 7, 15)
 
     biomarker_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].biomarker
-    print(f"biomarker: {biomarker_2}")
     assert biomarker_2.gene_and_mutation is None
     assert biomarker_2.gene_and_mutation_code is None
     assert biomarker_2.cohort_target_name == "some info"
@@ -397,6 +390,62 @@ def test_ecog(ecog_fixture):
     ins5 = harmonizer.patient_data["IMPRESS-X_0005_1"].ecog
     assert ins5.description is None
     assert ins5.grade is None
+
+
+def test_medical_history(medical_history_fixture):
+    harmonizer = ImpressHarmonizer(
+        data=medical_history_fixture, trial_id="IMPRESS_TEST"
+    )
+
+    for subject_id in (
+        medical_history_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[subject_id] = Patient(
+            patient_id=subject_id, trial_id="IMPRESS_TEST"
+        )
+
+    harmonizer._process_medical_history()
+
+    p1 = harmonizer.patient_data["IMPRESS-X_0001_1"]
+    p2 = harmonizer.patient_data["IMPRESS-X_0002_1"]
+    p3 = harmonizer.patient_data["IMPRESS-X_0003_1"]
+    p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
+    p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
+
+    assert p1.medical_history.term == "pain"
+    assert p1.medical_history.sequence_id == 1
+    assert p1.medical_history.start_date == dt.date(1900, 9, 15)
+    assert p1.medical_history.end_date is None
+    assert p1.medical_history.status == "Current/active"
+    assert p1.medical_history.status_code == 1
+
+    assert p2.medical_history.term == "hypertension"
+    assert p2.medical_history.sequence_id == 2
+    assert p2.medical_history.start_date == dt.date(1901, 10, 2)
+    assert p2.medical_history.end_date == dt.date(1901, 11, 2)
+    assert p2.medical_history.status == "Past"
+    assert p2.medical_history.status_code == 3
+
+    assert p3.medical_history.term == "dizziness"
+    assert p3.medical_history.sequence_id == 3
+    assert p3.medical_history.start_date == dt.date(1902, 7, 15)
+    assert p3.medical_history.end_date == dt.date(1903, 7, 15)
+    assert p3.medical_history.status == "Present/dormant"
+    assert p3.medical_history.status_code == 2
+
+    assert p4.medical_history.term == "pain"
+    assert p4.medical_history.sequence_id == 1
+    assert p4.medical_history.start_date == dt.date(1840, 2, 2)
+    assert p4.medical_history.end_date == dt.date(1940, 7, 2)
+    assert p4.medical_history.status == "Past"
+    assert p4.medical_history.status_code == 3
+
+    assert p5.medical_history.term == "rigor mortis"
+    assert p5.medical_history.sequence_id == 1
+    assert p5.medical_history.start_date == dt.date(1740, 2, 2)
+    assert p5.medical_history.end_date == dt.date(1940, 2, 2)
+    assert p5.medical_history.status == "Past"
+    assert p5.medical_history.status_code == 1
 
 
 def test_basic_inheritance(subject_id_fixture):

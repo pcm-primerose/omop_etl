@@ -5,31 +5,31 @@ from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 import typer
 from logging import getLogger
 
-app = typer.Typer(add_completion=True)
-
-log = getLogger(__name__)
-
-
-def process_impress(file: Path) -> HarmonizedData:
-    df = pl.read_csv(file)
-    return ImpressHarmonizer(df, trial_id="IMPRESS").process()
-
-
-def process_drup(file: Path) -> HarmonizedData:
-    raise NotImplementedError
-
-
-@app.command()
-def impress(file: Path):
-    _ = process_impress(file)
-    typer.echo(f"Harmonized {file}")
-
-
-def main():
-    app()
-
-
-# src/omop_etl/cli/harmonize.py
+# todo: implement cli later
+# app = typer.Typer(add_completion=True)
+#
+# log = getLogger(__name__)
+#
+#
+# def process_impress(file: Path) -> HarmonizedData:
+#     df = pl.read_csv(file)
+#     return ImpressHarmonizer(df, trial_id="IMPRESS").process()
+#
+#
+# def process_drup(file: Path) -> HarmonizedData:
+#     raise NotImplementedError
+#
+#
+# @app.command()
+# def impress(file: Path):
+#     _ = process_impress(file)
+#     typer.echo(f"Harmonized {file}")
+#
+#
+# def main():
+#     app()
+#
+#
 
 
 def drup_data(file: Path) -> pl.DataFrame:
