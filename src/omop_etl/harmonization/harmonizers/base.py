@@ -1,5 +1,7 @@
 # harmonization/harmonizers/base.py
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
 import polars as pl
 from typing import Optional, List, Dict
 from omop_etl.harmonization.datamodels import Patient

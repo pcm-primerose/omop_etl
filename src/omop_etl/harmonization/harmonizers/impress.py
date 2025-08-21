@@ -1,6 +1,6 @@
 # harmonization/impress.py
 
-from typing import Optional
+from typing import Optional, List
 import polars as pl
 import datetime as dt
 from logging import getLogger
@@ -42,16 +42,18 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_ecog()
         self._process_previous_treatment_lines()
         self._process_medical_history()
+        self._process_treatment_start()
 
         # flatten patient values
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx]} \n")
+            # print(f"Patient {idx}: {patients[idx]} \n")
+            pass
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
 
-        print(f"Impress output: {output}")
+        # print(f"Impress output: {output}")
 
         return output
         # medical_histories=self.medical_histories,
@@ -547,11 +549,38 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].previous_treatments = pt
 
-    # todo process all treatment-related dates
+    # todo notes: TR sheet
+    # globals are treatment start, treatment end and treatment start last cycle --> in Patient
+    # the rest are nested and can be kept TreatmentCycle (?)
     def _process_treatment_start(self):
-        """
-        First dose in first cycle.
-        """
+        treatment_start_data = self.data.select(
+            "SubjectId", "TR_TRTNO", "TR_TRCNO1", "TR_TRC1_DT", "TR_TRNAME"
+        ).filter(pl.col("TR_TRNAME") is not None and pl.col("TR_TRTNO") == 1)
+
+        # todo make this vectorized
+
+        # just use polars instead
+        min_date = treatment_start_data.group_by("SubjectId").agg(
+            pl.col("TR_TRC1_DT").min().alias("start_date")
+        )
+
+        for row in treatment_start_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[
+                patient_id
+            ].treatment_start_date = PolarsParsers.parse_date_column(
+                min_date.col("start_date")
+            )  #
+            print(f"start treatment -- {min_date}")
+
+    def _process_treatment_end(self):
+        pass
+
+    def _process_start_last_cycle(self):
+        # either grab from self or calculate
+        pass
+
+    def _process_concomitant_medication(self):
         treatment_lines_data = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -564,3 +593,5 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         for row in treatment_lines_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
+            pass
+        pass

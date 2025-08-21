@@ -755,19 +755,14 @@ class Patient:
 
     @treatment_start_date.setter
     def treatment_start_date(self, value: Optional[dt.date]) -> None:
-        if value is not None and not isinstance(value, dt.date):
-            raise ValueError(
-                f"treatment start date must be {self.__class__.treatment_start_date.fset.__name__} or None,"
-                f"got {type(value)}"
-                f"In patient: {self.patient_id}"
-            )
-
-        self._treatment_start_date = value
+        self._treatment_start_date = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.treatment_start_date.fset.__name__,
+        )
         self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
 
-        self._treatment_start_date = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.treatment_start_date.fset.__name__
-        )
+        # self._treatment_start_date = value
+        # self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
