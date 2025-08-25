@@ -754,15 +754,12 @@ class Patient:
         return self._treatment_start_date
 
     @treatment_start_date.setter
-    def treatment_start_date(self, value: Optional[dt.date]) -> None:
+    def treatment_start_date(self, value: Optional[dt.date | None]) -> None:
         self._treatment_start_date = StrictValidators.validate_optional_date(
             value=value,
             field_name=self.__class__.treatment_start_date.fset.__name__,
         )
         self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
-
-        # self._treatment_start_date = value
-        # self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
@@ -780,6 +777,7 @@ class Patient:
             f"date_of_death={self.date_of_death} \n"
             f"lost_to_followup={self.lost_to_followup} \n"
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
+            f"treatment start date={self.treatment_start_date} \n"
             f"ecog={self.ecog} \n"
         )
 

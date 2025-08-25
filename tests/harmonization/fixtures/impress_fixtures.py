@@ -70,7 +70,7 @@ def gender_fixture():
                 "IMPRESS-X_0004_1",
                 "IMPRESS-X_0005_1",
             ],
-            "DM_SEX": ["Female", "Male", "female", "male", "error"],
+            "DM_SEX": ["Female", "Male", "f", "m", "error"],
         }
     )
 

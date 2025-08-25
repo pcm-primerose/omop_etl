@@ -1,13 +1,9 @@
 # harmonization/harmonizers/base.py
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-
 import polars as pl
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Callable, Sequence, NewType, TypeVar
 from omop_etl.harmonization.datamodels import Patient
 from omop_etl.harmonization.datamodels import HarmonizedData
-
-PatientDict = Dict[str, Patient]
 
 
 class BaseHarmonizer(ABC):
@@ -25,7 +21,7 @@ class BaseHarmonizer(ABC):
     def __init__(self, data: pl.DataFrame, trial_id: str):
         self.data = data
         self.trial_id = trial_id
-        self.patient_data: PatientDict = {}
+        self.patient_data: Dict[str, Patient] = {}
         self.medical_histories: Optional[List] = []
         self.previous_treatment_lines: Optional[List] = []
         self.ecog_assessments: Optional[List] = []
@@ -65,4 +61,8 @@ class BaseHarmonizer(ABC):
 
     @abstractmethod
     def _process_biomarkers(self) -> None:
+        pass
+
+    @abstractmethod
+    def _process_treatment_start_date(self) -> pl.DataFrame:
         pass

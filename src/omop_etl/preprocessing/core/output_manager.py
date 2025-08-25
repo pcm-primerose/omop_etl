@@ -107,14 +107,14 @@ class OutputManager:
             df.write_csv(
                 output_path.data_file,
                 include_header=True,
-                null_value="",
+                null_value=None,
                 float_precision=6,
             )
         elif output_path.format == "tsv":
             df.write_csv(
                 output_path.data_file,
                 include_header=True,
-                null_value="",
+                null_value=None,
                 float_precision=6,
                 separator="\t",
             )

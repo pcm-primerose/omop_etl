@@ -1,9 +1,12 @@
 # harmonization/impress.py
-
-from typing import Optional, List
+import time
+from typing import Optional, List, Dict
 import polars as pl
 import datetime as dt
 from logging import getLogger
+
+from click import group
+from typing_inspection.typing_objects import alias
 
 from omop_etl.harmonization.parsing.coercion import TypeCoercion
 from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
@@ -42,17 +45,15 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_ecog()
         self._process_previous_treatment_lines()
         self._process_medical_history()
-        self._process_treatment_start()
+        self._process_treatment_start_date()
 
         # flatten patient values
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            # print(f"Patient {idx}: {patients[idx]} \n")
-            pass
+            print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
-
         # print(f"Impress output: {output}")
 
         return output
@@ -86,57 +87,57 @@ class ImpressHarmonizer(BaseHarmonizer):
                 self.patient_data[patient_id].cohort_name = cohort_name
 
     def _process_gender(self):
-        """Process gender and update patient object"""
-        gender_data = self.data.with_columns(
-            pl.col("DM_SEX").str.to_lowercase()
-        ).filter(pl.col("DM_SEX").is_in(["female", "male"]))
+        gender_data = (self.data.select(["SubjectId", "DM_SEX"])).filter(
+            pl.col("DM_SEX").is_not_null()
+        )
 
         for row in gender_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
-            sex = row["DM_SEX"]
+            sex = TypeCoercion.to_optional_string(row["DM_SEX"])
+            if not sex:
+                log.warning(f"No sex found for patient {patient_id}")
+                continue
 
-            if patient_id in self.patient_data:
-                self.patient_data[patient_id].sex = sex
+            # todo: make parsers later
+            if sex.lower() == "m" or sex.lower() == "male":
+                sex = "male"
+            elif sex.lower() == "f" or sex.lower() == "female":
+                sex = "female"
+            else:
+                log.warning(f"Cannot parse sex from {patient_id}, {sex}")
+                continue
+
+            self.patient_data[patient_id].sex = sex
 
     def _process_age(self):
-        """Process and calculate age and update patient object"""
-        birth_dates = self.data.filter(pl.col("DM_BRTHDAT") != "NA").select(
-            "SubjectId", "DM_BRTHDAT"
+        """Process and calculate age at treatment start and update patient object"""
+        age_data = (
+            self.data.lazy()
+            .group_by("SubjectId")
+            .agg(
+                [
+                    pl.col("DM_BRTHDAT").drop_nulls().first().alias("birth_date"),
+                    pl.col("TR_TRC1_DT").drop_nulls().min().alias("first_treatment"),
+                ]
+            )
+            .collect()
         )
 
-        treatment_dates = self.data.filter(pl.col("TR_TRC1_DT") != "NA").select(
-            "SubjectId", "TR_TRC1_DT"
-        )
+        for row in age_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            birth_date = CoreParsers.parse_date_flexible(row["birth_date"])
+            latest_treatment = CoreParsers.parse_date_flexible(row["first_treatment"])
 
-        for patient_id in self.patient_data:
-            # get date of birth
-            birth_rows = birth_dates.filter(pl.col("SubjectId") == patient_id)
-            if birth_rows.height == 0:
+            # TODO: use inclusion date or molecular profiling date as fallbacks?
+            if not birth_date:
+                log.warning(f"No birth date found for {patient_id}")
                 continue
 
-            birth_row = birth_rows.row(0, named=True)
-            birth_date = CoreParsers.parse_date_flexible(birth_row["DM_BRTHDAT"])
-            if birth_date is None:
+            if not latest_treatment:
+                log.warning(f"No latest treatment date found for {patient_id}")
                 continue
 
-            # use latest treatment date
-            treatment_rows = treatment_dates.filter(pl.col("SubjectId") == patient_id)
-            if treatment_rows.height == 0:
-                continue
-
-            latest_treatment_date = None
-            for row in treatment_rows.iter_rows(named=True):
-                treatment_date = CoreParsers.parse_date_flexible(row["TR_TRC1_DT"])
-                if treatment_date is not None and (
-                    latest_treatment_date is None
-                    or treatment_date > latest_treatment_date
-                ):
-                    latest_treatment_date = treatment_date
-
-            if latest_treatment_date is None:
-                continue
-
-            age_years = int((latest_treatment_date - birth_date).days / 365.25)
+            age_years = int((latest_treatment - birth_date).days / 365.25)
             self.patient_data[patient_id].age = age_years
 
     def _process_tumor_type(self):
@@ -155,7 +156,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 )
             )
         ).filter(
-            pl.col("COH_ICD10COD") != "NA"
+            pl.col("COH_ICD10COD").is_not_null()
         )  # Note: assumes tumor type data is always on the same row and we don't have multiple,
         # if this is not always the case, can use List[TumorType] in Patient class with default factory and store multiple
 
@@ -163,17 +164,14 @@ class ImpressHarmonizer(BaseHarmonizer):
         for row in tumor_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
 
-            if patient_id not in self.patient_data:
-                continue
-
             icd10_code = TypeCoercion.to_optional_string(row["COH_ICD10COD"])
             icd10_description = TypeCoercion.to_optional_string(row["COH_ICD10DES"])
             cohort_tumor_type = TypeCoercion.to_optional_string(row["COH_COHTT"])
             other_tumor_type = TypeCoercion.to_optional_string(row["COH_COHTTOSP"])
 
             # determine tumor type (mutually exclusive options)˛
-            main_tumor_type = None
-            main_tumor_type_code = None
+            main_tumor_type: str | None = None
+            main_tumor_type_code: str | None = None
 
             if (
                 TypeCoercion.to_optional_string(row["COH_COHTTYPE"]) is not None
@@ -219,12 +217,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             "COH_COHALLO2__3",
             "COH_COHALLO2__3CD",
         ).filter(
-            (pl.col("COH_COHALLO1") != "NA")
-            | (pl.col("COH_COHALLO1__2") != "NA")
-            | (pl.col("COH_COHALLO1__3") != "NA")
-            | (pl.col("COH_COHALLO2") != "NA")
-            | (pl.col("COH_COHALLO2__2") != "NA")
-            | (pl.col("COH_COHALLO2__3") != "NA")
+            (pl.col("COH_COHALLO1").is_not_null())
+            | (pl.col("COH_COHALLO1__2").is_not_null())
+            | (pl.col("COH_COHALLO1__3").is_not_null())
+            | (pl.col("COH_COHALLO2").is_not_null())
+            | (pl.col("COH_COHALLO2__2").is_not_null())
+            | (pl.col("COH_COHALLO2__3").is_not_null())
         )
 
         for row in drug_data.iter_rows(named=True):
@@ -299,10 +297,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             "COH_COHTMN",
             "COH_EventDate",
         ).filter(
-            (pl.col("COH_GENMUT1") is not None)
-            | (pl.col("COH_GENMUT1CD") is not None)
-            | (pl.col("COH_COHCTN") is not None)
-            | (pl.col("COH_COHTMN") is not None)
+            (pl.col("COH_GENMUT1").is_not_null())
+            | (pl.col("COH_GENMUT1CD").is_not_null())
+            | (pl.col("COH_COHCTN").is_not_null())
+            | (pl.col("COH_COHTMN").is_not_null())
         )
 
         for row in biomarker_data.iter_rows(named=True):
@@ -334,14 +332,12 @@ class ImpressHarmonizer(BaseHarmonizer):
         death_data = self.data.select(
             "SubjectId", "EOS_DEATHDTC", "FU_FUPDEDAT"
         ).filter(
-            (pl.col("EOS_DEATHDTC") is not None) | (pl.col("FU_FUPDEDAT") is not None)
+            (pl.col("EOS_DEATHDTC").is_not_null())
+            | (pl.col("FU_FUPDEDAT").is_not_null())
         )
 
         for row in death_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
-
-            if patient_id not in self.patient_data:
-                continue
 
             eos_date = CoreParsers.parse_date_flexible(row["EOS_DEATHDTC"])
             fu_date = CoreParsers.parse_date_flexible(row["FU_FUPDEDAT"])
@@ -354,6 +350,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 death_date = eos_date
             elif fu_date:
                 death_date = fu_date
+            elif not eos_date and not fu_date:
+                log.warning(f"No data of death found for {patient_id}")
+                death_date = None
 
             self.patient_data[patient_id].date_of_death = death_date
 
@@ -397,6 +396,8 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         TODO:
             - distinguish between oral and IV drug treatment lengt requirements (4 --> IV, 8 --> oral)?
+            - agg on subject id, rn flag is set per row so it'll be reinstantiated on new iterations of the loop,
+              better to vectorize and aggregate on patient, then check the eval criteria
         """
         evaluability_data = self.data.select(
             "SubjectId",
@@ -407,12 +408,52 @@ class ImpressHarmonizer(BaseHarmonizer):
             "RCNT_EventDate",
             "RNTMNT_EventDate",
             "EOT_EventDate",
-        ).filter(pl.col("SubjectId") is not None)
+        )
 
-        # lugrsp data is missing in synthetic data (becuase no subject in eCRF have lugano data)
+        # TODO:
+        #   - get length of treatments, check all cycle lengths?
+        #   - it should be 21 for IV and 28 for pills?
+        #   - for IV use trivds1 (any)
+        #   - for pills use tro_stdt (any)
+        #   - then check lengths of each cycle using the cycle num (or just each row?)
+        #       - can use TRC1_DT (start of cycle)
+        #       - this should always be there for both pills and iv,
+        #       - then find cycle end (end date, or start of next cycle)
+        has_clinical_assessment = evaluability_data.group_by("SubjectId").agg(
+            pl.any_horizontal(
+                pl.col(["TR_TROSTPDT", "TR_TRO_STDT"]).str.len_bytes() > 0
+            )
+        )
+
+        has_tumor_assessment = evaluability_data.group_by("SubjectId").agg(
+            pl.any_horizontal(
+                pl.col(
+                    [
+                        "RA_EventDate",
+                        "RNRSP_EventDate",
+                        "RCNT_EventDate",
+                        "RNTMNT_EventDate",
+                    ]
+                ).str.len_bytes()
+                > 0
+            )
+            .any()
+            .alias("has_tumor_assessment")
+        )
+
+        has_
+
+        for row in has_clinical_assessment.iter_rows(named=True):
+            print(f"clinical status row: {row}")
+
+        # print(f"has clinical ass {has_clinical_assessment}")
+        print(f"has tumor ass {has_tumor_assessment}")
+
+        # no subject in eCRF have lugano data
         optional_lugrsp: Optional[pl.Series] = self.data.get_column(
             name="LUGRSP_EventDate", default=None
         )
+
         if optional_lugrsp:
             evaluability_data.join(optional_lugrsp)
 
@@ -520,8 +561,8 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].medical_history = mh
 
+    # this uses old approach: collect, process, instantiate with validation:
     def _process_previous_treatment_lines(self):
-        # TODO: unsure what logic to implement rn
         treatment_lines_data = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -549,29 +590,24 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].previous_treatments = pt
 
-    # todo notes: TR sheet
-    # globals are treatment start, treatment end and treatment start last cycle --> in Patient
-    # the rest are nested and can be kept TreatmentCycle (?)
-    def _process_treatment_start(self):
-        treatment_start_data = self.data.select(
-            "SubjectId", "TR_TRTNO", "TR_TRCNO1", "TR_TRC1_DT", "TR_TRNAME"
-        ).filter(pl.col("TR_TRNAME") is not None and pl.col("TR_TRTNO") == 1)
-
-        # todo make this vectorized
-
-        # just use polars instead
-        min_date = treatment_start_data.group_by("SubjectId").agg(
-            pl.col("TR_TRC1_DT").min().alias("start_date")
+    def _process_treatment_start_date(self):
+        treatment_start_data = (
+            self.data.lazy()
+            .select(["SubjectId", "TR_TRTNO", "TR_TRNAME", "TR_TRC1_DT", "TR_TRCNO1"])
+            .filter(pl.col("TR_TRNAME").is_not_null())
+            # .with_columns(pl.col("TR_TRC1_DT").str.strptime(pl.Date, strict=True))
+            .group_by("SubjectId")
+            .agg(pl.col("TR_TRC1_DT").drop_nulls().min().alias("treatment_start_date"))
+            .collect()
+            .select(["SubjectId", "treatment_start_date"])
         )
 
         for row in treatment_start_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
-            self.patient_data[
-                patient_id
-            ].treatment_start_date = PolarsParsers.parse_date_column(
-                min_date.col("start_date")
-            )  #
-            print(f"start treatment -- {min_date}")
+            treatment_start_date = CoreParsers.parse_date_flexible(
+                row["treatment_start_date"]
+            )
+            self.patient_data[patient_id].treatment_start_date = treatment_start_date
 
     def _process_treatment_end(self):
         pass
