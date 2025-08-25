@@ -238,6 +238,8 @@ def lost_to_followup_fixture():
     )
 
 
+# TODO: fix this to contains multiple rows (general problem with tests)
+#   andtest all cases
 @pytest.fixture
 def evaluability_fixture():
     return pl.DataFrame(
@@ -261,6 +263,26 @@ def evaluability_fixture():
                 "NA",
                 "2001-01-01",
                 "NA",
+            ],
+            "TR_TRC1_DT": [
+                "2001-01-01",
+                "2001-01-02",
+                "2001-01-01",
+                "2001-01-01",
+                "2001-01-01",
+                "NA",
+                "2001-01-01",
+                "NA",
+            ],
+            "TR_TRTNO": [
+                "1",
+                "2",
+                "2",
+                "1",
+                "1",
+                "NA",
+                "2",
+                "1",
             ],
             "TR_TROSTPDT": [
                 "2001-03-01",
