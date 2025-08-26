@@ -332,32 +332,20 @@ def test_lost_to_followup(lost_to_followup_fixture):
     "patient_id,expected",
     [
         pytest.param("IMPRESS-X_0001_1", False, id="one IV row: not evaluable"),
-        pytest.param(
-            "IMPRESS-X_0002_1", False, id="two IV rows, gap lt 21: not evaluable"
-        ),
+        pytest.param("IMPRESS-X_0002_1", False, id="two IV rows, gap lt 21: not evaluable"),
         pytest.param("IMPRESS-X_0003_1", True, id="two IV rows, gap gte 21: evaluable"),
-        pytest.param(
-            "IMPRESS-X_0004_1", True, id="IV none, oral sufficient: evaluable"
-        ),
+        pytest.param("IMPRESS-X_0004_1", True, id="IV none, oral sufficient: evaluable"),
         pytest.param("IMPRESS-X_0005_1", True, id="IV sufficient, oral not: evaluable"),
         pytest.param("IMPRESS-X_0006_1", False, id="oral missing end: not evaluable"),
-        pytest.param(
-            "IMPRESS-X_0007_1", False, id="oral end not a date: not evaluable"
-        ),
-        pytest.param(
-            "IMPRESS-X_0008_1", False, id="oral start not a date: not evaluable"
-        ),
+        pytest.param("IMPRESS-X_0007_1", False, id="oral end not a date: not evaluable"),
+        pytest.param("IMPRESS-X_0008_1", False, id="oral start not a date: not evaluable"),
         pytest.param("IMPRESS-X_0009_1", False, id="oral missing start: not evaluable"),
         pytest.param("IMPRESS-X_0010_1", False, id="IV one start null: not evaluable"),
         pytest.param("IMPRESS-X_0011_1", False, id="IV gap lte 21: not evaluable"),
         pytest.param("IMPRESS-X_0012_1", False, id="oral length lte 28: not evaluable"),
-        pytest.param(
-            "IMPRESS-X_0013_1", False, id="IV gap across drugs: not evaluable"
-        ),
+        pytest.param("IMPRESS-X_0013_1", False, id="IV gap across drugs: not evaluable"),
         pytest.param("IMPRESS-X_0014_1", False, id="IV one invalid row: not evaluable"),
-        pytest.param(
-            "IMPRESS-X_0015_1", False, id="oral sufficient but invalid: not evaluable"
-        ),
+        pytest.param("IMPRESS-X_0015_1", False, id="oral sufficient but invalid: not evaluable"),
     ],
 )
 def test_evaluability_cases(evaluability_fixture, patient_id, expected):
