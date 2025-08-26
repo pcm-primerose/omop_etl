@@ -1,8 +1,11 @@
 # tests/harmonization/unit/test_harmonizer.py
-from typing import Dict
+from typing import Dict, List, Tuple
 
 import polars as pl
 import datetime as dt
+
+import pytest
+
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
 from omop_etl.harmonization.parsing.core import (
@@ -325,40 +328,51 @@ def test_lost_to_followup(lost_to_followup_fixture):
     assert ins_5.date_lost_to_followup is None
 
 
-def test_evaluability(evaluability_fixture):
+@pytest.mark.parametrize(
+    "patient_id,expected",
+    [
+        pytest.param("IMPRESS-X_0001_1", False, id="one IV row: not evaluable"),
+        pytest.param(
+            "IMPRESS-X_0002_1", False, id="two IV rows, gap lt 21: not evaluable"
+        ),
+        pytest.param("IMPRESS-X_0003_1", True, id="two IV rows, gap gte 21: evaluable"),
+        pytest.param(
+            "IMPRESS-X_0004_1", True, id="IV none, oral sufficient: evaluable"
+        ),
+        pytest.param("IMPRESS-X_0005_1", True, id="IV sufficient, oral not: evaluable"),
+        pytest.param("IMPRESS-X_0006_1", False, id="oral missing end: not evaluable"),
+        pytest.param(
+            "IMPRESS-X_0007_1", False, id="oral end not a date: not evaluable"
+        ),
+        pytest.param(
+            "IMPRESS-X_0008_1", False, id="oral start not a date: not evaluable"
+        ),
+        pytest.param("IMPRESS-X_0009_1", False, id="oral missing start: not evaluable"),
+        pytest.param("IMPRESS-X_0010_1", False, id="IV one start null: not evaluable"),
+        pytest.param("IMPRESS-X_0011_1", False, id="IV gap lte 21: not evaluable"),
+        pytest.param("IMPRESS-X_0012_1", False, id="oral length lte 28: not evaluable"),
+        pytest.param(
+            "IMPRESS-X_0013_1", False, id="IV gap across drugs: not evaluable"
+        ),
+        pytest.param("IMPRESS-X_0014_1", False, id="IV one invalid row: not evaluable"),
+        pytest.param(
+            "IMPRESS-X_0015_1", False, id="oral sufficient but invalid: not evaluable"
+        ),
+    ],
+)
+def test_evaluability_cases(evaluability_fixture, patient_id, expected):
+    # instantiate Patient with eval data
     harmonizer = ImpressHarmonizer(data=evaluability_fixture, trial_id="IMPRESS_TEST")
-    for subject_id in (
-        evaluability_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in evaluability_fixture.select("SubjectId").unique().to_series():
         harmonizer.patient_data[subject_id] = Patient(
             patient_id=subject_id, trial_id="IMPRESS_TEST"
         )
 
+    # process evaluability
     harmonizer._process_evaluability()
+    result = harmonizer.patient_data[patient_id].evaluable_for_efficacy_analysis
 
-    ins_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].evaluable_for_efficacy_analysis
-    assert ins_1 is True
-
-    ins_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].evaluable_for_efficacy_analysis
-    assert ins_2 is True
-
-    ins_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].evaluable_for_efficacy_analysis
-    assert ins_3 is True
-
-    ins_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].evaluable_for_efficacy_analysis
-    assert ins_4 is False
-
-    ins_5 = harmonizer.patient_data["IMPRESS-X_0005_1"].evaluable_for_efficacy_analysis
-    assert ins_5 is False
-
-    ins_6 = harmonizer.patient_data["IMPRESS-X_0006_1"].evaluable_for_efficacy_analysis
-    assert ins_6 is False
-
-    ins_7 = harmonizer.patient_data["IMPRESS-X_0007_1"].evaluable_for_efficacy_analysis
-    assert ins_7 is False
-
-    ins_8 = harmonizer.patient_data["IMPRESS-X_0008_1"].evaluable_for_efficacy_analysis
-    assert ins_8 is False
+    assert result is expected
 
 
 def test_ecog(ecog_fixture):

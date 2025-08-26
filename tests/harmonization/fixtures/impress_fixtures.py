@@ -238,105 +238,101 @@ def lost_to_followup_fixture():
     )
 
 
-# TODO: fix this to contains multiple rows (general problem with tests)
-#   andtest all cases
 @pytest.fixture
-def evaluability_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",  # evaluable no tumor assessment
-                "IMPRESS-X_0002_1",  # evaluable no EOT
-                "IMPRESS-X_0003_1",  # evaluable all
-                "IMPRESS-X_0004_1",  # not evaluable wrong treatment length
-                "IMPRESS-X_0005_1",  # not evaluable missing assessment and EOT
-                "IMPRESS-X_0006_1",  # not evaluable missing treatment dates
-                "IMPRESS-X_0007_1",  # not evaluable negative treatment length
-                "IMPRESS-X_0008_1",  # not evaluable all data missing
-            ],
-            "TR_TRO_STDT": [
-                "2001-01-01",
-                "2001-01-02",
-                "2001-01-01",
-                "2001-01-01",
-                "2001-01-01",
-                "NA",
-                "2001-01-01",
-                "NA",
-            ],
-            "TR_TRC1_DT": [
-                "2001-01-01",
-                "2001-01-02",
-                "2001-01-01",
-                "2001-01-01",
-                "2001-01-01",
-                "NA",
-                "2001-01-01",
-                "NA",
-            ],
-            "TR_TRTNO": [
-                "1",
-                "2",
-                "2",
-                "1",
-                "1",
-                "NA",
-                "2",
-                "1",
-            ],
-            "TR_TROSTPDT": [
-                "2001-03-01",
-                "2001-05-01",
-                "2001-04-10",
-                "2001-01-05",
-                "2001-03-01",
-                "NA",
-                "1999-01-01",
-                "NA",
-            ],
-            "RA_EventDate": [
-                "NA",
-                "2001-01-02",
-                "2001-01-01",
-                "NA",
-                "NA",
-                "NA",
-                "2000-01-01",
-                "NA",
-            ],
-            "RNRSP_EventDate": [
-                "NA",
-                "NA",
-                "2002-01-01",
-                "2001-01-01",
-                "NA",
-                "NA",
-                "NA",
-                "NA",
-            ],
-            "RCNT_EventDate": ["NA", "NA", "2003-01-01", "NA", "NA", "NA", "NA", "NA"],
-            "RNTMNT_EventDate": [
-                "NA",
-                "NA",
-                "2004-01-01",
-                "NA",
-                "NA",
-                "2002-05-01",
-                "NA",
-                "NA",
-            ],
-            "EOT_EventDate": [
-                "2007-03-01",
-                "NA",
-                "2006-01-01",
-                "2002-01-01",
-                "NA",
-                "2003-01-01",
-                "2001-02-01",
-                "NA",
-            ],
-        }
+def evaluability_fixture() -> pl.DataFrame:
+    """
+    Multi-row fixture covering IV/oral sufficiency, invalid rows, and parsing edge-cases.
+    """
+    rows = []
+
+    def _mk_df(_rows: list[dict]) -> pl.DataFrame:
+        return pl.DataFrame(_rows)
+
+    def add_row(
+        pid: str,
+        *,
+        trtno: int | None = None,
+        trc1_dt: str = "",
+        tro_stdt: str = "",
+        tro_stpdt: str = "",
+        trcyncd: int = 1,
+    ):
+        rows.append(
+            {
+                "SubjectId": pid,
+                "TR_TRTNO": trtno,
+                "TR_TRC1_DT": trc1_dt,
+                "TR_TRO_STDT": tro_stdt,
+                "TR_TROSTPDT": tro_stpdt,
+                "TR_TRCYNCD": trcyncd,
+            }
+        )
+
+    # case 1: one IV row -> not evaluable
+    add_row("IMPRESS-X_0001_1", trtno=1, trc1_dt="2001-01-01")
+
+    # case 2: two IV rows, insufficient gap (<21) -> not evaluable
+    add_row("IMPRESS-X_0002_1", trtno=1, trc1_dt="2001-01-01")
+    add_row("IMPRESS-X_0002_1", trtno=1, trc1_dt="2001-01-15")  # 14d
+
+    # case 3: two IV rows, sufficient gap (>=21) -> evaluable
+    add_row("IMPRESS-X_0003_1", trtno=1, trc1_dt="2001-01-01")
+    add_row("IMPRESS-X_0003_1", trtno=1, trc1_dt="2001-01-22")  # 21d
+
+    # case 4: one IV row (no gap) + one oral row sufficient -> evaluable
+    add_row("IMPRESS-X_0004_1", trtno=1, trc1_dt="2001-01-01")
+    add_row(
+        "IMPRESS-X_0004_1", tro_stdt="2001-01-01", tro_stpdt="2001-01-31"
+    )  # 30d oral
+
+    # case 5: two IV rows sufficient + oral insufficient -> evaluable
+    add_row("IMPRESS-X_0005_1", trtno=1, trc1_dt="2001-01-01")
+    add_row("IMPRESS-X_0005_1", trtno=1, trc1_dt="2001-02-05")  # 35d
+    add_row(
+        "IMPRESS-X_0005_1", tro_stdt="2001-01-01", tro_stpdt="2001-01-10"
+    )  # 9d oral
+
+    # case 6: one oral row, missing end date -> not evaluable
+    add_row("IMPRESS-X_0006_1", tro_stdt="2001-01-01", tro_stpdt="")
+
+    # case 7: one oral row, end-date not a date -> not evaluable
+    add_row("IMPRESS-X_0007_1", tro_stdt="2001-01-01", tro_stpdt="NA")
+
+    # case 8: one oral row, start not a date -> not evaluable
+    add_row("IMPRESS-X_0008_1", tro_stdt="NA", tro_stpdt="2001-02-05")
+
+    # case 9: one oral row, missing start -> not evaluable
+    add_row("IMPRESS-X_0009_1", tro_stdt="", tro_stpdt="2001-02-05")
+
+    # case 10: two IV rows, missing start in one -> not evaluable
+    add_row("IMPRESS-X_0010_1", trtno=1, trc1_dt="2001-01-01")
+    add_row("IMPRESS-X_0010_1", trtno=1, trc1_dt="")  # null after parse
+
+    # case 11: two IV rows, insufficient length (≤21) -> not evaluable
+    add_row("IMPRESS-X_0011_1", trtno=1, trc1_dt="2001-01-01")
+    add_row("IMPRESS-X_0011_1", trtno=1, trc1_dt="2001-01-21")  # 20d diff
+
+    # case 12: one oral row, insufficient length (≤28) -> not evaluable
+    add_row("IMPRESS-X_0012_1", tro_stdt="2001-01-01", tro_stpdt="2001-01-20")  # 19d
+
+    # case 13: two IV rows, sufficient gap but different TR_TRTNO -> not evaluable
+    add_row("IMPRESS-X_0013_1", trtno=1, trc1_dt="2001-01-01")
+    add_row(
+        "IMPRESS-X_0013_1", trtno=2, trc1_dt="2001-02-05"
+    )  # cross-drug; no within-drug gap
+
+    # case 14: two IV rows, sufficient gap, but one cycle invalid -> not evaluable
+    add_row("IMPRESS-X_0014_1", trtno=1, trc1_dt="2001-01-01", trcyncd=1)
+    add_row(
+        "IMPRESS-X_0014_1", trtno=1, trc1_dt="2001-02-05", trcyncd=0
+    )  # filtered out
+
+    # case 15: one oral row, sufficient length, but invalid -> not evaluable
+    add_row(
+        "IMPRESS-X_0015_1", tro_stdt="2001-01-01", tro_stpdt="2001-02-10", trcyncd=0
     )
+
+    return _mk_df(rows)
 
 
 @pytest.fixture

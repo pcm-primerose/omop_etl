@@ -1,12 +1,11 @@
 # harmonization/impress.py
 import time
 from typing import Optional, List, Dict
+from warnings import deprecated
 import polars as pl
 import datetime as dt
 from logging import getLogger
-
-from click import group
-from typing_inspection.typing_objects import alias
+from deprecated import deprecated
 
 from omop_etl.harmonization.parsing.coercion import TypeCoercion
 from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
@@ -387,10 +386,10 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_evaluability(self):
         """
-        Current filtering criteria for marking patient as evaluable for efficacy analysis:
-            - sufficient treatment length for any cycle (21 days for IV, 28 days for oral) and either one of:
-            - tumor assessment (patient has any tumor assessment: EventDate from RA, RCNT, RTNTMNT, RNRSP)
-            - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
+        Filtering criteria:
+            Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
+            Days are not inclusive, the end date of the previous cycle is the start of following,
+              e.g. 01-01-2001 to 21-01-2001 has insufficient length.
 
         For subjects with oral drugs, the start and end date per cycle is checked directly.
             - if a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
@@ -400,6 +399,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             - each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
             - assumes no malformed dates, because imputing would change the length.
 
+        Old filteing criteria:
+            Patients marked as evaluable for efficacy analysis needs to have:
+                - sufficient treatment length for any cycle (21 days for IV, 28 days for oral) and *either one of*:
+                - tumor assessment after week 4 (patient has any tumor assessment with EventId==V04 in RA, RCNT, RTNTMNT, RNRSP)
+                - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
         """
         evaluability_data = self.data.select(
             "SubjectId",
@@ -407,218 +411,154 @@ class ImpressHarmonizer(BaseHarmonizer):
             "TR_TRO_STDT",
             "TR_TRTNO",
             "TR_TRC1_DT",
-            "RA_EventDate",
-            "RNRSP_EventDate",
-            "RCNT_EventDate",
-            "RNTMNT_EventDate",
-            "EOT_EventDate",
+            "TR_TRCYNCD",
+            # not currently used:
+            # "RA_EventDate",
+            # "RA_EventId",
+            # "RNRSP_EventDate",
+            # "RNRSP_EventId",
+            # "RCNT_EventDate",
+            # "RCNT_EventId",
+            # "RNTMNT_EventDate",
+            # "RNTMNT_EventId",
+            # "EOT_EventDate",
         )
 
-        # first check patients with oral treatment, where cycle start/end are defined:
-        # group by SubjectId
-        # oral drug cycle start: TR_TRIVDS1
-        # oral drug cycle end: TR_TRO_STDT
-        # multiple rows per patient, if any difference in days for any row is equal to or greater than 28, mark this patient as having sufficient treatment length
-        # if date column is cannot be parsed as a date we log this and the value and subject id
-
-        # for patients with IV drugs (missing TR_TRIVDS1 and TR_TRO_STDT), need to calculate cycle lengths:
-        # group by SubjectId
-        # and then treatment number (TR_TRTNO): need to use this to group cycles, becasue we need to check start of next cycle for correct drug!
-        # so only find start of next cycle (to use as end in this one) when treatment number matches (ints 1 or 2).
-        # and for each group treatment group:
-        # take cycle start and start of next treatment as cycle end
-        # and check that length is sufficient
-        # if date column is cannot be parsed as a date we log this and the value and subject id
-
-        # if subject doesn't have canonical start/ends and just one cycle, we can't assert it has sufficient treatment length
-        # and need to log this (can mask in df?)
-        # should also log every treatment with insufficient length
-
-        # cols are:
-        # oral cycle start: TR_TRIVDS1
-        # oral cycle end: TR_TRO_STDT
-        # treatment number: TR_TRTNO
-        # IV treatment identified: missing data in columns: TR_TRIVDS1 or TR_TRO_STDT
-        # IV cycle start: TR_TRC1_DT
-        # IV cycle end: same value in treatment group (TR_TRTNO), taking next row with matching treatment number to get immediate next cycle start, use this date as cycle end
-        # find difference in treatment lengths, should be 21 days or more
-
-        # for both oral and IV treatment, want a dataframe containing just the SubjectId column and a "has_sufficient_treatment_length" boolean column
-        # perhaps easier to make two expressions (one for oral and one for IV) and merge later
-
-        oral_sufficient_treatment_length = (
-            evaluability_data.select(["SubjectId", "TR_TRO_STDT", "TR_TROSTPDT"])
-            .with_columns(
-                start=pl.col("TR_TRO_STDT").str.strptime(pl.Date, strict=False),
-                stop=pl.col("TR_TROSTPDT").str.strptime(pl.Date, strict=False),
+        def oral_treatment_lengths() -> pl.DataFrame:
+            oral_sufficient_treatment_length = (
+                evaluability_data.select(
+                    ["SubjectId", "TR_TRO_STDT", "TR_TROSTPDT", "TR_TRCYNCD"]
+                )
+                .with_columns(
+                    start=pl.col("TR_TRO_STDT").str.strptime(pl.Date, strict=False),
+                    stop=pl.col("TR_TROSTPDT").str.strptime(pl.Date, strict=False),
+                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                )
+                .filter(~pl.col("not_recieved_treatment_this_cycle"))
+                .with_columns(
+                    treatment_duration=(
+                        (pl.col("stop") - pl.col("start")).dt.total_days()
+                    )
+                )
+                .group_by("SubjectId")
+                .agg(
+                    (pl.col("treatment_duration").fill_null(-1) >= 28)
+                    .any()
+                    .alias("oral_sufficient_treatment_length")
+                )
             )
-            .with_columns(
-                treatment_duration=((pl.col("stop") - pl.col("start")).dt.total_days())
-            )
-            .group_by("SubjectId")
-            .agg(
-                (pl.col("treatment_duration").fill_null(-1) >= 28)
-                .any()
-                .alias("oral_sufficient_treatment_length")
-            )
-        )
+            return oral_sufficient_treatment_length
 
-        iv_sufficient_treatment_length = (
-            evaluability_data.select(
-                "SubjectId", "TR_TRTNO", "TR_TRC1_DT", "TR_TRO_STDT", "TR_TROSTPDT"
-            )
-            # remove oral treatment rows
-            .with_columns(
-                oral_present=pl.any_horizontal(
-                    pl.col(["TR_TRO_STDT", "TR_TROSTPDT"])
+        def iv_treatment_lengths() -> pl.DataFrame:
+            iv_sufficient_treatment_length = (
+                evaluability_data.select(
+                    "SubjectId",
+                    "TR_TRTNO",
+                    "TR_TRC1_DT",
+                    "TR_TRO_STDT",
+                    "TR_TROSTPDT",
+                    "TR_TRCYNCD",
+                )
+                # remove oral treatment rows
+                .with_columns(
+                    oral_present=pl.any_horizontal(
+                        pl.col(["TR_TRO_STDT", "TR_TROSTPDT"])
+                        .cast(pl.Utf8, strict=False)
+                        .str.len_bytes()
+                        .fill_null(0)
+                        > 0
+                    ),
+                    start=pl.col("TR_TRC1_DT")
                     .cast(pl.Utf8, strict=False)
-                    .str.len_bytes()
-                    .fill_null(0)
-                    > 0
-                ),
-                start=pl.col("TR_TRC1_DT")
-                .cast(pl.Utf8, strict=False)
-                .str.strptime(pl.Date, strict=False),
+                    .str.strptime(pl.Date, strict=False),
+                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                )
+                .filter(
+                    ~pl.col("oral_present")
+                    & ~pl.col("not_recieved_treatment_this_cycle")
+                )
+                .drop_nulls("start")
+                .sort(["SubjectId", "TR_TRTNO", "start"])
+                # partitioned shift to make next start
+                .with_columns(
+                    pl.col("start")
+                    .shift(-1)
+                    .over(["SubjectId", "TR_TRTNO"])
+                    .alias("next_start")
+                )
+                # compute gap days
+                .with_columns(
+                    (pl.col("next_start") - pl.col("start"))
+                    .dt.total_days()
+                    .alias("gap_days")
+                )
+                .group_by("SubjectId")
+                .agg(
+                    pl.col("gap_days")
+                    .ge(21)
+                    .fill_null(False)
+                    .any()
+                    .alias("iv_sufficient_treatment_length")
+                )
             )
-            .filter(~pl.col("oral_present"))
-            .drop_nulls("start")
-            .sort(["SubjectId", "TR_TRTNO", "start"])
-            # partitioned shift to make next start
-            .with_columns(
-                pl.col("start")
-                .shift(-1)
-                .over(["SubjectId", "TR_TRTNO"])
-                .alias("next_start")
-            )
-            # compute gap days
-            .with_columns(
-                (pl.col("next_start") - pl.col("start"))
-                .dt.total_days()
-                .alias("gap_days")
-            )
-            .group_by("SubjectId")
-            .agg(
-                pl.col("gap_days")
-                .ge(21)
-                .fill_null(False)
+
+            return iv_sufficient_treatment_length
+
+        @deprecated
+        def eot_filter() -> pl.DataFrame:
+            has_ended_treatment = evaluability_data.group_by("SubjectId").agg(
+                pl.any_horizontal(pl.col(["EOT_EventDate"]).str.len_bytes() > 0)
                 .any()
-                .alias("iv_sufficient_treatment_length")
+                .alias("has_clinical_assessment")
             )
-        )
+            return has_ended_treatment
 
-        has_tumor_assessment = evaluability_data.group_by("SubjectId").agg(
-            pl.any_horizontal(pl.col(["EOT_EventDate"]).str.len_bytes() > 0)
-            .any()
-            .alias("has_clinical_assessment")
-        )
-
-        has_clinical_assessment = evaluability_data.group_by("SubjectId").agg(
-            pl.any_horizontal(
-                pl.col(
-                    [
-                        "RA_EventDate",
-                        "RNRSP_EventDate",
-                        "RCNT_EventDate",
-                        "RNTMNT_EventDate",
-                    ]
-                ).str.len_bytes()
-                > 0
+        @deprecated
+        def tumor_assessment() -> pl.DataFrame:
+            # need to add V04 filter
+            has_tumor_assessment_week_4 = evaluability_data.group_by("SubjectId").agg(
+                pl.any_horizontal(
+                    pl.col(
+                        [
+                            "RA_EventDate",
+                            "RNRSP_EventDate",
+                            "RCNT_EventDate",
+                            "RNTMNT_EventDate",
+                        ]
+                    ).str.len_bytes()
+                    > 0
+                )
+                .any()
+                .alias("has_tumor_assessment")
             )
-            .any()
-            .alias("has_tumor_assessment")
-        )
+            return has_tumor_assessment_week_4
 
-        merged_evaluability: pl.DataFrame = (
-            oral_sufficient_treatment_length.join(
-                iv_sufficient_treatment_length, on=pl.col("SubjectId"), how="left"
+        def _merge_evaluability() -> pl.DataFrame:
+            base = evaluability_data.select("SubjectId").unique()
+            _merged_df: pl.DataFrame = (
+                base.join(oral_treatment_lengths(), on="SubjectId", how="left")
+                .join(iv_treatment_lengths(), on="SubjectId", how="left")
+                .with_columns(
+                    pl.col("oral_sufficient_treatment_length").fill_null(False),
+                    pl.col("iv_sufficient_treatment_length").fill_null(False),
+                )
+                .with_columns(
+                    is_evaluable=(
+                        pl.col("oral_sufficient_treatment_length")
+                        | pl.col("iv_sufficient_treatment_length")
+                    )
+                )
             )
-            .join(has_tumor_assessment, on=pl.col("SubjectId"), how="left")
-            .join(has_clinical_assessment, on=pl.col("SubjectId"), how="left")
-        )
 
-        # print(f"original data df: {evaluability_data}")
-        # print(f"has tumor assessment {has_tumor_assessment}")
-        # print(f"has clinical assessment {has_clinical_assessment}")
-        # print(f"has sufficient IV treatment length {iv_sufficient_treatment_length}")
-        # print(f"has sufficient oral treatment length {oral_sufficient_treatment_length}")
-        # print(f"merged df of all  {merged_evaluability}")
+            return _merged_df
 
+        # hydrate
+        merged_evaluability: pl.DataFrame = _merge_evaluability()
         for row in merged_evaluability.iter_rows(named=True):
             patient_id = row["SubjectId"]
-
-            if row["oral_sufficient_treatment_length"] and (
-                row["has_clinical_assessment"] or row["has_tumor_assessment"]
-            ):
-                is_evaluable = True
-            elif row["iv_sufficient_treatment_length"] and (
-                row["has_clinical_assessment"] or row["has_tumor_assessment"]
-            ):
-                is_evaluable = True
-            else:
-                log.debug(f"Non-evaluable row: {row}")
-                is_evaluable = False
-
-            self.patient_data[patient_id].evaluable_for_efficacy_analysis = is_evaluable
-
-        # # no subject in eCRF have lugano data
-        # optional_lugrsp: Optional[pl.Series] = self.data.get_column(
-        #     name="LUGRSP_EventDate", default=None
-        # )
-        #
-        # if optional_lugrsp:
-        #     evaluability_data.join(optional_lugrsp)
-        #
-        # for patient_id in self.patient_data:
-        #     patient_data = evaluability_data.filter(pl.col("SubjectId") == patient_id)
-        #
-        #     start_dates = []
-        #     end_dates = []
-        #
-        #     has_tumor_evaluation = False
-        #     has_eot_evaluation = False
-        #
-        #     # check all evaluations
-        #     for row in patient_data.iter_rows(named=True):
-        #         start_date = CoreParsers.parse_date_flexible(row["TR_TRO_STDT"])
-        #         if start_date:
-        #             start_dates.append(start_date)
-        #
-        #         end_date = CoreParsers.parse_date_flexible(row["TR_TROSTPDT"])
-        #         if end_date:
-        #             end_dates.append(end_date)
-        #
-        #         if any(
-        #             [
-        #                 CoreParsers.parse_date_flexible(row["RA_EventDate"]),
-        #                 CoreParsers.parse_date_flexible(row["RNRSP_EventDate"]),
-        #                 CoreParsers.parse_date_flexible(row["RCNT_EventDate"]),
-        #                 CoreParsers.parse_date_flexible(row["RNTMNT_EventDate"]),
-        #                 # CoreParsers.parse_date_flexible(row["LUGRSP_EventDate"]), note: no data for this in ecrf, not yet implemented
-        #             ]
-        #         ):
-        #             has_tumor_evaluation = True
-        #
-        #         # check for end-of-treatment evaluatuon
-        #         if CoreParsers.parse_date_flexible(row["EOT_EventDate"]):
-        #             has_eot_evaluation = True
-        #
-        #     # check treatment length
-        #     sufficient_treatment_length = False
-        #     if start_dates and end_dates:
-        #         earliest_start = min(start_dates)
-        #         latest_end = max(end_dates)
-        #         sufficient_treatment_length = (
-        #             latest_end - earliest_start
-        #         ) >= dt.timedelta(days=28)
-        #
-        #     # apply criteria filters
-        #     evaluable_status = sufficient_treatment_length and (
-        #         has_tumor_evaluation or has_eot_evaluation
-        #     )
-        #
-        #     self.patient_data[
-        #         patient_id
-        #     ].evaluable_for_efficacy_analysis = evaluable_status
+            self.patient_data[patient_id].evaluable_for_efficacy_analysis = bool(
+                row["is_evaluable"]
+            )
 
     def _process_ecog(self):
         # parse ECOG description and grade

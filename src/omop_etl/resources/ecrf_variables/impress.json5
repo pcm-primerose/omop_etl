@@ -177,6 +177,7 @@
     "TERNCFB",
     "TERNCFN",
     "RNRSPNL",
+    "EventId",
     "RNRSPNLCD",
     "RNRSPCL",
     "RNRSPCLCD"
@@ -184,11 +185,13 @@
   "rcnt": [
     "SubjectId",
     "EventDate",
+    "EventId",
     "RCNTNOB"
   ],
   "rntmnt": [
     "SubjectId",
     "EventDate",
+    "EventId",
     "RNTMNTNOB"
   ],
   "mh": [
