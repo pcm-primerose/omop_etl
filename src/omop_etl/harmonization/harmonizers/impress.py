@@ -97,7 +97,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 log.warning(f"No sex found for patient {patient_id}")
                 continue
 
-            # todo: make parsers later
+            # todo: make parsers later, when refactoring to entirely polars
             if sex.lower() == "m" or sex.lower() == "male":
                 sex = "male"
             elif sex.lower() == "f" or sex.lower() == "female":
@@ -574,6 +574,8 @@ class ImpressHarmonizer(BaseHarmonizer):
                 ecog_description = TypeCoercion.to_optional_string(row["ECOG_ECOGS"])
                 ecog_grade = TypeCoercion.to_optional_int(row["ECOG_ECOGSCD"])
 
+                print(f"ecog row: {row}")
+
             ecog = Ecog(patient_id=patient_id)
             ecog.grade = ecog_grade
             ecog.description = ecog_description
@@ -592,7 +594,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "MH_MHENDAT",
             "MH_MHONGO",
             "MH_MHONGOCD",
-        ).filter((pl.col("MH_MHTERM") is not None))
+        ).filter((pl.col("MH_MHTERM").is_not_null()))
 
         for row in mh_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -622,7 +624,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "CT_CTSTDAT",
             "CT_CTENDAT",
             "CT_CTTYPESP",
-        ).filter((pl.col("CT_CTTYPE") is not None))
+        ).filter((pl.col("CT_CTTYPE").is_not_null()))
 
         for row in treatment_lines_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -646,13 +648,13 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.data.lazy()
             .select(["SubjectId", "TR_TRTNO", "TR_TRNAME", "TR_TRC1_DT", "TR_TRCNO1"])
             .filter(pl.col("TR_TRNAME").is_not_null())
-            # .with_columns(pl.col("TR_TRC1_DT").str.strptime(pl.Date, strict=True))
             .group_by("SubjectId")
             .agg(pl.col("TR_TRC1_DT").drop_nulls().min().alias("treatment_start_date"))
             .collect()
             .select(["SubjectId", "treatment_start_date"])
         )
 
+        # todo: refactor to parse in polars later
         for row in treatment_start_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
             treatment_start_date = CoreParsers.parse_date_flexible(
@@ -666,6 +668,34 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_start_last_cycle(self):
         # either grab from self or calculate
         pass
+
+
+    # todo: make new datamodel for each cycle
+    """
+    treatment_name: TR_TRNAME 
+    cycle_type: 
+        - IV or oral
+        - use ID cols to define 
+    treatment_number: TR_TRTNO 
+    cycle_start_date: TR_TRC1_DT
+    cycle_end_date:
+        - use TR_TRSTDT & TR_TRSTPDT for oral
+        - calculate for IV
+        - if any dates missing, set as None 
+    dose_delivered: 
+    dose_delivered_unit
+    dose_prescribed
+    was_dose_delivered_this_cycle
+    treatment_name
+    study_drug_number
+    cycle_number
+    
+    
+    *Intravenous: TRIVDS1, TRIVU1, TRIVDELYN1, TRDSDEL1  (date: TRC1_DT), TRNAME                           
+    *Oral: TRO_YN (CD), TRODSTOT, TRODSU(CD),TRO_STDT (date), TROSTPDT (date), TROTAKE (CD), TROTABNO, TROSPE 
+    TROREA, TROREACD, TROOTH, TRODSU, TRODSUCD, TRODSUOT, TRO_STDT, TROSTPDT, TROTAKE, TROTAKECD, TROTABNO, TRNAME
+    """
+
 
     def _process_concomitant_medication(self):
         treatment_lines_data = self.data.select(
