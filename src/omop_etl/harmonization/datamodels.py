@@ -745,7 +745,7 @@ class Patient:
 
         for mh in value:
             self._medical_history = mh
-            self.updated_fields.add(mh.__name__)
+            self.updated_fields.add(mh.__class__.__name__)
 
     @property
     def previous_treatments(self) -> Optional[PreviousTreatments]:

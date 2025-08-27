@@ -694,24 +694,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         for pid, ins in mh_instances.items():
             if ins:
                 self.patient_data[pid].medical_history = ins
-
-        # for row in mh_base.iter_rows(named=True):
-        #     patient_id = row["SubjectId"]
-        #
-        #     mh = MedicalHistory(patient_id=patient_id)
-        #     mh.term = TypeCoercion.to_optional_string(row["MH_MHTERM"])
-        #     mh.sequence_id = TypeCoercion.to_optional_int(row["MH_MHSPID"])
-        #     mh.start_date = CoreParsers.parse_date_flexible(row["MH_MHSTDAT"])
-        #     mh.end_date = CoreParsers.parse_date_flexible(row["MH_MHENDAT"])
-        #     mh.status = TypeCoercion.to_optional_string(row["MH_MHONGO"])
-        #     mh.status_code = TypeCoercion.to_optional_int(row["MH_MHONGOCD"])
-        #
-        #     if mh.end_date and mh.start_date and mh.end_date < mh.start_date:
-        #         log.warning(
-        #             f"{patient_id} has end date: {mh.end_date} before start date: {mh.start_date}"
-        #         )
-        #
-        #     self.patient_data[patient_id].medical_history = mh
+                print(f"mh instance {mh}")
 
     # this uses old approach: collect, process, instantiate with validation:
     def _process_previous_treatment_lines(self):
