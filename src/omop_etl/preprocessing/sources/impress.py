@@ -1,4 +1,5 @@
 import polars as pl
+from deprecated import deprecated
 from ..core.registry import register_trial
 from ..core.models import EcrfConfig, RunOptions
 
@@ -21,7 +22,10 @@ def _filter_valid_cohort(df: pl.DataFrame) -> pl.DataFrame:
     return df.join(any_valid.filter(pl.col("ok")), on="SubjectId", how="semi")
 
 
+@deprecated()
+# move filtering on patient data to harmonizer
 def _keep_ecog_v00_or_na(df: pl.DataFrame) -> pl.DataFrame:
+    pass
     return df.filter(
         pl.col("ECOG_EventId").is_null() | (pl.col("ECOG_EventId") == "V00")
     )
@@ -73,11 +77,11 @@ def _reorder_subject_trial_first(df: pl.DataFrame) -> pl.DataFrame:
 def preprocess_impress(
     df: pl.DataFrame, ecfg: EcrfConfig, run_opts: RunOptions
 ) -> pl.DataFrame:
-    trial = (ecfg.trial or "IMPRESS").upper()
+    trial = (ecfg.trial or "impress").upper()
     base = _filter_valid_cohort(df) if run_opts.filter_valid_cohort else df
     return (
-        base.pipe(_keep_ecog_v00_or_na)
-        .pipe(_add_trial, trial)
+        # base.pipe(_keep_ecog_v00_or_na)
+        base.pipe(_add_trial, trial)
         .pipe(_prefix_subject, trial)
         .pipe(_aggregate_no_conflicts)
         .pipe(_reorder_subject_trial_first)

@@ -1,5 +1,5 @@
 # harmonization/impress.py
-import time
+from collections import defaultdict
 from typing import Optional, List, Dict
 from warnings import deprecated
 import polars as pl
@@ -64,6 +64,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         # clinical_benefits=self.clinical_benefits,
         # quality_of_life_assessments=self.quality_of_life_assessments,
 
+    # todo: add collapsing of multiple records per patient,
+    #   just unsure how to handle these additional events in datamodel,
+    #   what exact data is shared, and under what conditions do subjects get two seperate records?
     def _process_patient_id(self):
         """Process patient ID and create patient object"""
         patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
@@ -76,7 +79,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_cohort_name(self):
         """Process cohort names and update patient objects"""
-        cohort_data = self.data.filter(pl.col("COH_COHORTNAME") != "NA")
+        cohort_data = self.data.filter(pl.col("COH_COHORTNAME").is_not_null())
 
         for row in cohort_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
@@ -97,7 +100,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 log.warning(f"No sex found for patient {patient_id}")
                 continue
 
-            # todo: make parsers later, when refactoring to entirely polars
+            # todo: parse in polars instead
             if sex.lower() == "m" or sex.lower() == "male":
                 sex = "male"
             elif sex.lower() == "f" or sex.lower() == "female":
@@ -156,8 +159,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         ).filter(
             pl.col("COH_ICD10COD").is_not_null()
-        )  # Note: assumes tumor type data is always on the same row and we don't have multiple,
-        # if this is not always the case, can use List[TumorType] in Patient class with default factory and store multiple
+        )  # Note: assumes tumor type data is always on the same row and we don't have multiple
 
         # update patient objects
         for row in tumor_data.iter_rows(named=True):
@@ -168,7 +170,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             cohort_tumor_type = TypeCoercion.to_optional_string(row["COH_COHTT"])
             other_tumor_type = TypeCoercion.to_optional_string(row["COH_COHTTOSP"])
 
-            # determine tumor type (mutually exclusive options)˛
+            # determine tumor type (mutually exclusive options)
             main_tumor_type: str | None = None
             main_tumor_type_code: str | None = None
 
@@ -305,9 +307,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         for row in biomarker_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
 
-            if patient_id not in self.patient_data:
-                continue
-
             biomarkers = Biomarkers(patient_id=patient_id)
             biomarkers.event_date = CoreParsers.parse_date_flexible(
                 row["COH_EventDate"]
@@ -378,7 +377,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                         row["FU_FUPALDAT"]
                     )
 
-            followup = FollowUp()
+            followup = FollowUp(patient_id=patient_id)
             followup.lost_to_followup = lost_to_followup_status
             followup.date_lost_to_followup = date_lost_to_followup
 
@@ -561,32 +560,75 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
     def _process_ecog(self):
-        # parse ECOG description and grade
-        ecog_data = self.data.select(
-            "SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD"
+        """
+        Parses dates with defaults, strips description data, casts to correct types.
+        Only select one baseline ECOG event per patient, using latest available date.
+        """
+
+        ecog_base = self.data.select(
+            "SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD", "ECOG_ECOGDAT"
+        ).filter(
+            pl.col("ECOG_EventId") == "V00"
+        )  # filter in base to compare only baseline
+
+        def parse_ecog_data(ecog_data: pl.DataFrame) -> pl.DataFrame:
+            filtered_ecog_data = (
+                ecog_data.with_columns(
+                    date=PolarsParsers.parse_date_column(pl.col("ECOG_ECOGDAT")),
+                    grade=pl.col("ECOG_ECOGSCD").cast(pl.Int64, strict=False),
+                    _stripped_description=pl.col("ECOG_ECOGS")
+                    .cast(pl.Utf8, strict=False)
+                    .str.strip_chars(),
+                )
+                .with_columns(
+                    description=pl.when(
+                        pl.col("_stripped_description")
+                        .str.to_lowercase()
+                        .is_in(PolarsParsers.NA_VALUES)
+                    )
+                    .then(None)
+                    .otherwise(pl.col("_stripped_description"))
+                )
+                .select("SubjectId", "date", "description", "grade")
+            )
+            return filtered_ecog_data
+
+        def select_latest_baseline(data: pl.DataFrame) -> pl.DataFrame:
+            _latest = data.sort(["SubjectId", "date"]).group_by("SubjectId").tail(1)
+            return _latest
+
+        def filter_all_nulls(data: pl.DataFrame) -> pl.DataFrame:
+            return data.with_columns(
+                has_ecog=pl.any_horizontal(
+                    pl.col(["description"]).is_not_null()
+                ).fill_null(False)
+            )
+
+        def merge_ecog(base: pl.DataFrame, processed: pl.DataFrame) -> pl.DataFrame:
+            return base.join(processed, on="SubjectId", how="left")
+
+        # process
+        parsed = parse_ecog_data(ecog_data=ecog_base)
+        latest = select_latest_baseline(parsed)
+        valid = filter_all_nulls(latest)
+        joined = merge_ecog(base=ecog_base, processed=valid)
+        labeled = filter_all_nulls(joined).select(
+            "SubjectId", "date", "description", "grade", "has_ecog"
         )
 
-        for row in ecog_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            ecog_description = None
-            ecog_grade = None
-            if TypeCoercion.to_optional_string(row["ECOG_EventId"]):
-                ecog_description = TypeCoercion.to_optional_string(row["ECOG_ECOGS"])
-                ecog_grade = TypeCoercion.to_optional_int(row["ECOG_ECOGSCD"])
-
-                print(f"ecog row: {row}")
-
-            ecog = Ecog(patient_id=patient_id)
-            ecog.grade = ecog_grade
-            ecog.description = ecog_description
-
-            self.patient_data[patient_id].ecog = ecog
+        # and hydrate
+        for pid, date, desc, grade, has_ecog in labeled.iter_rows():
+            ecog = Ecog(patient_id=pid)
+            ecog.date = date
+            ecog.description = desc
+            ecog.grade = int(grade) if grade is not None else None
+            self.patient_data[pid].ecog = ecog
 
     def _process_medical_history(self):
         # TODO: unsure how to process, latest update is to omit this
         #   currently just converts types and validates
 
-        mh_data = self.data.select(
+        mh_base = self.data.select(
             "SubjectId",
             "MH_MHSPID",
             "MH_MHTERM",
@@ -594,25 +636,82 @@ class ImpressHarmonizer(BaseHarmonizer):
             "MH_MHENDAT",
             "MH_MHONGO",
             "MH_MHONGOCD",
-        ).filter((pl.col("MH_MHTERM").is_not_null()))
+        )
 
-        for row in mh_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
+        def filter_medical_histories(data: pl.DataFrame) -> pl.DataFrame:
+            filtered_data = data.with_columns(
+                term=(PolarsParsers.null_if_na(pl.col("MH_MHTERM")))
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars(),
+                sequence_id=(pl.col("MH_MHSPID")).cast(pl.Int64, strict=False),
+                start_date=PolarsParsers.parse_date_column(pl.col("MH_MHSTDAT")),
+                end_date=PolarsParsers.parse_date_column(pl.col("MH_MHENDAT")),
+                status=(PolarsParsers.null_if_na(pl.col("MH_MHONGO")))
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars(),
+                status_code=(pl.col("MH_MHONGOCD")).cast(pl.Int64, strict=False),
+            ).filter(pl.col("term").is_not_null())
 
-            mh = MedicalHistory(patient_id=patient_id)
-            mh.term = TypeCoercion.to_optional_string(row["MH_MHTERM"])
-            mh.sequence_id = TypeCoercion.to_optional_int(row["MH_MHSPID"])
-            mh.start_date = CoreParsers.parse_date_flexible(row["MH_MHSTDAT"])
-            mh.end_date = CoreParsers.parse_date_flexible(row["MH_MHENDAT"])
-            mh.status = TypeCoercion.to_optional_string(row["MH_MHONGO"])
-            mh.status_code = TypeCoercion.to_optional_int(row["MH_MHONGOCD"])
+            return filtered_data
 
-            if mh.end_date and mh.start_date and mh.end_date < mh.start_date:
-                log.warning(
-                    f"{patient_id} has end date: {mh.end_date} before start date: {mh.start_date}"
-                )
+        def merge_medical_history(
+            base: pl.DataFrame, processed: pl.DataFrame
+        ) -> pl.DataFrame:
+            return base.join(processed, on="SubjectId", how="left")
 
-            self.patient_data[patient_id].medical_history = mh
+        filtered = filter_medical_histories(mh_base)
+        merged = merge_medical_history(base=mh_base, processed=filtered).select(
+            "SubjectId",
+            "term",
+            "sequence_id",
+            "start_date",
+            "end_date",
+            "status",
+            "status_code",
+        )
+
+        # instantiate mh
+        mh_instances: dict[str, list[MedicalHistory]] = defaultdict(list)
+        for (
+            pid,
+            term,
+            sequence_id,
+            start_date,
+            end_date,
+            status,
+            status_code,
+        ) in merged.iter_rows():
+            mh = MedicalHistory(patient_id=pid)
+            mh.term = term
+            mh.sequence_id = sequence_id
+            mh.start_date = start_date
+            mh.end_date = end_date
+            mh.status = status
+            mh.status_code = status_code
+            mh_instances[pid].append(mh)
+
+        # hydrate to patient
+        for pid, ins in mh_instances.items():
+            if ins:
+                self.patient_data[pid].medical_history = ins
+
+        # for row in mh_base.iter_rows(named=True):
+        #     patient_id = row["SubjectId"]
+        #
+        #     mh = MedicalHistory(patient_id=patient_id)
+        #     mh.term = TypeCoercion.to_optional_string(row["MH_MHTERM"])
+        #     mh.sequence_id = TypeCoercion.to_optional_int(row["MH_MHSPID"])
+        #     mh.start_date = CoreParsers.parse_date_flexible(row["MH_MHSTDAT"])
+        #     mh.end_date = CoreParsers.parse_date_flexible(row["MH_MHENDAT"])
+        #     mh.status = TypeCoercion.to_optional_string(row["MH_MHONGO"])
+        #     mh.status_code = TypeCoercion.to_optional_int(row["MH_MHONGOCD"])
+        #
+        #     if mh.end_date and mh.start_date and mh.end_date < mh.start_date:
+        #         log.warning(
+        #             f"{patient_id} has end date: {mh.end_date} before start date: {mh.start_date}"
+        #         )
+        #
+        #     self.patient_data[patient_id].medical_history = mh
 
     # this uses old approach: collect, process, instantiate with validation:
     def _process_previous_treatment_lines(self):
@@ -669,7 +768,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         # either grab from self or calculate
         pass
 
-
     # todo: make new datamodel for each cycle
     """
     treatment_name: TR_TRNAME 
@@ -696,7 +794,6 @@ class ImpressHarmonizer(BaseHarmonizer):
     TROREA, TROREACD, TROOTH, TRODSU, TRODSUCD, TRODSUOT, TRO_STDT, TROSTPDT, TROTAKE, TROTAKECD, TROTABNO, TRNAME
     """
 
-
     def _process_concomitant_medication(self):
         treatment_lines_data = self.data.select(
             "SubjectId",
@@ -708,7 +805,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "CT_CTTYPESP",
         ).filter((pl.col("CT_CTTYPE") is not None))
 
-        for row in treatment_lines_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            pass
-        pass
+        # for row in treatment_lines_data.iter_rows(named=True):
+        #     patient_id = row["SubjectId"]
+        #     pass
+        # pass

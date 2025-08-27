@@ -249,10 +249,15 @@ class Biomarkers:
 
 
 class FollowUp:
-    def __init__(self):
+    def __init__(self, patient_id: str):
+        self._patient_id = patient_id
         self._lost_to_followup: Optional[bool] = None
         self._date_lost_to_followup: Optional[dt.datetime] = None
         self.updated_fields: Set[str] = set()
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
 
     @property
     def lost_to_followup(self) -> Optional[bool]:
@@ -290,6 +295,10 @@ class Ecog:
         self._grade: Optional[int] = None
         self._date: Optional[dt.date] = None
         self.updated_fields: Set[str] = set()
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
 
     @property
     def description(self) -> Optional[str]:
@@ -546,7 +555,7 @@ class Patient:
         self._lost_to_followup: Optional[FollowUp] = None
         self._evaluable_for_efficacy_analysis: bool = False
         self._ecog: Optional[Ecog] = None
-        self._medical_history: Optional[MedicalHistory] = None
+        self._medical_history: Optional[List[MedicalHistory]] = None
         self._previous_treatments: Optional[PreviousTreatments] = None
         self._treatment_start_date: Optional[dt.date] = None
 
@@ -722,16 +731,21 @@ class Patient:
         return self._medical_history
 
     @medical_history.setter
-    def medical_history(self, value: Optional[MedicalHistory]) -> None:
-        if value is not None and not isinstance(value, MedicalHistory):
+    def medical_history(self, value: Optional[List[MedicalHistory]] | None) -> None:
+        if value and not isinstance(value, List):
             raise ValueError(
-                f"medical_history must be {MedicalHistory.__name__} or None, got {type(value)}"
+                f"medical_history must be List[{MedicalHistory.__name__}] or None, got {type(value)}"
             )
-        if value is not None:
-            value._patient_id = self._patient_id
+        for val in value:
+            if not isinstance(val, MedicalHistory):
+                raise ValueError(
+                    f"Expected List[{MedicalHistory.__name__}] or None, got {type(value)}"
+                )
+            val._patient_id = self._patient_id
 
-        self._medical_history = value
-        self.updated_fields.add(MedicalHistory.__name__)
+        for mh in value:
+            self._medical_history = mh
+            self.updated_fields.add(mh.__name__)
 
     @property
     def previous_treatments(self) -> Optional[PreviousTreatments]:

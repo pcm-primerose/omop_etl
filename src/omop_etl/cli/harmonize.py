@@ -57,7 +57,7 @@ def process_impress(file: Path) -> HarmonizedData:
 if __name__ == "__main__":
     # drup_file = Path(__file__).parents[2] / ".data" / "drup_dummy_data.csv"
     # impress_file = Path(__file__).parents[3] / "ecrf_mocker" / "output"
-    impress_file = (
+    impress_150_file = (
         Path(__file__).parents[3]
         / ".data"
         / "preprocessing"
@@ -66,6 +66,15 @@ if __name__ == "__main__":
         / "data_preprocessed.csv"
     )
 
-    impress = process_impress(impress_file)
+    impress_1k_file = (
+        Path(__file__).parents[3]
+        / ".data"
+        / "preprocessing"
+        / "impress"
+        / "20250827T104633Z_b6200d43"
+        / "data_preprocessed.csv"
+    )
+
+    impress = process_impress(impress_1k_file)
     print("\n")
     # drup = process_drup(drup_file)

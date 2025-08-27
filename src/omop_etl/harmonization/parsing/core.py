@@ -187,7 +187,7 @@ class PolarsParsers:
     Polars-specific parsing utilities for vectorized operations over columns, rows or expressions.
     """
 
-    NA_VALUES = {"na", "n/a", "null", "", "unknown", "none"}
+    NA_VALUES = {"na", "n/a", "null", "", "unknown", "none", "nk"}
 
     @staticmethod
     def parse_date_column(
@@ -243,3 +243,13 @@ class PolarsParsers:
             return column.cast(pl.Float64, strict=True)
         else:
             raise ValueError(f"Unsupported target type: {target_type}")
+
+    @staticmethod
+    def null_if_na(expr: str | pl.Expr) -> pl.Expr:
+        e = pl.col(expr) if isinstance(expr, str) else expr
+        raw = e.cast(pl.Utf8, strict=False).str.strip_chars()
+        return (
+            pl.when(raw.str.to_lowercase().is_in(list(PolarsParsers.NA_VALUES)))
+            .then(None)
+            .otherwise(raw)
+        )
