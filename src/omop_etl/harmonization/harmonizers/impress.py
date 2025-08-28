@@ -42,8 +42,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_date_lost_to_followup()
         self._process_evaluability()
         self._process_ecog()
-        self._process_previous_treatment_lines()
-        self._process_medical_history()
+        self._process_previous_treatments()
+        self._process_medical_histories()
         self._process_treatment_start_date()
 
         # flatten patient values
@@ -67,7 +67,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     # todo: add collapsing of multiple records per patient,
     #   just unsure how to handle these additional events in datamodel,
     #   what exact data is shared, and under what conditions do subjects get two seperate records?
-    def _process_patient_id(self):
+    def _process_patient_id(self) -> None:
         """Process patient ID and create patient object"""
         patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
 
@@ -77,7 +77,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 trial_id=self.trial_id, patient_id=patient_id
             )
 
-    def _process_cohort_name(self):
+    def _process_cohort_name(self) -> None:
         """Process cohort names and update patient objects"""
         cohort_data = self.data.filter(pl.col("COH_COHORTNAME").is_not_null())
 
@@ -88,7 +88,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             if patient_id in self.patient_data:
                 self.patient_data[patient_id].cohort_name = cohort_name
 
-    def _process_gender(self):
+    def _process_gender(self) -> None:
         gender_data = (self.data.select(["SubjectId", "DM_SEX"])).filter(
             pl.col("DM_SEX").is_not_null()
         )
@@ -111,7 +111,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].sex = sex
 
-    def _process_age(self):
+    def _process_age(self) -> None:
         """Process and calculate age at treatment start and update patient object"""
         age_data = (
             self.data.lazy()
@@ -142,7 +142,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             age_years = int((latest_treatment - birth_date).days / 365.25)
             self.patient_data[patient_id].age = age_years
 
-    def _process_tumor_type(self):
+    def _process_tumor_type(self) -> None:
         tumor_data = (
             self.data.select(
                 (
@@ -202,7 +202,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             # assign complete object to patient
             self.patient_data[patient_id].tumor_type = tumor_type
 
-    def _process_study_drugs(self):
+    def _process_study_drugs(self) -> None:
         drug_data = self.data.select(
             "SubjectId",
             "COH_COHALLO1",
@@ -289,7 +289,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].study_drugs = study_drugs
 
-    def _process_biomarkers(self):
+    def _process_biomarkers(self) -> None:
         biomarker_data = self.data.select(
             "SubjectId",
             "COH_GENMUT1",
@@ -326,7 +326,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].biomarker = biomarkers
 
-    def _process_date_of_death(self):
+    def _process_date_of_death(self) -> None:
         death_data = self.data.select(
             "SubjectId", "EOS_DEATHDTC", "FU_FUPDEDAT"
         ).filter(
@@ -354,7 +354,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].date_of_death = death_date
 
-    def _process_date_lost_to_followup(self):
+    def _process_date_lost_to_followup(self) -> None:
         """Process lost to follow-up status and date from follow-up data"""
         # select all relevant follow-up data without filtering
         followup_data = self.data.select(
@@ -383,7 +383,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             self.patient_data[patient_id].lost_to_followup = followup
 
-    def _process_evaluability(self):
+    def _process_evaluability(self) -> None:
         """
         Filtering criteria:
             Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
@@ -514,7 +514,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         @deprecated
         def tumor_assessment() -> pl.DataFrame:
-            # need to add V04 filter
+            # need to add V04 filter (if this is to be used again)
             has_tumor_assessment_week_4 = evaluability_data.group_by("SubjectId").agg(
                 pl.any_horizontal(
                     pl.col(
@@ -559,7 +559,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 row["is_evaluable"]
             )
 
-    def _process_ecog(self):
+    def _process_ecog(self) -> None:
         """
         Parses dates with defaults, strips description data, casts to correct types.
         Only select one baseline ECOG event per patient, using latest available date.
@@ -624,9 +624,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             ecog.grade = int(grade) if grade is not None else None
             self.patient_data[pid].ecog = ecog
 
-    def _process_medical_history(self):
-        # TODO: unsure how to process, latest update is to omit this
-        #   currently just converts types and validates
+    def _process_medical_histories(self) -> None:
+        # TODO note:
+        #  unsure how to process, latest update is to omit this
+        #  currently just converts types and validates
 
         mh_base = self.data.select(
             "SubjectId",
@@ -657,47 +658,63 @@ class ImpressHarmonizer(BaseHarmonizer):
         def merge_medical_history(
             base: pl.DataFrame, processed: pl.DataFrame
         ) -> pl.DataFrame:
-            return base.join(processed, on="SubjectId", how="left")
+            subjects = base.select("SubjectId").unique()
+            _merged = subjects.join(processed, on="SubjectId", how="left").filter(
+                pl.any_horizontal(
+                    pl.col(
+                        [
+                            "term",
+                            "sequence_id",
+                            "start_date",
+                            "end_date",
+                            "status",
+                            "status_code",
+                        ]
+                    ).is_not_null()
+                )
+            )
+            return _merged
 
         filtered = filter_medical_histories(mh_base)
-        merged = merge_medical_history(base=mh_base, processed=filtered).select(
-            "SubjectId",
-            "term",
-            "sequence_id",
-            "start_date",
-            "end_date",
-            "status",
-            "status_code",
+        merged = merge_medical_history(base=mh_base, processed=filtered)
+
+        # pack to structs grouped by SubjectId
+        packed = self.pack_structs(
+            merged,
+            cols=[
+                "term",
+                "sequence_id",
+                "start_date",
+                "end_date",
+                "status",
+                "status_code",
+            ],
+            order_by=["start_date", "sequence_id"],
         )
 
-        # instantiate mh
-        mh_instances: dict[str, list[MedicalHistory]] = defaultdict(list)
-        for (
-            pid,
-            term,
-            sequence_id,
-            start_date,
-            end_date,
-            status,
-            status_code,
-        ) in merged.iter_rows():
-            mh = MedicalHistory(patient_id=pid)
-            mh.term = term
-            mh.sequence_id = sequence_id
-            mh.start_date = start_date
-            mh.end_date = end_date
-            mh.status = status
-            mh.status_code = status_code
-            mh_instances[pid].append(mh)
-
-        # hydrate to patient
-        for pid, ins in mh_instances.items():
-            if ins:
-                self.patient_data[pid].medical_history = ins
-                print(f"mh instance {mh}")
+        # hydrate to Patient.medical_histories
+        self.hydrate_list_field(
+            packed,
+            items_col="items",
+            model_cls=MedicalHistory,
+            attr_map={
+                "term": "term",
+                "sequence_id": "sequence_id",
+                "start_date": "start_date",
+                "end_date": "end_date",
+                "status": "status",
+                "status_code": "status_code",
+            },
+            assign=lambda p, objs: setattr(p, "medical_histories", objs),
+            patients=self.patient_data,
+        )
 
     # this uses old approach: collect, process, instantiate with validation:
-    def _process_previous_treatment_lines(self):
+    # todo: implement previous treatment lines in the same way as for MedicalHistory
+    #   - have many rows per patient
+    #   - use helpers
+    #   - keep all processing in polars
+    def _process_previous_treatments(self):
         treatment_lines_data = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -708,23 +725,24 @@ class ImpressHarmonizer(BaseHarmonizer):
             "CT_CTTYPESP",
         ).filter((pl.col("CT_CTTYPE").is_not_null()))
 
-        for row in treatment_lines_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
+        # for row in treatment_lines_data.iter_rows(named=True):
+        #     patient_id = row["SubjectId"]
+        #
+        #     pt = PreviousTreatments(patient_id=patient_id)
+        #     pt.treatment = TypeCoercion.to_optional_string(row["CT_CTTYPE"])
+        #     pt.treatment_code = TypeCoercion.to_optional_int(row["CT_CTTYPECD"])
+        #     pt.treatment_sequence_number = TypeCoercion.to_optional_int(
+        #         row["CT_CTSPID"]
+        #     )
+        #     pt.start_date = CoreParsers.parse_date_flexible(row["CT_CTSTDAT"])
+        #     pt.end_date = CoreParsers.parse_date_flexible(row["CT_CTENDAT"])
+        #     pt.additional_treatment = TypeCoercion.to_optional_string(
+        #         row["CT_CTTYPESP"]
+        #     )
+        #
+        #     self.patient_data[patient_id].previous_treatments = pt
 
-            pt = PreviousTreatments(patient_id=patient_id)
-            pt.treatment = TypeCoercion.to_optional_string(row["CT_CTTYPE"])
-            pt.treatment_code = TypeCoercion.to_optional_int(row["CT_CTTYPECD"])
-            pt.treatment_sequence_number = TypeCoercion.to_optional_int(
-                row["CT_CTSPID"]
-            )
-            pt.start_date = CoreParsers.parse_date_flexible(row["CT_CTSTDAT"])
-            pt.end_date = CoreParsers.parse_date_flexible(row["CT_CTENDAT"])
-            pt.additional_treatment = TypeCoercion.to_optional_string(
-                row["CT_CTTYPESP"]
-            )
-
-            self.patient_data[patient_id].previous_treatments = pt
-
+    # todo: refactor to parse in polars, use hydrators
     def _process_treatment_start_date(self):
         treatment_start_data = (
             self.data.lazy()
@@ -736,7 +754,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             .select(["SubjectId", "treatment_start_date"])
         )
 
-        # todo: refactor to parse in polars later
         for row in treatment_start_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
             treatment_start_date = CoreParsers.parse_date_flexible(

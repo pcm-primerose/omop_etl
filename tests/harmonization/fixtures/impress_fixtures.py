@@ -337,40 +337,58 @@ def medical_history_fixture():
         data={
             "SubjectId": [
                 "IMPRESS-X_0001_1",
+                "IMPRESS-X_0001_1",
                 "IMPRESS-X_0002_1",
                 "IMPRESS-X_0003_1",
                 "IMPRESS-X_0004_1",
                 "IMPRESS-X_0005_1",
+                "IMPRESS-X_0006_1",  # None
             ],
-            "MH_MHTERM": ["pain", "hypertension", "dizziness", "pain", "rigor mortis"],
-            "MH_MHSPID": ["01", "02", "03", "01", "01"],
+            "MH_MHTERM": [
+                "pain",
+                "something",
+                "hypertension",
+                "dizziness",
+                "pain",
+                "rigor mortis",
+                "",
+            ],
+            "MH_MHSPID": ["01", "05", "02", "03", "01", "01", ""],
             "MH_MHSTDAT": [
                 "1900-09-NK",
+                "1900-nk-02",
                 "1901-10-02",
                 "1902-nk-nk",
                 "1840-02-02",
                 "1740-02-02",
+                "",
             ],
             "MH_MHENDAT": [
                 "",  # ongoing
+                "1990-01-01",
                 "1901-11-02",  # ended
                 "1903-nk-nk",  # ongoing
                 "1940-nk-02",  # ongoing
                 "1940-02-02",  # ended
+                "",
             ],
             "MH_MHONGO": [
                 "Current/active",
+                "Past",
                 "Past",  # ended
                 "Present/dormant",  # ongoing
                 "Past",  # conflict w. ongoing
                 "Past",  # ended
+                "",
             ],
             "MH_MHONGOCD": [
                 "1",
+                "3",
                 "3",  # ended
                 "2",  # ongoing
                 "3",  # conflict w. ongoing
                 "1",  # wrong code
+                "",
             ],
         }
     )

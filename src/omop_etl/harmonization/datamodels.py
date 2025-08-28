@@ -1,6 +1,6 @@
 # harmoinzation/datamodels.py
 
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Sequence
 from dataclasses import dataclass, field
 import datetime as dt
 from logging import getLogger
@@ -348,7 +348,7 @@ class MedicalHistory:
         self._sequence_id: Optional[int] = None
         self._start_date: Optional[dt.date] = None
         self._end_date: Optional[dt.date] = None
-        self._status: Optional[dt.date] = None
+        self._status: Optional[str] = None
         self._status_code: Optional[int] = None
         self.updated_fields: Set[str] = set()
 
@@ -422,6 +422,18 @@ class MedicalHistory:
             field_name=self.__class__.status_code.fset.__name__,
         )
         self.updated_fields.add(self.__class__.status_code.fset.__name__)
+
+    def __repr__(self) -> str:
+        return (
+            "MedicalHistory("
+            f"term={self.term!r}, "
+            f"seq={self.sequence_id!r}, "
+            f"start={self.start_date!r}, "
+            f"end={self.end_date!r}, "
+            f"status={self.status!r}, "
+            f"code={self.status_code!r}"
+            ")"
+        )
 
     def __str__(self):
         return (
@@ -524,6 +536,18 @@ class PreviousTreatments:
         )
         self.updated_fields.add(self.__class__.additional_treatment.fset.__name__)
 
+    def __repr__(self) -> str:
+        return (
+            "MedicalHistory("
+            f"treatment={self.treatment!r}, "
+            f"treatment_code={self.treatment_code!r}, "
+            f"treatment_sequence_numvber={self.treatment_sequence_number!r}, "
+            f"start_date={self.start_date!r}, "
+            f"end_date={self.end_date!r}, "
+            f"additional_treatment={self.additional_treatment!r}"
+            ")"
+        )
+
     def __str__(self):
         return (
             f"patient_id={self._patient_id!r}\n"
@@ -543,22 +567,28 @@ class Patient:
 
     def __init__(self, patient_id: str, trial_id: str):
         self.updated_fields: Set[str] = set()
+        # scalars
         self._patient_id = patient_id
         self._trial_id = trial_id
         self._cohort_name: Optional[str] = None
         self._age: Optional[int] = None
         self._sex: Optional[str] = None
+        self._evaluable_for_efficacy_analysis: bool = False
+        self._treatment_start_date: Optional[dt.date] = None
+        self._date_of_death: Optional[dt.date] = None
+
+        # singletons
         self._tumor_type: Optional[TumorType] = None
         self._study_drugs: Optional[StudyDrugs] = None
         self._biomarker: Optional[Biomarkers] = None
-        self._date_of_death: Optional[dt.datetime] = None
         self._lost_to_followup: Optional[FollowUp] = None
-        self._evaluable_for_efficacy_analysis: bool = False
         self._ecog: Optional[Ecog] = None
-        self._medical_history: Optional[List[MedicalHistory]] = None
-        self._previous_treatments: Optional[PreviousTreatments] = None
-        self._treatment_start_date: Optional[dt.date] = None
 
+        # multiple instances per patient
+        self._medical_histories: list[MedicalHistory] = []
+        self._previous_treatments: list[PreviousTreatments] = []
+
+    # scalars
     @property
     def patient_id(self) -> str:
         """Patient ID (immutable)"""
@@ -647,14 +677,27 @@ class Patient:
         )
 
     @property
+    def treatment_start_date(self) -> Optional[dt.date]:
+        return self._treatment_start_date
+
+    @treatment_start_date.setter
+    def treatment_start_date(self, value: Optional[dt.date]) -> None:
+        self._treatment_start_date = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.treatment_start_date.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
+
+    # singletons
+    @property
     def tumor_type(self) -> Optional[TumorType]:
         return self._tumor_type
 
     @tumor_type.setter
     def tumor_type(self, value: Optional[TumorType | None]) -> None:
-        if value and not isinstance(value, TumorType):
+        if value is not None and not isinstance(value, TumorType):
             raise ValueError(
-                f"tumor_type must be {TumorType.__name__} instance or None, got {value} with type {type(value)}"
+                f"tumor_type must be {TumorType.__name__} or None, got {value} with type {type(value)}"
             )
         if value is not None:
             value._patient_id = self._patient_id
@@ -668,9 +711,9 @@ class Patient:
 
     @study_drugs.setter
     def study_drugs(self, value: Optional[StudyDrugs | None]) -> None:
-        if value and not isinstance(value, StudyDrugs):
+        if value is not None and not isinstance(value, StudyDrugs):
             raise ValueError(
-                f"study_drugs must be {StudyDrugs.__name__} instance or None, got {value} with type {type(value)}"
+                f"study_drugs must be {StudyDrugs.__name__} or None, got {value} with type {type(value)}"
             )
         if value is not None:
             value._patient_id = self._patient_id
@@ -684,9 +727,9 @@ class Patient:
 
     @biomarker.setter
     def biomarker(self, value: Optional[Biomarkers | None]) -> None:
-        if value and not isinstance(value, Biomarkers):
+        if value is not None and not isinstance(value, Biomarkers):
             raise ValueError(
-                f"biomarker must be {Biomarkers.__name__} instance or None, got {value} with type {type(value)}"
+                f"biomarker must be {Biomarkers.__name__} or None, got {value} with type {type(value)}"
             )
         if value is not None:
             value._patient_id = self._patient_id
@@ -700,9 +743,9 @@ class Patient:
 
     @lost_to_followup.setter
     def lost_to_followup(self, value: Optional[FollowUp | None]) -> None:
-        if value and not isinstance(value, FollowUp):
+        if value is not None and not isinstance(value, FollowUp):
             raise ValueError(
-                f"lost_to_followup must be {FollowUp.__name__} instance or None, got {value} with type {type(value)}"
+                f"lost_to_followup must be {FollowUp.__name__} or None, got {value} with type {type(value)}"
             )
         if value is not None:
             value._patient_id = self._patient_id
@@ -716,9 +759,9 @@ class Patient:
 
     @ecog.setter
     def ecog(self, value: Optional[Ecog | None]) -> None:
-        if value and not isinstance(value, Ecog):
+        if value is not None and not isinstance(value, Ecog):
             raise ValueError(
-                f"ecog must be {Ecog.__name__} instance or None, got {value} with type {type(value)}"
+                f"ecog must be {Ecog.__name__} or None, got {value} with type {type(value)}"
             )
         if value is not None:
             value._patient_id = self._patient_id
@@ -726,54 +769,71 @@ class Patient:
         self._ecog = value
         self.updated_fields.add(Ecog.__name__)
 
+    # multiple instances
     @property
-    def medical_history(self) -> Optional[MedicalHistory]:
-        return self._medical_history
+    def medical_histories(self) -> tuple[MedicalHistory, ...]:
+        """Immutable view, empty tuple if None."""
+        return tuple(self._medical_histories)
 
-    @medical_history.setter
-    def medical_history(self, value: Optional[List[MedicalHistory]] | None) -> None:
-        if value and not isinstance(value, List):
-            raise ValueError(
-                f"medical_history must be List[{MedicalHistory.__name__}] or None, got {type(value)}"
-            )
-        for val in value:
-            if not isinstance(val, MedicalHistory):
-                raise ValueError(
-                    f"Expected List[{MedicalHistory.__name__}] or None, got {type(value)}"
+    @medical_histories.setter
+    def medical_histories(self, value: Optional[Sequence[MedicalHistory]]) -> None:
+        items: list[MedicalHistory]
+        if value is None:
+            items = []
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(
+                    f"expected a sequence of MedicalHistory, got {type(value)}"
                 )
-            val._patient_id = self._patient_id
 
-        for mh in value:
-            self._medical_history = mh
-            self.updated_fields.add(mh.__class__.__name__)
+            wrong_type = [type(x) for x in value if not isinstance(x, MedicalHistory)]
+            if wrong_type:
+                raise TypeError(
+                    f"all elements must be MedicalHistory, got {wrong_type}"
+                )
+            items = list(value)
+
+        for mh in items:
+            if mh._patient_id and mh._patient_id != self._patient_id:
+                raise ValueError(
+                    f"Mismatched patient_id in MedicalHistory: {mh._patient_id} != {self._patient_id}"
+                )
+            mh._patient_id = self._patient_id
+
+        self._medical_histories = items
+        self.updated_fields.add("medical_histories")
 
     @property
-    def previous_treatments(self) -> Optional[PreviousTreatments]:
-        return self._previous_treatments
+    def previous_treatments(self) -> tuple[PreviousTreatments, ...]:
+        return tuple(self._previous_treatments)
 
     @previous_treatments.setter
-    def previous_treatments(self, value: Optional[PreviousTreatments]) -> None:
-        if value is not None and not isinstance(value, PreviousTreatments):
-            raise ValueError(
-                f"previous_treatments must be {PreviousTreatments.__name__} or None, got {type(value)}"
-            )
-        if value is not None:
-            value._patient_id = self._patient_id
+    def previous_treatments(
+        self, value: Optional[Sequence[PreviousTreatments]]
+    ) -> None:
+        items: list[PreviousTreatments]
+        if value is None:
+            items = []
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(
+                    f"expected a sequence of PreviousTreatments, got {type(value)}"
+                )
 
-        self._previous_treatments = value
-        self.updated_fields.add(PreviousTreatments.__name__)
+            wrong_type = [
+                type(x) for x in value if not isinstance(x, PreviousTreatments)
+            ]
+            if wrong_type:
+                raise TypeError(
+                    f"all elements must be PreviousTreatments, got {wrong_type}"
+                )
+            items = list(value)
 
-    @property
-    def treatment_start_date(self) -> Optional[dt.date]:
-        return self._treatment_start_date
+        for pt in items:
+            pt._patient_id = self._patient_id
 
-    @treatment_start_date.setter
-    def treatment_start_date(self, value: Optional[dt.date | None]) -> None:
-        self._treatment_start_date = StrictValidators.validate_optional_date(
-            value=value,
-            field_name=self.__class__.treatment_start_date.fset.__name__,
-        )
-        self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
+        self._previous_treatments = items
+        self.updated_fields.add("previous_treatments")
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
@@ -793,6 +853,8 @@ class Patient:
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
             f"treatment start date={self.treatment_start_date} \n"
             f"ecog={self.ecog} \n"
+            f"medical_histories={self.medical_histories} \n"
+            f"previous_treatments={self.previous_treatments} \n"
         )
 
 

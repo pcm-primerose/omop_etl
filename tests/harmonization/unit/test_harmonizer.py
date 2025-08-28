@@ -419,20 +419,29 @@ def test_medical_history(medical_history_fixture):
         data=medical_history_fixture, trial_id="IMPRESS_TEST"
     )
 
-    for subject_id in (
-        medical_history_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in medical_history_fixture.select("SubjectId").to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
             patient_id=subject_id, trial_id="IMPRESS_TEST"
         )
 
-    harmonizer._process_medical_history()
+    harmonizer._process_medical_histories()
+    print(f"harmonized: {harmonizer._process_medical_histories()}")
 
     p1 = harmonizer.patient_data["IMPRESS-X_0001_1"]
+    p6 = harmonizer.patient_data["IMPRESS-X_0001_1"]  # same patient
     p2 = harmonizer.patient_data["IMPRESS-X_0002_1"]
     p3 = harmonizer.patient_data["IMPRESS-X_0003_1"]
     p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
     p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
+
+    # todo:
+    #   - fix getter for container classes, add iter
+    #   - ensure multiple-rows per patient works as intended
+    #   - and also check nonetype eval
+
+    # todo: fix this
+    # for res in p1.medical_history:
+    #     print(f"res: {res}")
 
     assert p1.medical_history.term == "pain"
     assert p1.medical_history.sequence_id == 1
@@ -440,6 +449,13 @@ def test_medical_history(medical_history_fixture):
     assert p1.medical_history.end_date is None
     assert p1.medical_history.status == "Current/active"
     assert p1.medical_history.status_code == 1
+
+    assert p6.medical_history.term == "something"
+    assert p6.medical_history.sequence_id == 5
+    assert p6.medical_history.start_date == dt.date(1900, 7, 2)
+    assert p6.medical_history.end_date == dt.date(1990, 1, 1)
+    assert p6.medical_history.status == "Past"
+    assert p6.medical_history.status_code == 3
 
     assert p2.medical_history.term == "hypertension"
     assert p2.medical_history.sequence_id == 2
