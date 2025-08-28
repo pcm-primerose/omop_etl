@@ -716,11 +716,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     # this uses old approach: collect, process, instantiate with validation:
-    # todo: implement previous treatment lines in the same way as for MedicalHistory
-    #   - have many rows per patient
-    #   - use helpers
-    #   - keep all processing in polars
-    def _process_previous_treatments(self):
+    # todo: tests
+    def _process_previous_treatments(self) -> None:
         ct_base = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -807,7 +804,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     # todo: refactor to parse in polars, use hydrators
     #   nah don't need abstraction for scalars
-    def _process_treatment_start_date(self):
+    def _process_treatment_start_date(self) -> None:
         treatment_start_data = (
             self.data.lazy()
             .select(["SubjectId", "TR_TRTNO", "TR_TRNAME", "TR_TRC1_DT", "TR_TRCNO1"])
@@ -827,10 +824,16 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     """
     EventDate, EOTDAT, EOTPROGDTC (*See comments), TRNAME, Use TRTNO,TRCNO1, TRC1_DT (last cycle) if EOTDAT is empty
-     -- check cols from docs 
+    Event date, Date of last treatment dose, Date of disease progression Given as date (YYYY-MM-DD)
+    If EOTDAT is empty use Date end treatment  (TRC1_DT) = TRTNO == 1, TRCNO1 == "day one last cycle"
+    Treatment start (per drug (for some patients two drugs) - TRTNO == 1 and TRTNO ==2). 
+    NB: In workshop agreed on using date of last dose given "Date of last treatment dose"                                                                                                    
+    Ask Live: *Do we need the EOTPROGDTC in this variable?                                              
+    Ask Live: *If EOTDAT is empty use Date end treatment  (TRC1_DT) = TRTNO == 1, TRCNO1 == "day one last cycle"
+    
     """
 
-    def _process_treatment_end(self):
+    def _process_treatment_end(self) -> None:
         treatment_end_data = (
             self.data.lazy()
             .select(["SubjectId", "TR_TRTNO", "TR_TRNAME", "TR_TRC1_DT", "TR_TRCNO1"])
@@ -848,8 +851,16 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             self.patient_data[patient_id].treatment_start_date = treatment_start_date
 
-    def _process_start_last_cycle(self):
+    def _process_start_last_cycle(self) -> None:
         # either grab from self or calculate
+        # just calc from all cycles, take latest start date across all rows, agg per patient
+        pass
+
+    def _process_treatment_cycle(self) -> None:
+        # same struct as other collec tion cklasses,
+        # process vectorized then merge,
+        # build from aggregate and hydrate
+        #
         pass
 
     # todo: make new datamodel for each cycle
