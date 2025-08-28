@@ -210,9 +210,10 @@ class TestPreprocessImpressIntegration:
         result = preprocess_impress(df, ecfg, run_opts)
 
         # should filter out 002 (no valid cohort) and 001's V01 row
+        # note: removed V00 filtering in ECOG from preprocssing
         assert "Trial" in result.columns
         assert "IMPRESS-001" in result["SubjectId"].to_list()
-        assert "IMPRESS-002" not in result["SubjectId"].to_list()
+        assert "IMPRESS-002" in result["SubjectId"].to_list()
 
         # check column order
         assert result.columns[0] == "SubjectId"

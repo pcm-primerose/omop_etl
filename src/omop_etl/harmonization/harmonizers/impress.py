@@ -806,6 +806,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     # todo: refactor to parse in polars, use hydrators
+    #   nah don't need abstraction for scalars
     def _process_treatment_start_date(self):
         treatment_start_data = (
             self.data.lazy()
@@ -824,8 +825,28 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             self.patient_data[patient_id].treatment_start_date = treatment_start_date
 
+    """
+    EventDate, EOTDAT, EOTPROGDTC (*See comments), TRNAME, Use TRTNO,TRCNO1, TRC1_DT (last cycle) if EOTDAT is empty
+     -- check cols from docs 
+    """
+
     def _process_treatment_end(self):
-        pass
+        treatment_end_data = (
+            self.data.lazy()
+            .select(["SubjectId", "TR_TRTNO", "TR_TRNAME", "TR_TRC1_DT", "TR_TRCNO1"])
+            .filter(pl.col("TR_TRNAME").is_not_null())
+            .group_by("SubjectId")
+            .agg(pl.col("TR_TRC1_DT").drop_nulls().min().alias("treatment_end_date"))
+            .collect()
+            .select(["SubjectId", "treatment_end_date"])
+        )
+
+        for row in treatment_end_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            treatment_start_date = CoreParsers.parse_date_flexible(
+                row["treatment_start_date"]
+            )
+            self.patient_data[patient_id].treatment_start_date = treatment_start_date
 
     def _process_start_last_cycle(self):
         # either grab from self or calculate

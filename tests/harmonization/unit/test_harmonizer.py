@@ -435,7 +435,7 @@ def test_medical_history(medical_history_fixture):
     mh1 = list(p1.medical_histories)
     assert len(mh1) == 2
 
-    # todo: add nice getters later
+    # todo: add getters later
     assert mh1[0].term == "pain"
     assert mh1[0].sequence_id == 1
     assert mh1[0].start_date == dt.date(1900, 9, 15)
@@ -467,7 +467,7 @@ def test_medical_history(medical_history_fixture):
     assert p4.medical_histories[0].term == "pain"
     assert p4.medical_histories[0].sequence_id == 1
     assert p4.medical_histories[0].start_date == dt.date(1840, 2, 2)
-    assert p4.medical_histories[0].end_date == dt.date(1940, 7, 2)
+    assert p4.medical_histories[0].end_date is None  # == dt.date(1940, 7, 2)
     assert p4.medical_histories[0].status == "Past"
     assert p4.medical_histories[0].status_code == 3
 

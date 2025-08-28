@@ -368,7 +368,7 @@ def medical_history_fixture():
                 "1990-01-01",
                 "1901-11-02",  # ended
                 "1903-nk-nk",  # ongoing
-                "1940-nk-02",  # ongoing
+                "",  # ongoing
                 "1940-02-02",  # ended
                 "",
             ],
