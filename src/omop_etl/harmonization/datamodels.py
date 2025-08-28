@@ -538,7 +538,7 @@ class PreviousTreatments:
 
     def __repr__(self) -> str:
         return (
-            "MedicalHistory("
+            "PreviousTreatments("
             f"treatment={self.treatment!r}, "
             f"treatment_code={self.treatment_code!r}, "
             f"treatment_sequence_numvber={self.treatment_sequence_number!r}, "
