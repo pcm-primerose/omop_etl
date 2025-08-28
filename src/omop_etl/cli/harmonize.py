@@ -75,6 +75,6 @@ if __name__ == "__main__":
         / "data_preprocessed.csv"
     )
 
-    impress = process_impress(impress_1k_file)
+    impress = process_impress(impress_150_file)
     print("\n")
     # drup = process_drup(drup_file)

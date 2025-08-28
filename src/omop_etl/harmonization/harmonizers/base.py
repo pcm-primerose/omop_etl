@@ -1,7 +1,19 @@
 # harmonization/harmonizers/base.py
 from abc import ABC, abstractmethod
 import polars as pl
-from typing import Optional, List, Dict, Callable, Sequence, NewType, TypeVar
+from typing import (
+    Optional,
+    List,
+    Dict,
+    Callable,
+    Sequence,
+    NewType,
+    TypeVar,
+    Type,
+    Mapping,
+    Any,
+    Literal,
+)
 from omop_etl.harmonization.datamodels import Patient
 from omop_etl.harmonization.datamodels import HarmonizedData
 
@@ -112,72 +124,97 @@ class BaseHarmonizer(ABC):
     def pack_structs(
         df: pl.DataFrame,
         *,
-        subject: str = "SubjectId",
-        cols: list[str],
-        order_by: list[str] | None = None,
+        subject_col: str = "SubjectId",
+        value_cols: Sequence[str],
+        order_by_cols: Optional[Sequence[str]] = None,
         items_col: str = "items",
+        require_order_by: bool = False,
     ) -> pl.DataFrame:
-        if order_by:
-            df = df.sort([subject] + order_by)
-        return df.group_by(subject, maintain_order=True).agg(
-            pl.struct(cols).alias(items_col)
-        )  # auto-collect into list per group
+        """
+        Group rows by subject_col and collects value_cols per subject into a list of structs.
+
+        If order_by_cols: globally sort by [subject_col, *order_by_cols] before grouping.
+        If not order_by_cols: Maintain original inpur order.
+
+        Returns:
+            - pl.Dateframe[subject_col, items_col]
+        """
+        if require_order_by and not order_by_cols:
+            raise ValueError("order_by_cols is required when require_order_by=True")
+
+        if order_by_cols:
+            df = df.sort([subject_col, *order_by_cols])
+
+        out = (
+            df.group_by(subject_col, maintain_order=True)
+            .agg(pl.struct(list(value_cols)).alias(items_col))
+            .select(subject_col, items_col)
+        )
+        return out
 
     @staticmethod
     def hydrate_list_field(
         packed: pl.DataFrame,
         *,
-        items_col: str,
-        model_cls,
-        attr_map: dict[str, str],  # struct_key -> model_attr
-        assign: callable,  # (patient: Patient, objs: list[model_cls]) to None
-        patients: dict[str, "Patient"],
+        builder: Optional[Callable[[str, Mapping[str, Any]], Any]] = None,
+        skip_missing: Optional[bool] = False,
+        subject_col: str = "SubjectId",
+        items_col: str = "items",
+        target_attr: Optional[str] = None,
+        patients: Dict[str, Any],
     ) -> None:
-        for sid, items in packed.iter_rows():
-            objs = []
-            for s in items:  # s is dict-like
-                obj = model_cls(patient_id=sid)
-                for key, attr in attr_map.items():
-                    setattr(obj, attr, s.get(key))
-                objs.append(obj)
-            assign(patients[sid], objs)
+        """
+        Hydrate a list-valued patient field from a packed List[Struct] col: multiple instances per patient.
+        Iterates each subject row from packed: [subject_col, items_col], for each struct in items, builds a Python model object.
+        Allows instantiation of many-to-one fields in collection models.
 
-    @staticmethod
-    def latest_per_subject(
-        df: pl.DataFrame,
-        *,
-        subject: str = "SubjectId",
-        date_col: str,  # required: pick latest by this col
-        cols: Sequence[str],  # columns to keep (besides subject)
-        any_non_null: Sequence[str] | None = None,  # drop rows where all are null
-        ascending: bool = True,  # sort order for date
-    ) -> pl.DataFrame:
-        if any_non_null is None:
-            any_non_null = cols
-        out = (
-            df.filter(
-                pl.any_horizontal([pl.col(c).is_not_null() for c in any_non_null])
+        Defaults to raising error for missing patients.
+        """
+        if target_attr is None:
+            raise ValueError(
+                "Provide either target_attr to attach objects to the patient"
             )
-            .select([subject, *cols])
-            .sort([subject, date_col], descending=[False, not ascending])
-            .group_by(subject)
-            .tail(1)
-        )
-        return out
+
+        if builder is None:
+            raise ValueError("Provide builder")
+
+        for sid, items in packed.select(subject_col, items_col).iter_rows():
+            patient = patients.get(sid)
+            if patient is None:
+                if skip_missing is True:
+                    continue
+                raise KeyError(f"Patient {sid} not found in patients mapping")
+
+            objs: List[Any] = [builder(sid, s) for s in items]
+            setattr(patient, target_attr, objs)
 
     @staticmethod
     def hydrate_singleton(
-        latest: pl.DataFrame,
+        frame: pl.DataFrame,
         *,
-        subject: str,
-        model_cls,
-        field_map: dict[str, str],  # df_col to model_attr
-        assign,  # (patient, obj) to None, e.g. lambda p,o: setattr(p,"ecog",o)
-        patients: dict[str, "Patient"],
+        builder: Optional[Callable[[str, Mapping[str, Any]], Any]] = None,
+        skip_missing: Optional[bool] = False,
+        subject_col: str = "SubjectId",
+        target_attr: Optional[str] = None,
+        patients: Dict[str, Any],
     ) -> None:
-        for row in latest.iter_rows(named=True):
-            sid = row[subject]
-            obj = model_cls(patient_id=sid)
-            for src, attr in field_map.items():
-                setattr(obj, attr, row[src])
-            assign(patients[sid], obj)
+        """
+        Hydrate a singleton patient field from a packed List[Struct] col: single instance per patient.
+        Iterates each subject row from packed: [subject_col, items_col], for each struct in items, builds a Python model object.
+        Allows instantiation of many-to-one fields in collection models.
+
+        Defaults to raising error for missing patients.
+        """
+        if not target_attr:
+            raise ValueError("target_attr is required")
+
+        for row in frame.iter_rows(named=True):
+            sid = row[subject_col]
+            patient = patients.get(sid)
+            if patient is None:
+                if skip_missing is True:
+                    continue
+                raise KeyError(f"Patient {sid} not found")
+
+            obj = builder(sid, row)
+            setattr(patient, target_attr, obj)

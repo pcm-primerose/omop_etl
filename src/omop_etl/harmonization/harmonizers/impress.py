@@ -1,6 +1,6 @@
 # harmonization/impress.py
 from collections import defaultdict
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Mapping, Any
 from warnings import deprecated
 import polars as pl
 import datetime as dt
@@ -616,19 +616,21 @@ class ImpressHarmonizer(BaseHarmonizer):
             "SubjectId", "date", "description", "grade", "has_ecog"
         )
 
-        # and hydrate
-        for pid, date, desc, grade, has_ecog in labeled.iter_rows():
-            ecog = Ecog(patient_id=pid)
-            ecog.date = date
-            ecog.description = desc
-            ecog.grade = int(grade) if grade is not None else None
-            self.patient_data[pid].ecog = ecog
+        def build_ecog(sid: str, row: Mapping[str, Any]) -> Ecog:
+            e = Ecog(sid)
+            e.date = row["date"]
+            e.description = row["description"]
+            e.grade = row["grade"]
+            return e
+
+        self.hydrate_singleton(
+            labeled,
+            patients=self.patient_data,
+            builder=build_ecog,
+            target_attr="ecog",
+        )
 
     def _process_medical_histories(self) -> None:
-        # TODO note:
-        #  unsure how to process, latest update is to omit this
-        #  currently just converts types and validates
-
         mh_base = self.data.select(
             "SubjectId",
             "MH_MHSPID",
@@ -681,7 +683,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         # pack to structs grouped by SubjectId
         packed = self.pack_structs(
             merged,
-            cols=[
+            subject_col="SubjectId",
+            value_cols=[
                 "term",
                 "sequence_id",
                 "start_date",
@@ -689,24 +692,27 @@ class ImpressHarmonizer(BaseHarmonizer):
                 "status",
                 "status_code",
             ],
-            order_by=["start_date", "sequence_id"],
+            order_by_cols=["sequence_id", "start_date"],
         )
 
-        # hydrate to Patient.medical_histories
+        # build mh objects
+        def build_mh(sid: str, s: Mapping[str, Any]) -> MedicalHistory:
+            obj = MedicalHistory(sid)
+            obj.term = s["term"]
+            obj.sequence_id = s["sequence_id"]
+            obj.start_date = s["start_date"]
+            obj.end_date = s["end_date"]
+            obj.status = s["status"]
+            obj.status_code = s["status_code"]
+            return obj
+
+        # hydrate to Patient class
         self.hydrate_list_field(
             packed,
-            items_col="items",
-            model_cls=MedicalHistory,
-            attr_map={
-                "term": "term",
-                "sequence_id": "sequence_id",
-                "start_date": "start_date",
-                "end_date": "end_date",
-                "status": "status",
-                "status_code": "status_code",
-            },
-            assign=lambda p, objs: setattr(p, "medical_histories", objs),
+            builder=build_mh,
             patients=self.patient_data,
+            target_attr="medical_histories",
+            skip_missing=False,
         )
 
     # this uses old approach: collect, process, instantiate with validation:
