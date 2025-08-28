@@ -721,7 +721,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     #   - use helpers
     #   - keep all processing in polars
     def _process_previous_treatments(self):
-        treatment_lines_data = self.data.select(
+        ct_base = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
             "CT_CTTYPECD",
@@ -729,24 +729,81 @@ class ImpressHarmonizer(BaseHarmonizer):
             "CT_CTSTDAT",
             "CT_CTENDAT",
             "CT_CTTYPESP",
-        ).filter((pl.col("CT_CTTYPE").is_not_null()))
+        )
 
-        # for row in treatment_lines_data.iter_rows(named=True):
-        #     patient_id = row["SubjectId"]
-        #
-        #     pt = PreviousTreatments(patient_id=patient_id)
-        #     pt.treatment = TypeCoercion.to_optional_string(row["CT_CTTYPE"])
-        #     pt.treatment_code = TypeCoercion.to_optional_int(row["CT_CTTYPECD"])
-        #     pt.treatment_sequence_number = TypeCoercion.to_optional_int(
-        #         row["CT_CTSPID"]
-        #     )
-        #     pt.start_date = CoreParsers.parse_date_flexible(row["CT_CTSTDAT"])
-        #     pt.end_date = CoreParsers.parse_date_flexible(row["CT_CTENDAT"])
-        #     pt.additional_treatment = TypeCoercion.to_optional_string(
-        #         row["CT_CTTYPESP"]
-        #     )
-        #
-        #     self.patient_data[patient_id].previous_treatments = pt
+        def filter_previous_treatments(data: pl.DataFrame) -> pl.DataFrame:
+            filtered_data = data.with_columns(
+                treatment=(PolarsParsers.null_if_na(pl.col("CT_CTTYPE")))
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars(),
+                treatment_code=(pl.col("CT_CTTYPECD")).cast(pl.Int64, strict=False),
+                sequence_id=(pl.col("CT_CTSPID")).cast(pl.Int64, strict=False),
+                start_date=PolarsParsers.parse_date_column(pl.col("CT_CTSTDAT")),
+                end_date=PolarsParsers.parse_date_column(pl.col("CT_CTENDAT")),
+                additional_treatment=pl.col("CT_CTTYPESP")
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars(),
+            ).filter(pl.col("treatment").is_not_null())
+
+            return filtered_data
+
+        def merge_medical_history(
+            base: pl.DataFrame, processed: pl.DataFrame
+        ) -> pl.DataFrame:
+            subjects = base.select("SubjectId").unique()
+            _merged = subjects.join(processed, on="SubjectId", how="left").filter(
+                pl.any_horizontal(
+                    pl.col(
+                        [
+                            "treatment",
+                            "treatment_code",
+                            "sequence_id",
+                            "start_date",
+                            "end_date",
+                            "additional_treatment",
+                        ]
+                    ).is_not_null()
+                )
+            )
+            return _merged
+
+        filtered = filter_previous_treatments(ct_base)
+        merged = merge_medical_history(base=ct_base, processed=filtered)
+
+        # pack
+        packed = self.pack_structs(
+            merged,
+            subject_col="SubjectId",
+            value_cols=[
+                "treatment",
+                "treatment_code",
+                "sequence_id",
+                "start_date",
+                "end_date",
+                "additional_treatment",
+            ],
+            order_by_cols=["sequence_id", "start_date"],
+        )
+
+        # build mh objects
+        def build_ct(sid: str, s: Mapping[str, Any]) -> PreviousTreatments:
+            obj = PreviousTreatments(sid)
+            obj.treatment = s["treatment"]
+            obj.treatment_code = s["treatment_code"]
+            obj.treatment_sequence_number = s["sequence_id"]
+            obj.start_date = s["start_date"]
+            obj.end_date = s["end_date"]
+            obj.additional_treatment = s["additional_treatment"]
+            return obj
+
+        # hydrate to Patient class
+        self.hydrate_list_field(
+            packed,
+            builder=build_ct,
+            patients=self.patient_data,
+            target_attr="previous_treatments",
+            skip_missing=False,
+        )
 
     # todo: refactor to parse in polars, use hydrators
     def _process_treatment_start_date(self):
