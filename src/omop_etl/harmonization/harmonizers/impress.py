@@ -830,8 +830,10 @@ class ImpressHarmonizer(BaseHarmonizer):
     NB: In workshop agreed on using date of last dose given "Date of last treatment dose"                                                                                                    
     Ask Live: *Do we need the EOTPROGDTC in this variable?                                              
     Ask Live: *If EOTDAT is empty use Date end treatment  (TRC1_DT) = TRTNO == 1, TRCNO1 == "day one last cycle"
-    
     """
+
+    # basically same as cycles, find last cycle for IV and last cycle end for oral rows
+    # also find EOT, that tace precedence maybe
 
     def _process_treatment_end(self) -> None:
         treatment_end_data = (
