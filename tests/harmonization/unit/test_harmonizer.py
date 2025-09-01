@@ -19,7 +19,7 @@ from omop_etl.harmonization.datamodels import (
     Patient,
     Biomarkers,
     FollowUp,
-    Ecog,
+    EcogBaseline,
 )
 from tests.harmonization.fixtures.impress_fixtures import (
     subject_id_fixture,
@@ -383,35 +383,35 @@ def test_ecog(ecog_fixture):
             patient_id=subject_id, trial_id="IMPRESS_TEST"
         )
 
-    harmonizer._process_ecog()
+    harmonizer._process_ecog_baseline()
 
-    ins1 = harmonizer.patient_data["IMPRESS-X_0001_1"].ecog
+    ins1 = harmonizer.patient_data["IMPRESS-X_0001_1"].ecog_baseline
     assert ins1.description == "all"
     assert ins1.grade == 1
     assert ins1.date == dt.date(1900, 1, 1)
 
-    ins2 = harmonizer.patient_data["IMPRESS-X_0002_1"].ecog
+    ins2 = harmonizer.patient_data["IMPRESS-X_0002_1"].ecog_baseline
     assert ins2.description == "no code"
     assert ins2.grade is None
     assert ins2.date == dt.date(1900, 7, 1)
 
-    ins3 = harmonizer.patient_data["IMPRESS-X_0003_1"].ecog
+    ins3 = harmonizer.patient_data["IMPRESS-X_0003_1"].ecog_baseline
     assert ins3.description is None
     assert ins3.grade == 2
     assert ins3.date == dt.date(1900, 1, 15)
 
-    ins4 = harmonizer.patient_data["IMPRESS-X_0006_1"].ecog
+    ins4 = harmonizer.patient_data["IMPRESS-X_0006_1"].ecog_baseline
     assert ins4.description is None
     assert ins4.grade == 1
     assert ins4.date == dt.date(1900, 7, 15)
 
-    ins5 = harmonizer.patient_data["IMPRESS-X_0007_1"].ecog
+    ins5 = harmonizer.patient_data["IMPRESS-X_0007_1"].ecog_baseline
     assert ins5.description == "code"
     assert ins5.grade == 4
     assert ins5.date is None
 
-    assert harmonizer.patient_data["IMPRESS-X_0004_1"].ecog is None
-    assert harmonizer.patient_data["IMPRESS-X_0005_1"].ecog is None
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].ecog_baseline is None
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].ecog_baseline is None
 
 
 def test_medical_history(medical_history_fixture):

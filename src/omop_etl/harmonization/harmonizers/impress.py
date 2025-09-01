@@ -17,7 +17,7 @@ from omop_etl.harmonization.datamodels import (
     StudyDrugs,
     Biomarkers,
     FollowUp,
-    Ecog,
+    EcogBaseline,
     MedicalHistory,
     PreviousTreatments,
 )
@@ -41,7 +41,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_date_of_death()
         self._process_date_lost_to_followup()
         self._process_evaluability()
-        self._process_ecog()
+        self._process_ecog_baseline()
         self._process_previous_treatments()
         self._process_medical_histories()
         self._process_treatment_start_date()
@@ -561,7 +561,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 row["is_evaluable"]
             )
 
-    def _process_ecog(self) -> None:
+    def _process_ecog_baseline(self) -> None:
         """
         Parses dates with defaults, strips description data, casts to correct types.
         Only select one baseline ECOG event per patient, using latest available date.
@@ -618,8 +618,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             "SubjectId", "date", "description", "grade", "has_ecog"
         )
 
-        def build_ecog(sid: str, row: Mapping[str, Any]) -> Ecog:
-            e = Ecog(sid)
+        def build_ecog(pid: str, row: Mapping[str, Any]) -> EcogBaseline:
+            e = EcogBaseline(pid)
             e.date = row["date"]
             e.description = row["description"]
             e.grade = row["grade"]
@@ -629,7 +629,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             labeled,
             patients=self.patient_data,
             builder=build_ecog,
-            target_attr="ecog",
+            target_attr="ecog_baseline",
         )
 
     def _process_medical_histories(self) -> None:
@@ -698,8 +698,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
         # build mh objects
-        def build_mh(sid: str, s: Mapping[str, Any]) -> MedicalHistory:
-            obj = MedicalHistory(sid)
+        def build_mh(pid: str, s: Mapping[str, Any]) -> MedicalHistory:
+            obj = MedicalHistory(pid)
             obj.term = s["term"]
             obj.sequence_id = s["sequence_id"]
             obj.start_date = s["start_date"]
@@ -717,8 +717,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
         )
 
-    # this uses old approach: collect, process, instantiate with validation:
-    # todo: tests
     def _process_previous_treatments(self) -> None:
         ct_base = self.data.select(
             "SubjectId",
@@ -804,8 +802,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
         )
 
-    # todo: refactor to parse in polars, use hydrators
-    #   nah don't need abstraction for scalars
     def _process_treatment_start_date(self) -> None:
         treatment_start_data = (
             self.data.lazy()
@@ -823,16 +819,6 @@ class ImpressHarmonizer(BaseHarmonizer):
                 row["treatment_start_date"]
             )
             self.patient_data[patient_id].treatment_start_date = treatment_start_date
-
-    """
-    EventDate, EOTDAT, EOTPROGDTC (*See comments), TRNAME, Use TRTNO,TRCNO1, TRC1_DT (last cycle) if EOTDAT is empty
-    Event date, Date of last treatment dose, Date of disease progression Given as date (YYYY-MM-DD)
-    If EOTDAT is empty use Date end treatment  (TRC1_DT) = TRTNO == 1, TRCNO1 == "day one last cycle"
-    Treatment start (per drug (for some patients two drugs) - TRTNO == 1 and TRTNO ==2). 
-    NB: In workshop agreed on using date of last dose given "Date of last treatment dose"                                                                                                    
-    Ask Live: *Do we need the EOTPROGDTC in this variable?                                              
-    Ask Live: *If EOTDAT is empty use Date end treatment  (TRC1_DT) = TRTNO == 1, TRCNO1 == "day one last cycle"
-    """
 
     def _process_treatment_stop_date(self) -> None:
         treatment_stop_data = (
@@ -900,9 +886,10 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_start_last_cycle(self) -> None:
         """
-        Note: not filtering for valid cycles, just selecting latest treatment starts.
+        Note: currently not filtering for valid cycles, just selecting latest treatment starts.
+        Set enforce_valid=True if TR_TRCYNCD must be 1 (i.e. filtering for valid cycles only)
         """
-        enforce_valid = False  # set to True if TR_TRCYNCD must be 1 (i.e. filtering for valid cycles only)
+        enforce_valid = False
 
         last_cycle_data = (
             self.data.select("SubjectId", "TR_TRC1_DT", "TR_TRCYNCD")
@@ -934,6 +921,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         pass
 
     # todo: make new datamodel for each cycle
+    #   same collection struct as MH & CT
     """
     treatment_name: TR_TRNAME 
     cycle_type: 

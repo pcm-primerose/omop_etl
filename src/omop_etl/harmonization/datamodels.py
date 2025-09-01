@@ -288,7 +288,7 @@ class FollowUp:
         )
 
 
-class Ecog:
+class EcogBaseline:
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._description: Optional[str] = None
@@ -584,7 +584,7 @@ class Patient:
         self._study_drugs: Optional[StudyDrugs] = None
         self._biomarker: Optional[Biomarkers] = None
         self._lost_to_followup: Optional[FollowUp] = None
-        self._ecog: Optional[Ecog] = None
+        self._ecog_baseline: Optional[EcogBaseline] = None
 
         # collections
         self._medical_histories: list[MedicalHistory] = []
@@ -780,20 +780,20 @@ class Patient:
         self.updated_fields.add(FollowUp.__name__)
 
     @property
-    def ecog(self) -> Optional[Ecog]:
-        return self._ecog
+    def ecog_baseline(self) -> Optional[EcogBaseline]:
+        return self._ecog_baseline
 
-    @ecog.setter
-    def ecog(self, value: Optional[Ecog | None]) -> None:
-        if value is not None and not isinstance(value, Ecog):
+    @ecog_baseline.setter
+    def ecog_baseline(self, value: Optional[EcogBaseline | None]) -> None:
+        if value is not None and not isinstance(value, EcogBaseline):
             raise ValueError(
-                f"ecog must be {Ecog.__name__} or None, got {value} with type {type(value)}"
+                f"ecog must be {EcogBaseline.__name__} or None, got {value} with type {type(value)}"
             )
         if value is not None:
             value._patient_id = self._patient_id
 
-        self._ecog = value
-        self.updated_fields.add(Ecog.__name__)
+        self._ecog_baseline = value
+        self.updated_fields.add(EcogBaseline.__name__)
 
     # multiple instances
     @property
@@ -878,7 +878,7 @@ class Patient:
             f"lost_to_followup={self.lost_to_followup} \n"
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
             f"treatment start date={self.treatment_start_date} \n"
-            f"ecog={self.ecog} \n"
+            f"ecog={self.ecog_baseline} \n"
             f"medical_histories={self.medical_histories} \n"
             f"previous_treatments={self.previous_treatments} \n"
         )

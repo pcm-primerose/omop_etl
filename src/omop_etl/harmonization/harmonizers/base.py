@@ -95,7 +95,7 @@ class BaseHarmonizer(ABC):
         pass
 
     @abstractmethod
-    def _process_ecog(self) -> None:
+    def _process_ecog_baseline(self) -> None:
         """Process ecog and instantiate to Ecog singleton"""
         pass
 
