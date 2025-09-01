@@ -481,13 +481,20 @@ def test_medical_history(medical_history_fixture):
     assert p6.medical_histories == ()
 
 
-# todo: implement
+# todo: implement for rest of treatments
 def test_previous_treatments():
     pass
 
 
-# todo: implement
 def test_treatment_start():
+    pass
+
+
+def test_treatment_ends():
+    pass
+
+
+def test_last_treatment_start():
     pass
 
 

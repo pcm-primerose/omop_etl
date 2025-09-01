@@ -575,6 +575,8 @@ class Patient:
         self._sex: Optional[str] = None
         self._evaluable_for_efficacy_analysis: bool = False
         self._treatment_start_date: Optional[dt.date] = None
+        self._treatment_end_date: Optional[dt.date] = None
+        self._treatment_start_last_cycle: Optional[dt.date] = None
         self._date_of_death: Optional[dt.date] = None
 
         # singletons
@@ -584,7 +586,7 @@ class Patient:
         self._lost_to_followup: Optional[FollowUp] = None
         self._ecog: Optional[Ecog] = None
 
-        # multiple instances per patient
+        # collections
         self._medical_histories: list[MedicalHistory] = []
         self._previous_treatments: list[PreviousTreatments] = []
 
@@ -687,6 +689,30 @@ class Patient:
             field_name=self.__class__.treatment_start_date.fset.__name__,
         )
         self.updated_fields.add(self.__class__.treatment_start_date.fset.__name__)
+
+    @property
+    def treatment_end_date(self) -> Optional[dt.date]:
+        return self._treatment_end_date
+
+    @treatment_end_date.setter
+    def treatment_end_date(self, value: Optional[dt.date]) -> None:
+        self._treatment_end_date = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.treatment_end_date.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.treatment_end_date.fset.__name__)
+
+    @property
+    def treatment_start_last_cycle(self) -> Optional[dt.date]:
+        return self._treatment_start_last_cycle
+
+    @treatment_start_last_cycle.setter
+    def treatment_start_last_cycle(self, value: Optional[dt.date]) -> None:
+        self._treatment_end_date = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.treatment_start_last_cycle.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.treatment_start_last_cycle.fset.__name__)
 
     # singletons
     @property

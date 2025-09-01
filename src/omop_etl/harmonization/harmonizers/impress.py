@@ -45,6 +45,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_previous_treatments()
         self._process_medical_histories()
         self._process_treatment_start_date()
+        self._process_treatment_stop_date()
+        self._process_start_last_cycle()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -783,8 +785,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
         # build mh objects
-        def build_ct(sid: str, s: Mapping[str, Any]) -> PreviousTreatments:
-            obj = PreviousTreatments(sid)
+        def build_ct(pid: str, s: Mapping[str, Any]) -> PreviousTreatments:
+            obj = PreviousTreatments(pid)
             obj.treatment = s["treatment"]
             obj.treatment_code = s["treatment_code"]
             obj.treatment_sequence_number = s["sequence_id"]
@@ -832,31 +834,97 @@ class ImpressHarmonizer(BaseHarmonizer):
     Ask Live: *If EOTDAT is empty use Date end treatment  (TRC1_DT) = TRTNO == 1, TRCNO1 == "day one last cycle"
     """
 
-    # basically same as cycles, find last cycle for IV and last cycle end for oral rows
-    # also find EOT, that tace precedence maybe
-
-    def _process_treatment_end(self) -> None:
-        treatment_end_data = (
-            self.data.lazy()
-            .select(["SubjectId", "TR_TRTNO", "TR_TRNAME", "TR_TRC1_DT", "TR_TRCNO1"])
-            .filter(pl.col("TR_TRNAME").is_not_null())
+    def _process_treatment_stop_date(self) -> None:
+        treatment_stop_data = (
+            self.data.select(
+                "SubjectId",
+                "TR_TRCYNCD",
+                "TR_TROSTPDT",
+                "TR_TRC1_DT",
+                "EOT_EOTDAT",
+            )
+            .with_columns(
+                valid=pl.col("TR_TRCYNCD").cast(pl.Int64, strict=False) == 1,
+                eot_date=PolarsParsers.parse_date_column("EOT_EOTDAT"),
+                oral_stop=PolarsParsers.parse_date_column("TR_TROSTPDT"),
+                iv_start=PolarsParsers.parse_date_column("TR_TRC1_DT"),
+            )
+            # only valid TR rows for oral/IV
+            .with_columns(
+                oral_stop_valid=pl.when(pl.col("valid"))
+                .then(pl.col("oral_stop"))
+                .otherwise(None),
+                iv_start_valid=pl.when(pl.col("valid"))
+                .then(pl.col("iv_start"))
+                .otherwise(None),
+            )
             .group_by("SubjectId")
-            .agg(pl.col("TR_TRC1_DT").drop_nulls().min().alias("treatment_end_date"))
-            .collect()
-            .select(["SubjectId", "treatment_end_date"])
+            .agg(
+                last_eot=pl.col("eot_date").max(),
+                last_oral=pl.col("oral_stop_valid").max(),
+                last_iv=pl.col("iv_start_valid").max(),
+            )
+            .with_columns(
+                # precedence: EOT > oral > IV
+                treatment_end=pl.coalesce(
+                    [pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]
+                ),
+                treatment_end_source=(
+                    pl.when(pl.col("last_eot").is_not_null())
+                    .then(pl.lit("EOT"))
+                    .when(pl.col("last_oral").is_not_null())
+                    .then(pl.lit("ORAL_STOP"))
+                    .when(pl.col("last_iv").is_not_null())
+                    .then(pl.lit("IV_START"))
+                    .otherwise(pl.lit(None))
+                ),
+            )
         )
 
-        for row in treatment_end_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            treatment_start_date = CoreParsers.parse_date_flexible(
-                row["treatment_start_date"]
-            )
-            self.patient_data[patient_id].treatment_start_date = treatment_start_date
+        # log no ends
+        subjects = self.data.select("SubjectId").unique()
+        df_all = subjects.join(treatment_stop_data, on="SubjectId", how="left")
+        no_end = (
+            df_all.filter(pl.col("treatment_end").is_null())
+            .get_column("SubjectId")
+            .to_list()
+        )
+        for pid in no_end:
+            log.warning(f"No treatment end found for SubjectId={pid}")
+
+        # hydrate
+        for pid, end_date in treatment_stop_data.select(
+            "SubjectId", "treatment_end"
+        ).iter_rows():
+            self.patient_data[pid].treatment_end_date = end_date
 
     def _process_start_last_cycle(self) -> None:
-        # either grab from self or calculate
-        # just calc from all cycles, take latest start date across all rows, agg per patient
-        pass
+        """
+        Note: not filtering for valid cycles, just selecting latest treatment starts.
+        """
+        enforce_valid = False  # set to True if TR_TRCYNCD must be 1 (i.e. filtering for valid cycles only)
+
+        last_cycle_data = (
+            self.data.select("SubjectId", "TR_TRC1_DT", "TR_TRCYNCD")
+            .with_columns(
+                cycle_start=PolarsParsers.parse_date_column("TR_TRC1_DT"),
+                valid=pl.col("TR_TRCYNCD").cast(pl.Int64, strict=False) == 1,
+            )
+            .with_columns(
+                cycle_start=pl.when(~pl.lit(enforce_valid) | pl.col("valid"))
+                .then(pl.col("cycle_start"))
+                .otherwise(None)
+            )
+            .group_by("SubjectId")
+            .agg(treatment_start_last_cycle=pl.col("cycle_start").max())
+            .select("SubjectId", "treatment_start_last_cycle")
+        )
+
+        # hydrate
+        for pid, last_cycle in last_cycle_data.select(
+            "SubjectId", "treatment_start_last_cycle"
+        ).iter_rows():
+            self.patient_data[pid].treatment_start_last_cycle = last_cycle
 
     def _process_treatment_cycle(self) -> None:
         # same struct as other collec tion cklasses,
