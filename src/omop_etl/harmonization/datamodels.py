@@ -560,6 +560,91 @@ class PreviousTreatments:
         )
 
 
+class TreatmentCycle:
+    """
+    treatment_name: TR_TRNAME
+    cycle_type:
+        - IV or oral
+        - use ID cols to define
+    treatment_number: TR_TRTNO
+    cycle_number: TR_TRCNO1
+    cycle_start: TR_TRC1_DT
+    cycle_end:
+        - TR_TRSTPDT for oral
+        - calculate for IV
+        - if any dates missing, set as None
+    was_dose_delivered_this_cycle: TR_TRCYN
+    dose_delivered_unit: TR_TRIVU1
+    dose_prescribed: TR_TRIVDS1
+    total_dose_delivered: TR_TRIVDELYN1
+
+    # oral only:
+    administered_to_spec: TR_TRO_YN
+    reason_not_administered_to_spec: TR_TROREA
+    other_reason_not_administered_to_spec: TR_TROOTH
+    dose_prescribed_per_day: TR_TRODSTOT
+    dose_unit: TR_TRODSU
+    other_dose_unit: TR_TRODSUOT
+    previous_cycle_followed_prescription: TR_TROTAKE
+    num_days_tablet_not_taken: TR_TROTABNO
+    reason_tablet_not_taken: TR_TROSPE
+    """
+
+    def __init__(self, patient_id: str):
+        self._patient_id = patient_id
+        self._cycle_type: Optional[str] = None
+        self._treatment_number: Optional[int] = None
+        self._cycle_number: Optional[int] = None
+        self._start_date: Optional[dt.date] = None
+        self._end_date: Optional[dt.date] = None
+        self._was_dose_delivered_this_cycle: Optional[bool] = None
+        self._dose_delivered_unit: Optional[str] = None
+        self._dose_prescribed_unit: Optional[str] = None
+        self._total_dose_delivered: Optional[str] = None
+
+        # oral only
+        self._was_dose_administered_to_spec: Optional[bool] = None
+        self._reason_not_administered_to_spec: Optional[
+            str
+        ] = None  # collapse with "Other" -->  TR_TROOTH
+        self._dose_prescribed_per_day: Optional[str] = None
+        self._dose_unit: Optional[
+            str
+        ] = None  # collapse with other dose unit if just the other case TR_TRODSUOT
+        self._other_dose_unit: Optional[str] = None
+        self._number_of_days_tablet_not_taken: Optional[int] = None
+        self._readon_tablet_not_taken: Optional[str] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
+
+    @property
+    def cycle_type(self) -> Optional[int]:
+        return self._cycle_type
+
+    @cycle_type.setter
+    def cycle_type(self, value: Optional[int]) -> None:
+        self.cycle_type = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.cycle_type.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.cycle_type.fset.__name__)
+
+    @property
+    def treatment_number(self) -> Optional[int]:
+        return self._treatment_number
+
+    @treatment_number.setter
+    def treatment_number(self, value: Optional[int]) -> None:
+        self.treatment_number = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.treatment_number.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.treatment_number.fset.__name__)
+
+
 class Patient:
     """
     Stores all data for a patient
@@ -567,6 +652,7 @@ class Patient:
 
     def __init__(self, patient_id: str, trial_id: str):
         self.updated_fields: Set[str] = set()
+
         # scalars
         self._patient_id = patient_id
         self._trial_id = trial_id

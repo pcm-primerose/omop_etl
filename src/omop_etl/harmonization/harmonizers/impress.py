@@ -914,10 +914,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[pid].treatment_start_last_cycle = last_cycle
 
     def _process_treatment_cycle(self) -> None:
-        # same struct as other collec tion cklasses,
+        # same struct as other collection classes,
         # process vectorized then merge,
         # build from aggregate and hydrate
-        #
         pass
 
     # todo: make new datamodel for each cycle
@@ -928,23 +927,27 @@ class ImpressHarmonizer(BaseHarmonizer):
         - IV or oral
         - use ID cols to define 
     treatment_number: TR_TRTNO 
-    cycle_start_date: TR_TRC1_DT
-    cycle_end_date:
-        - use TR_TRSTDT & TR_TRSTPDT for oral
+    cycle_number: TR_TRCNO1
+    cycle_start: TR_TRC1_DT
+    cycle_end:
+        - TR_TRSTPDT for oral
         - calculate for IV
         - if any dates missing, set as None 
-    dose_delivered: 
-    dose_delivered_unit
-    dose_prescribed
-    was_dose_delivered_this_cycle
-    treatment_name
-    study_drug_number
-    cycle_number
+    was_dose_delivered_this_cycle: TR_TRCYN
+    dose_delivered_unit: TR_TRIVU1
+    dose_prescribed: TR_TRIVDS1
+    total_dose_delivered: TR_TRIVDELYN1
     
-    
-    *Intravenous: TRIVDS1, TRIVU1, TRIVDELYN1, TRDSDEL1  (date: TRC1_DT), TRNAME                           
-    *Oral: TRO_YN (CD), TRODSTOT, TRODSU(CD),TRO_STDT (date), TROSTPDT (date), TROTAKE (CD), TROTABNO, TROSPE 
-    TROREA, TROREACD, TROOTH, TRODSU, TRODSUCD, TRODSUOT, TRO_STDT, TROSTPDT, TROTAKE, TROTAKECD, TROTABNO, TRNAME
+    # oral only: 
+    administered_to_spec: TR_TRO_YN
+    reason_not_administered_to_spec: TR_TROREA
+    other_reason_not_administered_to_spec: TR_TROOTH
+    dose_prescribed_per_day: TR_TRODSTOT
+    dose_unit: TR_TRODSU
+    other_dose_unit: TR_TRODSUOT
+    previous_cycle_followed_prescription: TR_TROTAKE 
+    num_days_tablet_not_taken: TR_TROTABNO
+    reason_tablet_not_taken: TR_TROSPE
     """
 
     def _process_concomitant_medication(self):
