@@ -591,33 +591,32 @@ class PreviousTreatments:
 
 class TreatmentCycle:
     def __init__(self, patient_id: str):
-        self._patient_id = patient_id
-
         # core
+        self._patient_id = patient_id
         self._treatment_name: Optional[str] = None
         self._cycle_type: Optional[str] = None
         self._treatment_number: Optional[int] = None
         self._cycle_number: Optional[int] = None
         self._start_date: Optional[dt.date] = None
         self._end_date: Optional[dt.date] = None
-        self._was_dose_delivered_this_cycle: Optional[bool] = None
-        self._dose_delivered_unit: Optional[str] = None
-        self._dose_prescribed_unit: Optional[str] = None
+        self._recieved_treatment_this_cycle: Optional[bool] = None
+
+        # iv only
         self._was_total_dose_delivered: Optional[bool] = None
+        self._iv_dose_prescribed: Optional[str] = None
+        self._iv_dose_prescribed_unit: Optional[str] = None
 
         # oral only
         self._was_dose_administered_to_spec: Optional[bool] = None
         self._reason_not_administered_to_spec: Optional[str] = None
-        self._dose_prescribed_per_day: Optional[str] = None
-        self._dose_unit: Optional[str] = None
+        self._oral_dose_prescribed_per_day: Optional[str] = None
+        self._oral_dose_unit: Optional[str] = None
         self._other_dose_unit: Optional[str] = None
         self._number_of_days_tablet_not_taken: Optional[int] = None
         self._reason_tablet_not_taken: Optional[str] = None
+        self._was_tablet_taken_to_prescription_in_previous_cycle: Optional[bool] = None
 
         self.updated_fields: Set[str] = set()
-
-    def _mark_updated(self, prop) -> None:
-        self.updated_fields.add(prop.__name__)
 
     @property
     def patient_id(self) -> str:
@@ -640,8 +639,8 @@ class TreatmentCycle:
         return self._cycle_type
 
     @cycle_type.setter
-    def cycle_type(self, value: Optional[int]) -> None:
-        validated = StrictValidators.validate_optional_int(
+    def cycle_type(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
             value=value,
             field_name=self.__class__.cycle_type.fset.__name__,
         )
@@ -701,53 +700,53 @@ class TreatmentCycle:
         self.updated_fields.add(self.__class__.end_date.fset.__name__)
 
     @property
-    def was_dose_delivered_this_cycle(self) -> Optional[bool]:
-        return self._was_dose_delivered_this_cycle
+    def recieved_treatment_this_cycle(self) -> Optional[bool]:
+        return self._recieved_treatment_this_cycle
 
-    @was_dose_delivered_this_cycle.setter
-    def was_dose_delivered_this_cycle(self, value: Optional[bool]) -> None:
+    @recieved_treatment_this_cycle.setter
+    def recieved_treatment_this_cycle(self, value: Optional[bool]) -> None:
         validated = StrictValidators.validate_optional_bool(
             value=value,
-            field_name=self.__class__.was_dose_delivered_this_cycle.fset.__name__,
+            field_name=self.__class__.recieved_treatment_this_cycle.fset.__name__,
         )
-        self._was_dose_delivered_this_cycle = validated
+        self._recieved_treatment_this_cycle = validated
         self.updated_fields.add(
-            self.__class__.was_dose_delivered_this_cycle.fset.__name__
+            self.__class__.recieved_treatment_this_cycle.fset.__name__
         )
 
     @property
-    def dose_delivered_unit(self) -> Optional[str]:
-        return self._dose_delivered_unit
+    def iv_dose_prescribed_unit(self) -> Optional[str]:
+        return self._iv_dose_prescribed_unit
 
-    @dose_delivered_unit.setter
-    def dose_delivered_unit(self, value: Optional[str]) -> None:
+    @iv_dose_prescribed_unit.setter
+    def iv_dose_prescribed_unit(self, value: Optional[str]) -> None:
         validated = StrictValidators.validate_optional_str(
             value=value,
-            field_name=self.__class__.dose_delivered_unit.fset.__name__,
+            field_name=self.__class__.iv_dose_prescribed_unit.fset.__name__,
         )
-        self._dose_delivered_unit = validated
-        self.updated_fields.add(self.__class__.dose_delivered_unit.fset.__name__)
+        self._iv_dose_prescribed_unit = validated
+        self.updated_fields.add(self.__class__.iv_dose_prescribed_unit.fset.__name__)
 
     @property
-    def dose_prescribed_unit(self) -> Optional[str]:
-        return self._dose_prescribed_unit
+    def iv_dose_prescribed(self) -> Optional[str]:
+        return self._iv_dose_prescribed
 
-    @dose_prescribed_unit.setter
-    def dose_prescribed_unit(self, value: Optional[str]) -> None:
+    @iv_dose_prescribed.setter
+    def iv_dose_prescribed(self, value: Optional[str]) -> None:
         validated = StrictValidators.validate_optional_str(
             value=value,
-            field_name=self.__class__.dose_prescribed_unit.fset.__name__,
+            field_name=self.__class__.iv_dose_prescribed.fset.__name__,
         )
-        self._dose_prescribed_unit = validated
-        self.updated_fields.add(self.__class__.dose_delivered_unit.fset.__name__)
+        self._iv_dose_prescribed = validated
+        self.updated_fields.add(self.__class__.iv_dose_prescribed.fset.__name__)
 
     @property
     def was_total_dose_delivered(self) -> Optional[str]:
         return self._was_total_dose_delivered
 
     @was_total_dose_delivered.setter
-    def was_total_dose_delivered(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
+    def was_total_dose_delivered(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
             value=value,
             field_name=self.__class__.was_total_dose_delivered.fset.__name__,
         )
@@ -786,30 +785,32 @@ class TreatmentCycle:
         )
 
     @property
-    def dose_prescribed_per_day(self) -> Optional[str]:
-        return self._dose_prescribed_per_day
+    def oral_dose_prescribed_per_day(self) -> Optional[float]:
+        return self._oral_dose_prescribed_per_day
 
-    @dose_prescribed_per_day.setter
-    def dose_prescribed_per_day(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
+    @oral_dose_prescribed_per_day.setter
+    def oral_dose_prescribed_per_day(self, value: Optional[float]) -> None:
+        validated = StrictValidators.validate_optional_float(
             value=value,
-            field_name=self.__class__.dose_prescribed_per_day.fset.__name__,
+            field_name=self.__class__.oral_dose_prescribed_per_day.fset.__name__,
         )
-        self._dose_prescribed_per_day = validated
-        self.updated_fields.add(self.__class__.dose_prescribed_per_day.fset.__name__)
+        self._oral_dose_prescribed_per_day = validated
+        self.updated_fields.add(
+            self.__class__.oral_dose_prescribed_per_day.fset.__name__
+        )
 
     @property
-    def dose_unit(self) -> Optional[str]:
-        return self._dose_unit
+    def oral_dose_unit(self) -> Optional[str]:
+        return self._oral_dose_unit
 
-    @dose_unit.setter
-    def dose_unit(self, value: Optional[str]) -> None:
+    @oral_dose_unit.setter
+    def oral_dose_unit(self, value: Optional[str]) -> None:
         validated = StrictValidators.validate_optional_str(
             value=value,
-            field_name=self.__class__.dose_unit.fset.__name__,
+            field_name=self.__class__.oral_dose_unit.fset.__name__,
         )
-        self._dose_unit = validated
-        self.updated_fields.add(self.__class__.dose_unit.fset.__name__)
+        self._oral_dose_unit = validated
+        self.updated_fields.add(self.__class__.oral_dose_unit.fset.__name__)
 
     @property
     def other_dose_unit(self) -> Optional[str]:
@@ -852,27 +853,45 @@ class TreatmentCycle:
         self._reason_tablet_not_taken = validated
         self.updated_fields.add(self.__class__.reason_tablet_not_taken.fset.__name__)
 
+    @property
+    def was_tablet_taken_to_prescription_in_previous_cycle(self) -> Optional[bool]:
+        return self._was_tablet_taken_to_prescription_in_previous_cycle
+
+    @was_tablet_taken_to_prescription_in_previous_cycle.setter
+    def was_tablet_taken_to_prescription_in_previous_cycle(
+        self, value: Optional[bool]
+    ) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_tablet_taken_to_prescription_in_previous_cycle.fset.__name__,
+        )
+        self._was_tablet_taken_to_prescription_in_previous_cycle = validated
+        self.updated_fields.add(
+            self.__class__.was_tablet_taken_to_prescription_in_previous_cycle.fset.__name__
+        )
+
     def __repr__(self) -> str:
         cls = self.__class__.__name__
         return (
             f"{cls}("
-            f"patient_id={self._patient_id!r}, "
-            f"cycle_type={self._cycle_type!r}, "
-            f"treatment_number={self._treatment_number!r}, "
-            f"cycle_number={self._cycle_number!r}, "
-            f"start_date={self._start_date!r}, "
-            f"end_date={self._end_date!r}, "
-            f"was_dose_delivered_this_cycle={self._was_dose_delivered_this_cycle!r}, "
-            f"dose_delivered_unit={self._dose_delivered_unit!r}, "
-            f"dose_prescribed_unit={self._dose_prescribed_unit!r}, "
-            f"total_dose_delivered={self._was_total_dose_delivered!r}, "
-            f"was_dose_administered_to_spec={self._was_dose_administered_to_spec!r}, "
-            f"reason_not_administered_to_spec={self._reason_not_administered_to_spec!r}, "
-            f"dose_prescribed_per_day={self._dose_prescribed_per_day!r}, "
-            f"dose_unit={self._dose_unit!r}, "
-            f"other_dose_unit={self._other_dose_unit!r}, "
-            f"number_of_days_tablet_not_taken={self._number_of_days_tablet_not_taken!r}, "
-            f"reason_tablet_not_taken={self._reason_tablet_not_taken!r}"
+            f"patient_id={self.patient_id!r}, "
+            f"cycle_type={self.cycle_type!r}, "
+            f"treatment_number={self.treatment_number!r}, "
+            f"cycle_number={self.cycle_number!r}, "
+            f"start_date={self.start_date!r}, "
+            f"end_date={self.end_date!r}, "
+            f"recieved_treatment_this_cycle={self.recieved_treatment_this_cycle!r}, "
+            f"iv_dose_prescribed={self.iv_dose_prescribed!r}, "
+            f"iv_dose_prescribed_unit={self.iv_dose_prescribed_unit!r}, "
+            f"was_total_dose_delivered={self.was_total_dose_delivered!r}, "
+            f"was_dose_administered_to_spec={self.was_dose_administered_to_spec!r}, "
+            f"reason_not_administered_to_spec={self.reason_not_administered_to_spec!r}, "
+            f"oral_dose_prescribed_per_day={self.oral_dose_prescribed_per_day!r}, "
+            f"oral_dose_unit={self.oral_dose_unit!r}, "
+            f"other_dose_unit={self.other_dose_unit!r}, "
+            f"number_of_days_tablet_not_taken={self.number_of_days_tablet_not_taken!r}, "
+            f"reason_tablet_not_taken={self.reason_tablet_not_taken!r}, "
+            f"was_tablet_taken_to_prescription_in_previous_cycle={self.was_tablet_taken_to_prescription_in_previous_cycle}"
             f")"
         )
 
@@ -1230,6 +1249,7 @@ class Patient:
             f"ecog={self.ecog_baseline} \n"
             f"medical_histories={self.medical_histories} \n"
             f"previous_treatments={self.previous_treatments} \n"
+            f"treatment_cycles={self.treatment_cycles} \n"
         )
 
 
