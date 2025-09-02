@@ -136,6 +136,15 @@ class BaseHarmonizer(ABC):
         If order_by_cols: globally sort by [subject_col, *order_by_cols] before grouping.
         If not order_by_cols: Maintain original inpur order.
 
+        Args:
+          df: Polars DataFrame containing at least [subject_col] + value_cols
+          subject_col: Subject identifier column
+          value_cols: Columns to pack into the struct per row
+          order_by_cols: Optional additional columns to sort by within each subject
+          items_col: Name of the output list-of-structs column
+          require_order_by: If True and order_by_cols is None, raises ValueError
+
+
         Returns:
             - pl.Dateframe[subject_col, items_col]
         """

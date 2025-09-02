@@ -455,9 +455,8 @@ class PreviousTreatments:
         self._treatment_sequence_number: Optional[int] = None  # ctspid
         self._start_date: Optional[dt.date] = None  # ctstdat
         self._end_date: Optional[dt.date] = None  # ctendat
-        self._additional_treatment: Optional[
-            str
-        ] = None  # cttypesp (specification if "Other" in main treatment)
+        # cttypesp (specification if "Other" in main treatment):
+        self._additional_treatment: Optional[str] = None
         self.updated_fields: Set[str] = set()
 
     @property
@@ -537,8 +536,9 @@ class PreviousTreatments:
         self.updated_fields.add(self.__class__.additional_treatment.fset.__name__)
 
     def __repr__(self) -> str:
+        cls = self.__class__.__name__
         return (
-            "PreviousTreatments("
+            f"{cls}("
             f"treatment={self.treatment!r}, "
             f"treatment_code={self.treatment_code!r}, "
             f"treatment_sequence_numvber={self.treatment_sequence_number!r}, "
@@ -559,8 +559,6 @@ class PreviousTreatments:
             f"additional_treatment={self.additional_treatment!r}\n"
         )
 
-
-class TreatmentCycle:
     """
     treatment_name: TR_TRNAME
     cycle_type:
@@ -590,8 +588,13 @@ class TreatmentCycle:
     reason_tablet_not_taken: TR_TROSPE
     """
 
+
+class TreatmentCycle:
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
+
+        # core
+        self._treatment_name: Optional[str] = None
         self._cycle_type: Optional[str] = None
         self._treatment_number: Optional[int] = None
         self._cycle_number: Optional[int] = None
@@ -600,36 +603,49 @@ class TreatmentCycle:
         self._was_dose_delivered_this_cycle: Optional[bool] = None
         self._dose_delivered_unit: Optional[str] = None
         self._dose_prescribed_unit: Optional[str] = None
-        self._total_dose_delivered: Optional[str] = None
+        self._was_total_dose_delivered: Optional[bool] = None
 
         # oral only
         self._was_dose_administered_to_spec: Optional[bool] = None
-        self._reason_not_administered_to_spec: Optional[
-            str
-        ] = None  # collapse with "Other" -->  TR_TROOTH
+        self._reason_not_administered_to_spec: Optional[str] = None
         self._dose_prescribed_per_day: Optional[str] = None
-        self._dose_unit: Optional[
-            str
-        ] = None  # collapse with other dose unit if just the other case TR_TRODSUOT
+        self._dose_unit: Optional[str] = None
         self._other_dose_unit: Optional[str] = None
         self._number_of_days_tablet_not_taken: Optional[int] = None
-        self._readon_tablet_not_taken: Optional[str] = None
+        self._reason_tablet_not_taken: Optional[str] = None
+
         self.updated_fields: Set[str] = set()
+
+    def _mark_updated(self, prop) -> None:
+        self.updated_fields.add(prop.__name__)
 
     @property
     def patient_id(self) -> str:
         return self._patient_id
 
     @property
-    def cycle_type(self) -> Optional[int]:
+    def treatment_name(self) -> str:
+        return self._treatment_name
+
+    @treatment_name.setter
+    def treatment_name(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.treatment_name.fset.__name__
+        )
+        self._treatment_name = validated
+        self.updated_fields.add(self.__class__.treatment_name.fset.__name__)
+
+    @property
+    def cycle_type(self) -> Optional[str]:
         return self._cycle_type
 
     @cycle_type.setter
     def cycle_type(self, value: Optional[int]) -> None:
-        self.cycle_type = StrictValidators.validate_optional_int(
+        validated = StrictValidators.validate_optional_int(
             value=value,
             field_name=self.__class__.cycle_type.fset.__name__,
         )
+        self._cycle_type = validated
         self.updated_fields.add(self.__class__.cycle_type.fset.__name__)
 
     @property
@@ -638,11 +654,227 @@ class TreatmentCycle:
 
     @treatment_number.setter
     def treatment_number(self, value: Optional[int]) -> None:
-        self.treatment_number = StrictValidators.validate_optional_int(
+        validated = StrictValidators.validate_optional_int(
             value=value,
             field_name=self.__class__.treatment_number.fset.__name__,
         )
+        self._treatment_number = validated
         self.updated_fields.add(self.__class__.treatment_number.fset.__name__)
+
+    @property
+    def cycle_number(self) -> Optional[int]:
+        return self._cycle_number
+
+    @cycle_number.setter
+    def cycle_number(self, value: Optional[int]) -> None:
+        validated = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.cycle_number.fset.__name__,
+        )
+        self._cycle_number = validated
+        self.updated_fields.add(self.__class__.cycle_number.fset.__name__)
+
+    @property
+    def start_date(self) -> Optional[dt.date]:
+        return self._start_date
+
+    @start_date.setter
+    def start_date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.start_date.fset.__name__,
+        )
+        self._start_date = validated
+        self.updated_fields.add(self.__class__.start_date.fset.__name__)
+
+    @property
+    def end_date(self) -> Optional[dt.date]:
+        return self._end_date
+
+    @end_date.setter
+    def end_date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.end_date.fset.__name__,
+        )
+        self._end_date = validated
+        self.updated_fields.add(self.__class__.end_date.fset.__name__)
+
+    @property
+    def was_dose_delivered_this_cycle(self) -> Optional[bool]:
+        return self._was_dose_delivered_this_cycle
+
+    @was_dose_delivered_this_cycle.setter
+    def was_dose_delivered_this_cycle(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_dose_delivered_this_cycle.fset.__name__,
+        )
+        self._was_dose_delivered_this_cycle = validated
+        self.updated_fields.add(
+            self.__class__.was_dose_delivered_this_cycle.fset.__name__
+        )
+
+    @property
+    def dose_delivered_unit(self) -> Optional[str]:
+        return self._dose_delivered_unit
+
+    @dose_delivered_unit.setter
+    def dose_delivered_unit(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.dose_delivered_unit.fset.__name__,
+        )
+        self._dose_delivered_unit = validated
+        self.updated_fields.add(self.__class__.dose_delivered_unit.fset.__name__)
+
+    @property
+    def dose_prescribed_unit(self) -> Optional[str]:
+        return self._dose_prescribed_unit
+
+    @dose_prescribed_unit.setter
+    def dose_prescribed_unit(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.dose_prescribed_unit.fset.__name__,
+        )
+        self._dose_prescribed_unit = validated
+        self.updated_fields.add(self.__class__.dose_delivered_unit.fset.__name__)
+
+    @property
+    def was_total_dose_delivered(self) -> Optional[str]:
+        return self._was_total_dose_delivered
+
+    @was_total_dose_delivered.setter
+    def was_total_dose_delivered(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.was_total_dose_delivered.fset.__name__,
+        )
+        self._was_total_dose_delivered = validated
+        self.updated_fields.add(self.__class__.was_total_dose_delivered.fset.__name__)
+
+    # oral only
+    @property
+    def was_dose_administered_to_spec(self) -> Optional[bool]:
+        return self._was_dose_administered_to_spec
+
+    @was_dose_administered_to_spec.setter
+    def was_dose_administered_to_spec(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_dose_administered_to_spec.fset.__name__,
+        )
+        self._was_dose_administered_to_spec = validated
+        self.updated_fields.add(
+            self.__class__.was_dose_administered_to_spec.fset.__name__
+        )
+
+    @property
+    def reason_not_administered_to_spec(self) -> Optional[str]:
+        return self._reason_not_administered_to_spec
+
+    @reason_not_administered_to_spec.setter
+    def reason_not_administered_to_spec(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.reason_not_administered_to_spec.fset.__name__,
+        )
+        self._reason_not_administered_to_spec = validated
+        self.updated_fields.add(
+            self.__class__.reason_not_administered_to_spec.fset.__name__
+        )
+
+    @property
+    def dose_prescribed_per_day(self) -> Optional[str]:
+        return self._dose_prescribed_per_day
+
+    @dose_prescribed_per_day.setter
+    def dose_prescribed_per_day(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.dose_prescribed_per_day.fset.__name__,
+        )
+        self._dose_prescribed_per_day = validated
+        self.updated_fields.add(self.__class__.dose_prescribed_per_day.fset.__name__)
+
+    @property
+    def dose_unit(self) -> Optional[str]:
+        return self._dose_unit
+
+    @dose_unit.setter
+    def dose_unit(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.dose_unit.fset.__name__,
+        )
+        self._dose_unit = validated
+        self.updated_fields.add(self.__class__.dose_unit.fset.__name__)
+
+    @property
+    def other_dose_unit(self) -> Optional[str]:
+        return self._other_dose_unit
+
+    @other_dose_unit.setter
+    def other_dose_unit(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.other_dose_unit.fset.__name__,
+        )
+        self._other_dose_unit = validated
+        self.updated_fields.add(self.__class__.other_dose_unit.fset.__name__)
+
+    @property
+    def number_of_days_tablet_not_taken(self) -> Optional[int]:
+        return self._number_of_days_tablet_not_taken
+
+    @number_of_days_tablet_not_taken.setter
+    def number_of_days_tablet_not_taken(self, value: Optional[int]) -> None:
+        validated = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.number_of_days_tablet_not_taken.fset.__name__,
+        )
+        self._number_of_days_tablet_not_taken = validated
+        self.updated_fields.add(
+            self.__class__.number_of_days_tablet_not_taken.fset.__name__
+        )
+
+    @property
+    def reason_tablet_not_taken(self) -> Optional[str]:
+        return self._reason_tablet_not_taken
+
+    @reason_tablet_not_taken.setter
+    def reason_tablet_not_taken(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.reason_tablet_not_taken.fset.__name__,
+        )
+        self._reason_tablet_not_taken = validated
+        self.updated_fields.add(self.__class__.reason_tablet_not_taken.fset.__name__)
+
+    def __repr__(self) -> str:
+        cls = self.__class__.__name__
+        return (
+            f"{cls}("
+            f"patient_id={self._patient_id!r}, "
+            f"cycle_type={self._cycle_type!r}, "
+            f"treatment_number={self._treatment_number!r}, "
+            f"cycle_number={self._cycle_number!r}, "
+            f"start_date={self._start_date!r}, "
+            f"end_date={self._end_date!r}, "
+            f"was_dose_delivered_this_cycle={self._was_dose_delivered_this_cycle!r}, "
+            f"dose_delivered_unit={self._dose_delivered_unit!r}, "
+            f"dose_prescribed_unit={self._dose_prescribed_unit!r}, "
+            f"total_dose_delivered={self._was_total_dose_delivered!r}, "
+            f"was_dose_administered_to_spec={self._was_dose_administered_to_spec!r}, "
+            f"reason_not_administered_to_spec={self._reason_not_administered_to_spec!r}, "
+            f"dose_prescribed_per_day={self._dose_prescribed_per_day!r}, "
+            f"dose_unit={self._dose_unit!r}, "
+            f"other_dose_unit={self._other_dose_unit!r}, "
+            f"number_of_days_tablet_not_taken={self._number_of_days_tablet_not_taken!r}, "
+            f"reason_tablet_not_taken={self._reason_tablet_not_taken!r}"
+            f")"
+        )
 
 
 class Patient:
@@ -675,6 +907,7 @@ class Patient:
         # collections
         self._medical_histories: list[MedicalHistory] = []
         self._previous_treatments: list[PreviousTreatments] = []
+        self._treatment_cycles: list[TreatmentCycle] = []
 
     # scalars
     @property
@@ -946,6 +1179,36 @@ class Patient:
 
         self._previous_treatments = items
         self.updated_fields.add("previous_treatments")
+
+    @property
+    def treatment_cycles(self) -> tuple[TreatmentCycle, ...]:
+        return tuple(self._treatment_cycles)
+
+    @treatment_cycles.setter
+    def treatment_cycles(self, value: Optional[Sequence[TreatmentCycle]]) -> None:
+        items: list[TreatmentCycle]
+        if value is None:
+            items = []
+
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(
+                    f"Expected a sequence of TreatmentCycles, got {type(value)}"
+                )
+
+            wrong_type = [type(x) for x in value if not isinstance(x, TreatmentCycle)]
+            if wrong_type:
+                raise TypeError(
+                    f"All elements must be TreatmentCycle, got {wrong_type}"
+                )
+
+            items = list(value)
+
+        for pt in items:
+            pt._patient_id = self._patient_id
+
+        self._treatment_cycles = items
+        self.updated_fields.add("treatment_cycles")
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields

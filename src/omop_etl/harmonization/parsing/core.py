@@ -253,3 +253,28 @@ class PolarsParsers:
             .then(None)
             .otherwise(raw)
         )
+
+    @staticmethod
+    def yes_no_to_bool(expr: str | pl.Expr) -> pl.Expr:
+        e = pl.col(expr) if isinstance(expr, str) else expr
+        s = e.cast(pl.Utf8).str.strip_chars().str.to_lowercase()
+        return (
+            pl.when(s.is_in(["yes", "y", "true", "1"]))
+            .then(True)
+            .when(s.is_in(["no", "n", "false", "0"]))
+            .then(False)
+            .otherwise(None)
+            .cast(pl.Boolean)
+        )
+
+    @staticmethod
+    def int01_to_bool(expr: pl.Expr) -> pl.Expr:
+        e = pl.col(expr) if isinstance(expr, str) else expr
+        return (
+            pl.when(e == 1)
+            .then(True)
+            .when(e == 0)
+            .then(False)
+            .otherwise(None)
+            .cast(pl.Boolean)
+        )

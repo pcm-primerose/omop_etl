@@ -20,6 +20,7 @@ from omop_etl.harmonization.datamodels import (
     EcogBaseline,
     MedicalHistory,
     PreviousTreatments,
+    TreatmentCycle,
 )
 from omop_etl.harmonization.utils import detect_paired_field_collisions
 
@@ -47,6 +48,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_treatment_start_date()
         self._process_treatment_stop_date()
         self._process_start_last_cycle()
+        self._process_treatment_cycle()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -917,10 +919,215 @@ class ImpressHarmonizer(BaseHarmonizer):
         # same struct as other collection classes,
         # process vectorized then merge,
         # build from aggregate and hydrate
-        pass
 
-    # todo: make new datamodel for each cycle
-    #   same collection struct as MH & CT
+        treatment_cycle_cols = [
+            "TR_TRNAME",
+            "TR_TRTNO",
+            "TR_TRCNO1",
+            "TR_TRC1_DT",
+            "TR_TRO_STDT",
+            "TR_TROSTPDT",
+            "TR_TRDSDEL1",
+            "TR_TRCYN",
+            "TR_TRIVU1",
+            "TR_TRIVDS1",
+            "TR_TRCYNCD",
+            "TR_TRIVDELYN1",
+            "TR_TRO_YN",
+            "TR_TROREA",
+            "TR_TROOTH",
+            "TR_TRODSU",
+            "TR_TRODSUOT",
+            "TR_TRODSTOT",
+            "TR_TROTAKE",
+            "TR_TROTAKECD",
+            "TR_TROTABNO",
+            "TR_TROSPE",
+        ]
+
+        cycle_base = self.data.select("SubjectId", treatment_cycle_cols)
+
+        print(f"cycle base {cycle_base}")
+        print(f"cycle base schema {cycle_base.collect_schema().items()}")
+
+        """
+        *Missing data may be due to ongoing trial process...Whenever we find missing data we can check with the coordinator (Katarina ...). 
+        *Live suggests to extract all of the following variables and we can use those most relevant for each 24-patient cohort adhoc.
+        """
+
+        # todo:
+        #  [x] make new var: drug type (oral, IV)
+        #  [ ] nothing else about processing, just validate and instantiate
+
+        def add_treatment_type(frame: pl.DataFrame) -> pl.DataFrame:
+            """
+            If any bytes in any oral-only cols, set to `oral`, if any in iv-only cols, set to `IV` else `None`.
+            """
+
+            oral_only_cols = ["TR_TRO_YN", "TR_TRODSTOT", "TR_TRO_STDT", "TR_TROSTPDT"]
+
+            iv_only_cols = ["TR_TRIVDS1", "TR_TRIVU1", "TR_TRIVDELYN1"]
+
+            oral_cols = [c for c in oral_only_cols if c in frame.columns]
+            iv_cols = [c for c in iv_only_cols if c in frame.columns]
+
+            def row_has_any(cols: list[str]) -> pl.Expr:
+                if not cols:
+                    return pl.lit(False)
+
+                return pl.any_horizontal(
+                    pl.col(cols)
+                    .cast(pl.Utf8)
+                    .str.strip_chars()
+                    .str.len_bytes()
+                    .fill_null(0)
+                    > 0
+                )
+
+            has_oral = row_has_any(oral_cols)
+            has_iv = row_has_any(iv_cols)
+
+            return frame.with_columns(
+                pl.when(has_oral)
+                .then(pl.lit("oral"))
+                .when(has_iv)
+                .then(pl.lit("IV"))
+                .otherwise(pl.lit(None, dtype=pl.Utf8))
+                .alias("treatment_type")
+            )
+
+        # TODO: calc cycle stop date (how for IV?)
+        def add_cycle_stop_dates(frame: pl.DataFrame) -> pl.DataFrame:
+            pass
+
+        def filter_parse_treatment_cycles(frame: pl.DataFrame) -> pl.DataFrame:
+            filtered_data = frame.with_columns(
+                cycle_start_date=PolarsParsers.parse_date_column(pl.col("TR_TRC1_DT")),
+                oral_cycle_start_date=PolarsParsers.parse_date_column(
+                    pl.col("TR_TRO_STDT")
+                ),
+                oral_cycle_stop_date=PolarsParsers.parse_date_column(
+                    pl.col("TR_TROSTPDT")
+                ),
+                was_dose_delivered_this_cycle=PolarsParsers.int01_to_bool(
+                    pl.col("TR_TRCYNCD")
+                ),
+                was_total_dose_delivered=PolarsParsers.yes_no_to_bool(
+                    pl.col("TR_TRIVDELYN1")
+                ),
+                was_dose_administered_to_spec=PolarsParsers.int01_to_bool(
+                    pl.col("TR_TROTAKECD")
+                ),
+            ).filter(pl.col("TR_TRNAME").is_not_null())
+
+            return filtered_data
+
+        treatment_typed = add_treatment_type(cycle_base)
+        filtered = filter_parse_treatment_cycles(treatment_typed)
+
+        # pack to structs grouped by SubjectId
+        packed = self.pack_structs(
+            filtered,
+            subject_col="SubjectId",
+            value_cols=treatment_cycle_cols,
+            order_by_cols=["TR_TRTNO", "TR_TRCNO1", "TR_TRC1_DT"],
+        )
+
+        """
+        cols in filtered: odict_items([
+        ('TR_TRCYN', String), 
+        ('TR_TRIVU1', String), 
+        ('TR_TRIVDS1', String), 
+        ('TR_TRCYNCD', Int64), 
+        ('TR_TRIVDELYN1', String), 
+        ('TR_TRO_YN', String), 
+        ('TR_TROREA', String), 
+        ('TR_TROOTH', String), 
+        ('TR_TRODSU', String), 
+        ('TR_TRODSUOT', String), 
+        ('TR_TRODSTOT', Float64), 
+        ('TR_TROTAKE', String), 
+        ('TR_TROTAKECD', Int64),
+         ('TR_TROTABNO', Int64), 
+         ('TR_TROSPE', String), 
+
+         ('treatment_type', String), 
+         ('cycle_start_date', Date), 
+         ('oral_cycle_start_date', Date), 
+         ('oral_cycle_stop_date', Date), 
+         ('was_dose_delivered_this_cycle', Boolean), 
+         ('was_total_dose_delivered', Boolean), 
+         ('was_dose_administered_to_spec', Boolean)])
+
+        """
+
+        # build TreatmentCycle objects
+        def build_mh(pid: str, s: Mapping[str, Any]) -> TreatmentCycle:
+            obj = TreatmentCycle(pid)
+            obj.cycle_type = s["treatment_type"]
+            obj.treatment_name = s["TR_TRTNAME"]
+            obj.treatment_number = s["TR_TRTNO"]
+            obj.cycle_number = s["TR_TRCNO1"]
+            obj.start_date = s["cycle_start_date"]
+            obj.was_dose_delivered_this_cycle = s["was_dose_delivered_this_cycle"]
+            obj.was_total_dose_delivered = s["was_totoal_dose_delivered"]
+            obj.was_dose_administered_to_spec = s["was_dose_administered_to_spec"]
+
+            return obj
+
+        # hydrate to Patient class
+        self.hydrate_list_field(
+            packed,
+            builder=build_mh,
+            patients=self.patient_data,
+            target_attr="medical_histories",
+            skip_missing=False,
+        )
+
+        """
+        self._cycle_type: Optional[str] = None  
+        self._treatment_number: Optional[int] = None
+        self._cycle_number: Optional[int] = None
+        self._start_date: Optional[dt.date] = None
+        self._end_date: Optional[dt.date] = None
+        self._was_dose_delivered_this_cycle: Optional[bool] = None
+        self._dose_delivered_unit: Optional[str] = None
+        self._dose_prescribed_unit: Optional[str] = None
+        self._total_dose_delivered: Optional[str] = None
+
+        # oral only
+        self._was_dose_administered_to_spec: Optional[bool] = None
+        self._reason_not_administered_to_spec: Optional[str] = None
+        self._dose_prescribed_per_day: Optional[str] = None
+        self._dose_unit: Optional[str] = None
+        self._other_dose_unit: Optional[str] = None
+        self._number_of_days_tablet_not_taken: Optional[int] = None
+        self._reason_tablet_not_taken: Optional[str] = None  
+        """
+
+        def merge_medical_history(
+            base: pl.DataFrame, processed: pl.DataFrame
+        ) -> pl.DataFrame:
+            subjects = base.select("SubjectId").unique()
+            _merged = subjects.join(processed, on="SubjectId", how="left").filter(
+                pl.any_horizontal(
+                    pl.col(
+                        [
+                            "treatment",
+                            "treatment_code",
+                            "sequence_id",
+                            "start_date",
+                            "end_date",
+                            "additional_treatment",
+                        ]
+                    ).is_not_null()
+                )
+            )
+            return _merged
+
+        for row in add_treatment_type(cycle_base).iter_rows():
+            print(f"cycle mask {row}")
+
     """
     treatment_name: TR_TRNAME 
     cycle_type: 
@@ -961,7 +1168,19 @@ class ImpressHarmonizer(BaseHarmonizer):
             "CT_CTTYPESP",
         ).filter((pl.col("CT_CTTYPE") is not None))
 
-        # for row in treatment_lines_data.iter_rows(named=True):
-        #     patient_id = row["SubjectId"]
-        #     pass
-        # pass
+        # probs collection as well?
+
+    def _process_adverse_events(self):
+        # collapse AE to one class, probs same approach as collection classes
+        pass
+
+    def _process_tumor_assessments(self):
+        # collapse tumor assessments as well, probs collection
+        # check source
+        # think baseline eval can be on Patient?
+        # or add bool flag to set baseline, idk if same fields yet
+        pass
+
+    # then it's just best overall response, clinical benefit, EOT reason and date
+    # then the questionnaries
+    # then it's done
