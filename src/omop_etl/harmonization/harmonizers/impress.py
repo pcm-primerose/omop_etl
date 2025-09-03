@@ -60,8 +60,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         # flatten patient values
         patients = list(self.patient_data.values())
 
-        for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx]} \n")
+        # for idx in range(len(patients)):
+        # print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -378,18 +378,19 @@ class ImpressHarmonizer(BaseHarmonizer):
         for row in ae_status.iter_rows(named=True):
             pid = row["SubjectId"]
             if pid in self.patient_data:
-                print(f"{pid}: {row}")
                 self.patient_data[pid].has_any_adverse_events = row["has_ae"]
 
     def _process_number_of_adverse_events(self) -> None:
-        ae_data = self.data.select(pl.col("SubjectId"), pl.col("AE_")).filter(
-            pl.col("SubjectId").is_not_null()
+        ae_num = (
+            self.data.select(pl.col("SubjectId"), pl.col("AE_AESTDAT"))
+            .group_by("SubjectId")
+            .agg(pl.col("AE_AESTDAT").count().alias("ae_number"))
         )
 
-        result = ae_data.group_by("SubjectId").agg(
-            pl.col("item").count().alias("item_count"),
-            pl.col("value").count().alias("value_count"),
-        )
+        for row in ae_num.iter_rows(named=True):
+            pid = row["SubjectId"]
+            if pid in self.patient_data:
+                self.patient_data[pid].number_of_adverse_events = row["ae_number"]
 
     def _process_number_of_serious_adverse_events(self) -> None:
         pass
