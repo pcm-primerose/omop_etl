@@ -896,6 +896,142 @@ class TreatmentCycle:
         )
 
 
+class ConcomitantMedication:
+    def __init__(self, patient_id: str):
+        self._patient_id = patient_id
+        self._medication_name: Optional[str] = None
+        self._medication_ongoing: Optional[bool] = None
+        self._was_taken_due_to_medical_history_event: Optional[bool] = None
+        self._was_taken_due_to_adverse_event: Optional[bool] = None
+        self._is_adverse_event_ongoing: Optional[bool] = None
+        self._start_date: Optional[dt.date] = None
+        self._end_date: Optional[dt.date] = None
+        self._sequence_id: Optional[int] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
+
+    @property
+    def medication_name(self) -> Optional[str]:
+        return self._medication_name
+
+    @medication_name.setter
+    def medication_name(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.medication_name.fset.__name__
+        )
+        self._medication_name = validated
+        self.updated_fields.add(self.__class__.medication_name.fset.__name__)
+
+    @property
+    def medication_ongoing(self) -> Optional[bool]:
+        return self._medication_ongoing
+
+    @medication_ongoing.setter
+    def medication_ongoing(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value, field_name=self.__class__.medication_ongoing.fset.__name__
+        )
+        self._medication_ongoing = validated
+        self.updated_fields.add(self.__class__.medication_ongoing.fset.__name__)
+
+    @property
+    def was_taken_due_to_medical_history_event(self) -> Optional[bool]:
+        return self._was_taken_due_to_medical_history_event
+
+    @was_taken_due_to_medical_history_event.setter
+    def was_taken_due_to_medical_history_event(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_taken_due_to_medical_history_event.fset.__name__,
+        )
+        self._was_taken_due_to_medical_history_event = validated
+        self.updated_fields.add(
+            self.__class__.was_taken_due_to_medical_history_event.fset.__name__
+        )
+
+    @property
+    def was_taken_due_to_adverse_event(self) -> Optional[bool]:
+        return self._was_taken_due_to_adverse_event
+
+    @was_taken_due_to_adverse_event.setter
+    def was_taken_due_to_adverse_event(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_taken_due_to_adverse_event.fset.__name__,
+        )
+        self._was_taken_due_to_adverse_event = validated
+        self.updated_fields.add(
+            self.__class__.was_taken_due_to_adverse_event.fset.__name__
+        )
+
+    @property
+    def is_adverse_event_ongoing(self) -> Optional[bool]:
+        return self._is_adverse_event_ongoing
+
+    @is_adverse_event_ongoing.setter
+    def is_adverse_event_ongoing(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.is_adverse_event_ongoing.fset.__name__,
+        )
+        self._is_adverse_event_ongoing = validated
+        self.updated_fields.add(self.__class__.is_adverse_event_ongoing.fset.__name__)
+
+    @property
+    def start_date(self) -> Optional[dt.date]:
+        return self._start_date
+
+    @start_date.setter
+    def start_date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.start_date.fset.__name__
+        )
+        self._start_date = validated
+        self.updated_fields.add(self.__class__.start_date.fset.__name__)
+
+    @property
+    def end_date(self) -> Optional[dt.date]:
+        return self._end_date
+
+    @end_date.setter
+    def end_date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.end_date.fset.__name__
+        )
+        self._end_date = validated
+        self.updated_fields.add(self.__class__.end_date.fset.__name__)
+
+    @property
+    def sequence_id(self) -> Optional[int]:
+        return self._sequence_id
+
+    @sequence_id.setter
+    def sequence_id(self, value: Optional[int]) -> None:
+        validated = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.sequence_id.fset.__name__
+        )
+        self._sequence_id = validated
+        self.updated_fields.add(self.__class__.sequence_id.fset.__name__)
+
+    def __repr__(self) -> str:
+        cls = self.__class__.__name__
+        return (
+            f"{cls}("
+            f"patient_id={self.patient_id!r}, "
+            f"medication_name={self.medication_name!r}, "
+            f"was_taken_due_to_medical_history_event={self.was_taken_due_to_medical_history_event!r}, "
+            f"was_taken_due_to_adverse_event={self.was_taken_due_to_adverse_event!r}, "
+            f"is_adverse_event_ongoing={self.is_adverse_event_ongoing!r}, "
+            f"start_date={self.start_date!r}, "
+            f"end_date={self.end_date!r}, "
+            f"sequence_id={self.sequence_id!r}"
+            f")"
+        )
+
+
 class Patient:
     """
     Stores all data for a patient
@@ -927,6 +1063,7 @@ class Patient:
         self._medical_histories: list[MedicalHistory] = []
         self._previous_treatments: list[PreviousTreatments] = []
         self._treatment_cycles: list[TreatmentCycle] = []
+        self._concomitant_medications: list[ConcomitantMedication] = []
 
     # scalars
     @property
@@ -1165,7 +1302,7 @@ class Patient:
             mh._patient_id = self._patient_id
 
         self._medical_histories = items
-        self.updated_fields.add("medical_histories")
+        self.updated_fields.add(self.__class__.medical_histories.fset.__name__)
 
     @property
     def previous_treatments(self) -> tuple[PreviousTreatments, ...]:
@@ -1197,7 +1334,7 @@ class Patient:
             pt._patient_id = self._patient_id
 
         self._previous_treatments = items
-        self.updated_fields.add("previous_treatments")
+        self.updated_fields.add(self.__class__.previous_treatments.fset.__name__)
 
     @property
     def treatment_cycles(self) -> tuple[TreatmentCycle, ...]:
@@ -1227,7 +1364,41 @@ class Patient:
             pt._patient_id = self._patient_id
 
         self._treatment_cycles = items
-        self.updated_fields.add("treatment_cycles")
+        self.updated_fields.add(self.__class__.treatment_cycles.fset.__name__)
+
+    @property
+    def concomitant_medications(self) -> tuple[ConcomitantMedication, ...]:
+        return tuple(self._concomitant_medications)
+
+    @concomitant_medications.setter
+    def concomitant_medications(
+        self, value: Optional[Sequence[ConcomitantMedication]]
+    ) -> None:
+        items: List[ConcomitantMedication]
+        if value is None:
+            items = []
+
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(
+                    f"Expected Sequence of ConcomitantMedication, got {type(value)}"
+                )
+
+            wrong_type = [
+                type(x) for x in value if not isinstance(x, ConcomitantMedication)
+            ]
+            if wrong_type:
+                raise TypeError(
+                    f"All elements should be of type ConcomitantMedication, got {wrong_type}"
+                )
+
+            items = list(value)
+
+        for pt in items:
+            pt._patient_id = self._patient_id
+
+        self._concomitant_medications = items
+        self.updated_fields.add(self.__class__.concomitant_medications.fset.__name__)
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
@@ -1250,6 +1421,7 @@ class Patient:
             f"medical_histories={self.medical_histories} \n"
             f"previous_treatments={self.previous_treatments} \n"
             f"treatment_cycles={self.treatment_cycles} \n"
+            f"concomitant_medications={self.concomitant_medications} \n"
         )
 
 

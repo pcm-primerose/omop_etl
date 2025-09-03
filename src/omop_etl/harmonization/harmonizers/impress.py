@@ -21,6 +21,7 @@ from omop_etl.harmonization.datamodels import (
     MedicalHistory,
     PreviousTreatments,
     TreatmentCycle,
+    ConcomitantMedication,
 )
 from omop_etl.harmonization.utils import detect_paired_field_collisions
 
@@ -49,6 +50,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_treatment_stop_date()
         self._process_start_last_cycle()
         self._process_treatment_cycle()
+        self._process_concomitant_medication()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -746,7 +748,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             return filtered_data
 
-        def merge_medical_history(
+        def merge_previous_treatments(
             base: pl.DataFrame, processed: pl.DataFrame
         ) -> pl.DataFrame:
             subjects = base.select("SubjectId").unique()
@@ -767,7 +769,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             return _merged
 
         filtered = filter_previous_treatments(ct_base)
-        merged = merge_medical_history(base=ct_base, processed=filtered)
+        merged = merge_previous_treatments(base=ct_base, processed=filtered)
 
         # pack
         packed = self.pack_structs(
@@ -784,7 +786,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             order_by_cols=["sequence_id", "start_date"],
         )
 
-        # build mh objects
         def build_ct(pid: str, s: Mapping[str, Any]) -> PreviousTreatments:
             obj = PreviousTreatments(pid)
             obj.treatment = s["treatment"]
@@ -795,7 +796,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             obj.additional_treatment = s["additional_treatment"]
             return obj
 
-        # hydrate to Patient class
         self.hydrate_list_field(
             packed,
             builder=build_ct,
@@ -1113,17 +1113,75 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     def _process_concomitant_medication(self):
-        treatment_lines_data = self.data.select(
+        cm_base = self.data.select(
             "SubjectId",
-            "CT_CTTYPE",
-            "CT_CTTYPECD",
-            "CT_CTSPID",
-            "CT_CTSTDAT",
-            "CT_CTENDAT",
-            "CT_CTTYPESP",
-        ).filter((pl.col("CT_CTTYPE") is not None))
+            "CM_CMTRT",
+            "CM_CMMHYNCD",
+            "CM_CMAEYN",
+            "CM_CMONGOCD",
+            "CM_CMSTDAT",
+            "CM_CMENDAT",
+            "CM_CMSPID",
+        )
 
-        # probs collection as well?
+        # basically exactly the same as previous treatments
+        def filter_concomitant_data(frame: pl.DataFrame) -> pl.DataFrame:
+            filtered_data = frame.with_columns(
+                medication_name=PolarsParsers.null_if_na(pl.col("CM_CMTRT"))
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars(),
+                medication_ongoing=PolarsParsers.int01_to_bool(pl.col("CM_CMONGOCD")),
+                was_taken_due_to_medical_history_event=PolarsParsers.int01_to_bool(
+                    pl.col("CM_CMMHYNCD")
+                ),
+                was_taken_due_to_adverse_event=PolarsParsers.yes_no_to_bool(
+                    pl.col("CM_CMAEYN")
+                ),
+                is_adverse_event_ongoing=PolarsParsers.int01_to_bool(
+                    pl.col("CM_CMONGOCD")
+                ),
+                start_date=PolarsParsers.parse_date_column(pl.col("CM_CMSTDAT")),
+                end_date=PolarsParsers.parse_date_column(pl.col("CM_CMENDAT")),
+                sequence_id=pl.col("CM_CMSPID").cast(pl.Int16, strict=False),
+            ).filter(pl.col("CM_CMTRT").is_not_null())
+
+            return filtered_data
+
+        filtered = filter_concomitant_data(cm_base)
+        print(f"filtered CM {filtered}")
+
+        # todo look at other class, see why missing
+
+        # pack
+        # todo: might need to add skip on subject_col in helper
+        packed = self.pack_structs(
+            filtered,
+            subject_col="SubjectId",
+            value_cols=filtered.columns,
+            order_by_cols=["sequence_id", "start_date"],
+        )
+
+        def build_cm(pid: str, s: Mapping[str, Any]) -> ConcomitantMedication:
+            obj = ConcomitantMedication(pid)
+            obj.medication_name = s["medication_name"]
+            obj.medication_ongoing = s["medication_ongoing"]
+            obj.was_taken_due_to_medical_history_event = s[
+                "was_taken_due_to_medical_history_event"
+            ]
+            obj.was_taken_due_to_adverse_event = s["was_taken_due_to_adverse_event"]
+            obj.is_adverse_event_ongoing = s["is_adverse_event_ongoing"]
+            obj.start_date = s["start_date"]
+            obj.end_date = s["end_date"]
+            obj.sequence_id = s["sequence_id"]
+            return obj
+
+        self.hydrate_list_field(
+            packed,
+            builder=build_cm,
+            patients=self.patient_data,
+            target_attr="concomitant_medications",
+            skip_missing=False,
+        )
 
     def _process_adverse_events(self):
         # collapse AE to one class, probs same approach as collection classes
