@@ -1032,6 +1032,45 @@ class ConcomitantMedication:
         )
 
 
+"""
+Scalars:
+    - has_any_adverse_events: Optional[bool] = None (if patient ID in AE, then yes) 
+    - number_of_adverse_events: Optional[int] = None (count rows in AE for patient) 
+    - number_of_serious_adverse_events: Optional[int] = None (count rows with date in AE_AESERCD per patient) 
+    
+In collection: 
+    - term: (AE_AECTCAET) 
+    - outcome: (AE_AEOUT) 
+    - worst_grade_of_event: Optional[int] = None (group on (patient id, term) agg to find highest grade (int): AE_AETOXGRECD) 
+        - they only want grade >= 3, if doing this filtering, reanme to more descriptive var 
+        - but then they also said include all AEs, we can easily query for grades later 
+    - was_serious: Optional[bool] = None (AE_AESERCD, 1/0 to bool) 
+    - turned_serious_date: Optional[dt.date] = None (AE_SAESTDAT)
+    - related_to_treatment_1_status: Optional[str] = None (AE_AEREL1) 
+        - this is not a bool, but 1-4 grades of relatedness (not related, unlikely related, possibly related, related) 
+            - could conver to bool: only related True. If convertign to no/unknown/yes, might as well store raw data. 
+    - treatment_1_name: Optional[str] = None (AE_AETRT1) 
+        - check (SD1, TR_TRNAME) and log if there is a mismatch? 
+    - related_to_treatment_2_status: Optional[str] = None (AE_AEREL2)
+    - treatment_2_name: Optional[str] = None (AE_AETRT2)   
+        - check (SD2, TR_TRNAME) and log if there is a mismatch? 
+    - was_serious_grade_expected_for_treatment_1: Optional[bool] = None (AE_SAEEXP1CD, 1 = True, 2 = False) 
+    - was_serious_grade_expected_for_treatment_2: Optional[bool] = None (AE_SAEEXP2CD, 1 = True, 2 = False) 
+    - start_date: (AE_AESTDAT) 
+    - end_date: (AE_AEENDAT) 
+        - if AE became severe and no end-date and patient died: use FU_FUPDEDAT as end_date
+"""
+
+
+class AdverseEvents:
+    def __init__(self, patient_id: str):
+        self._patient_id = patient_id
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
+
+
 class Patient:
     """
     Stores all data for a patient
@@ -1051,6 +1090,9 @@ class Patient:
         self._treatment_end_date: Optional[dt.date] = None
         self._treatment_start_last_cycle: Optional[dt.date] = None
         self._date_of_death: Optional[dt.date] = None
+        self._has_any_adverse_events: Optional[bool] = None
+        self._number_of_adverse_events: Optional[int] = None
+        self._number_of_serious_adverse_events: Optional[int] = None
 
         # singletons
         self._tumor_type: Optional[TumorType] = None
@@ -1188,6 +1230,43 @@ class Patient:
             field_name=self.__class__.treatment_start_last_cycle.fset.__name__,
         )
         self.updated_fields.add(self.__class__.treatment_start_last_cycle.fset.__name__)
+
+    @property
+    def has_any_adverse_events(self) -> Optional[bool]:
+        return self._has_any_adverse_events
+
+    @has_any_adverse_events.setter
+    def has_any_adverse_events(self, value: Optional[bool]) -> None:
+        self._has_any_adverse_events = StrictValidators.validate_optional_bool(
+            value=value, field_name=self.__class__.has_any_adverse_events.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.has_any_adverse_events.fset.__name__)
+
+    @property
+    def number_of_adverse_events(self) -> Optional[int]:
+        return self._number_of_adverse_events
+
+    @number_of_adverse_events.setter
+    def number_of_adverse_events(self, value: Optional[int]) -> None:
+        self._number_of_adverse_events = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.number_of_adverse_events.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.has_any_adverse_events.fset.__name__)
+
+    @property
+    def number_of_serious_adverse_events(self) -> Optional[int]:
+        return self._number_of_adverse_events
+
+    @number_of_serious_adverse_events.setter
+    def number_of_serious_adverse_events(self, value: Optional[int]) -> None:
+        self._number_of_adverse_events = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.number_of_serious_adverse_events.fset.__name__,
+        )
+        self.updated_fields.add(
+            self.__class__.number_of_serious_adverse_events.fset.__name__
+        )
 
     # singletons
     @property

@@ -2,6 +2,8 @@
 from collections import defaultdict
 from typing import Optional, List, Dict, Mapping, Any
 from warnings import deprecated
+
+import polars
 import polars as pl
 import datetime as dt
 from logging import getLogger
@@ -51,6 +53,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_start_last_cycle()
         self._process_treatment_cycle()
         self._process_concomitant_medication()
+        self._process_has_any_adverse_events()
+        self._process_number_of_adverse_events()
+        self._process_number_of_serious_adverse_events()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -359,6 +364,35 @@ class ImpressHarmonizer(BaseHarmonizer):
                 death_date = None
 
             self.patient_data[patient_id].date_of_death = death_date
+
+    def _process_has_any_adverse_events(self) -> None:
+        ae_status = self.data.select(
+            pl.col("SubjectId"), pl.col("AE_AESTDAT")
+        ).with_columns(
+            has_ae=pl.when(pl.col("AE_AESTDAT").is_not_null())
+            .then(True)
+            .otherwise(False)
+            .cast(pl.Boolean)
+        )
+
+        for row in ae_status.iter_rows(named=True):
+            pid = row["SubjectId"]
+            if pid in self.patient_data:
+                print(f"{pid}: {row}")
+                self.patient_data[pid].has_any_adverse_events = row["has_ae"]
+
+    def _process_number_of_adverse_events(self) -> None:
+        ae_data = self.data.select(pl.col("SubjectId"), pl.col("AE_")).filter(
+            pl.col("SubjectId").is_not_null()
+        )
+
+        result = ae_data.group_by("SubjectId").agg(
+            pl.col("item").count().alias("item_count"),
+            pl.col("value").count().alias("value_count"),
+        )
+
+    def _process_number_of_serious_adverse_events(self) -> None:
+        pass
 
     def _process_date_lost_to_followup(self) -> None:
         """Process lost to follow-up status and date from follow-up data"""
@@ -1062,8 +1096,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         iv_cycle_end_dates = add_iv_cycle_stop_dates(treatment_typed)
         combined_end_dates = coalesce_cycle_ends(iv_cycle_end_dates)
         filtered = filter_parse_treatment_cycles(combined_end_dates)
-        for row in filtered.iter_rows():
-            print(f"filtered row: {row} \n")
 
         # pack to structs grouped by SubjectId
         packed = self.pack_structs(
@@ -1124,7 +1156,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             "CM_CMSPID",
         )
 
-        # basically exactly the same as previous treatments
         def filter_concomitant_data(frame: pl.DataFrame) -> pl.DataFrame:
             filtered_data = frame.with_columns(
                 medication_name=PolarsParsers.null_if_na(pl.col("CM_CMTRT"))
@@ -1148,12 +1179,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             return filtered_data
 
         filtered = filter_concomitant_data(cm_base)
-        print(f"filtered CM {filtered}")
 
-        # todo look at other class, see why missing
-
-        # pack
-        # todo: might need to add skip on subject_col in helper
         packed = self.pack_structs(
             filtered,
             subject_col="SubjectId",
@@ -1184,7 +1210,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     def _process_adverse_events(self):
-        # collapse AE to one class, probs same approach as collection classes
+        # implement dm
         pass
 
     def _process_tumor_assessments(self):
