@@ -393,7 +393,18 @@ class ImpressHarmonizer(BaseHarmonizer):
                 self.patient_data[pid].number_of_adverse_events = row["ae_number"]
 
     def _process_number_of_serious_adverse_events(self) -> None:
-        pass
+        ae_num = (
+            self.data.select(pl.col("SubjectId"), pl.col("AE_SAESTDAT"))
+            .group_by("SubjectId")
+            .agg(pl.col("AE_SAESTDAT").count().alias("sae_number"))
+        )
+
+        for row in ae_num.iter_rows(named=True):
+            pid = row["SubjectId"]
+            if pid in self.patient_data:
+                self.patient_data[pid].number_of_serious_adverse_events = row[
+                    "sae_number"
+                ]
 
     def _process_date_lost_to_followup(self) -> None:
         """Process lost to follow-up status and date from follow-up data"""
