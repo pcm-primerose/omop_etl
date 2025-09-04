@@ -24,6 +24,7 @@ from omop_etl.harmonization.datamodels import (
     PreviousTreatments,
     TreatmentCycle,
     ConcomitantMedication,
+    AdverseEvents,
 )
 from omop_etl.harmonization.utils import detect_paired_field_collisions
 
@@ -56,6 +57,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_has_any_adverse_events()
         self._process_number_of_adverse_events()
         self._process_number_of_serious_adverse_events()
+        self._process_adverse_events()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -1304,9 +1306,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     In collection: 
         - term: (AE_AECTCAET) 
         - outcome: (AE_AEOUT) 
-        - worst_grade_of_event: Optional[int] = None (group on (patient id, term) agg to find highest grade (int): AE_AETOXGRECD) 
-            - they only want grade >= 3, if doing this filtering, reanme to more descriptive var 
-            - but then they also said include all AEs, we can easily query for grades later 
+        - grade: (AE_AETOXGRECD) 
         - was_serious: Optional[bool] = None (AE_AESERCD, 1/0 to bool) 
         - turned_serious_date: Optional[dt.date] = None (AE_SAESTDAT)
         - related_to_treatment_1_status: Optional[str] = None (AE_AEREL1) 
@@ -1324,21 +1324,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             - if AE became severe and no end-date and patient died: use FU_FUPDEDAT as end_date
     """
 
-    # self._term: Optional[str] = None
-    # self._grade: Optional[int] = None
-    # self._outcome: Optional[str] = None
-    # self._start_date: Optional[dt.date] = None
-    # self._end_date: Optional[dt.date] = None
-    # self._was_serious: Optional[bool] = None
-    # self._turned_serious_date: Optional[dt.date] = None
-    # self._related_to_treatment_1_status: Optional[bool] = None
-    # self._treatment_1_name: Optional[str] = None
-    # self._related_to_treatment_2_status: Optional[bool] = None
-    # self._treatment_2_name: Optional[str] = None
-    # self._was_serious_grade_expected_treatment_1: Optional[bool] = None
-    # self._was_serious_grade_expected_treatment_2: Optional[bool] = None
-    # self.updated_fields: Set[str] = set()
     def _process_adverse_events(self) -> None:
+        """
+        Was relateed to treatment 1/2 is parsed to True, False, None
+        """
         ae_base = self.data.select(
             "SubjectId",
             "AE_AECTCAET",
@@ -1346,36 +1335,123 @@ class ImpressHarmonizer(BaseHarmonizer):
             "AE_AEOUT",
             "AE_AESTDAT",
             "AE_AEENDAT",
-            "AE_AESERCD",
             "AE_SAESTDAT",
             "AE_AEREL1",
             "AE_AETRT1",
             "AE_AEREL2",
             "AE_AETRT2",
+            "AE_AESERCD",
             "AE_SAEEXP1CD",
             "AE_SAEEXP2CD",
             "FU_FUPDEDAT",
             "TR_TRNAME",
             "TR_TRTNO",
-        )
+        ).filter(pl.col("AE_AECTCAET").str.strip_chars().is_not_null())
+
+        # TODO fix:
+        #  - related status 1 & 2 is None for all data, does not work.
+        #  - fallback to FU date of death does not work;
+        #    a duplicate column is made instead, or at least the final datamodel has duplicate fields: end_date=None, end_date=None,
+        #    if the original end date is None (works if not None)
 
         def parse_events(frame: pl.DataFrame) -> pl.DataFrame:
-            parsed = frame.with_columns(
+            _parsed = frame.with_columns(
                 start_date=PolarsParsers.parse_date_column(pl.col("AE_AESTDAT")),
                 end_date=PolarsParsers.parse_date_column(pl.col("AE_AEENDAT")),
                 serious_date=PolarsParsers.parse_date_column(pl.col("AE_SAESTDAT")),
+                was_serious=PolarsParsers.int_to_bool(
+                    true_int=1,
+                    false_int=0,
+                    expr=pl.col("AE_AESERCD").cast(pl.Int8, strict=False),
+                ),
                 ser_expected_treatment_1=PolarsParsers.int_to_bool(
-                    pl.col("AE_SAEEXP1CD")
+                    true_int=1,
+                    false_int=2,
+                    expr=pl.col("AE_SAEEXP1CD").cast(pl.Int8, strict=False),
                 ),
                 ser_expected_treatment_2=PolarsParsers.int_to_bool(
-                    pl.col("AE_SAEEXP2CD")
+                    true_int=1,
+                    false_int=2,
+                    expr=pl.col("AE_SAEEXP2CD").cast(pl.Int8, strict=False),
+                ),
+                ae_rel_code_1=pl.col("AE_AEREL1").cast(pl.Int8, strict=False),
+                ae_rel_code_2=pl.col("AE_AEREL2").cast(pl.Int8, strict=False),
+            ).with_columns(
+                related_status_1=(
+                    pl.when(pl.col("ae_rel_code_1") == 4)
+                    .then(pl.lit("related"))
+                    .when(pl.col("ae_rel_code_1") == 1)
+                    .then(pl.lit("not_related"))
+                    .when(pl.col("ae_rel_code_1").is_in([2, 3]))
+                    .then(pl.lit("unknown"))
+                    .otherwise(pl.lit(None, dtype=pl.Utf8))
+                    .cast(pl.Categorical)
+                ),
+                related_status_2=(
+                    pl.when(pl.col("ae_rel_code_2") == 4)
+                    .then(pl.lit("related"))
+                    .when(pl.col("ae_rel_code_2") == 1)
+                    .then(pl.lit("not_related"))
+                    .when(pl.col("ae_rel_code_2").is_in([2, 3]))
+                    .then(pl.lit("unknown"))
+                    .otherwise(pl.lit(None, dtype=pl.Utf8))
+                    .cast(pl.Categorical)
                 ),
             )
-            return parsed
+            return _parsed
 
-        def process_events(frame: pl.DataFrame) -> pl.DataFrame:
-            processed = frame.with_columns()
-            return processed
+        def locate_end_date_for_deceased(frame: pl.DataFrame) -> pl.DataFrame:
+            # if patient had event turned serious and died, and event has no end date,
+            # check FU_FUPALDAT to set end date of event to date of death
+            # todo: think this works, add test
+            #   - just make sure None col works since replacing None in existin col
+            #   - and that I don't overwrite existing dates
+            end_date_frame = (
+                frame.with_columns(
+                    has_no_end_date=pl.col("AE_AEENDAT").str.len_bytes() == 0
+                )
+                .with_columns(has_death_date=pl.col("FU_FUPDEDAT").str.len_bytes() != 0)
+                .with_columns(
+                    end_date=pl.when(
+                        pl.col("was_serious")
+                        & pl.col("has_death_date")
+                        & pl.col("has_no_end_date")
+                    )
+                    .then("FU_FUPDEDAT")
+                    .otherwise(None)
+                )
+            )
+            return end_date_frame
+
+        parsed = parse_events(ae_base)
+        annot = locate_end_date_for_deceased(parsed)
+
+        packed = self.pack_structs(df=annot, value_cols=annot.columns)
+
+        def build_ae(pid: str, s: Mapping[str, Any]) -> AdverseEvents:
+            obj = AdverseEvents(pid)
+            obj.term = s["AE_AECTCAET"]
+            obj.grade = s["AE_AETOXGRECD"]
+            obj.outcome = s["AE_AEOUT"]
+            obj.was_serious = s["was_serious"]
+            obj.turned_serious_date = s["serious_date"]
+            obj.related_to_treatment_1_status = s["related_status_1"]
+            obj.related_to_treatment_2_status = s["related_status_2"]
+            obj.was_serious_grade_expected_treatment_1 = s["ser_expected_treatment_1"]
+            obj.was_serious_grade_expected_treatment_2 = s["ser_expected_treatment_2"]
+            obj.treatment_1_name = s["AE_AETRT1"]
+            obj.treatment_2_name = s["AE_AETRT2"]
+            obj.start_date = s["start_date"]
+            obj.end_date = s["end_date"]
+            return obj
+
+        self.hydrate_list_field(
+            patients=self.patient_data,
+            packed=packed,
+            builder=build_ae,
+            skip_missing=False,
+            target_attr="adverse_events",
+        )
 
     def _process_tumor_assessments(self):
         # collapse tumor assessments as well, probs collection
@@ -1384,6 +1460,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         # or add bool flag to set baseline, idk if same fields yet
         pass
 
-    # then it's just best overall response, clinical benefit, EOT reason and date
-    # then the questionnaries
-    # then it's done
+    # then it's just best overall response, clinical benefit, EOT reason/date
+    # then the questionnaries (ez, just structure)
+    # then it's DONE!

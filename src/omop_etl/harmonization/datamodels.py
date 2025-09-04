@@ -1,5 +1,5 @@
 # harmoinzation/datamodels.py
-
+from enum import Enum
 from typing import List, Optional, Set, Sequence
 from dataclasses import dataclass, field
 import datetime as dt
@@ -1032,6 +1032,12 @@ class ConcomitantMedication:
         )
 
 
+class RelatedStatus(str, Enum):
+    RELATED = "related"  # code 4
+    NOT_RELATED = "not_related"  # code 1
+    UNKNOWN = "unknown"
+
+
 class AdverseEvents:
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -1042,9 +1048,9 @@ class AdverseEvents:
         self._end_date: Optional[dt.date] = None
         self._was_serious: Optional[bool] = None
         self._turned_serious_date: Optional[dt.date] = None
-        self._related_to_treatment_1_status: Optional[bool] = None
+        self._related_to_treatment_1_status: Optional[RelatedStatus] = None
         self._treatment_1_name: Optional[str] = None
-        self._related_to_treatment_2_status: Optional[bool] = None
+        self._related_to_treatment_2_status: Optional[RelatedStatus] = None
         self._treatment_2_name: Optional[str] = None
         self._was_serious_grade_expected_treatment_1: Optional[bool] = None
         self._was_serious_grade_expected_treatment_2: Optional[bool] = None
@@ -1139,11 +1145,11 @@ class AdverseEvents:
         self.updated_fields.add(self.__class__.turned_serious_date.fset.__name__)
 
     @property
-    def related_to_treatment_1_status(self) -> Optional[bool]:
+    def related_to_treatment_1_status(self) -> Optional[RelatedStatus]:
         return self._related_to_treatment_1_status
 
     @related_to_treatment_1_status.setter
-    def related_to_treatment_1_status(self, value: Optional[bool]) -> None:
+    def related_to_treatment_1_status(self, value: Optional[RelatedStatus]) -> None:
         validated = StrictValidators.validate_optional_bool(
             value=value,
             field_name=self.__class__.related_to_treatment_1_status.fset.__name__,
@@ -1166,11 +1172,11 @@ class AdverseEvents:
         self.updated_fields.add(self.__class__.treatment_1_name.fset.__name__)
 
     @property
-    def related_to_treatment_2_status(self) -> Optional[bool]:
+    def related_to_treatment_2_status(self) -> Optional[RelatedStatus]:
         return self._related_to_treatment_2_status
 
     @related_to_treatment_2_status.setter
-    def related_to_treatment_2_status(self, value: Optional[bool]) -> None:
+    def related_to_treatment_2_status(self, value: Optional[RelatedStatus]) -> None:
         validated = StrictValidators.validate_optional_bool(
             value=value,
             field_name=self.__class__.related_to_treatment_2_status.fset.__name__,
@@ -1280,6 +1286,7 @@ class Patient:
         self._previous_treatments: list[PreviousTreatments] = []
         self._treatment_cycles: list[TreatmentCycle] = []
         self._concomitant_medications: list[ConcomitantMedication] = []
+        self._adverse_events: list[AdverseEvents] = []
 
     # scalars
     @property
@@ -1653,6 +1660,36 @@ class Patient:
         self._concomitant_medications = items
         self.updated_fields.add(self.__class__.concomitant_medications.fset.__name__)
 
+    @property
+    def adverse_events(self) -> tuple[AdverseEvents, ...]:
+        return tuple(self._adverse_events)
+
+    @adverse_events.setter
+    def adverse_events(self, value: Optional[Sequence[AdverseEvents]]) -> None:
+        items: List[AdverseEvents]
+        if value is None:
+            items = []
+
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(
+                    f"Expected Sequence of AdverseEvents, got {type(value)}"
+                )
+
+            wrong_type = [type(x) for x in value if not isinstance(x, AdverseEvents)]
+            if wrong_type:
+                raise TypeError(
+                    f"All elements should be of type AdverseEvents, got {wrong_type}"
+                )
+
+            items = list(value)
+
+        for pt in items:
+            pt._patient_id = self._patient_id
+
+        self._adverse_events = items
+        self.updated_fields.add(self.__class__.adverse_events.fset.__name__)
+
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
 
@@ -1678,6 +1715,7 @@ class Patient:
             f"previous_treatments={self.previous_treatments} \n"
             f"treatment_cycles={self.treatment_cycles} \n"
             f"concomitant_medications={self.concomitant_medications} \n"
+            f"adverse_events={self.adverse_events} \n"
         )
 
 
