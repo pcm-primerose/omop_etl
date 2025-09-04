@@ -1402,31 +1402,25 @@ class ImpressHarmonizer(BaseHarmonizer):
             return _parsed
 
         def locate_end_date_for_deceased(frame: pl.DataFrame) -> pl.DataFrame:
-            # if patient had event turned serious and died, and event has no end date,
-            # check FU_FUPALDAT to set end date of event to date of death
-            # todo: think this works, add test
-            #   - just make sure None col works since replacing None in existin col
-            #   - and that I don't overwrite existing dates
             end_date_frame = (
                 frame.with_columns(
-                    has_no_end_date=pl.col("AE_AEENDAT").str.len_bytes() == 0
+                    death_date=PolarsParsers.parse_date_column(pl.col("FU_FUPDEDAT"))
                 )
-                .with_columns(has_death_date=pl.col("FU_FUPDEDAT").str.len_bytes() != 0)
                 .with_columns(
                     end_date=pl.when(
-                        pl.col("was_serious")
-                        & pl.col("has_death_date")
-                        & pl.col("has_no_end_date")
+                        pl.col("end_date").is_null()
+                        & pl.col("was_serious").fill_null(False)
+                        & pl.col("death_date").is_not_null()
                     )
-                    .then("FU_FUPDEDAT")
-                    .otherwise(None)
+                    .then(pl.col("death_date"))
+                    .otherwise(pl.col("end_date"))
                 )
+                .drop("death_date")
             )
             return end_date_frame
 
         parsed = parse_events(ae_base)
         annot = locate_end_date_for_deceased(parsed)
-
         packed = self.pack_structs(df=annot, value_cols=annot.columns)
 
         def build_ae(pid: str, s: Mapping[str, Any]) -> AdverseEvents:
