@@ -551,11 +551,11 @@ def test_serious_adverse_event_number(serious_adverse_event_number_fixture):
     p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
     p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
 
-    assert p1.number_of_adverse_events == 1
-    assert p2.number_of_adverse_events == 2
-    assert p3.number_of_adverse_events == 1
-    assert p4.number_of_adverse_events == 0
-    assert p5.number_of_adverse_events == 0
+    assert p1.number_of_serious_adverse_events == 1
+    assert p2.number_of_serious_adverse_events == 2
+    assert p3.number_of_serious_adverse_events == 1
+    assert p4.number_of_serious_adverse_events == 0
+    assert p5.number_of_serious_adverse_events == 0
 
 
 # def test_serious_adverse_events_number(serious_adverse_events_fixture):

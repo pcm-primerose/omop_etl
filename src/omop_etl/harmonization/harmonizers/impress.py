@@ -1167,17 +1167,17 @@ class ImpressHarmonizer(BaseHarmonizer):
         def filter_parse_treatment_cycles(frame: pl.DataFrame) -> pl.DataFrame:
             filtered_data = frame.with_columns(
                 cycle_start_date=PolarsParsers.parse_date_column(pl.col("TR_TRC1_DT")),
-                recieved_treatment_this_cycle=PolarsParsers.int01_to_bool(
-                    pl.col("TR_TRCYNCD")
+                recieved_treatment_this_cycle=PolarsParsers.int_to_bool(
+                    true_int=1, false_int=0, expr=pl.col("TR_TRCYNCD")
                 ),
                 was_total_dose_delivered=PolarsParsers.yes_no_to_bool(
                     pl.col("TR_TRIVDELYN1")
                 ),
-                was_dose_administered_to_spec=PolarsParsers.int01_to_bool(
-                    pl.col("TR_TRO_YNCD")
+                was_dose_administered_to_spec=PolarsParsers.int_to_bool(
+                    true_int=1, false_int=0, expr=pl.col("TR_TRO_YNCD")
                 ),
-                was_tablet_taken_to_prescription_in_previous_cycle=PolarsParsers.int01_to_bool(
-                    pl.col("TR_TROTAKECD")
+                was_tablet_taken_to_prescription_in_previous_cycle=PolarsParsers.int_to_bool(
+                    true_int=1, false_int=0, expr=pl.col("TR_TROTAKECD")
                 ),
             ).filter(pl.col("TR_TRNAME").is_not_null())
 
@@ -1235,7 +1235,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
         )
 
-    def _process_concomitant_medication(self):
+    def _process_concomitant_medication(self) -> None:
         cm_base = self.data.select(
             "SubjectId",
             "CM_CMTRT",
@@ -1252,15 +1252,15 @@ class ImpressHarmonizer(BaseHarmonizer):
                 medication_name=PolarsParsers.null_if_na(pl.col("CM_CMTRT"))
                 .cast(pl.Utf8, strict=False)
                 .str.strip_chars(),
-                medication_ongoing=PolarsParsers.int01_to_bool(pl.col("CM_CMONGOCD")),
-                was_taken_due_to_medical_history_event=PolarsParsers.int01_to_bool(
-                    pl.col("CM_CMMHYNCD")
+                medication_ongoing=PolarsParsers.int_to_bool(pl.col("CM_CMONGOCD")),
+                was_taken_due_to_medical_history_event=PolarsParsers.int_to_bool(
+                    true_int=1, false_int=0, expr=pl.col("CM_CMMHYNCD")
                 ),
                 was_taken_due_to_adverse_event=PolarsParsers.yes_no_to_bool(
                     pl.col("CM_CMAEYN")
                 ),
-                is_adverse_event_ongoing=PolarsParsers.int01_to_bool(
-                    pl.col("CM_CMONGOCD")
+                is_adverse_event_ongoing=PolarsParsers.int_to_bool(
+                    true_int=1, false_int=0, expr=pl.col("CM_CMONGOCD")
                 ),
                 start_date=PolarsParsers.parse_date_column(pl.col("CM_CMSTDAT")),
                 end_date=PolarsParsers.parse_date_column(pl.col("CM_CMENDAT")),
@@ -1300,6 +1300,30 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
         )
 
+    """
+    In collection: 
+        - term: (AE_AECTCAET) 
+        - outcome: (AE_AEOUT) 
+        - worst_grade_of_event: Optional[int] = None (group on (patient id, term) agg to find highest grade (int): AE_AETOXGRECD) 
+            - they only want grade >= 3, if doing this filtering, reanme to more descriptive var 
+            - but then they also said include all AEs, we can easily query for grades later 
+        - was_serious: Optional[bool] = None (AE_AESERCD, 1/0 to bool) 
+        - turned_serious_date: Optional[dt.date] = None (AE_SAESTDAT)
+        - related_to_treatment_1_status: Optional[str] = None (AE_AEREL1) 
+            - this is not a bool, but 1-4 grades of relatedness (not related, unlikely related, possibly related, related) 
+                - could conver to bool: only related True. If convertign to no/unknown/yes, might as well store raw data. 
+        - treatment_1_name: Optional[str] = None (AE_AETRT1) 
+            - check (SD1, TR_TRNAME) and log if there is a mismatch? 
+        - related_to_treatment_2_status: Optional[str] = None (AE_AEREL2)
+        - treatment_2_name: Optional[str] = None (AE_AETRT2)   
+            - check (SD2, TR_TRNAME) and log if there is a mismatch? 
+        - was_serious_grade_expected_for_treatment_1: Optional[bool] = None (AE_SAEEXP1CD, 1 = True, 2 = False) 
+        - was_serious_grade_expected_for_treatment_2: Optional[bool] = None (AE_SAEEXP2CD, 1 = True, 2 = False) 
+        - start_date: (AE_AESTDAT) 
+        - end_date: (AE_AEENDAT) 
+            - if AE became severe and no end-date and patient died: use FU_FUPDEDAT as end_date
+    """
+
     # self._term: Optional[str] = None
     # self._grade: Optional[int] = None
     # self._outcome: Optional[str] = None
@@ -1314,9 +1338,44 @@ class ImpressHarmonizer(BaseHarmonizer):
     # self._was_serious_grade_expected_treatment_1: Optional[bool] = None
     # self._was_serious_grade_expected_treatment_2: Optional[bool] = None
     # self.updated_fields: Set[str] = set()
-    def _process_adverse_events(self):
-        # implement dm
-        pass
+    def _process_adverse_events(self) -> None:
+        ae_base = self.data.select(
+            "SubjectId",
+            "AE_AECTCAET",
+            "AE_AETOXGRECD",
+            "AE_AEOUT",
+            "AE_AESTDAT",
+            "AE_AEENDAT",
+            "AE_AESERCD",
+            "AE_SAESTDAT",
+            "AE_AEREL1",
+            "AE_AETRT1",
+            "AE_AEREL2",
+            "AE_AETRT2",
+            "AE_SAEEXP1CD",
+            "AE_SAEEXP2CD",
+            "FU_FUPDEDAT",
+            "TR_TRNAME",
+            "TR_TRTNO",
+        )
+
+        def parse_events(frame: pl.DataFrame) -> pl.DataFrame:
+            parsed = frame.with_columns(
+                start_date=PolarsParsers.parse_date_column(pl.col("AE_AESTDAT")),
+                end_date=PolarsParsers.parse_date_column(pl.col("AE_AEENDAT")),
+                serious_date=PolarsParsers.parse_date_column(pl.col("AE_SAESTDAT")),
+                ser_expected_treatment_1=PolarsParsers.int_to_bool(
+                    pl.col("AE_SAEEXP1CD")
+                ),
+                ser_expected_treatment_2=PolarsParsers.int_to_bool(
+                    pl.col("AE_SAEEXP2CD")
+                ),
+            )
+            return parsed
+
+        def process_events(frame: pl.DataFrame) -> pl.DataFrame:
+            processed = frame.with_columns()
+            return processed
 
     def _process_tumor_assessments(self):
         # collapse tumor assessments as well, probs collection

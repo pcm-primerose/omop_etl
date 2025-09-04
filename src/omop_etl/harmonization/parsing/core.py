@@ -268,12 +268,14 @@ class PolarsParsers:
         )
 
     @staticmethod
-    def int01_to_bool(expr: pl.Expr) -> pl.Expr:
+    def int_to_bool(
+        expr: pl.Expr, true_int: Optional[int] = None, false_int: Optional[int] = None
+    ) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
         return (
-            pl.when(e == 1)
+            pl.when(e == true_int)
             .then(True)
-            .when(e == 0)
+            .when(e == false_int)
             .then(False)
             .otherwise(None)
             .cast(pl.Boolean)
