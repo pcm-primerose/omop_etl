@@ -1302,32 +1302,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
         )
 
-    """
-    In collection: 
-        - term: (AE_AECTCAET) 
-        - outcome: (AE_AEOUT) 
-        - grade: (AE_AETOXGRECD) 
-        - was_serious: Optional[bool] = None (AE_AESERCD, 1/0 to bool) 
-        - turned_serious_date: Optional[dt.date] = None (AE_SAESTDAT)
-        - related_to_treatment_1_status: Optional[str] = None (AE_AEREL1) 
-            - this is not a bool, but 1-4 grades of relatedness (not related, unlikely related, possibly related, related) 
-                - could conver to bool: only related True. If convertign to no/unknown/yes, might as well store raw data. 
-        - treatment_1_name: Optional[str] = None (AE_AETRT1) 
-            - check (SD1, TR_TRNAME) and log if there is a mismatch? 
-        - related_to_treatment_2_status: Optional[str] = None (AE_AEREL2)
-        - treatment_2_name: Optional[str] = None (AE_AETRT2)   
-            - check (SD2, TR_TRNAME) and log if there is a mismatch? 
-        - was_serious_grade_expected_for_treatment_1: Optional[bool] = None (AE_SAEEXP1CD, 1 = True, 2 = False) 
-        - was_serious_grade_expected_for_treatment_2: Optional[bool] = None (AE_SAEEXP2CD, 1 = True, 2 = False) 
-        - start_date: (AE_AESTDAT) 
-        - end_date: (AE_AEENDAT) 
-            - if AE became severe and no end-date and patient died: use FU_FUPDEDAT as end_date
-    """
-
     def _process_adverse_events(self) -> None:
-        """
-        Was relateed to treatment 1/2 is parsed to True, False, None
-        """
         ae_base = self.data.select(
             "SubjectId",
             "AE_AECTCAET",
@@ -1349,11 +1324,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             "TR_TRNAME",
             "TR_TRTNO",
         ).filter(pl.col("AE_AECTCAET").str.strip_chars().is_not_null())
-
-        # TODO fix:
-        #  - fallback to FU date of death does not work;
-        #    a duplicate column is made instead, or at least the final datamodel has duplicate fields: end_date=None, end_date=None,
-        #    if the original end date is None (works if not None)
 
         def parse_events(frame: pl.DataFrame) -> pl.DataFrame:
             _parsed = frame.with_columns(
@@ -1447,6 +1417,75 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
             target_attr="adverse_events",
         )
+
+    """
+    Type Tumor Assessment	
+    Type of tumor assessment (RECIST, iRECIST, LUAGNO, RANO, AML)	VI, RA	*VI sheet: VITUMA, VITUMA__2, VITUMACD and VITUMA__2CD, 
+    (date => eventDate), VIAMLTYP (CD)                                                                                                                                              
+    *For RECIST / iRECIST (RA sheet) use RAASSESS1 (CD) (Visit 1) and RAASSESS2 (CD) (Visit 2), 
+    EventDate	Character (CODE (CD) - numeric) 	Text // CD - Code from pull down menu (see annex)                     
+    *The following tumor response criteria will be used for this subject (Code), 
+    The following tumor response criteria will be used for this 
+    subject_2 (Code)_2 // VIAMLTYP AMLS response according to  (pull down)                                                                                 
+    *For RECIST, iRECIST: What will be assessed at this visit 1?, 
+    What will be assessed at this visit 2? 	
+    *VITUMA and VITUMA_2 => merge variables in one as observations are additive (VITUMA_2: updates)                                                                          
+    
+    *Note: there will a link between type - date - (eventName) - 
+    Baseline - change baseline - Response assessment.  	
+    *From 31.01.2025 meeting: VITUMA__2 is a var resulting from updating Viedoc, 
+    same var but not overlapping (just merge them to one var in harmonization). Need AML response (VIAMLTYP).                                                                              
+    *Keep RAASSESS1 (Recist)  and RAASSESS2 (iRecist) (Added after workshop) 
+    => there are some patients with change between RECIST and iRECIST.   
+    *VIAMLTP variable indicates the type of response criteria for AML: 
+    ELN (Code 1) stands for European LeukemiaNet and MDS/hypocellular due to 
+    IWG Response criteria (Code 2) International Working Group reponse criteria for acute myeloid leukemia
+    
+    Event date assessment	
+    Date for tumor assessment (YYYY-MM-DD)	RA, RNRSP, LUGRSP, EMLRSP	EventDate	Date 	Date for tumor assessment	Given as date (YYYY-MM-DD)	
+    
+    Baseline evaluation	
+    Sum Size of target lesion at baseline and non-target lesions 	
+    RA, RNRSP, RCNT, RNTMNT	*Target lesions RA: RARECBAS, RARECNAD // EventDate                                                                                                                          
+    *Target lesions RNRSP: TERNTBAS, TERNAD // EventDate                                                                                              
+    *Non-target lesions RCNT sheet: RECiST Non-target lesions at baseline: RCNTNOB, EventName or ActivityId 
+    - (Select EventName == "Visit 1, Week1") or alternatively (ActivityId == "V00TA1"). 
+    // RNTMNT sheet (Rano) Non-target lesions at baseline: RNTMNTNOB for EventName =="Visit 1,Day 1" or ActivityId == "V00TA4" // EventDate                                                                                                                                                                                                      	
+    *Target lesions: RA (RECIST, iRECIST) TL Baseline LD sum, TL NADIR LD sum  // date of assessment (TL baseline, NTL baseline)                                                                             
+    *Target lesions: RANO (RNRSP) SPD baseline visit, NADIR SPD // date of assessment (TL baseline, NTL baseline)      
+    *RECIST//RANO: Number of non-target lesions // EventDate                                                                           		                                                   
+
+    Change from baseline	
+    % change from baseline and new lesions (*Sum size of target lesion at visit and non-target lesions not included, see comments)	
+    RA, RNRSP	*RA sheet (RECIST): RABASECH, RARECCH // EventDate                                                                                                                 
+    *RNRSP sheet (RANO): TERNCFB, TERNCFN // EventDate                                                              
+    *New lesions (RA sheet): RANLBASE, RANLBASECD   
+    //  New lesions (RNRSP sheet): RNRSPNL, RNRSPNLCD, EventDate	
+    RA (RECIST): Numeric // Numeric // Numeric // Numeric // Date // Binary (Yes/no) // Character                                                                           
+    RNRSP (RANO): Numeric // Numeric // Numeric // Numeric // Date // Binary (Yes/no) // Character              
+    *Binary (yes/no), numeric (CD)	*Target lesions: RA (RECIST, iRECIST)  % change from baseline TL, % change from NADIRTL // date of assessment                                                                          
+    *Target lesions: RANO (RNRSP) Change from baseline %, Change from nadir % // date of assessment                             
+    *RECIST / RANO new lesions registered after baseline?                                                                         		
+    *Need confirmation: Do we include non-target lesions and new lesions? 
+    - No, we will include them later if required. 
+    - M: I have included new lesions here as indicates change from baseline.                                                                                             
+    *Discussion: % sum is what is relevant (we can add more details later)                                                                                                
+
+    Response assessment	Response assessment from the type of tumor assessment	
+    RA, RNRSP, LUGRSP	RATIMRES (RATIMRES CD), RAiMOD (RAIMODCD), RAPROGDT, RAiUNPDT, 
+    RNRSPCL (RNRSPCLCD), LUGOVRL(LUGOVRLCD), EventDate	RA (RECIST/iRECIST): Character // Character (CD) // Character // Character  (CD) // Date                                                                   
+    RNRSP (RANO): Character // Character                       
+    LUGOVRL (Lugano - no data): Character // Character Date                     	 
+    RECIST v1.1 (iRECIST) Timepoint response, date of progression RECIST v1.1, 
+    date of unconfirmed progression iRECIST, 
+    RANO - response clinician, LUGANO - Overall response evaluation 	
+    Pull down menu, add date check comments	
+    *how to deal with AML:  
+    - Answer: Omit AML response assessment in the first version of the ETL (only IMPRESS uses this?). 
+    Note: Leave out  (EMLRSP)EMLRESP (haemopoetic): Character // Character                                                                                            
+    *Use EventDate as date and for RECIST / iRECIST progression date (date of image used to assess (sheet RA) 
+    RAPROGDT if available, otherwise EventDate (06.02.2025)                                                                                                     
+    """
 
     def _process_tumor_assessments(self):
         # collapse tumor assessments as well, probs collection
