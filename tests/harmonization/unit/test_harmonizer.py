@@ -34,6 +34,8 @@ from tests.harmonization.fixtures.impress_fixtures import (
     evaluability_fixture,
     ecog_fixture,
     medical_history_fixture,
+    adverse_event_number_fixture,
+    serious_adverse_event_number_fixture,
 )
 
 
@@ -496,6 +498,71 @@ def test_treatment_ends():
 
 def test_last_treatment_start():
     pass
+
+
+def test_treatment_cycles():
+    pass
+
+
+def test_concomitant_medications():
+    pass
+
+
+def test_has_any_adverse_events():
+    pass
+
+
+def test_adverse_event_number(adverse_event_number_fixture):
+    harmonizer = ImpressHarmonizer(
+        data=adverse_event_number_fixture, trial_id="IMPRESS_TEST"
+    )
+    for sid in adverse_event_number_fixture.select("SubjectId").unique().to_series():
+        harmonizer.patient_data[sid] = Patient(patient_id=sid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_number_of_adverse_events()
+
+    p1 = harmonizer.patient_data["IMPRESS-X_0001_1"]
+    p2 = harmonizer.patient_data["IMPRESS-X_0002_1"]
+    p3 = harmonizer.patient_data["IMPRESS-X_0003_1"]
+    p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
+    p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
+
+    assert p1.number_of_adverse_events == 2
+    assert p2.number_of_adverse_events == 3
+    assert p3.number_of_adverse_events == 1
+    assert p4.number_of_adverse_events == 1
+    assert p5.number_of_adverse_events == 0
+
+
+def test_serious_adverse_event_number(serious_adverse_event_number_fixture):
+    harmonizer = ImpressHarmonizer(
+        data=serious_adverse_event_number_fixture, trial_id="IMPRESS_TEST"
+    )
+    for sid in (
+        serious_adverse_event_number_fixture.select("SubjectId").unique().to_series()
+    ):
+        harmonizer.patient_data[sid] = Patient(patient_id=sid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_number_of_serious_adverse_events()
+
+    p1 = harmonizer.patient_data["IMPRESS-X_0001_1"]
+    p2 = harmonizer.patient_data["IMPRESS-X_0002_1"]
+    p3 = harmonizer.patient_data["IMPRESS-X_0003_1"]
+    p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
+    p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
+
+    assert p1.number_of_adverse_events == 1
+    assert p2.number_of_adverse_events == 2
+    assert p3.number_of_adverse_events == 1
+    assert p4.number_of_adverse_events == 0
+    assert p5.number_of_adverse_events == 0
+
+
+# def test_serious_adverse_events_number(serious_adverse_events_fixture):
+#     pass
+#
+# def test_adverse_events(adverse_events_fixture):
+#     pass
 
 
 def test_basic_inheritance(subject_id_fixture):

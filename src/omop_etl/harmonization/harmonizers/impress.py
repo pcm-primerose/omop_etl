@@ -60,8 +60,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         # flatten patient values
         patients = list(self.patient_data.values())
 
-        # for idx in range(len(patients)):
-        # print(f"Patient {idx}: {patients[idx]} \n")
+        for idx in range(len(patients)):
+            print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -366,45 +366,124 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[patient_id].date_of_death = death_date
 
     def _process_has_any_adverse_events(self) -> None:
-        ae_status = self.data.select(
-            pl.col("SubjectId"), pl.col("AE_AESTDAT")
-        ).with_columns(
-            has_ae=pl.when(pl.col("AE_AESTDAT").is_not_null())
-            .then(True)
-            .otherwise(False)
-            .cast(pl.Boolean)
+        ae_status = (
+            self.data.with_columns(
+                row_has_ae=pl.any_horizontal(
+                    [
+                        (
+                            pl.col("AE_AECTCAET").cast(pl.Utf8).is_not_null()
+                            & (
+                                pl.col("AE_AECTCAET")
+                                .cast(pl.Utf8)
+                                .str.strip_chars()
+                                .str.len_bytes()
+                                > 0
+                            )
+                        ),
+                        (
+                            pl.col("AE_AESTDAT").cast(pl.Utf8).is_not_null()
+                            & (
+                                pl.col("AE_AESTDAT")
+                                .cast(pl.Utf8)
+                                .str.strip_chars()
+                                .str.len_bytes()
+                                > 0
+                            )
+                        ),
+                        (
+                            pl.col("AE_AETOXGRECD").cast(pl.Utf8).is_not_null()
+                            & (
+                                pl.col("AE_AETOXGRECD")
+                                .cast(pl.Utf8)
+                                .str.strip_chars()
+                                .str.len_bytes()
+                                > 0
+                            )
+                        ),
+                    ]
+                )
+            )
+            .group_by("SubjectId")
+            .agg(has_ae=pl.col("row_has_ae").any())
         )
 
         for row in ae_status.iter_rows(named=True):
             pid = row["SubjectId"]
             if pid in self.patient_data:
-                self.patient_data[pid].has_any_adverse_events = row["has_ae"]
+                self.patient_data[pid].has_any_adverse_events = bool(row["has_ae"])
 
     def _process_number_of_adverse_events(self) -> None:
         ae_num = (
-            self.data.select(pl.col("SubjectId"), pl.col("AE_AESTDAT"))
+            self.data.with_columns(
+                ae_num=pl.any_horizontal(
+                    [
+                        (
+                            pl.col("AE_AECTCAET").cast(pl.Utf8).is_not_null()
+                            & (
+                                pl.col("AE_AECTCAET")
+                                .cast(pl.Utf8)
+                                .str.strip_chars()
+                                .str.len_bytes()
+                                > 0
+                            )
+                        ),
+                        (
+                            pl.col("AE_AESTDAT").cast(pl.Utf8).is_not_null()
+                            & (
+                                pl.col("AE_AESTDAT")
+                                .cast(pl.Utf8)
+                                .str.strip_chars()
+                                .str.len_bytes()
+                                > 0
+                            )
+                        ),
+                        (
+                            pl.col("AE_AETOXGRECD").cast(pl.Utf8).is_not_null()
+                            & (
+                                pl.col("AE_AETOXGRECD")
+                                .cast(pl.Utf8)
+                                .str.strip_chars()
+                                .str.len_bytes()
+                                > 0
+                            )
+                        ),
+                    ]
+                )
+            )
             .group_by("SubjectId")
-            .agg(pl.col("AE_AESTDAT").count().alias("ae_number"))
+            .agg(ae_number=pl.col("ae_num").sum())
         )
 
         for row in ae_num.iter_rows(named=True):
             pid = row["SubjectId"]
             if pid in self.patient_data:
-                self.patient_data[pid].number_of_adverse_events = row["ae_number"]
+                self.patient_data[pid].number_of_adverse_events = int(row["ae_number"])
 
     def _process_number_of_serious_adverse_events(self) -> None:
-        ae_num = (
-            self.data.select(pl.col("SubjectId"), pl.col("AE_SAESTDAT"))
+        sae_num = (
+            self.data.with_columns(
+                sae_num=pl.any_horizontal(
+                    [
+                        (
+                            pl.col("AE_AESERCD").cast(pl.Utf8).is_not_null()
+                            & (
+                                pl.col("AE_AESERCD").cast(pl.Utf8).str.strip_chars()
+                                == "1"
+                            )
+                        )
+                    ]
+                )
+            )
             .group_by("SubjectId")
-            .agg(pl.col("AE_SAESTDAT").count().alias("sae_number"))
+            .agg(sae_number=pl.col("sae_num").sum())
         )
 
-        for row in ae_num.iter_rows(named=True):
+        for row in sae_num.iter_rows(named=True):
             pid = row["SubjectId"]
             if pid in self.patient_data:
-                self.patient_data[pid].number_of_serious_adverse_events = row[
-                    "sae_number"
-                ]
+                self.patient_data[pid].number_of_serious_adverse_events = int(
+                    row["sae_number"]
+                )
 
     def _process_date_lost_to_followup(self) -> None:
         """Process lost to follow-up status and date from follow-up data"""

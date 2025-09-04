@@ -1256,11 +1256,11 @@ class Patient:
 
     @property
     def number_of_serious_adverse_events(self) -> Optional[int]:
-        return self._number_of_adverse_events
+        return self._number_of_serious_adverse_events
 
     @number_of_serious_adverse_events.setter
     def number_of_serious_adverse_events(self, value: Optional[int]) -> None:
-        self._number_of_adverse_events = StrictValidators.validate_optional_int(
+        self._number_of_serious_adverse_events = StrictValidators.validate_optional_int(
             value=value,
             field_name=self.__class__.number_of_serious_adverse_events.fset.__name__,
         )
@@ -1493,6 +1493,9 @@ class Patient:
             f"study_drugs={self.study_drugs} \n"
             f"biomarkers={self.biomarker} \n"
             f"date_of_death={self.date_of_death} \n"
+            f"has_any_adverse_events={self.has_any_adverse_events} \n"
+            f"number_of_adverse_events={self.number_of_adverse_events} \n"
+            f"number_of_serious_adverse_events={self.number_of_serious_adverse_events} \n"
             f"lost_to_followup={self.lost_to_followup} \n"
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
             f"treatment start date={self.treatment_start_date} \n"

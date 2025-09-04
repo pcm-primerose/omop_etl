@@ -392,3 +392,89 @@ def medical_history_fixture():
             ],
         }
     )
+
+
+@pytest.fixture
+def adverse_event_number_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",
+                "IMPRESS-X_0004_1",
+                "IMPRESS-X_0005_1",
+            ],
+            "AE_AETOXGRECD": [
+                "3",
+                "2",
+                "1",
+                "",
+                "",
+                "4",
+                "5",
+                "",
+            ],
+            "AE_AECTCAET": [
+                "ouch",
+                "owe",
+                "",
+                "something",
+                "else",
+                "",
+                "rash",
+                "",
+            ],
+            "AE_AESTDAT": [
+                "1900-01-01",
+                "",
+                "",
+                "1900-01-01",
+                "1889-02-23",
+                "",
+                "1900-01-01",
+                "",
+            ],
+        }
+    )
+
+
+@pytest.fixture
+def serious_adverse_event_number_fixture():
+    return pl.DataFrame(
+        data={
+            "SubjectId": [
+                "IMPRESS-X_0001_1",  # 1
+                "IMPRESS-X_0001_1",
+                "IMPRESS-X_0002_1",  # 2
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0002_1",
+                "IMPRESS-X_0003_1",  # 1
+                "IMPRESS-X_0004_1",  # 0
+                "IMPRESS-X_0005_1",  # 0
+            ],
+            "AE_AESERCD": [
+                "1",
+                "0",
+                "1",
+                "1",
+                "",
+                "1",
+                "0",
+                "",
+            ],
+            "AE_SAESTDAT": [
+                "1900-01-01",
+                "1900-01-01",
+                "",
+                "1900-02-02",
+                "1900-03-03",
+                "",
+                "1900-01-01",
+                "",
+            ],
+        }
+    )
