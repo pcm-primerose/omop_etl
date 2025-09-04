@@ -1337,8 +1337,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             "AE_AEENDAT",
             "AE_SAESTDAT",
             "AE_AEREL1",
+            "AE_AEREL1CD",
             "AE_AETRT1",
             "AE_AEREL2",
+            "AE_AEREL2CD",
             "AE_AETRT2",
             "AE_AESERCD",
             "AE_SAEEXP1CD",
@@ -1349,7 +1351,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         ).filter(pl.col("AE_AECTCAET").str.strip_chars().is_not_null())
 
         # TODO fix:
-        #  - related status 1 & 2 is None for all data, does not work.
         #  - fallback to FU date of death does not work;
         #    a duplicate column is made instead, or at least the final datamodel has duplicate fields: end_date=None, end_date=None,
         #    if the original end date is None (works if not None)
@@ -1374,8 +1375,8 @@ class ImpressHarmonizer(BaseHarmonizer):
                     false_int=2,
                     expr=pl.col("AE_SAEEXP2CD").cast(pl.Int8, strict=False),
                 ),
-                ae_rel_code_1=pl.col("AE_AEREL1").cast(pl.Int8, strict=False),
-                ae_rel_code_2=pl.col("AE_AEREL2").cast(pl.Int8, strict=False),
+                ae_rel_code_1=pl.col("AE_AEREL1CD").cast(pl.Int8, strict=False),
+                ae_rel_code_2=pl.col("AE_AEREL2CD").cast(pl.Int8, strict=False),
             ).with_columns(
                 related_status_1=(
                     pl.when(pl.col("ae_rel_code_1") == 4)
@@ -1384,8 +1385,8 @@ class ImpressHarmonizer(BaseHarmonizer):
                     .then(pl.lit("not_related"))
                     .when(pl.col("ae_rel_code_1").is_in([2, 3]))
                     .then(pl.lit("unknown"))
-                    .otherwise(pl.lit(None, dtype=pl.Utf8))
-                    .cast(pl.Categorical)
+                    .otherwise(None)
+                    .cast(pl.Enum(["related", "not_related", "unknown"]))
                 ),
                 related_status_2=(
                     pl.when(pl.col("ae_rel_code_2") == 4)
@@ -1394,8 +1395,8 @@ class ImpressHarmonizer(BaseHarmonizer):
                     .then(pl.lit("not_related"))
                     .when(pl.col("ae_rel_code_2").is_in([2, 3]))
                     .then(pl.lit("unknown"))
-                    .otherwise(pl.lit(None, dtype=pl.Utf8))
-                    .cast(pl.Categorical)
+                    .otherwise(None)
+                    .cast(pl.Enum(["related", "not_related", "unknown"]))
                 ),
             )
             return _parsed

@@ -1150,7 +1150,7 @@ class AdverseEvents:
 
     @related_to_treatment_1_status.setter
     def related_to_treatment_1_status(self, value: Optional[RelatedStatus]) -> None:
-        validated = StrictValidators.validate_optional_bool(
+        validated = StrictValidators.validate_optional_str(
             value=value,
             field_name=self.__class__.related_to_treatment_1_status.fset.__name__,
         )
@@ -1177,7 +1177,7 @@ class AdverseEvents:
 
     @related_to_treatment_2_status.setter
     def related_to_treatment_2_status(self, value: Optional[RelatedStatus]) -> None:
-        validated = StrictValidators.validate_optional_bool(
+        validated = StrictValidators.validate_optional_str(
             value=value,
             field_name=self.__class__.related_to_treatment_2_status.fset.__name__,
         )
