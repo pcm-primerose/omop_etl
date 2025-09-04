@@ -1032,43 +1032,217 @@ class ConcomitantMedication:
         )
 
 
-"""
-Scalars:
-    - has_any_adverse_events: Optional[bool] = None (if patient ID in AE, then yes) 
-    - number_of_adverse_events: Optional[int] = None (count rows in AE for patient) 
-    - number_of_serious_adverse_events: Optional[int] = None (count rows with date in AE_AESERCD per patient) 
-    
-In collection: 
-    - term: (AE_AECTCAET) 
-    - outcome: (AE_AEOUT) 
-    - worst_grade_of_event: Optional[int] = None (group on (patient id, term) agg to find highest grade (int): AE_AETOXGRECD) 
-        - they only want grade >= 3, if doing this filtering, reanme to more descriptive var 
-        - but then they also said include all AEs, we can easily query for grades later 
-    - was_serious: Optional[bool] = None (AE_AESERCD, 1/0 to bool) 
-    - turned_serious_date: Optional[dt.date] = None (AE_SAESTDAT)
-    - related_to_treatment_1_status: Optional[str] = None (AE_AEREL1) 
-        - this is not a bool, but 1-4 grades of relatedness (not related, unlikely related, possibly related, related) 
-            - could conver to bool: only related True. If convertign to no/unknown/yes, might as well store raw data. 
-    - treatment_1_name: Optional[str] = None (AE_AETRT1) 
-        - check (SD1, TR_TRNAME) and log if there is a mismatch? 
-    - related_to_treatment_2_status: Optional[str] = None (AE_AEREL2)
-    - treatment_2_name: Optional[str] = None (AE_AETRT2)   
-        - check (SD2, TR_TRNAME) and log if there is a mismatch? 
-    - was_serious_grade_expected_for_treatment_1: Optional[bool] = None (AE_SAEEXP1CD, 1 = True, 2 = False) 
-    - was_serious_grade_expected_for_treatment_2: Optional[bool] = None (AE_SAEEXP2CD, 1 = True, 2 = False) 
-    - start_date: (AE_AESTDAT) 
-    - end_date: (AE_AEENDAT) 
-        - if AE became severe and no end-date and patient died: use FU_FUPDEDAT as end_date
-"""
-
-
 class AdverseEvents:
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
+        self._term: Optional[str] = None
+        self._grade: Optional[int] = None
+        self._outcome: Optional[str] = None
+        self._start_date: Optional[dt.date] = None
+        self._end_date: Optional[dt.date] = None
+        self._was_serious: Optional[bool] = None
+        self._turned_serious_date: Optional[dt.date] = None
+        self._related_to_treatment_1_status: Optional[bool] = None
+        self._treatment_1_name: Optional[str] = None
+        self._related_to_treatment_2_status: Optional[bool] = None
+        self._treatment_2_name: Optional[str] = None
+        self._was_serious_grade_expected_treatment_1: Optional[bool] = None
+        self._was_serious_grade_expected_treatment_2: Optional[bool] = None
+        self.updated_fields: Set[str] = set()
 
     @property
     def patient_id(self) -> str:
         return self._patient_id
+
+    @property
+    def term(self) -> Optional[str]:
+        return self._term
+
+    @term.setter
+    def term(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.term.fset.__name__
+        )
+        self._term = validated
+        self.updated_fields.add(self.__class__.term.fset.__name__)
+
+    @property
+    def grade(self) -> Optional[int]:
+        return self._grade
+
+    @grade.setter
+    def grade(self, value: Optional[int]) -> None:
+        validated = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.grade.fset.__name__
+        )
+        self._grade = validated
+        self.updated_fields.add(self.__class__.grade.fset.__name__)
+
+    @property
+    def outcome(self) -> Optional[str]:
+        return self._outcome
+
+    @outcome.setter
+    def outcome(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.outcome.fset.__name__
+        )
+        self._outcome = validated
+        self.updated_fields.add(self.__class__.outcome.fset.__name__)
+
+    @property
+    def start_date(self) -> Optional[dt.date]:
+        return self._start_date
+
+    @start_date.setter
+    def start_date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.start_date.fset.__name__
+        )
+        self._start_date = validated
+        self.updated_fields.add(self.__class__.start_date.fset.__name__)
+
+    @property
+    def end_date(self) -> Optional[dt.date]:
+        return self._end_date
+
+    @end_date.setter
+    def end_date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.end_date.fset.__name__
+        )
+        self._end_date = validated
+        self.updated_fields.add(self.__class__.end_date.fset.__name__)
+
+    @property
+    def was_serious(self) -> Optional[bool]:
+        return self._was_serious
+
+    @was_serious.setter
+    def was_serious(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value, field_name=self.__class__.was_serious.fset.__name__
+        )
+        self._was_serious = validated
+        self.updated_fields.add(self.__class__.was_serious.fset.__name__)
+
+    @property
+    def turned_serious_date(self) -> Optional[dt.date]:
+        return self._turned_serious_date
+
+    @turned_serious_date.setter
+    def turned_serious_date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.turned_serious_date.fset.__name__
+        )
+        self._turned_serious_date = validated
+        self.updated_fields.add(self.__class__.turned_serious_date.fset.__name__)
+
+    @property
+    def related_to_treatment_1_status(self) -> Optional[bool]:
+        return self._related_to_treatment_1_status
+
+    @related_to_treatment_1_status.setter
+    def related_to_treatment_1_status(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.related_to_treatment_1_status.fset.__name__,
+        )
+        self._related_to_treatment_1_status = validated
+        self.updated_fields.add(
+            self.__class__.related_to_treatment_1_status.fset.__name__
+        )
+
+    @property
+    def treatment_1_name(self) -> Optional[str]:
+        return self._treatment_1_name
+
+    @treatment_1_name.setter
+    def treatment_1_name(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.treatment_1_name.fset.__name__
+        )
+        self._treatment_1_name = validated
+        self.updated_fields.add(self.__class__.treatment_1_name.fset.__name__)
+
+    @property
+    def related_to_treatment_2_status(self) -> Optional[bool]:
+        return self._related_to_treatment_2_status
+
+    @related_to_treatment_2_status.setter
+    def related_to_treatment_2_status(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.related_to_treatment_2_status.fset.__name__,
+        )
+        self._related_to_treatment_2_status = validated
+        self.updated_fields.add(
+            self.__class__.related_to_treatment_2_status.fset.__name__
+        )
+
+    @property
+    def treatment_2_name(self) -> Optional[str]:
+        return self._treatment_2_name
+
+    @treatment_2_name.setter
+    def treatment_2_name(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.treatment_2_name.fset.__name__
+        )
+        self._treatment_2_name = validated
+        self.updated_fields.add(self.__class__.treatment_2_name.fset.__name__)
+
+    @property
+    def was_serious_grade_expected_treatment_1(self) -> Optional[bool]:
+        return self._was_serious_grade_expected_treatment_1
+
+    @was_serious_grade_expected_treatment_1.setter
+    def was_serious_grade_expected_treatment_1(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_serious_grade_expected_treatment_1.fset.__name__,
+        )
+        self._was_serious_grade_expected_treatment_1 = validated
+        self.updated_fields.add(
+            self.__class__.was_serious_grade_expected_treatment_1.fset.__name__
+        )
+
+    @property
+    def was_serious_grade_expected_treatment_2(self) -> Optional[bool]:
+        return self._was_serious_grade_expected_treatment_2
+
+    @was_serious_grade_expected_treatment_2.setter
+    def was_serious_grade_expected_treatment_2(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_serious_grade_expected_treatment_2.fset.__name__,
+        )
+        self._was_serious_grade_expected_treatment_2 = validated
+        self.updated_fields.add(
+            self.__class__.was_serious_grade_expected_treatment_2.fset.__name__
+        )
+
+    def __repr__(self) -> str:
+        cls = self.__class__.__name__
+        return (
+            f"{cls}("
+            f"patient_id={self.patient_id!r}, "
+            f"term={self.term!r}, "
+            f"grade={self.grade!r}, "
+            f"outcome={self.outcome!r}, "
+            f"start_date={self.start_date!r}, "
+            f"end_date={self.end_date!r}, "
+            f"end_date={self.end_date!r}, "
+            f"was_serious={self.was_serious!r}, "
+            f"turned_serious_date={self.turned_serious_date!r}, "
+            f"related_to_treatment_1_status={self.related_to_treatment_1_status!r}, "
+            f"treatment_1_name={self.treatment_1_name!r}, "
+            f"related_to_treatment_2_status={self.related_to_treatment_2_status!r}, "
+            f"treatment_2_name={self.treatment_2_name!r}, "
+            f"was_serious_grade_expected_treatment_1={self.was_serious_grade_expected_treatment_1!r}, "
+            f"was_serious_grade_expected_treatment_2={self.was_serious_grade_expected_treatment_2!r}"
+            f")"
+        )
 
 
 class Patient:

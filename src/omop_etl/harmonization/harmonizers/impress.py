@@ -1300,6 +1300,20 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
         )
 
+    # self._term: Optional[str] = None
+    # self._grade: Optional[int] = None
+    # self._outcome: Optional[str] = None
+    # self._start_date: Optional[dt.date] = None
+    # self._end_date: Optional[dt.date] = None
+    # self._was_serious: Optional[bool] = None
+    # self._turned_serious_date: Optional[dt.date] = None
+    # self._related_to_treatment_1_status: Optional[bool] = None
+    # self._treatment_1_name: Optional[str] = None
+    # self._related_to_treatment_2_status: Optional[bool] = None
+    # self._treatment_2_name: Optional[str] = None
+    # self._was_serious_grade_expected_treatment_1: Optional[bool] = None
+    # self._was_serious_grade_expected_treatment_2: Optional[bool] = None
+    # self.updated_fields: Set[str] = set()
     def _process_adverse_events(self):
         # implement dm
         pass
