@@ -564,6 +564,11 @@ def test_serious_adverse_event_number(serious_adverse_event_number_fixture):
 # def test_adverse_events(adverse_events_fixture):
 #     pass
 
+# def test_process_adverse_events():
+#     # collection processor method
+#     # need quite a lot of cases
+#     pass
+
 
 def test_basic_inheritance(subject_id_fixture):
     harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")

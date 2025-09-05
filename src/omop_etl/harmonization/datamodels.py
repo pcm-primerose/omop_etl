@@ -1273,6 +1273,9 @@ class Patient:
         self._has_any_adverse_events: Optional[bool] = None
         self._number_of_adverse_events: Optional[int] = None
         self._number_of_serious_adverse_events: Optional[int] = None
+        # todo: what type etc
+        self._baseline_target_lesion_size: Optional[int] = None
+        self._nadir_baseline_target_lesion_size: Optional[int] = None
 
         # singletons
         self._tumor_type: Optional[TumorType] = None

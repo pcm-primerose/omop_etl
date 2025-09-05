@@ -36,12 +36,12 @@ packages = ["src/omop_etl"]
 package-data = { "omop_etl" = ["resources/*.json"] }
 
 [tool.ruff]
-line-length = 250
+line-length = 300
 target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F"]
-ignore = ["E203", "F401", "F811", "F821", "F841", "E501"]
+ignore = ["E203", "F401", "F811", "F821", "F841"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

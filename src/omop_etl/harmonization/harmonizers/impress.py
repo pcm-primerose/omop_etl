@@ -1419,79 +1419,97 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     """
-    Type Tumor Assessment	
-    Type of tumor assessment (RECIST, iRECIST, LUAGNO, RANO, AML)	VI, RA	*VI sheet: VITUMA, VITUMA__2, VITUMACD and VITUMA__2CD, 
-    (date => eventDate), VIAMLTYP (CD)                                                                                                                                              
-    *For RECIST / iRECIST (RA sheet) use RAASSESS1 (CD) (Visit 1) and RAASSESS2 (CD) (Visit 2), 
-    EventDate	Character (CODE (CD) - numeric) 	Text // CD - Code from pull down menu (see annex)                     
-    *The following tumor response criteria will be used for this subject (Code), 
-    The following tumor response criteria will be used for this 
-    subject_2 (Code)_2 // VIAMLTYP AMLS response according to  (pull down)                                                                                 
-    *For RECIST, iRECIST: What will be assessed at this visit 1?, 
-    What will be assessed at this visit 2? 	
-    *VITUMA and VITUMA_2 => merge variables in one as observations are additive (VITUMA_2: updates)                                                                          
-    
-    *Note: there will a link between type - date - (eventName) - 
-    Baseline - change baseline - Response assessment.  	
-    *From 31.01.2025 meeting: VITUMA__2 is a var resulting from updating Viedoc, 
-    same var but not overlapping (just merge them to one var in harmonization). Need AML response (VIAMLTYP).                                                                              
-    *Keep RAASSESS1 (Recist)  and RAASSESS2 (iRecist) (Added after workshop) 
-    => there are some patients with change between RECIST and iRECIST.   
-    *VIAMLTP variable indicates the type of response criteria for AML: 
-    ELN (Code 1) stands for European LeukemiaNet and MDS/hypocellular due to 
-    IWG Response criteria (Code 2) International Working Group reponse criteria for acute myeloid leukemia
-    
-    Event date assessment	
-    Date for tumor assessment (YYYY-MM-DD)	RA, RNRSP, LUGRSP, EMLRSP	EventDate	Date 	Date for tumor assessment	Given as date (YYYY-MM-DD)	
-    
-    Baseline evaluation	
-    Sum Size of target lesion at baseline and non-target lesions 	
-    RA, RNRSP, RCNT, RNTMNT	*Target lesions RA: RARECBAS, RARECNAD // EventDate                                                                                                                          
-    *Target lesions RNRSP: TERNTBAS, TERNAD // EventDate                                                                                              
-    *Non-target lesions RCNT sheet: RECiST Non-target lesions at baseline: RCNTNOB, EventName or ActivityId 
-    - (Select EventName == "Visit 1, Week1") or alternatively (ActivityId == "V00TA1"). 
-    // RNTMNT sheet (Rano) Non-target lesions at baseline: RNTMNTNOB for EventName =="Visit 1,Day 1" or ActivityId == "V00TA4" // EventDate                                                                                                                                                                                                      	
-    *Target lesions: RA (RECIST, iRECIST) TL Baseline LD sum, TL NADIR LD sum  // date of assessment (TL baseline, NTL baseline)                                                                             
-    *Target lesions: RANO (RNRSP) SPD baseline visit, NADIR SPD // date of assessment (TL baseline, NTL baseline)      
-    *RECIST//RANO: Number of non-target lesions // EventDate                                                                           		                                                   
-
-    Change from baseline	
-    % change from baseline and new lesions (*Sum size of target lesion at visit and non-target lesions not included, see comments)	
-    RA, RNRSP	*RA sheet (RECIST): RABASECH, RARECCH // EventDate                                                                                                                 
-    *RNRSP sheet (RANO): TERNCFB, TERNCFN // EventDate                                                              
-    *New lesions (RA sheet): RANLBASE, RANLBASECD   
-    //  New lesions (RNRSP sheet): RNRSPNL, RNRSPNLCD, EventDate	
-    RA (RECIST): Numeric // Numeric // Numeric // Numeric // Date // Binary (Yes/no) // Character                                                                           
-    RNRSP (RANO): Numeric // Numeric // Numeric // Numeric // Date // Binary (Yes/no) // Character              
-    *Binary (yes/no), numeric (CD)	*Target lesions: RA (RECIST, iRECIST)  % change from baseline TL, % change from NADIRTL // date of assessment                                                                          
-    *Target lesions: RANO (RNRSP) Change from baseline %, Change from nadir % // date of assessment                             
-    *RECIST / RANO new lesions registered after baseline?                                                                         		
-    *Need confirmation: Do we include non-target lesions and new lesions? 
-    - No, we will include them later if required. 
-    - M: I have included new lesions here as indicates change from baseline.                                                                                             
-    *Discussion: % sum is what is relevant (we can add more details later)                                                                                                
-
-    Response assessment	Response assessment from the type of tumor assessment	
-    RA, RNRSP, LUGRSP	RATIMRES (RATIMRES CD), RAiMOD (RAIMODCD), RAPROGDT, RAiUNPDT, 
-    RNRSPCL (RNRSPCLCD), LUGOVRL(LUGOVRLCD), EventDate	RA (RECIST/iRECIST): Character // Character (CD) // Character // Character  (CD) // Date                                                                   
-    RNRSP (RANO): Character // Character                       
-    LUGOVRL (Lugano - no data): Character // Character Date                     	 
-    RECIST v1.1 (iRECIST) Timepoint response, date of progression RECIST v1.1, 
-    date of unconfirmed progression iRECIST, 
-    RANO - response clinician, LUGANO - Overall response evaluation 	
-    Pull down menu, add date check comments	
-    *how to deal with AML:  
-    - Answer: Omit AML response assessment in the first version of the ETL (only IMPRESS uses this?). 
-    Note: Leave out  (EMLRSP)EMLRESP (haemopoetic): Character // Character                                                                                            
-    *Use EventDate as date and for RECIST / iRECIST progression date (date of image used to assess (sheet RA) 
-    RAPROGDT if available, otherwise EventDate (06.02.2025)                                                                                                     
+    SCALAR 
+    Baseline evaluation:	
+        Target lesions:
+            - sum size of target lesions 
+            RARECBAS, RARECNAD, EventDate                                                                                                                          
+            RNRSP: TERNTBAS, TERNAD, EventDate                                                                                              
+        Non-target lesions: 
+            - non-target lesions, date and size? 
+            - ActivityId contains V00 / V00TA4
+            RCNTNOB, EventName or ActivityId 
+            RNTMNT, ActivityId or EventName 
+            RNTMNTNOB, EventName or ActivityId
+                                                                                                                                                                        
+    COLLECTION
+    Assessments: 
+        Actual response: 
+            - what assessment, response, date 
+            RATIMRES (RATIMRES CD), RAiMOD (RAIMODCD), RAPROGDT, RAiUNPDT, RNRSPCL (RNRSPCLCD), LUGOVRL(LUGOVRLCD), EventDate
+        
+        Percent change from baseline: 
+            - calculate from baseline data 
+            - also store raw data? 
+            RABASECH, RARECCH, EventDate                                                                                                                 
+            TERNCFB, TERNCFN, EventDate                                                              
+            
+        New lesions: 
+            - was there new lesions, date, size? 
+            RANLBASE, RANLBASECD, RNRSPNL, RNRSPNLCD, EventDate
     """
 
+    def process_baseline_tumor_assessment(self):
+        """
+        Get target lesion size at baseline, and off-target lesions.
+        """
+
+        base = self.data.select(
+            [
+                "SubjectId"
+                # tumor assessment type
+                "VI_VITUMA",
+                "VI_VITUMA__2",
+                "VI_EventDate",
+                "VI_EventId",
+                # baseline off-target lesions
+                "RCNT_RCNTNOB",
+                "RCNT_EventDate" "RNTMNT_RNTMNTNOB",
+                "RNTMNT_EventDate",
+                # baseline target lesion size
+                "RNRSP_TERNTBAS",
+                "RNRSP_TERNAD",
+                "RNRSP_EventDate",
+                "RA_RARECBAS",
+                "RA_RARECNAD",
+                "RA_EventDate",
+            ]
+        )
+
+        # type of response criteria:
+        # VI_VITUMA / VI_VITUMA__2 (combine to one)
+
+        tumor_assessments = (
+            base.with_columns(
+                tumor_assessment=pl.coalesce(["VI_VITUMA", "VI_VITUMA__2"]).alias(
+                    "tumor_assessment"
+                ),
+                assessment_date=PolarsParsers.parse_date_column(pl.col("VI_EventDate")),
+            )
+            .filter(pl.col("VI_EventId") == "V00")
+            .with_columns(off_target_lesions_baseline=pl.col())
+        )
+
+        # target lesion size at baseline:
+        # TERNTBAS, TERNAD
+        # RARECBAS, RARECNAD
+        # groyp by patient, agg to find lowest nadir value = nadir
+        # baseline is same for all rows, but redundancy can be take most common entry per patient?
+
+        # non-target lesions at baseline:
+        # rcntnob & rntmntnob: number of off-target lesions at baseline
+        pass
+
     def _process_tumor_assessments(self):
-        # collapse tumor assessments as well, probs collection
-        # check source
-        # think baseline eval can be on Patient?
-        # or add bool flag to set baseline, idk if same fields yet
+        # each visit is one instance.
+        # response & date:
+        # RA_RATIMRES (RATIMRES CD), RA_RAiMOD (RAIMODCD), RA_RAPROGDT, RA_RAiUNPDT, RA_EventDate
+        # RNRSP_RNRSPCL (RNRSP_RNRSPCLCD), RNRSP_EventDate
+
+        # percent change from baseline:
+        # RA_RABASECH (percent change from baseline), RA_RARECCH (percent change from nadir), EventDate
+        # RNRSP_TERNCFB (percent change from baseline), RNRSP_TERNCFN (percent change from nadir), EventDate
+        #     - also store raw data
         pass
 
     # then it's just best overall response, clinical benefit, EOT reason/date
