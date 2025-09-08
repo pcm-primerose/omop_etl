@@ -200,7 +200,7 @@ class PolarsParsers:
         c = pl.when(c.is_in(PolarsParsers.NA_VALUES)).then(None).otherwise(c)
 
         standardized = (
-            c
+            c.str.replace("'´`˙", "")
             # replace NK patterns (case-insensitive) with default values
             .str.replace_all("(?i)nk", "NK")  # Normalize to uppercase first
             .str.replace(

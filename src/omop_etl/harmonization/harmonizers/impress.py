@@ -58,12 +58,13 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_number_of_adverse_events()
         self._process_number_of_serious_adverse_events()
         self._process_adverse_events()
+        self._process_baseline_tumor_assessment()
 
         # flatten patient values
         patients = list(self.patient_data.values())
 
-        for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx]} \n")
+        # for idx in range(len(patients)):
+        #     print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -1419,8 +1420,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     """
-    SCALAR 
-    Baseline evaluation:	
+    Singleton: 
+    BaselineTumorEvaluation
         Target lesions:
             - sum size of target lesions 
             RARECBAS, RARECNAD, EventDate                                                                                                                          
@@ -1449,14 +1450,25 @@ class ImpressHarmonizer(BaseHarmonizer):
             RANLBASE, RANLBASECD, RNRSPNL, RNRSPNLCD, EventDate
     """
 
-    def process_baseline_tumor_assessment(self):
+    def _process_baseline_tumor_assessment(self):
         """
         Get target lesion size at baseline, and off-target lesions.
+
+        Assumes tumor assessments are always mutally exclusive, if not, this doesn't work and needs refactoring.
+
+        Also, for the non-target lesions from RCNT each NTL is associated with a distinct date, whereas in RNTMNT NTLs
+        this is not the case. We just want to track the number of NTLs at baseline, so for now using EventDate for
+        both RNTMNT and RCNT, but this is always with a 2-5 week delay after the assessment date for each respective NTL (for some reason).
+        In RNTMNT this is not the case, each NTL at baseline has an assessment date.
+        Could coalesce and take first RCNT data across all lesions in the future if more detailed dates are needed?
+
+        For the target lesions there are no separate entries for baseline evals, the earliest assessment with valid date + baseline size
+        is selected.
         """
 
         base = self.data.select(
             [
-                "SubjectId"
+                "SubjectId",
                 # tumor assessment type
                 "VI_VITUMA",
                 "VI_VITUMA__2",
@@ -1464,41 +1476,157 @@ class ImpressHarmonizer(BaseHarmonizer):
                 "VI_EventId",
                 # baseline off-target lesions
                 "RCNT_RCNTNOB",
-                "RCNT_EventDate" "RNTMNT_RNTMNTNOB",
+                "RCNT_EventDate",
+                "RCNT_EventId",
+                "RNTMNT_RNTMNTNOB",
+                "RNTMNT_RNTMNTNO",
+                "RNTMNT_EventId",
                 "RNTMNT_EventDate",
                 # baseline target lesion size
                 "RNRSP_TERNTBAS",
                 "RNRSP_TERNAD",
                 "RNRSP_EventDate",
+                "RNRSP_EventId",
                 "RA_RARECBAS",
                 "RA_RARECNAD",
                 "RA_EventDate",
+                "RA_EventId",
             ]
         )
 
-        # type of response criteria:
-        # VI_VITUMA / VI_VITUMA__2 (combine to one)
-
-        tumor_assessments = (
-            base.with_columns(
-                tumor_assessment=pl.coalesce(["VI_VITUMA", "VI_VITUMA__2"]).alias(
-                    "tumor_assessment"
-                ),
-                assessment_date=PolarsParsers.parse_date_column(pl.col("VI_EventDate")),
+        def tumor_assessment(frame: pl.DataFrame) -> pl.DataFrame:
+            vi_mask = pl.col("VI_EventId") == "V00"
+            output = frame.with_columns(
+                tumor_assessment_vi=pl.when(vi_mask)
+                .then(pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]))
+                .otherwise(None),
+                assessment_date_vi=pl.when(vi_mask)
+                .then(PolarsParsers.parse_date_column(pl.col("VI_EventDate")))
+                .otherwise(None),
             )
-            .filter(pl.col("VI_EventId") == "V00")
-            .with_columns(off_target_lesions_baseline=pl.col())
-        )
 
-        # target lesion size at baseline:
-        # TERNTBAS, TERNAD
-        # RARECBAS, RARECNAD
-        # groyp by patient, agg to find lowest nadir value = nadir
-        # baseline is same for all rows, but redundancy can be take most common entry per patient?
+            return output
 
-        # non-target lesions at baseline:
-        # rcntnob & rntmntnob: number of off-target lesions at baseline
-        pass
+        def target_lesions_baseline(frame: pl.DataFrame) -> pl.DataFrame:
+            # IF tumor assessments are not mutually exclusive at baseline this fails
+            output = (
+                frame.with_columns(
+                    rnrsp_size=pl.col("RNRSP_TERNTBAS").cast(pl.Int64, strict=False),
+                    rnrsp_nadir=pl.col("RNRSP_TERNAD").cast(pl.Int64, strict=False),
+                    ra_size=pl.col("RA_RARECBAS").cast(pl.Int64, strict=False),
+                    ra_nadir=pl.col("RA_RARECNAD").cast(pl.Int64, strict=False),
+                    rnrsp_date=PolarsParsers.parse_date_column(
+                        pl.col("RNRSP_EventDate")
+                    ),
+                    ra_date=PolarsParsers.parse_date_column(pl.col("RA_EventDate")),
+                )
+                .with_columns(
+                    # assuming tumor assessments are always mutually excl
+                    size_candidate=pl.coalesce(
+                        [pl.col("rnrsp_size"), pl.col("ra_size")]
+                    ),
+                    nadir_candidate=pl.coalesce(
+                        [pl.col("rnrsp_nadir"), pl.col("ra_nadir")]
+                    ),
+                    date_candidate=pl.coalesce(
+                        [pl.col("rnrsp_date"), pl.col("ra_date")]
+                    ),
+                )
+                # must have val + date
+                .filter(
+                    pl.col("size_candidate").is_not_null()
+                    & pl.col("date_candidate").is_not_null()
+                )
+                .group_by("SubjectId")
+                .agg(
+                    # earliest row by date, and take the paired values from that row
+                    assessment_date=pl.col("date_candidate")
+                    .sort_by("date_candidate")
+                    .first(),
+                    target_lesion_size=pl.col("size_candidate")
+                    .sort_by("date_candidate")
+                    .first(),
+                    target_lesion_nadir=pl.col("nadir_candidate")
+                    .sort_by("date_candidate")
+                    .first(),
+                    baseline_source=(
+                        pl.when(
+                            pl.col("rnrsp_size").is_not_null()
+                            | pl.col("rnrsp_nadir").is_not_null()
+                        )
+                        .then(pl.lit("RNRSP"))
+                        .otherwise(pl.lit("RA"))
+                    )
+                    .sort_by("date_candidate")
+                    .first(),
+                )
+            )
+
+            return output
+
+        def off_target_lesions_basline(frame: pl.DataFrame) -> pl.DataFrame:
+            rnt_mask = pl.col("RNTMNT_EventId") == "V00"
+            rcnt_mask = pl.col("RCNT_EventId") == "V00"
+            out = (
+                frame
+                # RNTMNT (off-target lesions)
+                .with_columns(
+                    off_target_lesions_rntmnt=pl.when(rnt_mask)
+                    .then(
+                        pl.coalesce(
+                            [pl.col("RNTMNT_RNTMNTNOB"), pl.col("RNTMNT_RNTMNTNO")]
+                        ).cast(pl.Int64, strict=False)
+                    )
+                    .otherwise(None),
+                    off_target_lesion_date_rntmnt=pl.when(rnt_mask)
+                    .then(PolarsParsers.parse_date_column(pl.col("RNTMNT_EventDate")))
+                    .otherwise(None),
+                )
+                # RCNT (off-target lesions)
+                .with_columns(
+                    off_target_lesions_rcnt=pl.when(rcnt_mask)
+                    .then(pl.col("RCNT_RCNTNOB").cast(pl.Int64, strict=False))
+                    .otherwise(None),
+                    off_target_lesion_date_rcnt=pl.when(rcnt_mask)
+                    .then(PolarsParsers.parse_date_column(pl.col("RCNT_EventDate")))
+                    .otherwise(None),
+                )
+                # final coalesces
+                .with_columns(
+                    off_target_lesions_size=pl.coalesce(
+                        [
+                            pl.col("off_target_lesions_rcnt"),
+                            pl.col("off_target_lesions_rntmnt"),
+                        ]
+                    ),
+                    off_target_lesion_size_measurment_date=pl.coalesce(
+                        [
+                            pl.col("off_target_lesion_date_rntmnt"),
+                            pl.col("off_target_lesion_date_rcnt"),
+                        ]
+                    ),
+                )
+                # drop intermediates
+                .drop(
+                    [
+                        "off_target_lesions_rntmnt",
+                        "off_target_lesion_date_rntmnt",
+                        "off_target_lesions_rcnt",
+                        "off_target_lesion_date_rcnt",
+                    ]
+                )
+            )
+            return out
+
+        tumor_assessments = tumor_assessment(base)
+        off_target_lesions = off_target_lesions_basline(base)
+        target_lesions = target_lesions_baseline(base)
+        joined = tumor_assessments.join(
+            off_target_lesions, how="left", on="SubjectId"
+        ).join(target_lesions, how="left", on="SubjectId")
+
+        print(f"processed baseline frame: {joined}")
+        print(f"processed baseline frame: {joined.schema.values()}")
 
     def _process_tumor_assessments(self):
         # each visit is one instance.

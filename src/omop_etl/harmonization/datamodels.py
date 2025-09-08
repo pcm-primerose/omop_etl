@@ -341,6 +341,33 @@ class EcogBaseline:
         )
 
 
+class TumorAssessmentBaseline:
+    def __init__(self, patient_id: str):
+        self._patient_id = patient_id
+        self._asssessment_type: Optional[str] = None
+        self._assessment_date: Optional[dt.date] = None
+        self._target_lesion_size: Optional[int] = None
+        self._target_lesion_nadir: Optional[int] = None
+        self._off_target_lesions_size: Optional[int] = None
+        self._off_target_lesion_size_measurment_date: Optional[dt.date] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def paitnet_id(self) -> str:
+        return self._patient_id
+
+    @property
+    def assessment_type(self) -> Optional[str]:
+        return self._asssessment_type
+
+    @assessment_type.setter
+    def asssessment_type(self, value: Optional[str]) -> None:
+        self._asssessment_type = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.asssessment_type.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.assessment_type.fset.__name__)
+
+
 class MedicalHistory:
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -558,35 +585,6 @@ class PreviousTreatments:
             f"end_date={self.end_date!r}\n"
             f"additional_treatment={self.additional_treatment!r}\n"
         )
-
-    """
-    treatment_name: TR_TRNAME
-    cycle_type:
-        - IV or oral
-        - use ID cols to define
-    treatment_number: TR_TRTNO
-    cycle_number: TR_TRCNO1
-    cycle_start: TR_TRC1_DT
-    cycle_end:
-        - TR_TRSTPDT for oral
-        - calculate for IV
-        - if any dates missing, set as None
-    was_dose_delivered_this_cycle: TR_TRCYN
-    dose_delivered_unit: TR_TRIVU1
-    dose_prescribed: TR_TRIVDS1
-    total_dose_delivered: TR_TRIVDELYN1
-
-    # oral only:
-    administered_to_spec: TR_TRO_YN
-    reason_not_administered_to_spec: TR_TROREA
-    other_reason_not_administered_to_spec: TR_TROOTH
-    dose_prescribed_per_day: TR_TRODSTOT
-    dose_unit: TR_TRODSU
-    other_dose_unit: TR_TRODSUOT
-    previous_cycle_followed_prescription: TR_TROTAKE
-    num_days_tablet_not_taken: TR_TROTABNO
-    reason_tablet_not_taken: TR_TROSPE
-    """
 
 
 class TreatmentCycle:
@@ -1273,9 +1271,6 @@ class Patient:
         self._has_any_adverse_events: Optional[bool] = None
         self._number_of_adverse_events: Optional[int] = None
         self._number_of_serious_adverse_events: Optional[int] = None
-        # todo: what type etc
-        self._baseline_target_lesion_size: Optional[int] = None
-        self._nadir_baseline_target_lesion_size: Optional[int] = None
 
         # singletons
         self._tumor_type: Optional[TumorType] = None
@@ -1283,6 +1278,7 @@ class Patient:
         self._biomarker: Optional[Biomarkers] = None
         self._lost_to_followup: Optional[FollowUp] = None
         self._ecog_baseline: Optional[EcogBaseline] = None
+        self._tumor_assessment_baseline: Optional[TumorAssessmentBaseline] = None
 
         # collections
         self._medical_histories: list[MedicalHistory] = []

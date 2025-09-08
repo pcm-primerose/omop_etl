@@ -150,6 +150,7 @@
   "vi": [
     "SubjectId",
     "EventDate",
+    "EventId",
     "VITUMA",
     "VITUMACD",
     "VITUMA__2",
@@ -177,8 +178,10 @@
     "EventDate",
     "TERNCFB",
     "TERNCFN",
+    "TERNTBAS",
     "RNRSPNL",
     "EventId",
+    "TERNAD",
     "RNRSPNLCD",
     "RNRSPCL",
     "RNRSPCLCD"
@@ -193,7 +196,8 @@
     "SubjectId",
     "EventDate",
     "EventId",
-    "RNTMNTNOB"
+    "RNTMNTNOB",
+    "RNTMNTNO",
   ],
   "mh": [
     "SubjectId",
