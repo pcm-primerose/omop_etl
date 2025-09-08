@@ -372,7 +372,7 @@ class TumorAssessmentBaseline:
         return self._assessment_date
 
     @assessment_date.setter
-    def assessment_date(self, value: Optional[str]) -> None:
+    def assessment_date(self, value: Optional[dt.date]) -> None:
         self._assessment_date = StrictValidators.validate_optional_date(
             value=value, field_name=self.__class__.assessment_date.fset.__name__
         )
@@ -383,7 +383,7 @@ class TumorAssessmentBaseline:
         return self._target_lesion_size
 
     @target_lesion_size.setter
-    def target_lesion_size(self, value: Optional[str]) -> None:
+    def target_lesion_size(self, value: Optional[int]) -> None:
         self._target_lesion_size = StrictValidators.validate_optional_int(
             value=value, field_name=self.__class__.target_lesion_size.fset.__name__
         )
@@ -394,7 +394,7 @@ class TumorAssessmentBaseline:
         return self._target_lesion_nadir
 
     @target_lesion_nadir.setter
-    def target_lesion_nadir(self, value: Optional[str]) -> None:
+    def target_lesion_nadir(self, value: Optional[int]) -> None:
         self._target_lesion_nadir = StrictValidators.validate_optional_int(
             value=value, field_name=self.__class__.target_lesion_nadir.fset.__name__
         )
@@ -405,14 +405,14 @@ class TumorAssessmentBaseline:
         return self._off_target_lesions_size
 
     @off_target_lesions_size.setter
-    def off_target_lesions_size(self, value: Optional[str]) -> None:
+    def off_target_lesions_size(self, value: Optional[int]) -> None:
         self._off_target_lesions_size = StrictValidators.validate_optional_int(
             value=value, field_name=self.__class__.off_target_lesions_size.fset.__name__
         )
         self.updated_fields.add(self.__class__.off_target_lesions_size.fset.__name__)
 
     @property
-    def off_target_lesion_size_measurment_date(self) -> Optional[int]:
+    def off_target_lesion_size_measurment_date(self) -> Optional[dt.date]:
         return self._off_target_lesion_size_measurment_date
 
     @off_target_lesion_size_measurment_date.setter
@@ -1587,6 +1587,25 @@ class Patient:
         self._ecog_baseline = value
         self.updated_fields.add(EcogBaseline.__name__)
 
+    @property
+    def tumor_assessment_baseline(self) -> Optional[TumorAssessmentBaseline]:
+        return self._tumor_assessment_baseline
+
+    @tumor_assessment_baseline.setter
+    def tumor_assessment_baseline(
+        self, value: Optional[TumorAssessmentBaseline] | None
+    ) -> None:
+        if value is not None and not isinstance(value, TumorAssessmentBaseline):
+            raise ValueError(
+                f"Tumor assessment baseline must be {TumorAssessmentBaseline.__name__} or None, got {value} with type{type(value)}"
+            )
+
+        if value is not None:
+            value._patient_id = self._patient_id
+
+        self._tumor_assessment_baseline = value
+        self.updated_fields.add(TumorAssessmentBaseline.__name__)
+
     # multiple instances
     @property
     def medical_histories(self) -> tuple[MedicalHistory, ...]:
@@ -1773,6 +1792,7 @@ class Patient:
             f"treatment_cycles={self.treatment_cycles} \n"
             f"concomitant_medications={self.concomitant_medications} \n"
             f"adverse_events={self.adverse_events} \n"
+            f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
         )
 
 
