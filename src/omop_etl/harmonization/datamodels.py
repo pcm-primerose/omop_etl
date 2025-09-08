@@ -348,12 +348,13 @@ class TumorAssessmentBaseline:
         self._assessment_date: Optional[dt.date] = None
         self._target_lesion_size: Optional[int] = None
         self._target_lesion_nadir: Optional[int] = None
+        self._target_lesion_measurment_date: Optional[dt.date] = None
         self._off_target_lesions_size: Optional[int] = None
-        self._off_target_lesion_size_measurment_date: Optional[dt.date] = None
+        self._off_target_lesion_measurment_date: Optional[dt.date] = None
         self.updated_fields: Set[str] = set()
 
     @property
-    def paitnet_id(self) -> str:
+    def patient_id(self) -> str:
         return self._patient_id
 
     @property
@@ -401,6 +402,20 @@ class TumorAssessmentBaseline:
         self.updated_fields.add(self.__class__.target_lesion_nadir.fset.__name__)
 
     @property
+    def target_lesion_measurment_date(self) -> Optional[dt.date]:
+        return self._target_lesion_measurment_date
+
+    @target_lesion_measurment_date.setter
+    def target_lesion_measurment_date(self, value: Optional[dt.date]) -> None:
+        self._target_lesion_measurment_date = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.target_lesion_measurment_date.fset.__name__,
+        )
+        self.updated_fields.add(
+            self.__class__.target_lesion_measurment_date.fset.__name__
+        )
+
+    @property
     def off_target_lesions_size(self) -> Optional[int]:
         return self._off_target_lesions_size
 
@@ -412,17 +427,30 @@ class TumorAssessmentBaseline:
         self.updated_fields.add(self.__class__.off_target_lesions_size.fset.__name__)
 
     @property
-    def off_target_lesion_size_measurment_date(self) -> Optional[dt.date]:
-        return self._off_target_lesion_size_measurment_date
+    def off_target_lesion_measurment_date(self) -> Optional[dt.date]:
+        return self._off_target_lesion_measurment_date
 
-    @off_target_lesion_size_measurment_date.setter
-    def off_target_lesion_size_measurment_date(self, value: Optional[dt.date]) -> None:
-        self._off_target_lesion_size_measurment_date = StrictValidators.validate_optional_date(
+    @off_target_lesion_measurment_date.setter
+    def off_target_lesion_measurment_date(self, value: Optional[dt.date]) -> None:
+        self._off_target_lesion_measurment_date = StrictValidators.validate_optional_date(
             value=value,
-            field_name=self.__class__.off_target_lesion_size_measurment_date.fset.__name__,
+            field_name=self.__class__.off_target_lesion_measurment_date.fset.__name__,
         )
         self.updated_fields.add(
-            self.__class__.off_target_lesion_size_measurment_date.fset.__name__
+            self.__class__.off_target_lesion_measurment_date.fset.__name__
+        )
+
+    def __repr__(self) -> str:
+        cls = self.__class__.__name__
+        return (
+            f"{cls}("
+            f"assessment_type={self.assessment_type!r}, "
+            f"assessment_date={self.assessment_date!r}, "
+            f"target_lesion_size={self.target_lesion_size!r}, "
+            f"target_lesion_nadir={self.target_lesion_nadir!r}, "
+            f"target_lesion_measurment_date={self.target_lesion_measurment_date!r}, "
+            f"off_target_lesion_size={self.off_target_lesions_size!r}, "
+            f"off_target_lesion_measurment_date={self.off_target_lesion_measurment_date!r}"
         )
 
 
