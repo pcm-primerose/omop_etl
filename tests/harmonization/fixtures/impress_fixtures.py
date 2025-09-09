@@ -478,3 +478,167 @@ def serious_adverse_event_number_fixture():
             ],
         }
     )
+
+
+@pytest.fixture
+def baseline_tumor_assessment_fixture():
+    """
+    One big frame with many per-subject scenarios.
+    Only columns consumed by _process_baseline_tumor_assessment are provided.
+    """
+    rows = []
+
+    def base_row(sid):
+        return {
+            "SubjectId": sid,
+            # VI
+            "VI_VITUMA": None,
+            "VI_VITUMA__2": None,
+            "VI_EventDate": None,
+            "VI_EventId": None,
+            # RCNT / RNTMNT
+            "RCNT_RCNTNOB": None,
+            "RCNT_EventDate": None,
+            "RCNT_EventId": None,
+            "RNTMNT_RNTMNTNOB": None,
+            "RNTMNT_RNTMNTNO": None,
+            "RNTMNT_EventId": None,
+            "RNTMNT_EventDate": None,
+            # RNRSP / RA
+            "RNRSP_TERNTBAS": None,
+            "RNRSP_TERNAD": None,
+            "RNRSP_EventDate": None,
+            "RNRSP_EventId": None,
+            "RA_RARECBAS": None,
+            "RA_RARECNAD": None,
+            "RA_EventDate": None,
+            "RA_EventId": None,
+        }
+
+    # No data anywhere -> subject should not get a baseline instance
+    rows.append(base_row("S00_NONE"))
+
+    # VI cases
+    # VI_VITUMA only
+    r = base_row("S01_VI_VITUMA_ONLY")
+    r["VI_VITUMA"] = "PD"
+    r["VI_EventDate"] = "2020-01-02"
+    r["VI_EventId"] = "V00"
+    rows.append(r)
+
+    # VI_VITUMA__2 only
+    r = base_row("S02_VI_VITUMA2_ONLY")
+    r["VI_VITUMA__2"] = "CR"
+    r["VI_EventDate"] = "2020-01-03"
+    r["VI_EventId"] = "V00"
+    rows.append(r)
+
+    # Neither VI value -> None
+    rows.append(base_row("S03_VI_NONE"))
+
+    # VI value but no date -> should be filtered out (None)
+    r = base_row("S04_VI_VALUE_NO_DATE")
+    r["VI_VITUMA"] = "SD"
+    r["VI_EventId"] = "V00"
+    rows.append(r)
+
+    # Off-target lesions (RCNT/RNTMNT) — EventId must be V00
+    # No off-target data
+    rows.append(base_row("S05_OFF_NONE"))
+
+    # RNTMNT both cols present -> pick RNTMNT_RNTMNTNOB
+    r = base_row("S06_RNT_BOTH")
+    r["RNTMNT_RNTMNTNOB"] = "5"
+    r["RNTMNT_RNTMNTNO"] = "7"
+    r["RNTMNT_EventId"] = "V00"
+    r["RNTMNT_EventDate"] = "2020-02-01"
+    rows.append(r)
+
+    # RNTMNT only second col
+    r = base_row("S07_RNT_ONE")
+    r["RNTMNT_RNTMNTNO"] = "4"
+    r["RNTMNT_EventId"] = "V00"
+    r["RNTMNT_EventDate"] = "2020-02-02"
+    rows.append(r)
+
+    # Off-target present but wrong EventId -> None
+    r = base_row("S08_RNT_WRONG_EVENT")
+    r["RNTMNT_RNTMNTNOB"] = "3"
+    r["RNTMNT_EventId"] = "V01"
+    r["RNTMNT_EventDate"] = "2020-02-03"
+    rows.append(r)
+
+    # RCNT only
+    r = base_row("S09_RCNT_ONLY")
+    r["RCNT_RCNTNOB"] = "3"
+    r["RCNT_EventId"] = "V00"
+    r["RCNT_EventDate"] = "2020-02-04"
+    rows.append(r)
+
+    # RCNT invalid integer -> None
+    r = base_row("S10_RCNT_INVALID")
+    r["RCNT_RCNTNOB"] = "abc"
+    r["RCNT_EventId"] = "V00"
+    r["RCNT_EventDate"] = "2020-02-05"
+    rows.append(r)
+
+    # Valid off-target size but no date -> keep size, date None
+    r = base_row("S11_OFF_SIZE_NO_DATE")
+    r["RNTMNT_RNTMNTNOB"] = "6"
+    r["RNTMNT_EventId"] = "V00"
+    # date missing
+    rows.append(r)
+
+    # Target lesions (RA/RNRSP)
+    # RA valid
+    r = base_row("S12_RA_VALID")
+    r["RA_RARECBAS"] = "12"
+    r["RA_RARECNAD"] = "12"
+    r["RA_EventDate"] = "2018-07-27"
+    r["RA_EventId"] = "V00"
+    rows.append(r)
+
+    # RNRSP valid
+    r = base_row("S13_RNRSP_VALID")
+    r["RNRSP_TERNTBAS"] = "20"
+    r["RNRSP_TERNAD"] = "18"
+    r["RNRSP_EventDate"] = "2019-01-01"
+    r["RNRSP_EventId"] = "V00"
+    rows.append(r)
+
+    # RA missing date but value present -> expect parsed size, date None (intended)
+    r = base_row("S14_RA_NO_DATE")
+    r["RA_RARECBAS"] = "8"
+    r["RA_RARECNAD"] = "7"
+    r["RA_EventId"] = "V00"
+    rows.append(r)
+
+    # RNRSP missing date but value present -> expect parsed size, date None (intended)
+    r = base_row("S15_RNRSP_NO_DATE")
+    r["RNRSP_TERNTBAS"] = "9"
+    r["RNRSP_TERNAD"] = "8"
+    r["RNRSP_EventId"] = "V00"
+    rows.append(r)
+
+    # Missing baseline, have nadir + date -> should NOT parse (size None)
+    r = base_row("S16_NO_BASELINE_HAS_NADIR")
+    r["RA_RARECNAD"] = "11"
+    r["RA_EventDate"] = "2020-03-01"
+    r["RA_EventId"] = "V00"
+    rows.append(r)
+
+    # Multiple valid rows -> take earliest by date
+    r1 = base_row("S17_MULTIPLE")
+    r1["RA_RARECBAS"] = "10"
+    r1["RA_RARECNAD"] = "10"
+    r1["RA_EventDate"] = "2020-01-03"
+    r1["RA_EventId"] = "V00"
+    rows.append(r1)
+    r2 = base_row("S17_MULTIPLE")
+    r2["RA_RARECBAS"] = "9"
+    r2["RA_RARECNAD"] = "9"
+    r2["RA_EventDate"] = "2020-01-01"
+    r2["RA_EventId"] = "V00"
+    rows.append(r2)
+
+    return pl.from_dicts(rows)

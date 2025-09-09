@@ -36,6 +36,7 @@ from tests.harmonization.fixtures.impress_fixtures import (
     medical_history_fixture,
     adverse_event_number_fixture,
     serious_adverse_event_number_fixture,
+    baseline_tumor_assessment_fixture,
 )
 
 
@@ -568,6 +569,90 @@ def test_serious_adverse_event_number(serious_adverse_event_number_fixture):
 #     # collection processor method
 #     # need quite a lot of cases
 #     pass
+
+
+def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
+    df = baseline_tumor_assessment_fixture
+    harmonizer = ImpressHarmonizer(data=df, trial_id="IMPRESS_TEST")
+
+    # make empty Patient entries
+    for sid in df.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[sid] = Patient(patient_id=sid, trial_id="IMPRESS_TEST")
+    harmonizer._process_baseline_tumor_assessment()
+
+    # no data anywhere, attribute should be None
+    assert harmonizer.patient_data["S00_NONE"].tumor_assessment_baseline is None
+
+    # VI
+    ta = harmonizer.patient_data["S01_VI_VITUMA_ONLY"].tumor_assessment_baseline
+    assert ta.assessment_type == "PD"
+    assert ta.assessment_date == dt.date(2020, 1, 2)
+
+    ta = harmonizer.patient_data["S02_VI_VITUMA2_ONLY"].tumor_assessment_baseline
+    assert ta.assessment_type == "CR"
+    assert ta.assessment_date == dt.date(2020, 1, 3)
+
+    assert harmonizer.patient_data["S03_VI_NONE"].tumor_assessment_baseline is None
+
+    ta = harmonizer.patient_data["S04_VI_VALUE_NO_DATE"].tumor_assessment_baseline
+    assert ta.assessment_type == "SD"
+
+    # off-target
+    ta = harmonizer.patient_data["S06_RNT_BOTH"].tumor_assessment_baseline
+    assert ta.number_off_target_lesions == 5
+    assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 1)
+
+    ta = harmonizer.patient_data["S07_RNT_ONE"].tumor_assessment_baseline
+    assert ta.number_off_target_lesions == 4
+    assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 2)
+
+    assert (
+        harmonizer.patient_data["S08_RNT_WRONG_EVENT"].tumor_assessment_baseline is None
+    )
+
+    ta = harmonizer.patient_data["S09_RCNT_ONLY"].tumor_assessment_baseline
+    assert ta.number_off_target_lesions == 3
+    assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 4)
+
+    assert harmonizer.patient_data["S10_RCNT_INVALID"].tumor_assessment_baseline is None
+
+    ta = harmonizer.patient_data["S11_OFF_SIZE_NO_DATE"].tumor_assessment_baseline
+    assert ta.number_off_target_lesions == 6
+    assert ta.off_target_lesion_measurment_date is None  # allowed
+
+    # target lesions
+    ta = harmonizer.patient_data["S12_RA_VALID"].tumor_assessment_baseline
+    assert ta.target_lesion_size == 12
+    assert ta.target_lesion_nadir == 12
+    assert ta.target_lesion_measurment_date == dt.date(2018, 7, 27)
+
+    ta = harmonizer.patient_data["S13_RNRSP_VALID"].tumor_assessment_baseline
+    assert ta.target_lesion_size == 20
+    assert ta.target_lesion_nadir == 18
+    assert ta.target_lesion_measurment_date == dt.date(2019, 1, 1)
+
+    # allow missing date but keep size and nadir
+    ta = harmonizer.patient_data["S14_RA_NO_DATE"].tumor_assessment_baseline
+    assert ta.target_lesion_size == 8
+    assert ta.target_lesion_nadir == 7
+    assert ta.target_lesion_measurment_date is None
+
+    ta = harmonizer.patient_data["S15_RNRSP_NO_DATE"].tumor_assessment_baseline
+    assert ta.target_lesion_size == 9
+    assert ta.target_lesion_nadir == 8
+    assert ta.target_lesion_measurment_date is None
+
+    # missing baseline, only nadir and date, should not create instance
+    assert (
+        harmonizer.patient_data["S16_NO_BASELINE_HAS_NADIR"].tumor_assessment_baseline
+        is None
+    )
+
+    # multiple rows, earliest by date
+    ta = harmonizer.patient_data["S17_MULTIPLE"].tumor_assessment_baseline
+    assert ta.target_lesion_size == 9
+    assert ta.target_lesion_nadir == 9
+    assert ta.target_lesion_measurment_date == dt.date(2020, 1, 1)
 
 
 def test_basic_inheritance(subject_id_fixture):

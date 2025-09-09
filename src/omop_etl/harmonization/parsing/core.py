@@ -273,7 +273,9 @@ class PolarsParsers:
     ) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
         return (
-            pl.when(e == true_int)
+            pl.when(e.is_null())
+            .then(None)
+            .when(e == true_int)
             .then(True)
             .when(e == false_int)
             .then(False)

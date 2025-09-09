@@ -349,7 +349,7 @@ class TumorAssessmentBaseline:
         self._target_lesion_size: Optional[int] = None
         self._target_lesion_nadir: Optional[int] = None
         self._target_lesion_measurment_date: Optional[dt.date] = None
-        self._off_target_lesions_size: Optional[int] = None
+        self._number_off_target_lesions: Optional[int] = None
         self._off_target_lesion_measurment_date: Optional[dt.date] = None
         self.updated_fields: Set[str] = set()
 
@@ -416,15 +416,16 @@ class TumorAssessmentBaseline:
         )
 
     @property
-    def off_target_lesions_size(self) -> Optional[int]:
-        return self._off_target_lesions_size
+    def number_off_target_lesions(self) -> Optional[int]:
+        return self._number_off_target_lesions
 
-    @off_target_lesions_size.setter
-    def off_target_lesions_size(self, value: Optional[int]) -> None:
-        self._off_target_lesions_size = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.off_target_lesions_size.fset.__name__
+    @number_off_target_lesions.setter
+    def number_off_target_lesions(self, value: Optional[int]) -> None:
+        self._number_off_target_lesions = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.number_off_target_lesions.fset.__name__,
         )
-        self.updated_fields.add(self.__class__.off_target_lesions_size.fset.__name__)
+        self.updated_fields.add(self.__class__.number_off_target_lesions.fset.__name__)
 
     @property
     def off_target_lesion_measurment_date(self) -> Optional[dt.date]:
@@ -449,7 +450,7 @@ class TumorAssessmentBaseline:
             f"target_lesion_size={self.target_lesion_size!r}, "
             f"target_lesion_nadir={self.target_lesion_nadir!r}, "
             f"target_lesion_measurment_date={self.target_lesion_measurment_date!r}, "
-            f"off_target_lesion_size={self.off_target_lesions_size!r}, "
+            f"off_target_lesion_size={self.number_off_target_lesions!r}, "
             f"off_target_lesion_measurment_date={self.off_target_lesion_measurment_date!r}"
         )
 
