@@ -1,17 +1,13 @@
-# harmonization/impress.py
-from collections import defaultdict
-from typing import Optional, List, Dict, Mapping, Any
+from typing import Mapping, Any, Optional
 from warnings import deprecated
-
-import polars
 import polars as pl
-import datetime as dt
 from logging import getLogger
 from deprecated import deprecated
 
 from omop_etl.harmonization.parsing.coercion import TypeCoercion
 from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.utils import detect_paired_field_collisions
 from omop_etl.harmonization.datamodels import (
     HarmonizedData,
     Patient,
@@ -26,8 +22,8 @@ from omop_etl.harmonization.datamodels import (
     ConcomitantMedication,
     AdverseEvents,
     TumorAssessmentBaseline,
+    TumorAssessment,
 )
-from omop_etl.harmonization.utils import detect_paired_field_collisions
 
 log = getLogger(__name__)
 
@@ -65,21 +61,13 @@ class ImpressHarmonizer(BaseHarmonizer):
         # flatten patient values
         patients = list(self.patient_data.values())
 
-        # for idx in range(len(patients)):
-        #     print(f"Patient {idx}: {patients[idx].tumor_assessment_baseline} \n")
-        #     print(f"Patient {idx}: {patients[idx].ecog_baseline} \n")
+        for idx in range(len(patients)):
+            print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
 
         return output
-        # medical_histories=self.medical_histories,
-        # ecog_assessments=self.ecog_assessments,
-        # previous_treatments=self.previous_treatments,
-        # adverse_events=self.adverse_events,
-        # response_assessments=self.response_assessments,
-        # clinical_benefits=self.clinical_benefits,
-        # quality_of_life_assessments=self.quality_of_life_assessments,
 
     # todo: add collapsing of multiple records per patient,
     #   just unsure how to handle these additional events in datamodel,
@@ -1630,24 +1618,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             "RA_RAiUNPDT",
         )
 
-        # new var: assessment_type
-        # Not stored as var in RNRSP (RANO), but in RA we can read from:
-        # REASSES1 and REASSESS2 (can't coalesce, some rows have both Recist and iRecist)
-        # for RNRSP; if row has data, it is RANO
-        # RA_RABASECH / RNRSP_TERNCFB = target_lesion_change_from_baseline
-        # RA_RARECCH / RNRSP_TERNCFN = target_lesion_change_from_nadir
-        # RA_RANLBASECD / RNRSP_RNRSPNLCD = was_new_lesions_registered_after_baseline
-        # RA_EventDate / RNRSP_EventDate = date
-
-        # combine to one, since we track what assessment as well?:
-        # RA_RATIMRES = recist_response
-        # RNRSP_RNRSPCL = rano_response
-        # RA_RAiMOD = irecist_response
-        # RA_RAPGROGDT = recist_date_of_progression
-        # RA_RAiUNPDT = irecist_date_of_progression
-
         def process(frame: pl.DataFrame) -> pl.DataFrame:
-            processed = (
+            _processed = (
                 frame.with_columns(
                     assessment_type=pl.when(pl.col("RA_RAASSESS2").is_not_null())
                     .then(pl.lit("irecist"))
@@ -1708,11 +1680,69 @@ class ImpressHarmonizer(BaseHarmonizer):
                         pl.col("RA_RAiUNPDT")
                     ),
                 )
+                # keep only rows with real signal
+                .with_columns(
+                    has_any=pl.any_horizontal(
+                        [
+                            pl.col("assessment_type").str.len_bytes() > 0,
+                            pl.col("target_lesion_change_from_baseline").is_not_null(),
+                            pl.col("target_lesion_change_from_nadir").is_not_null(),
+                            pl.col("new_lesions_after_baseline").is_not_null(),
+                            pl.col("date").is_not_null(),
+                            pl.col("recist_response").str.len_bytes() > 0,
+                            pl.col("irecist_response").str.len_bytes() > 0,
+                            pl.col("rano_response").str.len_bytes() > 0,
+                            pl.col("recist_progression_date").is_not_null(),
+                            pl.col("irecist_progression_date").is_not_null(),
+                        ]
+                    )
+                )
+                .filter(pl.col("has_any"))
+                .select(
+                    "SubjectId",
+                    "assessment_type",
+                    "target_lesion_change_from_baseline",
+                    "target_lesion_change_from_nadir",
+                    "new_lesions_after_baseline",
+                    "date",
+                    "recist_response",
+                    "irecist_response",
+                    "rano_response",
+                    "recist_progression_date",
+                    "irecist_progression_date",
+                )
             )
-            return processed
 
-        for row in process(base).iter_rows(named=True):
-            print(f"tumor assessments row = {row}")
+            return _processed
+
+        processed = process(base)
+        packed = self.pack_structs(df=processed, value_cols=processed.columns)
+
+        def build_ta(pid: str, s: Mapping[str, Any]) -> Optional[TumorAssessment]:
+            obj = TumorAssessment(pid)
+            obj.assessment_type = s["assessment_type"]
+            obj.target_lesion_change_from_baseline = s[
+                "target_lesion_change_from_baseline"
+            ]
+            obj.target_lesion_change_from_nadir = s["target_lesion_change_from_nadir"]
+            obj.was_new_lesions_registered_after_baseline = s[
+                "new_lesions_after_baseline"
+            ]
+            obj.date = s["date"]
+            obj.recist_response = s["recist_response"]
+            obj.irecist_response = s["irecist_response"]
+            obj.rano_response = s["rano_response"]
+            obj.recist_date_of_progression = s["recist_progression_date"]
+            obj.irecist_date_of_progression = s["irecist_progression_date"]
+            return obj
+
+        self.hydrate_list_field(
+            patients=self.patient_data,
+            packed=packed,
+            builder=build_ta,
+            skip_missing=False,
+            target_attr="tumor_assessments",
+        )
 
     def _process_overall_response(self):
         # scalar

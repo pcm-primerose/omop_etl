@@ -538,8 +538,9 @@ class MedicalHistory:
         self.updated_fields.add(self.__class__.status_code.fset.__name__)
 
     def __repr__(self) -> str:
+        cls = self.__class__.__name__
         return (
-            "MedicalHistory("
+            f"{cls}("
             f"term={self.term!r}, "
             f"seq={self.sequence_id!r}, "
             f"start={self.start_date!r}, "
@@ -547,17 +548,6 @@ class MedicalHistory:
             f"status={self.status!r}, "
             f"code={self.status_code!r}"
             ")"
-        )
-
-    def __str__(self):
-        return (
-            f"patient_id={self._patient_id!r}\n"
-            f"term={self.term!r}\n"
-            f"sequence_id={self.sequence_id!r}\n"
-            f"start_date={self.start_date!r}\n"
-            f"end_date={self.end_date!r}\n"
-            f"status={self.status!r}\n"
-            f"status_code={self.status_code!r}\n"
         )
 
 
@@ -660,17 +650,6 @@ class PreviousTreatments:
             f"end_date={self.end_date!r}, "
             f"additional_treatment={self.additional_treatment!r}"
             ")"
-        )
-
-    def __str__(self):
-        return (
-            f"patient_id={self._patient_id!r}\n"
-            f"treatment={self.treatment!r}\n"
-            f"treatment_code={self.treatment_code!r}\n"
-            f"treatment_sequence_number={self.treatment_sequence_number!r}\n"
-            f"start_date={self.start_date!r}\n"
-            f"end_date={self.end_date!r}\n"
-            f"additional_treatment={self.additional_treatment!r}\n"
         )
 
 
@@ -1146,6 +1125,23 @@ class TumorAssessment:
         self._irecist_date_of_progression = validated
         self.updated_fields.add(
             self.__class__.irecist_date_of_progression.fset.__name__
+        )
+
+    def __repr__(self):
+        cls = self.__class__.__name__
+        return (
+            f"{cls}("
+            f"assessment_type={self.assessment_type!r}, "
+            f"target_lesion_change_from_baseline={self.target_lesion_change_from_baseline!r}, "
+            f"target_lesion_change_from_nadir={self.target_lesion_change_from_nadir!r}, "
+            f"was_new_lesions_registered_after_baseline={self.was_new_lesions_registered_after_baseline!r}, "
+            f"date={self.date!r}, "
+            f"recist_response={self.recist_response!r}, "
+            f"irecist_response={self.irecist_response!r}, "
+            f"rano_response={self.rano_response!r}, "
+            f"recist_date_of_progression={self.recist_date_of_progression!r}, "
+            f"irecist_response={self.irecist_response!r}"
+            f")"
         )
 
 
@@ -2015,12 +2011,12 @@ class Patient:
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
             f"treatment start date={self.treatment_start_date} \n"
             f"ecog={self.ecog_baseline} \n"
+            f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
             f"medical_histories={self.medical_histories} \n"
             f"previous_treatments={self.previous_treatments} \n"
             f"treatment_cycles={self.treatment_cycles} \n"
             f"concomitant_medications={self.concomitant_medications} \n"
             f"adverse_events={self.adverse_events} \n"
-            f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
             f"tumor_assessments={self.tumor_assessments} \n"
         )
 

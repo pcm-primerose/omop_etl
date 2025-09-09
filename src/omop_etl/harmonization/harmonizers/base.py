@@ -202,7 +202,7 @@ class BaseHarmonizer(ABC):
         frame: pl.DataFrame,
         *,
         builder: Optional[Callable[[str, Mapping[str, Any]], Any]] = None,
-        skip_missing: Optional[bool] = False,
+        skip_missing_patients: Optional[bool] = False,
         subject_col: str = "SubjectId",
         target_attr: Optional[str] = None,
         patients: Dict[str, Any],
@@ -221,7 +221,7 @@ class BaseHarmonizer(ABC):
             sid = row[subject_col]
             patient = patients.get(sid)
             if patient is None:
-                if skip_missing is True:
+                if skip_missing_patients is True:
                     continue
                 raise KeyError(f"Patient {sid} not found")
 
