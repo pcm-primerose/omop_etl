@@ -60,6 +60,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_number_of_serious_adverse_events()
         self._process_adverse_events()
         self._process_baseline_tumor_assessment()
+        self._process_tumor_assessments()
 
         # flatten patient values
         patients = list(self.patient_data.values())
@@ -1421,41 +1422,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             target_attr="adverse_events",
         )
 
-    # TODO: figure this out please
-    # So RA and RNRSP has assessments for each visit, not including baseline (the type of assessment is stored in VI at baseline for all visits)
-    # - some patients have data in both iRecist and Recist cols in RA...
-
-    """
-    Singleton: 
-    BaselineTumorEvaluation
-        Target lesions:
-            - sum size of target lesions 
-            RARECBAS, RARECNAD, EventDate                                                                                                                          
-            RNRSP: TERNTBAS, TERNAD, EventDate                                                                                              
-        Non-target lesions: 
-            - non-target lesions, date and size? 
-            - ActivityId contains V00 / V00TA4
-            RCNTNOB, EventName or ActivityId 
-            RNTMNT, ActivityId or EventName 
-            RNTMNTNOB, EventName or ActivityId
-                                                                                                                                                                        
-    COLLECTION
-    Assessments: 
-        Actual response: 
-            - what assessment, response, date 
-            RATIMRES (RATIMRES CD), RAiMOD (RAIMODCD), RAPROGDT, RAiUNPDT, RNRSPCL (RNRSPCLCD), LUGOVRL(LUGOVRLCD), EventDate
-        
-        Percent change from baseline: 
-            - calculate from baseline data 
-            - also store raw data? 
-            RABASECH, RARECCH, EventDate                                                                                                                 
-            TERNCFB, TERNCFN, EventDate                                                              
-            
-        New lesions: 
-            - was there new lesions, date, size? 
-            RANLBASE, RANLBASECD, RNRSPNL, RNRSPNLCD, EventDate
-    """
-
     def _process_baseline_tumor_assessment(self):
         """
         Get target lesion size at baseline, and off-target lesions.
@@ -1624,9 +1590,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             .join(tl, on="SubjectId", how="left")
         )
 
-        for row in joined.iter_rows(named=True):
-            print(f"joined row: {row}")
-
         def build_tumor_assessment_baseline(pid: str, row) -> TumorAssessmentBaseline:
             tab = TumorAssessmentBaseline(pid)
             tab.assessment_type = row["tumor_assessment_vi"]
@@ -1648,17 +1611,126 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     def _process_tumor_assessments(self):
-        # each visit is one instance.
-        # response & date:
-        # RA_RATIMRES (RATIMRES CD), RA_RAiMOD (RAIMODCD), RA_RAPROGDT, RA_RAiUNPDT, RA_EventDate
-        # RNRSP_RNRSPCL (RNRSP_RNRSPCLCD), RNRSP_EventDate
+        base = self.data.select(
+            "SubjectId",
+            "RA_RAASSESS1",
+            "RA_RAASSESS2",
+            "RA_RABASECH",
+            "RNRSP_TERNCFB",
+            "RA_RARECCH",
+            "RNRSP_TERNCFN",
+            "RA_RANLBASECD",
+            "RNRSP_RNRSPNLCD",
+            "RA_EventDate",
+            "RNRSP_EventDate",
+            "RA_RATIMRES",
+            "RNRSP_RNRSPCL",
+            "RA_RAiMOD",
+            "RA_RAPROGDT",
+            "RA_RAiUNPDT",
+        )
 
-        # percent change from baseline:
-        # RA_RABASECH (percent change from baseline), RA_RARECCH (percent change from nadir), EventDate
-        # RNRSP_TERNCFB (percent change from baseline), RNRSP_TERNCFN (percent change from nadir), EventDate
-        #     - also store raw data
+        # new var: assessment_type
+        # Not stored as var in RNRSP (RANO), but in RA we can read from:
+        # REASSES1 and REASSESS2 (can't coalesce, some rows have both Recist and iRecist)
+        # for RNRSP; if row has data, it is RANO
+        # RA_RABASECH / RNRSP_TERNCFB = target_lesion_change_from_baseline
+        # RA_RARECCH / RNRSP_TERNCFN = target_lesion_change_from_nadir
+        # RA_RANLBASECD / RNRSP_RNRSPNLCD = was_new_lesions_registered_after_baseline
+        # RA_EventDate / RNRSP_EventDate = date
+
+        # combine to one, since we track what assessment as well?:
+        # RA_RATIMRES = recist_response
+        # RNRSP_RNRSPCL = rano_response
+        # RA_RAiMOD = irecist_response
+        # RA_RAPGROGDT = recist_date_of_progression
+        # RA_RAiUNPDT = irecist_date_of_progression
+
+        def process(frame: pl.DataFrame) -> pl.DataFrame:
+            processed = (
+                frame.with_columns(
+                    assessment_type=pl.when(pl.col("RA_RAASSESS2").is_not_null())
+                    .then(pl.lit("irecist"))
+                    # takes precendence over irecist, so if collision, overwrite
+                    .when(pl.col("RA_RAASSESS1").is_not_null())
+                    .then(pl.lit("recist"))
+                    # infer from row since not separate variable
+                    .when(pl.col("RNRSP_TERNCFB").is_not_null())
+                    .then(pl.lit("rano"))
+                    .otherwise(None)
+                )
+                .with_columns(
+                    _tl_change_baseline=pl.coalesce(
+                        [pl.col("RA_RABASECH"), pl.col("RNRSP_TERNCFB")]
+                    ).cast(pl.Float64, strict=False),
+                    _tl_change_nadir=pl.coalesce(
+                        [pl.col("RA_RARECCH"), pl.col("RNRSP_TERNCFN")]
+                    ).cast(pl.Float64, strict=False),
+                )
+                .with_columns(
+                    target_lesion_change_from_baseline=(
+                        pl.when(pl.col("_tl_change_baseline").is_null())
+                    )
+                    .then(None)
+                    .when(pl.col("_tl_change_baseline") == 0)
+                    .then(0)
+                    .otherwise(pl.col("_tl_change_baseline") / 100),
+                    target_lesion_change_from_nadir=(
+                        pl.when(pl.col("_tl_change_nadir").is_null())
+                    )
+                    .then(None)
+                    .when(pl.col("_tl_change_nadir") == 0)
+                    .then(0)
+                    .otherwise(pl.col("_tl_change_nadir") / 100),
+                )
+                .with_columns(
+                    new_lesions_after_baseline=PolarsParsers.int_to_bool(
+                        expr=pl.coalesce(
+                            [pl.col("RA_RANLBASECD"), pl.col("RNRSP_RNRSPNLCD")]
+                        ).cast(pl.Int64, strict=False),
+                        true_int=1,
+                        false_int=0,
+                    )
+                )
+                .with_columns(
+                    date=PolarsParsers.parse_date_column(
+                        pl.coalesce([pl.col("RA_EventDate"), pl.col("RNRSP_EventDate")])
+                    )
+                )
+                .with_columns(
+                    recist_response=pl.col("RA_RATIMRES").str.strip_chars(),
+                    irecist_response=pl.col("RA_RAiMOD").str.strip_chars(),
+                    rano_response=pl.col("RNRSP_RNRSPCL").str.strip_chars(),
+                    recist_progression_date=PolarsParsers.parse_date_column(
+                        pl.col("RA_RAPROGDT")
+                    ),
+                    irecist_progression_date=PolarsParsers.parse_date_column(
+                        pl.col("RA_RAiUNPDT")
+                    ),
+                )
+            )
+            return processed
+
+        for row in process(base).iter_rows(named=True):
+            print(f"tumor assessments row = {row}")
+
+    def _process_overall_response(self):
+        # scalar
         pass
 
-    # then it's just best overall response, clinical benefit, EOT reason/date
-    # then the questionnaries (ez, just structure)
-    # then it's DONE!
+    def _process_clinical_benefit(self):
+        # scalar
+        pass
+
+    def _process_eot_reason(self):
+        # reason + date
+        # scalar
+        pass
+
+    def _process_c30(self):
+        # collection I think
+        pass
+
+    def _process_eq5d(self):
+        # collection I think
+        pass

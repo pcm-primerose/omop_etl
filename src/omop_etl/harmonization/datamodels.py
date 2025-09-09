@@ -980,6 +980,174 @@ class TreatmentCycle:
             f")"
         )
 
+    # new var: assessment_type
+    # Not stored as var in RNRSP (RANO), but in RA we can read from:
+    # REASSES1 and REASSESS2 (can't coalesce, some rows have both Recist and iRecist)
+    # for RNRSP; if row has data, it is RANO
+    # RA_RABASECH / RNRSP_TERNCFB = target_lesion_change_from_baseline (safe divide by 100 to get fraction)
+    # RA_RARECCH / RNRSP_TERNCFN = target_lesion_change_from_nadir (safe divide by 100 to get fraction)
+    # RA_RANLBASECD / RNRSP_RNRSPNLCD = was_new_lesions_registered_after_baseline
+    # RA_EventDate / RNRSP_EventDate = date
+    # combine to one, since we track what assessment as well?:
+    # RA_RATIMRES = recist_response
+    # RNRSP_RNRSPCL = rano_response
+    # RA_RAiMOD = irecist_response
+    # RA_RAPGROGDT = recist_date_of_progression
+    # RA_RAiUNPDT = irecist_date_of_progression
+
+
+class TumorAssessment:
+    def __init__(self, patient_id: str):
+        self._patient_id = patient_id
+        self._assessment_type: Optional[str] = None
+        self._target_lesion_change_from_baseline: Optional[float] = None
+        self._target_lesion_change_from_nadir: Optional[float] = None
+        self._was_new_lesions_registered_after_baseline: Optional[bool] = None
+        self._date: Optional[dt.date] = None
+        self._recist_response: Optional[str] = None
+        self._irecist_response: Optional[str] = None
+        self._rano_response: Optional[str] = None
+        self._recist_date_of_progression: Optional[dt.date] = None
+        self._irecist_date_of_progression: Optional[dt.date] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
+
+    @property
+    def assessment_type(self) -> Optional[str]:
+        return self._assessment_type
+
+    @assessment_type.setter
+    def assessment_type(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.assessment_type.fset.__name__
+        )
+        self._assessment_type = validated
+        self.updated_fields.add(self.__class__.assessment_type.fset.__name__)
+
+    @property
+    def target_lesion_change_from_baseline(self) -> Optional[float]:
+        return self._target_lesion_change_from_baseline
+
+    @target_lesion_change_from_baseline.setter
+    def target_lesion_change_from_baseline(self, value: Optional[float]) -> None:
+        validated = StrictValidators.validate_optional_float(
+            value=value,
+            field_name=self.__class__.target_lesion_change_from_baseline.fset.__name__,
+        )
+        self._target_lesion_change_from_baseline = validated
+        self.updated_fields.add(
+            self.__class__.target_lesion_change_from_baseline.fset.__name__
+        )
+
+    @property
+    def target_lesion_change_from_nadir(self) -> Optional[float]:
+        return self._target_lesion_change_from_nadir
+
+    @target_lesion_change_from_nadir.setter
+    def target_lesion_change_from_nadir(self, value: Optional[float]) -> None:
+        validated = StrictValidators.validate_optional_float(
+            value=value,
+            field_name=self.__class__.target_lesion_change_from_nadir.fset.__name__,
+        )
+        self._target_lesion_change_from_nadir = validated
+        self.updated_fields.add(
+            self.__class__.target_lesion_change_from_nadir.fset.__name__
+        )
+
+    @property
+    def was_new_lesions_registered_after_baseline(self) -> Optional[bool]:
+        return self._was_new_lesions_registered_after_baseline
+
+    @was_new_lesions_registered_after_baseline.setter
+    def was_new_lesions_registered_after_baseline(self, value: Optional[bool]) -> None:
+        validated = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.was_new_lesions_registered_after_baseline.fset.__name__,
+        )
+        self._was_new_lesions_registered_after_baseline = validated
+        self.updated_fields.add(
+            self.__class__.was_new_lesions_registered_after_baseline.fset.__name__
+        )
+
+    @property
+    def date(self) -> Optional[dt.date]:
+        return self._date
+
+    @date.setter
+    def date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.date.fset.__name__
+        )
+        self._date = validated
+        self.updated_fields.add(self.__class__.date.fset.__name__)
+
+    @property
+    def recist_response(self) -> Optional[str]:
+        return self._recist_response
+
+    @recist_response.setter
+    def recist_response(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.recist_response.fset.__name__
+        )
+        self._recist_response = validated
+        self.updated_fields.add(self.__class__.recist_response.fset.__name__)
+
+    @property
+    def irecist_response(self) -> Optional[str]:
+        return self._irecist_response
+
+    @irecist_response.setter
+    def irecist_response(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.irecist_response.fset.__name__
+        )
+        self._irecist_response = validated
+        self.updated_fields.add(self.__class__.irecist_response.fset.__name__)
+
+    @property
+    def rano_response(self) -> Optional[str]:
+        return self._rano_response
+
+    @rano_response.setter
+    def rano_response(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.rano_response.fset.__name__
+        )
+        self._rano_response = validated
+        self.updated_fields.add(self.__class__.rano_response.fset.__name__)
+
+    @property
+    def recist_date_of_progression(self) -> Optional[dt.date]:
+        return self._recist_date_of_progression
+
+    @recist_date_of_progression.setter
+    def recist_date_of_progression(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.recist_date_of_progression.fset.__name__,
+        )
+        self._recist_date_of_progression = validated
+        self.updated_fields.add(self.__class__.recist_date_of_progression.fset.__name__)
+
+    @property
+    def irecist_date_of_progression(self) -> Optional[dt.date]:
+        return self._irecist_date_of_progression
+
+    @irecist_date_of_progression.setter
+    def irecist_date_of_progression(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.irecist_date_of_progression.fset.__name__,
+        )
+        self._irecist_date_of_progression = validated
+        self.updated_fields.add(
+            self.__class__.irecist_date_of_progression.fset.__name__
+        )
+
 
 class ConcomitantMedication:
     def __init__(self, patient_id: str):
@@ -1373,6 +1541,7 @@ class Patient:
         self._treatment_cycles: list[TreatmentCycle] = []
         self._concomitant_medications: list[ConcomitantMedication] = []
         self._adverse_events: list[AdverseEvents] = []
+        self._tumor_assessments: list[TumorAssessment] = []
 
     # scalars
     @property
@@ -1795,6 +1964,36 @@ class Patient:
         self._adverse_events = items
         self.updated_fields.add(self.__class__.adverse_events.fset.__name__)
 
+    @property
+    def tumor_assessments(self) -> tuple[TumorAssessment, ...]:
+        return tuple(self._tumor_assessments)
+
+    @tumor_assessments.setter
+    def tumor_assessments(self, value: Optional[Sequence[TumorAssessment]]) -> None:
+        items: List[TumorAssessment]
+        if value is None:
+            items = []
+
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(
+                    f"Expected Sequence of TumorAssessment, got {type(value)}"
+                )
+
+            wrong_type = [type(x) for x in value if not isinstance(x, TumorAssessment)]
+            if wrong_type:
+                raise TypeError(
+                    f"All elements should be of type TumorAssessment, got {wrong_type}"
+                )
+
+            items = list(value)
+
+        for pt in items:
+            pt._patient_id = self._patient_id
+
+        self._tumor_assessments = items
+        self.updated_fields.add(self.__class__.tumor_assessments.fset.__name__)
+
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
 
@@ -1822,6 +2021,7 @@ class Patient:
             f"concomitant_medications={self.concomitant_medications} \n"
             f"adverse_events={self.adverse_events} \n"
             f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
+            f"tumor_assessments={self.tumor_assessments} \n"
         )
 
 

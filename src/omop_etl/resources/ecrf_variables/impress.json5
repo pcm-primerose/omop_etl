@@ -171,7 +171,9 @@
     "RAiMOD",
     "RAiMODCD",
     "RAPROGDT",
-    "RAiUNPDT"
+    "RAiUNPDT",
+    "RAASSESS1",
+    "RAASSESS2"
   ],
   "rnrsp": [
     "SubjectId",
