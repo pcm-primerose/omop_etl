@@ -1744,6 +1744,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             target_attr="tumor_assessments",
         )
 
+    # TODO: implement easy scalars + pydantic collections
     def _process_overall_response(self):
         # scalar
         pass
@@ -1753,7 +1754,10 @@ class ImpressHarmonizer(BaseHarmonizer):
         pass
 
     def _process_eot_reason(self):
-        # reason + date
+        # scalar
+        pass
+
+    def process_eot_date(self):
         # scalar
         pass
 

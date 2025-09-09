@@ -1,9 +1,10 @@
 # harmoinzation/datamodels.py
 from enum import Enum
 from typing import List, Optional, Set, Sequence
-from dataclasses import dataclass, field
+from dataclasses import field
 import datetime as dt
 from logging import getLogger
+from pydantic.dataclasses import dataclass
 from omop_etl.harmonization.validation.validators import StrictValidators
 
 # These models represent validated, transformed and cleaned harmonized data
@@ -1500,6 +1501,56 @@ class AdverseEvents:
         )
 
 
+@dataclass
+class C30:
+    subject_id = str
+    date: Optional[dt.date] = None
+    event_name: Optional[str] = None
+    q1: Optional[str] = None
+    q2: Optional[str] = None
+    q3: Optional[str] = None
+    q4: Optional[str] = None
+    q5: Optional[str] = None
+    q6: Optional[str] = None
+    q7: Optional[str] = None
+    q8: Optional[str] = None
+    q9: Optional[str] = None
+    q10: Optional[str] = None
+    q11: Optional[str] = None
+    q12: Optional[str] = None
+    q13: Optional[str] = None
+    q14: Optional[str] = None
+    q15: Optional[str] = None
+    q16: Optional[str] = None
+    q17: Optional[str] = None
+    q18: Optional[str] = None
+    q19: Optional[str] = None
+    q20: Optional[str] = None
+    q21: Optional[str] = None
+    q22: Optional[str] = None
+    q23: Optional[str] = None
+    q24: Optional[str] = None
+    q25: Optional[str] = None
+    q26: Optional[str] = None
+    q27: Optional[str] = None
+    q28: Optional[str] = None
+    q29: Optional[str] = None
+    q30: Optional[str] = None
+
+
+@dataclass
+class EQ5D:
+    subject_id = str
+    date: Optional[dt.date] = None
+    event_name: Optional[str] = None
+    q1: Optional[str] = None
+    q2: Optional[str] = None
+    q3: Optional[str] = None
+    q4: Optional[str] = None
+    q5: Optional[str] = None
+    qol_metric: Optional[int] = None
+
+
 class Patient:
     """
     Stores all data for a patient
@@ -1538,6 +1589,8 @@ class Patient:
         self._concomitant_medications: list[ConcomitantMedication] = []
         self._adverse_events: list[AdverseEvents] = []
         self._tumor_assessments: list[TumorAssessment] = []
+        self._C30: list[C30] = []
+        self._EQ5D: list[EQ5D] = []
 
     # scalars
     @property
@@ -1989,6 +2042,15 @@ class Patient:
 
         self._tumor_assessments = items
         self.updated_fields.add(self.__class__.tumor_assessments.fset.__name__)
+
+    # TODO: implement last collections (and scalars but that at the end)
+    # @property
+    # def C30(self) -> Optional[Sequence[C30, ...]]:
+    #     return self._C30 = C30
+    #
+    # @C30.setter
+    # def c30(self, value: Optional[Sequence[C30]]) -> None:
+    #     items: List[C30]
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
