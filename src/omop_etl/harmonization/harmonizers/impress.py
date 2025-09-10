@@ -75,7 +75,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx]} \n")
+            print(f"Patient {idx}: {patients[idx].tumor_assessments} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -1641,6 +1641,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                     _tl_change_nadir=pl.coalesce(
                         [pl.col("RA_RARECCH"), pl.col("RNRSP_TERNCFN")]
                     ).cast(pl.Float64, strict=False),
+                    event_id=pl.coalesce(
+                        [pl.col("RA_EventId"), pl.col("RNRSP_EventId")]
+                    ).cast(pl.Utf8, strict=False),
                 )
                 .with_columns(
                     target_lesion_change_from_baseline=(
@@ -1713,6 +1716,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                     "rano_response",
                     "recist_progression_date",
                     "irecist_progression_date",
+                    "event_id",
                 )
             )
 
@@ -1740,6 +1744,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             obj.rano_response = s["rano_response"]
             obj.recist_date_of_progression = s["recist_progression_date"]
             obj.irecist_date_of_progression = s["irecist_progression_date"]
+            obj.event_id = s["event_id"]
             return obj
 
         self.hydrate_list_field(
@@ -2043,7 +2048,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     def _process_clinical_benefit(self):
-        # scalar
+        # scalar?
         pass
 
     def _process_eot_reason(self):

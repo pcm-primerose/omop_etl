@@ -1207,7 +1207,7 @@ class TumorAssessment:
             f"irecist_response={self.irecist_response!r}, "
             f"rano_response={self.rano_response!r}, "
             f"recist_date_of_progression={self.recist_date_of_progression!r}, "
-            f"irecist_response={self.irecist_response!r}"
+            f"irecist_response={self.irecist_response!r}, "
             f"event_id={self.event_id!r}"
             f")"
         )
