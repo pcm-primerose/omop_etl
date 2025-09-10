@@ -28,6 +28,7 @@ from omop_etl.harmonization.datamodels import (
     TumorAssessment,
     C30,
     EQ5D,
+    BestOverallResponse,
 )
 
 
@@ -65,12 +66,16 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_tumor_assessments()
         self._process_c30()
         self._process_eq5d()
+        self._process_best_overall_response()
+        self._process_clinical_benefit()
+        self._process_eot_reason()
+        # self._process_eot_date()
 
         # flatten patient values
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx]} \n")
+            print(f"Patient {idx}: {patients[idx].best_overall_response} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -1612,6 +1617,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             "RA_RAiMOD",
             "RA_RAPROGDT",
             "RA_RAiUNPDT",
+            "RA_EventId",
+            "RNRSP_EventId",
         )
 
         def process(frame: pl.DataFrame) -> pl.DataFrame:
@@ -1815,7 +1822,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             return out
 
         processed = process_eq5d(frame=base)
-        print(f"processed {processed}")
         value_cols = processed.select(pl.all().exclude("SubjectId")).columns
 
         packed = self.pack_structs(
@@ -1846,10 +1852,140 @@ class ImpressHarmonizer(BaseHarmonizer):
             target_attr="eq5d_list",
         )
 
-    # TODO: implement easy scalars
     def _process_best_overall_response(self):
-        # scalar
-        pass
+        """
+        Takes the lowest value of the response code across all tumor assessments for each patient,
+        i.e. selects the best response across entire treatment duration.
+        Also assumes tumor evaluations are mutually exclusive.
+        Removes unconfirmed iRecist responses, and takes best response across Recist and iRecist when
+        rows have both evaluations.
+        """
+        # TODO: make sure not evaluable status maps to evaluability field in Patient:
+        #   'Not Evaluable (NE)', 'RA_RATIMRESCD': 96,
+        base = self.data.select(
+            "SubjectId",
+            "RA_RATIMRES",
+            "RA_RATIMRESCD",
+            "RA_RAiMOD",
+            "RA_RAiMODCD",
+            "RA_EventDate",
+            "RNRSP_RNRSPCL",
+            "RNRSP_RNRSPCLCD",
+            "RNRSP_EventDate",
+        ).filter(pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null()))
+
+        def process(frame: pl.DataFrame) -> pl.DataFrame:
+            result = (
+                frame.with_columns(
+                    [
+                        # map irecist code to recist scale
+                        pl.when(pl.col("RA_RAiMODCD").cast(pl.Int64, strict=False) == 4)
+                        .then(None)
+                        .when(pl.col("RA_RAiMODCD").cast(pl.Int64, strict=False) == 5)
+                        .then(4)
+                        .when(pl.col("RA_RAiMODCD").cast(pl.Int64, strict=False) == 6)
+                        .then(96)
+                        .otherwise(pl.col("RA_RAiMODCD").cast(pl.Int64, strict=False))
+                        .alias("irecist_normalized_code")
+                    ]
+                )
+                .with_columns(
+                    [
+                        # choose best response between recist and irecist
+                        pl.when(
+                            pl.col("RA_RATIMRESCD").is_not_null()
+                            & pl.col("irecist_normalized_code").is_not_null()
+                        )
+                        .then(
+                            pl.when(
+                                pl.col("RA_RATIMRESCD")
+                                <= pl.col("irecist_normalized_code")
+                            )
+                            .then(pl.struct(["RA_RATIMRES", "RA_RATIMRESCD"]))
+                            .otherwise(
+                                pl.struct(["RA_RAiMOD", "irecist_normalized_code"])
+                            )
+                        )
+                        .when(pl.col("RA_RATIMRESCD").is_not_null())
+                        .then(pl.struct(["RA_RATIMRES", "RA_RATIMRESCD"]))
+                        .when(pl.col("irecist_normalized_code").is_not_null())
+                        .then(pl.struct(["RA_RAiMOD", "irecist_normalized_code"]))
+                        .otherwise(
+                            pl.struct(
+                                [
+                                    pl.lit(None).alias("response_text"),
+                                    pl.lit(None).alias("response_code"),
+                                ]
+                            )
+                        )
+                        .alias("best_recist_response")
+                    ]
+                )
+                .with_columns(
+                    recist_text=(
+                        pl.col("best_recist_response")
+                        .struct.field("RA_RATIMRES")
+                        .fill_null(
+                            pl.col("best_recist_response").struct.field("RA_RAiMOD")
+                        )
+                        .fill_null(
+                            pl.col("best_recist_response").struct.field("response_text")
+                        )
+                    ),
+                    recist_code=(
+                        pl.col("best_recist_response")
+                        .struct.field("RA_RATIMRESCD")
+                        .fill_null(
+                            pl.col("best_recist_response").struct.field(
+                                "irecist_normalized_code"
+                            )
+                        )
+                        .fill_null(
+                            pl.col("best_recist_response").struct.field("response_code")
+                        )
+                    ),
+                )
+                .with_columns(
+                    # coalesce with rano, parse final cols
+                    best_response_text=pl.coalesce("recist_text", "RNRSP_RNRSPCL")
+                    .cast(pl.Utf8, strict=False)
+                    .str.strip_chars(),
+                    best_response_code=pl.coalesce(
+                        "recist_code", "RNRSP_RNRSPCLCD"
+                    ).cast(pl.Int64, strict=False),
+                    best_response_date=PolarsParsers.parse_date_column(
+                        pl.coalesce("RA_EventDate", "RNRSP_EventDate")
+                    ),
+                )
+                .filter(pl.col("best_response_code").is_not_null())
+                .sort(["SubjectId", "best_response_code"])
+                .group_by("SubjectId", maintain_order=True)
+                .first()
+                .select(
+                    "SubjectId",
+                    "best_response_text",
+                    "best_response_code",
+                    "best_response_date",
+                )
+            )
+
+            return result
+
+        processed = process(base)
+
+        def build_best_overall_response(pid: str, row) -> BestOverallResponse:
+            bor = BestOverallResponse(pid)
+            bor.response = row["best_response_text"]
+            bor.code = row["best_response_code"]
+            bor.date = row["best_response_date"]
+            return bor
+
+        self.hydrate_singleton(
+            processed,
+            patients=self.patient_data,
+            builder=build_best_overall_response,
+            target_attr="best_overall_response",
+        )
 
     def _process_clinical_benefit(self):
         # scalar

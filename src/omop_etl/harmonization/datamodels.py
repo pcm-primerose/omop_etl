@@ -9,13 +9,6 @@ from dataclasses import dataclass
 from pydantic import TypeAdapter, field_validator, BaseModel, ConfigDict
 from omop_etl.harmonization.validation.validators import StrictValidators
 
-# These models represent validated, transformed and cleaned harmonized data
-# as intermediate structures they don't map 1:1 to the CDM table.
-# Basic flow is:
-# 1. add method to subclass, implement it to process some data, see docs for what to extract
-# 2. once data extracted, make datamodel storing this, using getters/setters, valiation/parsers, implement specific parsers if needed
-# 3. add field to patient collection class
-
 log = getLogger(__name__)
 
 
@@ -455,6 +448,64 @@ class TumorAssessmentBaseline:
             f"target_lesion_measurment_date={self.target_lesion_measurment_date!r}, "
             f"off_target_lesion_size={self.number_off_target_lesions!r}, "
             f"off_target_lesion_measurment_date={self.off_target_lesion_measurment_date!r}"
+        )
+
+
+class BestOverallResponse:
+    def __init__(self, patient_id: str):
+        self._patient_id = patient_id
+        self._response: Optional[str] = None
+        self._code: Optional[int] = None
+        self._date: Optional[dt.date] = None
+        self.updated_fields: Set[str] = set()
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
+
+    @property
+    def response(self) -> Optional[str]:
+        return self._response
+
+    @response.setter
+    def response(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.response.fset.__name__
+        )
+        self._response = validated
+        self.updated_fields.add(self.__class__.response.fset.__name__)
+
+    @property
+    def code(self) -> Optional[int]:
+        return self._code
+
+    @code.setter
+    def code(self, value: Optional[int]) -> None:
+        validated = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.code.fset.__name__
+        )
+        self._code = validated
+        self.updated_fields.add(self.__class__.code.fset.__name__)
+
+    @property
+    def date(self) -> Optional[dt.date]:
+        return self._date
+
+    @date.setter
+    def date(self, value: Optional[dt.date]) -> None:
+        validated = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.date.fset.__name__
+        )
+        self._date = validated
+        self.updated_fields.add(self.__class__.date.fset.__name__)
+
+    def __repr__(self) -> str:
+        cls = self.__class__.__name__
+        return (
+            f"{cls}("
+            f"response={self.response!r}, "
+            f"code={self.code!r}, "
+            f"date={self.date!r}"
         )
 
 
@@ -991,6 +1042,7 @@ class TumorAssessment:
         self._rano_response: Optional[str] = None
         self._recist_date_of_progression: Optional[dt.date] = None
         self._irecist_date_of_progression: Optional[dt.date] = None
+        self._event_id: Optional[str] = None
         self.updated_fields: Set[str] = set()
 
     @property
@@ -1130,6 +1182,18 @@ class TumorAssessment:
             self.__class__.irecist_date_of_progression.fset.__name__
         )
 
+    @property
+    def event_id(self) -> Optional[str]:
+        return self._event_id
+
+    @event_id.setter
+    def event_id(self, value: Optional[str]) -> None:
+        validated = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.event_id.fset.__name__
+        )
+        self._event_id = validated
+        self.updated_fields.add(self.__class__.event_id.fset.__name__)
+
     def __repr__(self):
         cls = self.__class__.__name__
         return (
@@ -1144,6 +1208,7 @@ class TumorAssessment:
             f"rano_response={self.rano_response!r}, "
             f"recist_date_of_progression={self.recist_date_of_progression!r}, "
             f"irecist_response={self.irecist_response!r}"
+            f"event_id={self.event_id!r}"
             f")"
         )
 
@@ -1603,6 +1668,7 @@ class Patient:
         self._lost_to_followup: Optional[FollowUp] = None
         self._ecog_baseline: Optional[EcogBaseline] = None
         self._tumor_assessment_baseline: Optional[TumorAssessmentBaseline] = None
+        self._best_overall_response: Optional[BestOverallResponse] = None
 
         # collections
         self._medical_histories: list[MedicalHistory] = []
@@ -1875,6 +1941,25 @@ class Patient:
         self._tumor_assessment_baseline = value
         self.updated_fields.add(TumorAssessmentBaseline.__name__)
 
+    @property
+    def best_overall_response(self) -> Optional[BestOverallResponse]:
+        return self._best_overall_response
+
+    @best_overall_response.setter
+    def best_overall_response(
+        self, value: Optional[BestOverallResponse] | None
+    ) -> None:
+        if value is not None and not isinstance(value, BestOverallResponse):
+            raise ValueError(
+                f"Best overall resoonse must be {BestOverallResponse.__name__} or None, got {value} with type{type(value)}"
+            )
+
+        if value is not None:
+            value._patient_id = self._patient_id
+
+        self._best_overall_response = value
+        self.updated_fields.add(BestOverallResponse.__name__)
+
     # multiple instances
     @property
     def medical_histories(self) -> tuple[MedicalHistory, ...]:
@@ -2141,6 +2226,7 @@ class Patient:
             f"treatment start date={self.treatment_start_date} \n"
             f"ecog={self.ecog_baseline} \n"
             f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
+            f"best_overall_respoonse={self.best_overall_response} \n"
             f"medical_histories={self.medical_histories} \n"
             f"previous_treatments={self.previous_treatments} \n"
             f"treatment_cycles={self.treatment_cycles} \n"
@@ -2160,19 +2246,12 @@ class HarmonizedData:
 
     trial_id: str
     patients: List[Patient] = field(default_factory=list)
+    # clinical_benefit? proportion of patients with CR PR SD
+    # other fields and metadata etc
 
     def __str__(self):
         patient_str = "\n".join(str(p) for p in self.patients)
         return f"Trial ID: {self.trial_id}\nPatients:\n{patient_str}"
 
-    # medical_histories: List[MedicalHistory] = field(default_factory=list)
-    # previous_treatments: List[PreviousTreatmentLine] = field(default_factory=list)
-    # ecog_assessments: List[Ecog] = field(default_factory=list)
-    # adverse_events: List[AdverseEvent] = field(default_factory=list)
-    # clinical_benefits: List[ClinicalBenefit] = field(default_factory=list)
-    # quality_of_life_assessments: List[QualityOfLife] = field(default_factory=list)
-
-    # add get specific patient data method
-    # and get all patient data
-    # and specific trial data
-    # return as dict method etc
+    # repr, to_dict, to_df, to_csv, to_json
+    # need to serialize (can evantually convert to pydantic model)
