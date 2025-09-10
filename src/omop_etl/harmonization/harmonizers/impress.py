@@ -70,7 +70,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx].eq5d_list} \n")
+            print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
