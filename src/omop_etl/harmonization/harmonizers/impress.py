@@ -1743,23 +1743,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             target_attr="tumor_assessments",
         )
 
-    # TODO: implement easy scalars
-    def _process_overall_response(self):
-        # scalar
-        pass
-
-    def _process_clinical_benefit(self):
-        # scalar
-        pass
-
-    def _process_eot_reason(self):
-        # scalar
-        pass
-
-    def process_eot_date(self):
-        # scalar
-        pass
-
     def _process_c30(self):
         question_col_re = re.compile(r"C30_Q(\d+)$")
 
@@ -1862,3 +1845,20 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
             target_attr="eq5d_list",
         )
+
+    # TODO: implement easy scalars
+    def _process_best_overall_response(self):
+        # scalar
+        pass
+
+    def _process_clinical_benefit(self):
+        # scalar
+        pass
+
+    def _process_eot_reason(self):
+        # scalar
+        pass
+
+    def process_eot_date(self):
+        # scalar
+        pass

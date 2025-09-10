@@ -559,18 +559,6 @@ def test_serious_adverse_event_number(serious_adverse_event_number_fixture):
     assert p5.number_of_serious_adverse_events == 0
 
 
-# def test_serious_adverse_events_number(serious_adverse_events_fixture):
-#     pass
-#
-# def test_adverse_events(adverse_events_fixture):
-#     pass
-
-# def test_process_adverse_events():
-#     # collection processor method
-#     # need quite a lot of cases
-#     pass
-
-
 def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
     df = baseline_tumor_assessment_fixture
     harmonizer = ImpressHarmonizer(data=df, trial_id="IMPRESS_TEST")
@@ -653,6 +641,49 @@ def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
     assert ta.target_lesion_size == 9
     assert ta.target_lesion_nadir == 9
     assert ta.target_lesion_measurment_date == dt.date(2020, 1, 1)
+
+
+# TODO: implement remaining tests
+
+
+def test_serious_adverse_events_number():
+    pass
+
+
+def test_adverse_events():
+    pass
+
+
+def test_process_tumor_assessments():
+    pass
+
+
+def test_process_adverse_events():
+    pass
+
+
+def test_process_c30():
+    pass
+
+
+def test_process_eq5d():
+    pass
+
+
+def test_process_eot():
+    pass
+
+
+def test_process_eot_reason():
+    pass
+
+
+def test_process_best_overall_respsone():
+    pass
+
+
+def test_process_clinical_benefit():
+    pass
 
 
 def test_basic_inheritance(subject_id_fixture):
