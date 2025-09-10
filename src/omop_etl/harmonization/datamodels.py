@@ -1603,7 +1603,9 @@ class C30:
 
 
 class EQ5D:
+    # TODO: include `CD` fields in pattern:
     Q_RE = re.compile(r"^q([1-5])$")
+    QC_RE = re.compile(r"^q([1-5])_code$")
 
     def __init__(self, patient_id: str):
         self.patient_id: str = patient_id
@@ -1613,11 +1615,13 @@ class EQ5D:
         # pre-create eq5d1 to eq5d5
         for i in range(1, 6):
             setattr(self, f"q{i}", None)
+            setattr(self, f"q{i}_code", None)
 
     def __setattr__(self, name, value):
-        # normalize q* fields
         if getattr(self, "Q_RE", None) and self.Q_RE.match(name):
             value = StrictValidators.validate_optional_str(value, field_name=name)
+        elif getattr(self, "QC_RE", None) and self.QC_RE.match(name):
+            StrictValidators.validate_optional_int(value, field_name=name)
         super().__setattr__(name, value)
 
     def __repr__(self) -> str:
@@ -1627,6 +1631,12 @@ class EQ5D:
             if getattr(self, f"q{i}") is not None
         ]
 
+        qc_args = [
+            f"q{i}_code={getattr(self, f'q{i}_code')!r}"
+            for i in range(1, 6)
+            if getattr(self, f"q{i}_code") is not None
+        ]
+
         base_args = [
             f"patient_id={self.patient_id!r}",
             f"date={self.date!r}",
@@ -1634,7 +1644,7 @@ class EQ5D:
             f"qol_metric={self.qol_metric!r}",
         ]
 
-        all_args = base_args + q_args
+        all_args = base_args + q_args + qc_args
         return f"{self.__class__.__name__}({', '.join(all_args)})"
 
 

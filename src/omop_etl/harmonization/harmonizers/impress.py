@@ -75,7 +75,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx].best_overall_response} \n")
+            print(f"Patient {idx}: {patients[idx].eq5d_list} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -1752,10 +1752,12 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_c30(self):
         question_col_re = re.compile(r"C30_Q(\d+)$")
+        question_code_re = re.compile(r"^(?:C30_)?C30([1-30])CD$")
 
         base = self.data.select(
             pl.col(["SubjectId", "C30_EventName", "C30_EventDate"]),
             pl.selectors.matches(question_col_re.pattern),
+            pl.selectors.matches(question_code_re.pattern),
         )
 
         def process_c30(frame: pl.DataFrame) -> pl.DataFrame:
@@ -1802,21 +1804,45 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _process_eq5d(self):
         question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")
+        question_code_re = re.compile(r"^(?:EQ5D_)?EQ5D([1-5])CD$")
 
         base = self.data.select(
             pl.col(["SubjectId", "EQ5D_EventName", "EQ5D_EQ5DVAS", "EQ5D_EventDate"]),
             pl.selectors.matches(question_col_re.pattern),
+            pl.selectors.matches(question_code_re.pattern),
         )
 
         def process_eq5d(frame: pl.DataFrame) -> pl.DataFrame:
-            out = frame.filter(
-                pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null())
-            ).with_columns(
-                event_name=pl.col("EQ5D_EventName")
-                .cast(pl.Utf8, strict=False)
-                .str.strip_chars(),
-                date=PolarsParsers.parse_date_column(pl.col("EQ5D_EventDate")),
-                qol_metric=pl.col("EQ5D_EQ5DVAS").cast(pl.Int64, strict=False),
+            text_cols = [c for c in frame.columns if question_col_re.fullmatch(c)]
+            code_cols = [c for c in frame.columns if question_code_re.fullmatch(c)]
+
+            out = (
+                frame.filter(
+                    pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null())
+                )
+                .with_columns(
+                    event_name=pl.col("EQ5D_EventName")
+                    .cast(pl.Utf8, strict=False)
+                    .str.strip_chars(),
+                    date=PolarsParsers.parse_date_column(pl.col("EQ5D_EventDate")),
+                    qol_metric=pl.col("EQ5D_EQ5DVAS").cast(pl.Int64, strict=False),
+                    *[
+                        pl.col(c).cast(pl.Utf8, strict=False).str.strip_chars().alias(c)
+                        for c in text_cols
+                    ],
+                    *[
+                        pl.col(c).cast(pl.Int64, strict=False).alias(c)
+                        for c in code_cols
+                    ],
+                )
+                .select(
+                    "SubjectId",
+                    "date",
+                    "event_name",
+                    "qol_metric",
+                    *text_cols,
+                    *code_cols,
+                )
             )
 
             return out
@@ -1842,6 +1868,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 if m:
                     qn = int(m.group(1))
                     setattr(obj, f"q{qn}", v)
+                c = question_code_re.fullmatch(k)
+                if c:
+                    setattr(obj, f"q{int(c.group(1))}_code", v)
             return obj
 
         self.hydrate_list_field(
