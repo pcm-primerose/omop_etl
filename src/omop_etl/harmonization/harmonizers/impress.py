@@ -67,13 +67,13 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_best_overall_response()
         self._process_clinical_benefit()
         self._process_eot_reason()
-        # self._process_eot_date()
+        self._process_eot_date()
 
         # flatten patient values
         patients = list(self.patient_data.values())
 
-        # for idx in range(len(patients)):
-        #     print(f"Patient {idx}: {patients[idx]} \n")
+        for idx in range(len(patients)):
+            print(f"Patient {idx}: {patients[idx].end_of_treatment_date} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -2086,9 +2086,36 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
     def _process_eot_reason(self):
-        # scalar
-        pass
+        filtered = (
+            self.data.select("SubjectId", "EOT_EOTREOT")
+            .filter(pl.col("EOT_EOTREOT").is_not_null())
+            .with_columns(
+                eot_reason=pl.col("EOT_EOTREOT")
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars()
+            )
+        )
 
-    def process_eot_date(self):
-        # scalar
-        pass
+        for row in filtered.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].end_of_treatment_reason = str(
+                row["eot_reason"]
+            )
+
+    def _process_eot_date(self):
+        """
+        Note: Docs mention progression date and EventDate as well,
+        but all patients in EOT source has EOTDAT,
+        EventDate is date recorded (so it's wrong) and progression date is tracked in TumorAssessment class.
+        """
+        filtered = (
+            self.data.select("SubjectId", "EOT_EOTDAT")
+            .filter(pl.col("EOT_EOTDAT").is_not_null())
+            .with_columns(
+                eot_date=PolarsParsers.parse_date_column(pl.col("EOT_EOTDAT"))
+            )
+        )
+
+        for row in filtered.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].end_of_treatment_date = row["eot_date"]

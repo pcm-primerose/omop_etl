@@ -1681,6 +1681,8 @@ class Patient:
         self._number_of_adverse_events: Optional[int] = None
         self._number_of_serious_adverse_events: Optional[int] = None
         self._has_clinical_benefit_at_week16: Optional[bool] = None
+        self._end_of_treatment_reason: Optional[str] = None
+        self._end_of_treatment_date: Optional[dt.date] = None
 
         # singletons
         self._tumor_type: Optional[TumorType] = None
@@ -1875,6 +1877,32 @@ class Patient:
         self.updated_fields.add(
             self.__class__.has_clinical_benefit_at_week16.fset.__name__
         )
+
+    # TODO:
+    # self._end_of_treatment_date: Optional[dt.date] = None
+
+    @property
+    def end_of_treatment_reason(self):
+        return self._end_of_treatment_reason
+
+    @end_of_treatment_reason.setter
+    def end_of_treatment_reason(self, value: Optional[str]) -> None:
+        self._end_of_treatment_reason = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.end_of_treatment_reason.fset.__name__
+        )
+        self.updated_fields.add(self.__class__.end_of_treatment_reason.fset.__name__)
+
+    @property
+    def end_of_treatment_date(self) -> Optional[dt.date]:
+        return self._end_of_treatment_date
+
+    @end_of_treatment_date.setter
+    def end_of_treatment_date(self, value: Optional[dt.date]) -> None:
+        self._end_of_treatment_date = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.end_of_treatment_date.fset.__name__,
+        )
+        self.updated_fields.add(self.__class__.end_of_treatment_date.fset.__name__)
 
     # singletons
     @property
@@ -2260,6 +2288,8 @@ class Patient:
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
             f"treatment_start_date={self.treatment_start_date} \n"
             f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week16} \n"
+            f"end_of_treatment_reason={self.end_of_treatment_reason} \n"
+            f"end_of_treatment_date={self.end_of_treatment_date} \n"
             f"ecog={self.ecog_baseline} \n"
             f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
             f"best_overall_respoonse={self.best_overall_response} \n"
