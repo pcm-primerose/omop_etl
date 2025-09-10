@@ -1,10 +1,12 @@
 # harmoinzation/datamodels.py
+import re
 from enum import Enum
 from typing import List, Optional, Set, Sequence
 from dataclasses import field
 import datetime as dt
 from logging import getLogger
-from pydantic.dataclasses import dataclass
+from dataclasses import dataclass
+from pydantic import TypeAdapter, field_validator, BaseModel, ConfigDict
 from omop_etl.harmonization.validation.validators import StrictValidators
 
 # These models represent validated, transformed and cleaned harmonized data
@@ -1288,7 +1290,7 @@ class RelatedStatus(str, Enum):
     UNKNOWN = "unknown"
 
 
-class AdverseEvents:
+class AdverseEvent:
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._term: Optional[str] = None
@@ -1501,54 +1503,74 @@ class AdverseEvents:
         )
 
 
-@dataclass
 class C30:
-    subject_id = str
-    date: Optional[dt.date] = None
-    event_name: Optional[str] = None
-    q1: Optional[str] = None
-    q2: Optional[str] = None
-    q3: Optional[str] = None
-    q4: Optional[str] = None
-    q5: Optional[str] = None
-    q6: Optional[str] = None
-    q7: Optional[str] = None
-    q8: Optional[str] = None
-    q9: Optional[str] = None
-    q10: Optional[str] = None
-    q11: Optional[str] = None
-    q12: Optional[str] = None
-    q13: Optional[str] = None
-    q14: Optional[str] = None
-    q15: Optional[str] = None
-    q16: Optional[str] = None
-    q17: Optional[str] = None
-    q18: Optional[str] = None
-    q19: Optional[str] = None
-    q20: Optional[str] = None
-    q21: Optional[str] = None
-    q22: Optional[str] = None
-    q23: Optional[str] = None
-    q24: Optional[str] = None
-    q25: Optional[str] = None
-    q26: Optional[str] = None
-    q27: Optional[str] = None
-    q28: Optional[str] = None
-    q29: Optional[str] = None
-    q30: Optional[str] = None
+    Q_RE = re.compile(r"^q([1-9]|[12]\d|30)$")
+
+    def __init__(self, patient_id: str):
+        self.patient_id: str = patient_id
+        self.date: Optional[dt.date] = None
+        self.event_name: Optional[str] = None
+        # pre-create q1 to q30
+        for i in range(1, 31):
+            setattr(self, f"q{i}", None)
+
+    def __setattr__(self, name, value):
+        # normalize q* fields
+        if getattr(self, "Q_RE", None) and self.Q_RE.match(name):
+            value = StrictValidators.validate_optional_str(value, field_name=name)
+        super().__setattr__(name, value)
+
+    def __repr__(self) -> str:
+        q_args = [
+            f"q{i}={getattr(self, f'q{i}')!r}"
+            for i in range(1, 31)
+            if getattr(self, f"q{i}") is not None
+        ]
+
+        base_args = [
+            f"patient_id={self.patient_id!r}",
+            f"date={self.date!r}",
+            f"event_name={self.event_name!r}",
+        ]
+
+        all_args = base_args + q_args
+        return f"{self.__class__.__name__}({', '.join(all_args)})"
 
 
-@dataclass
 class EQ5D:
-    subject_id = str
-    date: Optional[dt.date] = None
-    event_name: Optional[str] = None
-    q1: Optional[str] = None
-    q2: Optional[str] = None
-    q3: Optional[str] = None
-    q4: Optional[str] = None
-    q5: Optional[str] = None
-    qol_metric: Optional[int] = None
+    Q_RE = re.compile(r"^q([1-5])$")
+
+    def __init__(self, patient_id: str):
+        self.patient_id: str = patient_id
+        self.date: Optional[dt.date] = None
+        self.event_name: Optional[str] = None
+        self.qol_metric: Optional[int] = None
+        # pre-create eq5d1 to eq5d5
+        for i in range(1, 6):
+            setattr(self, f"q{i}", None)
+
+    def __setattr__(self, name, value):
+        # normalize q* fields
+        if getattr(self, "Q_RE", None) and self.Q_RE.match(name):
+            value = StrictValidators.validate_optional_str(value, field_name=name)
+        super().__setattr__(name, value)
+
+    def __repr__(self) -> str:
+        q_args = [
+            f"q{i}={getattr(self, f'q{i}')!r}"
+            for i in range(1, 6)
+            if getattr(self, f"q{i}") is not None
+        ]
+
+        base_args = [
+            f"patient_id={self.patient_id!r}",
+            f"date={self.date!r}",
+            f"event_name={self.event_name!r}",
+            f"qol_metric={self.qol_metric!r}",
+        ]
+
+        all_args = base_args + q_args
+        return f"{self.__class__.__name__}({', '.join(all_args)})"
 
 
 class Patient:
@@ -1587,10 +1609,10 @@ class Patient:
         self._previous_treatments: list[PreviousTreatments] = []
         self._treatment_cycles: list[TreatmentCycle] = []
         self._concomitant_medications: list[ConcomitantMedication] = []
-        self._adverse_events: list[AdverseEvents] = []
+        self._adverse_events: list[AdverseEvent] = []
         self._tumor_assessments: list[TumorAssessment] = []
-        self._C30: list[C30] = []
-        self._EQ5D: list[EQ5D] = []
+        self._c30_list: list[C30] = []
+        self._eq5d_list: list[EQ5D] = []
 
     # scalars
     @property
@@ -1984,12 +2006,12 @@ class Patient:
         self.updated_fields.add(self.__class__.concomitant_medications.fset.__name__)
 
     @property
-    def adverse_events(self) -> tuple[AdverseEvents, ...]:
+    def adverse_events(self) -> tuple[AdverseEvent, ...]:
         return tuple(self._adverse_events)
 
     @adverse_events.setter
-    def adverse_events(self, value: Optional[Sequence[AdverseEvents]]) -> None:
-        items: List[AdverseEvents]
+    def adverse_events(self, value: Optional[Sequence[AdverseEvent]]) -> None:
+        items: List[AdverseEvent]
         if value is None:
             items = []
 
@@ -1999,7 +2021,7 @@ class Patient:
                     f"Expected Sequence of AdverseEvents, got {type(value)}"
                 )
 
-            wrong_type = [type(x) for x in value if not isinstance(x, AdverseEvents)]
+            wrong_type = [type(x) for x in value if not isinstance(x, AdverseEvent)]
             if wrong_type:
                 raise TypeError(
                     f"All elements should be of type AdverseEvents, got {wrong_type}"
@@ -2043,14 +2065,59 @@ class Patient:
         self._tumor_assessments = items
         self.updated_fields.add(self.__class__.tumor_assessments.fset.__name__)
 
-    # TODO: implement last collections (and scalars but that at the end)
-    # @property
-    # def C30(self) -> Optional[Sequence[C30, ...]]:
-    #     return self._C30 = C30
-    #
-    # @C30.setter
-    # def c30(self, value: Optional[Sequence[C30]]) -> None:
-    #     items: List[C30]
+    @property
+    def c30_list(self) -> tuple[C30, ...]:
+        return tuple(self._c30_list)
+
+    @c30_list.setter
+    def c30_list(self, value: Optional[Sequence[C30]]) -> None:
+        items: List[C30]
+        if value is None:
+            items = []
+
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(f"Expected Sequence of C30, got {type(value)}")
+
+            wrong_type = [type(x) for x in value if not isinstance(x, C30)]
+            if wrong_type:
+                raise TypeError(f"All elements should be of type C30, got {wrong_type}")
+
+            items = list(value)
+
+        for pt in items:
+            pt._patient_id = self._patient_id
+
+        self._c30_list = items
+        self.updated_fields.add(self.__class__.c30_list.fset.__name__)
+
+    @property
+    def eq5d_list(self) -> tuple[EQ5D, ...]:
+        return tuple(self._eq5d_list)
+
+    @eq5d_list.setter
+    def eq5d_list(self, value: Optional[Sequence[EQ5D]]) -> None:
+        items: List[EQ5D]
+        if value is None:
+            items = []
+
+        else:
+            if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+                raise TypeError(f"Expected Sequence of EQ5D, got {type(value)}")
+
+            wrong_type = [type(x) for x in value if not isinstance(x, EQ5D)]
+            if wrong_type:
+                raise TypeError(
+                    f"All elements should be of type EQ5D, got {wrong_type}"
+                )
+
+            items = list(value)
+
+        for pt in items:
+            pt._patient_id = self._patient_id
+
+        self._eq5d_list = items
+        self.updated_fields.add(self.__class__.eq5d_list.fset.__name__)
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
@@ -2080,6 +2147,8 @@ class Patient:
             f"concomitant_medications={self.concomitant_medications} \n"
             f"adverse_events={self.adverse_events} \n"
             f"tumor_assessments={self.tumor_assessments} \n"
+            f"C30={self.c30_list} \n"
+            f"EQ5D={self.eq5d_list} "
         )
 
 

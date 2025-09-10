@@ -1,8 +1,11 @@
+import re
 from typing import Mapping, Any, Optional
 from warnings import deprecated
 import polars as pl
 from logging import getLogger
 from deprecated import deprecated
+from mypy.main import process_package_roots
+from polars import all_horizontal
 
 from omop_etl.harmonization.parsing.coercion import TypeCoercion
 from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
@@ -20,10 +23,13 @@ from omop_etl.harmonization.datamodels import (
     PreviousTreatments,
     TreatmentCycle,
     ConcomitantMedication,
-    AdverseEvents,
+    AdverseEvent,
     TumorAssessmentBaseline,
     TumorAssessment,
+    C30,
+    EQ5D,
 )
+
 
 log = getLogger(__name__)
 
@@ -57,12 +63,14 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_adverse_events()
         self._process_baseline_tumor_assessment()
         self._process_tumor_assessments()
+        self._process_c30()
+        self._process_eq5d()
 
         # flatten patient values
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx]} \n")
+            print(f"Patient {idx}: {patients[idx].eq5d_list} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -809,14 +817,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         packed = self.pack_structs(
             merged,
             subject_col="SubjectId",
-            value_cols=[
-                "term",
-                "sequence_id",
-                "start_date",
-                "end_date",
-                "status",
-                "status_code",
-            ],
+            value_cols=merged.select(pl.all().exclude("SubjectId")).columns,
             order_by_cols=["sequence_id", "start_date"],
         )
 
@@ -894,14 +895,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         packed = self.pack_structs(
             merged,
             subject_col="SubjectId",
-            value_cols=[
-                "treatment",
-                "treatment_code",
-                "sequence_id",
-                "start_date",
-                "end_date",
-                "additional_treatment",
-            ],
+            value_cols=merged.select(pl.all().exclude("SubjectId")).columns,
             order_by_cols=["sequence_id", "start_date"],
         )
 
@@ -1186,7 +1180,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         packed = self.pack_structs(
             filtered,
             subject_col="SubjectId",
-            value_cols=filtered.columns,
+            value_cols=filtered.select(pl.all().exclude("SubjectId")).columns,
             order_by_cols=["TR_TRTNO", "TR_TRCNO1", "TR_TRC1_DT"],
         )
 
@@ -1268,7 +1262,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         packed = self.pack_structs(
             filtered,
             subject_col="SubjectId",
-            value_cols=filtered.columns,
+            value_cols=filtered.select(pl.all().exclude("SubjectId")).columns,
             order_by_cols=["sequence_id", "start_date"],
         )
 
@@ -1383,10 +1377,12 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         parsed = parse_events(ae_base)
         annot = locate_end_date_for_deceased(parsed)
-        packed = self.pack_structs(df=annot, value_cols=annot.columns)
+        packed = self.pack_structs(
+            df=annot, value_cols=annot.select(pl.all().exclude("SubjectId")).columns
+        )
 
-        def build_ae(pid: str, s: Mapping[str, Any]) -> AdverseEvents:
-            obj = AdverseEvents(pid)
+        def build_ae(pid: str, s: Mapping[str, Any]) -> AdverseEvent:
+            obj = AdverseEvent(pid)
             obj.term = s["AE_AECTCAET"]
             obj.grade = s["AE_AETOXGRECD"]
             obj.outcome = s["AE_AEOUT"]
@@ -1716,7 +1712,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             return _processed
 
         processed = process(base)
-        packed = self.pack_structs(df=processed, value_cols=processed.columns)
+        packed = self.pack_structs(
+            df=processed,
+            value_cols=processed.select(pl.all().exclude("SubjectId")).columns,
+        )
 
         def build_ta(pid: str, s: Mapping[str, Any]) -> Optional[TumorAssessment]:
             obj = TumorAssessment(pid)
@@ -1744,7 +1743,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             target_attr="tumor_assessments",
         )
 
-    # TODO: implement easy scalars + pydantic collections
+    # TODO: implement easy scalars
     def _process_overall_response(self):
         # scalar
         pass
@@ -1762,9 +1761,104 @@ class ImpressHarmonizer(BaseHarmonizer):
         pass
 
     def _process_c30(self):
-        # collection I think
-        pass
+        question_col_re = re.compile(r"C30_Q(\d+)$")
+
+        base = self.data.select(
+            pl.col(["SubjectId", "C30_EventName", "C30_EventDate"]),
+            pl.selectors.matches(question_col_re.pattern),
+        )
+
+        def process_c30(frame: pl.DataFrame) -> pl.DataFrame:
+            out = frame.filter(
+                pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null())
+            ).with_columns(
+                event_name=pl.col("C30_EventName")
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars(),
+                date=PolarsParsers.parse_date_column(pl.col("C30_EventDate")),
+            )
+
+            return out
+
+        processed = process_c30(frame=base)
+        value_cols = processed.select(pl.all().exclude("SubjectId")).columns
+
+        packed = self.pack_structs(
+            df=processed,
+            subject_col="SubjectId",
+            value_cols=value_cols,
+            order_by_cols=["date"],
+            items_col="items",
+        )
+
+        def build_c30(pid: str, s: Mapping[str, Any]) -> Optional[C30]:
+            obj = C30(patient_id=pid)
+            obj.date = s["date"]
+            obj.event_name = s["event_name"]
+            for k, v in s.items():
+                m = question_col_re.search(k)
+                if m:
+                    qn = int(m.group(1))
+                    setattr(obj, f"q{qn}", v)
+            return obj
+
+        self.hydrate_list_field(
+            patients=self.patient_data,
+            packed=packed,
+            builder=build_c30,
+            skip_missing=False,
+            target_attr="c30_list",
+        )
 
     def _process_eq5d(self):
-        # collection I think
-        pass
+        question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")
+
+        base = self.data.select(
+            pl.col(["SubjectId", "EQ5D_EventName", "EQ5D_EQ5DVAS", "EQ5D_EventDate"]),
+            pl.selectors.matches(question_col_re.pattern),
+        )
+
+        def process_eq5d(frame: pl.DataFrame) -> pl.DataFrame:
+            out = frame.filter(
+                pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null())
+            ).with_columns(
+                event_name=pl.col("EQ5D_EventName")
+                .cast(pl.Utf8, strict=False)
+                .str.strip_chars(),
+                date=PolarsParsers.parse_date_column(pl.col("EQ5D_EventDate")),
+                qol_metric=pl.col("EQ5D_EQ5DVAS").cast(pl.Int64, strict=False),
+            )
+
+            return out
+
+        processed = process_eq5d(frame=base)
+        print(f"processed {processed}")
+        value_cols = processed.select(pl.all().exclude("SubjectId")).columns
+
+        packed = self.pack_structs(
+            df=processed,
+            subject_col="SubjectId",
+            value_cols=value_cols,
+            order_by_cols=["date"],
+            items_col="items",
+        )
+
+        def build_eq5d(pid: str, s: Mapping[str, Any]) -> Optional[EQ5D]:
+            obj = EQ5D(patient_id=pid)
+            obj.date = s["date"]
+            obj.event_name = s["event_name"]
+            obj.qol_metric = s["qol_metric"]
+            for k, v in s.items():
+                m = question_col_re.search(k)
+                if m:
+                    qn = int(m.group(1))
+                    setattr(obj, f"q{qn}", v)
+            return obj
+
+        self.hydrate_list_field(
+            patients=self.patient_data,
+            packed=packed,
+            builder=build_eq5d,
+            skip_missing=False,
+            target_attr="eq5d_list",
+        )
