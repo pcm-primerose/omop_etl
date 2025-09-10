@@ -267,6 +267,7 @@ class PolarsParsers:
             .cast(pl.Boolean)
         )
 
+    # TODO: fix: Comparisons with None always result in null. Consider using `.is_null()` or `.is_not_null()`.
     @staticmethod
     def int_to_bool(
         expr: pl.Expr, true_int: Optional[int] = None, false_int: Optional[int] = None

@@ -4,8 +4,6 @@ from warnings import deprecated
 import polars as pl
 from logging import getLogger
 from deprecated import deprecated
-from mypy.main import process_package_roots
-from polars import all_horizontal
 
 from omop_etl.harmonization.parsing.coercion import TypeCoercion
 from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
@@ -74,8 +72,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         # flatten patient values
         patients = list(self.patient_data.values())
 
-        for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx].tumor_assessments} \n")
+        # for idx in range(len(patients)):
+        #     print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -2048,8 +2046,44 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     def _process_clinical_benefit(self):
-        # scalar?
-        pass
+        """
+        Clinical benefit at W16 (visit 3).
+        Note: If patient has iRecist *and* Recist at same assessment, iRecist evaluation currently has prevalence.
+        """
+        timepoint = "V03"
+
+        base = (
+            self.data.select(
+                "SubjectId",
+                "RA_RATIMRESCD",
+                "RA_RAiMODCD",
+                "RNRSP_RNRSPCLCD",
+                "RNRSP_EventId",
+                "RA_EventId",
+            )
+            .filter(pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null()))
+            .filter(
+                (pl.col("RA_EventId") == timepoint)
+                | (pl.col("RNRSP_EventId") == timepoint)
+            )
+            .with_columns(
+                benefit_w16=pl.when(
+                    pl.col("RA_RATIMRESCD").cast(pl.Int64, strict=False).le(3)
+                )
+                .then(True)
+                .when(pl.col("RA_RAiMODCD").cast(pl.Int64, strict=False).le(3))
+                .then(True)
+                .when(pl.col("RNRSP_RNRSPCLCD").cast(pl.Int64, strict=False).le(3))
+                .then(True)
+                .otherwise(False)
+            )
+        )
+
+        for row in base.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].has_clinical_benefit_at_week16 = bool(
+                row["benefit_w16"]
+            )
 
     def _process_eot_reason(self):
         # scalar

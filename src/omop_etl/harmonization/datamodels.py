@@ -1680,6 +1680,7 @@ class Patient:
         self._has_any_adverse_events: Optional[bool] = None
         self._number_of_adverse_events: Optional[int] = None
         self._number_of_serious_adverse_events: Optional[int] = None
+        self._has_clinical_benefit_at_week16: Optional[bool] = None
 
         # singletons
         self._tumor_type: Optional[TumorType] = None
@@ -1859,6 +1860,20 @@ class Patient:
         )
         self.updated_fields.add(
             self.__class__.number_of_serious_adverse_events.fset.__name__
+        )
+
+    @property
+    def has_clinical_benefit_at_week16(self) -> Optional[bool]:
+        return self._has_any_adverse_events
+
+    @has_clinical_benefit_at_week16.setter
+    def has_clinical_benefit_at_week16(self, value: Optional[bool]) -> None:
+        self._has_clinical_benefit_at_week16 = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.has_clinical_benefit_at_week16.fset.__name__,
+        )
+        self.updated_fields.add(
+            self.__class__.has_clinical_benefit_at_week16.fset.__name__
         )
 
     # singletons
@@ -2243,7 +2258,8 @@ class Patient:
             f"number_of_serious_adverse_events={self.number_of_serious_adverse_events} \n"
             f"lost_to_followup={self.lost_to_followup} \n"
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
-            f"treatment start date={self.treatment_start_date} \n"
+            f"treatment_start_date={self.treatment_start_date} \n"
+            f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week16} \n"
             f"ecog={self.ecog_baseline} \n"
             f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
             f"best_overall_respoonse={self.best_overall_response} \n"
@@ -2253,8 +2269,8 @@ class Patient:
             f"concomitant_medications={self.concomitant_medications} \n"
             f"adverse_events={self.adverse_events} \n"
             f"tumor_assessments={self.tumor_assessments} \n"
+            f"EQ5D={self.eq5d_list} \n"
             f"C30={self.c30_list} \n"
-            f"EQ5D={self.eq5d_list} "
         )
 
 
@@ -2266,8 +2282,11 @@ class HarmonizedData:
 
     trial_id: str
     patients: List[Patient] = field(default_factory=list)
-    # clinical_benefit? proportion of patients with CR PR SD
-    # other fields and metadata etc
+    # clinical_benefit? proportion of patients with CR PR SD,
+    # does this even make sense to have in Patient class?
+    # - could have flag "clinical benefit" at different visits, with date
+    # - but then might as well just fitler and calcualte on tumor assessments..?
+    # other fields and metadata etc on *dataset* level
 
     def __str__(self):
         patient_str = "\n".join(str(p) for p in self.patients)
