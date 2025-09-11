@@ -5,9 +5,11 @@ mock_data
 .pyc
 .vscode
 data
+.data
 .idea
 .test_data
 __pycache__
 .pytest_cache
 todo.todo
 activate
+mock.py

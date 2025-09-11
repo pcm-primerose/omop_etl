@@ -1030,10 +1030,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[pid].treatment_start_last_cycle = last_cycle
 
     def _process_treatment_cycle(self) -> None:
-        # same struct as other collection classes,
-        # process vectorized then merge,
-        # build from aggregate and hydrate
-
         treatment_cycle_cols = [
             "SubjectId",
             "TR_TRNAME",
