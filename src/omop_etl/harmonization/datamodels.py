@@ -89,14 +89,16 @@ class TumorType:
         )
         self.updated_fields.add(self.__class__.other_tumor_type.fset.__name__)
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return (
-            f"icd10_code={self.icd10_code} {'\n'}"
-            f"icd10_description={self.icd10_description} {'\n'}"
-            f"main_tumor_type={self.main_tumor_type} {'\n'}"
-            f"main_tumor_type_code={self.main_tumor_type_code} {'\n'}"
-            f"other_tumor_type={self.other_tumor_type} {'\n'}"
-            f"cohort_tumor_type={self.cohort_tumor_type} {'\n'}"
+            f"{self.__class__.__name__}("
+            f"icd10_code={self.icd10_code!r}, "
+            f"icd10_description={self.icd10_description!r}, "
+            f"main_tumor_type={self.main_tumor_type!r}, "
+            f"main_tumor_type_code={self.main_tumor_type_code!r}, "
+            f"other_tumor_type={self.other_tumor_type!r}, "
+            f"cohort_tumor_type={self.cohort_tumor_type!r}"
+            f")"
         )
 
 
@@ -160,12 +162,14 @@ class StudyDrugs:
             self.__class__.secondary_treatment_drug_code.fset.__name__
         )
 
-    def __str__(self):
+    def __repr__(self):
         return (
-            f"Primary treatment drug: {self.primary_treatment_drug}, "
-            f"Primary treatment drug code: {self.primary_treatment_drug_code}, "
-            f"Secondary treatment drug: {self.secondary_treatment_drug}, "
-            f"Secondary treatment drug code: {self.secondary_treatment_drug_code}"
+            f"{self.__class__.__name__}("
+            f"primary_treatment_drug={self.primary_treatment_drug!r}, "
+            f"primary_treatment_drug_code={self.primary_treatment_drug_code!r}, "
+            f"secondary_treatment_drug={self.secondary_treatment_drug!r}, "
+            f"secondary_treatment_drug_code={self.secondary_treatment_drug_code!r}"
+            f")"
         )
 
 
@@ -176,7 +180,7 @@ class Biomarkers:
         self._gene_and_mutation_code: Optional[int] = None
         self._cohort_target_name: Optional[str] = None
         self._cohort_target_mutation: Optional[str] = None
-        self._event_date: Optional[dt.date] = None
+        self._date: Optional[dt.date] = None
         self.updated_fields: Set[str] = set()
 
     @property
@@ -224,23 +228,25 @@ class Biomarkers:
         self.updated_fields.add(self.__class__.cohort_target_mutation.fset.__name__)
 
     @property
-    def event_date(self) -> Optional[dt.date]:
-        return self._event_date
+    def date(self) -> Optional[dt.date]:
+        return self._date
 
-    @event_date.setter
-    def event_date(self, value: Optional[dt.date]) -> None:
-        self._event_date = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.event_date.fset.__name__
+    @date.setter
+    def date(self, value: Optional[dt.date]) -> None:
+        self._date = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.date.fset.__name__
         )
-        self.updated_fields.add(self.__class__.event_date.fset.__name__)
+        self.updated_fields.add(self.__class__.date.fset.__name__)
 
-    def __str__(self):
+    def __repr__(self):
         return (
-            f"Gene and mutation: {self.gene_and_mutation}, "
-            f"Gene and mutation code: {self.gene_and_mutation_code}, "
-            f"Cohort target name: {self.cohort_target_name}, "
-            f"Cohort target mutation: {self.cohort_target_mutation}, "
-            f"Event date: {self.event_date}"
+            f"{self.__class__.__name__}("
+            f"gene_and_mutation={self.gene_and_mutation!r}, "
+            f"gene_and_mutation_code={self.gene_and_mutation_code!r}, "
+            f"cohort_target_name={self.cohort_target_name!r}, "
+            f"cohort_target_mutation={self.cohort_target_mutation!r}, "
+            f"date={self.date!r}"
+            f")"
         )
 
 
@@ -279,8 +285,10 @@ class FollowUp:
 
     def __str__(self):
         return (
-            f"Lost to followup status: {self.lost_to_followup}, "
-            f"Date lost to followup: {self.date_lost_to_followup}"
+            f"{self.__class__.__name__}("
+            f"lost_to_followup={self.lost_to_followup!r}, "
+            f"date_lost_to_followup={self.date_lost_to_followup!r}"
+            f")"
         )
 
 
@@ -329,11 +337,13 @@ class EcogBaseline:
         )
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
-    def __str__(self):
+    def __repr__(self):
         return (
-            f"Ecog description: {self.description},  "
-            f"Ecog grade: {self.grade}, "
-            f"Ecog date: {self.date}"
+            f"{self.__class__.__name__}("
+            f"description={self.description!r},  "
+            f"grade={self.grade!r}, "
+            f"date={self.date!r}"
+            f")"
         )
 
 
@@ -438,9 +448,8 @@ class TumorAssessmentBaseline:
         )
 
     def __repr__(self) -> str:
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"assessment_type={self.assessment_type!r}, "
             f"assessment_date={self.assessment_date!r}, "
             f"target_lesion_size={self.target_lesion_size!r}, "
@@ -448,6 +457,7 @@ class TumorAssessmentBaseline:
             f"target_lesion_measurment_date={self.target_lesion_measurment_date!r}, "
             f"off_target_lesion_size={self.number_off_target_lesions!r}, "
             f"off_target_lesion_measurment_date={self.off_target_lesion_measurment_date!r}"
+            f")"
         )
 
 
@@ -500,12 +510,12 @@ class BestOverallResponse:
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
     def __repr__(self) -> str:
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"response={self.response!r}, "
             f"code={self.code!r}, "
             f"date={self.date!r}"
+            f")"
         )
 
 
@@ -592,9 +602,8 @@ class MedicalHistory:
         self.updated_fields.add(self.__class__.status_code.fset.__name__)
 
     def __repr__(self) -> str:
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"term={self.term!r}, "
             f"seq={self.sequence_id!r}, "
             f"start={self.start_date!r}, "
@@ -608,12 +617,11 @@ class MedicalHistory:
 class PreviousTreatments:
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
-        self._treatment: Optional[str] = None  # cttype
-        self._treatment_code: Optional[int] = None  # cttypecd
-        self._treatment_sequence_number: Optional[int] = None  # ctspid
-        self._start_date: Optional[dt.date] = None  # ctstdat
-        self._end_date: Optional[dt.date] = None  # ctendat
-        # cttypesp (specification if "Other" in main treatment):
+        self._treatment: Optional[str] = None
+        self._treatment_code: Optional[int] = None
+        self._treatment_sequence_number: Optional[int] = None
+        self._start_date: Optional[dt.date] = None
+        self._end_date: Optional[dt.date] = None
         self._additional_treatment: Optional[str] = None
         self.updated_fields: Set[str] = set()
 
@@ -694,12 +702,11 @@ class PreviousTreatments:
         self.updated_fields.add(self.__class__.additional_treatment.fset.__name__)
 
     def __repr__(self) -> str:
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"treatment={self.treatment!r}, "
             f"treatment_code={self.treatment_code!r}, "
-            f"treatment_sequence_numvber={self.treatment_sequence_number!r}, "
+            f"treatment_sequence_number={self.treatment_sequence_number!r}, "
             f"start_date={self.start_date!r}, "
             f"end_date={self.end_date!r}, "
             f"additional_treatment={self.additional_treatment!r}"
@@ -989,9 +996,8 @@ class TreatmentCycle:
         )
 
     def __repr__(self) -> str:
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"patient_id={self.patient_id!r}, "
             f"cycle_type={self.cycle_type!r}, "
             f"treatment_number={self.treatment_number!r}, "
@@ -1009,24 +1015,9 @@ class TreatmentCycle:
             f"other_dose_unit={self.other_dose_unit!r}, "
             f"number_of_days_tablet_not_taken={self.number_of_days_tablet_not_taken!r}, "
             f"reason_tablet_not_taken={self.reason_tablet_not_taken!r}, "
-            f"was_tablet_taken_to_prescription_in_previous_cycle={self.was_tablet_taken_to_prescription_in_previous_cycle}"
+            f"was_tablet_taken_to_prescription_in_previous_cycle={self.was_tablet_taken_to_prescription_in_previous_cycle!r}"
             f")"
         )
-
-    # new var: assessment_type
-    # Not stored as var in RNRSP (RANO), but in RA we can read from:
-    # REASSES1 and REASSESS2 (can't coalesce, some rows have both Recist and iRecist)
-    # for RNRSP; if row has data, it is RANO
-    # RA_RABASECH / RNRSP_TERNCFB = target_lesion_change_from_baseline (safe divide by 100 to get fraction)
-    # RA_RARECCH / RNRSP_TERNCFN = target_lesion_change_from_nadir (safe divide by 100 to get fraction)
-    # RA_RANLBASECD / RNRSP_RNRSPNLCD = was_new_lesions_registered_after_baseline
-    # RA_EventDate / RNRSP_EventDate = date
-    # combine to one, since we track what assessment as well?:
-    # RA_RATIMRES = recist_response
-    # RNRSP_RNRSPCL = rano_response
-    # RA_RAiMOD = irecist_response
-    # RA_RAPGROGDT = recist_date_of_progression
-    # RA_RAiUNPDT = irecist_date_of_progression
 
 
 class TumorAssessment:
@@ -1195,9 +1186,8 @@ class TumorAssessment:
         self.updated_fields.add(self.__class__.event_id.fset.__name__)
 
     def __repr__(self):
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"assessment_type={self.assessment_type!r}, "
             f"target_lesion_change_from_baseline={self.target_lesion_change_from_baseline!r}, "
             f"target_lesion_change_from_nadir={self.target_lesion_change_from_nadir!r}, "
@@ -1334,9 +1324,8 @@ class ConcomitantMedication:
         self.updated_fields.add(self.__class__.sequence_id.fset.__name__)
 
     def __repr__(self) -> str:
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"patient_id={self.patient_id!r}, "
             f"medication_name={self.medication_name!r}, "
             f"was_taken_due_to_medical_history_event={self.was_taken_due_to_medical_history_event!r}, "
@@ -1350,9 +1339,11 @@ class ConcomitantMedication:
 
 
 class RelatedStatus(str, Enum):
+    """Used in AdverseEvent"""
+
     RELATED = "related"  # code 4
     NOT_RELATED = "not_related"  # code 1
-    UNKNOWN = "unknown"
+    UNKNOWN = "unknown"  # code 2 & 3
 
 
 class AdverseEvent:
@@ -1546,9 +1537,8 @@ class AdverseEvent:
         )
 
     def __repr__(self) -> str:
-        cls = self.__class__.__name__
         return (
-            f"{cls}("
+            f"{self.__class__.__name__}("
             f"patient_id={self.patient_id!r}, "
             f"term={self.term!r}, "
             f"grade={self.grade!r}, "
@@ -2271,36 +2261,39 @@ class Patient:
         return self.updated_fields
 
     def __str__(self):
+        delim = ","
         return (
-            f"Patient {self.patient_id}: \n"
-            f"trial_id={self.trial_id} \n"
-            f"cohort_name={self.cohort_name} \n"
-            f"sex={self.sex} \n"
-            f"age={self.age} \n"
-            f"tumor_type={self.tumor_type} \n"
-            f"study_drugs={self.study_drugs} \n"
-            f"biomarkers={self.biomarker} \n"
-            f"date_of_death={self.date_of_death} \n"
-            f"has_any_adverse_events={self.has_any_adverse_events} \n"
-            f"number_of_adverse_events={self.number_of_adverse_events} \n"
-            f"number_of_serious_adverse_events={self.number_of_serious_adverse_events} \n"
-            f"lost_to_followup={self.lost_to_followup} \n"
-            f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis} \n"
-            f"treatment_start_date={self.treatment_start_date} \n"
-            f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week16} \n"
-            f"end_of_treatment_reason={self.end_of_treatment_reason} \n"
-            f"end_of_treatment_date={self.end_of_treatment_date} \n"
-            f"ecog={self.ecog_baseline} \n"
-            f"tumor_assessment_baseline={self.tumor_assessment_baseline} \n"
-            f"best_overall_respoonse={self.best_overall_response} \n"
-            f"medical_histories={self.medical_histories} \n"
-            f"previous_treatments={self.previous_treatments} \n"
-            f"treatment_cycles={self.treatment_cycles} \n"
-            f"concomitant_medications={self.concomitant_medications} \n"
-            f"adverse_events={self.adverse_events} \n"
-            f"tumor_assessments={self.tumor_assessments} \n"
-            f"EQ5D={self.eq5d_list} \n"
-            f"C30={self.c30_list} \n"
+            f"{self.__class__.__name__}("
+            f"patient_id={self.patient_id}{delim} "
+            f"trial_id={self.trial_id}{delim} "
+            f"cohort_name={self.cohort_name}{delim} "
+            f"sex={self.sex}{delim} "
+            f"age={self.age}{delim} "
+            f"tumor_type={self.tumor_type}{delim} "
+            f"study_drugs={self.study_drugs}{delim} "
+            f"biomarkers={self.biomarker}{delim} "
+            f"date_of_death={self.date_of_death}{delim} "
+            f"has_any_adverse_events={self.has_any_adverse_events}{delim} "
+            f"number_of_adverse_events={self.number_of_adverse_events}{delim} "
+            f"number_of_serious_adverse_events={self.number_of_serious_adverse_events}{delim} "
+            f"lost_to_followup={self.lost_to_followup}{delim} "
+            f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis}{delim} "
+            f"treatment_start_date={self.treatment_start_date}{delim} "
+            f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week16}{delim} "
+            f"end_of_treatment_reason={self.end_of_treatment_reason}{delim} "
+            f"end_of_treatment_date={self.end_of_treatment_date}{delim} "
+            f"ecog={self.ecog_baseline}{delim} "
+            f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
+            f"best_overall_respoonse={self.best_overall_response}{delim} "
+            f"medical_histories={self.medical_histories}{delim} "
+            f"previous_treatments={self.previous_treatments}{delim} "
+            f"treatment_cycles={self.treatment_cycles}{delim} "
+            f"concomitant_medications={self.concomitant_medications}{delim} "
+            f"adverse_events={self.adverse_events}{delim} "
+            f"tumor_assessments={self.tumor_assessments}{delim} "
+            f"EQ5D={self.eq5d_list}{delim} "
+            f"C30={self.c30_list}"
+            f")"
         )
 
 

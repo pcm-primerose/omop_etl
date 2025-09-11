@@ -266,35 +266,35 @@ def test_biomarker_processing(biomarker_fixture):
     assert biomarker_1.gene_and_mutation_code == 21
     assert biomarker_1.cohort_target_name == "BRAF Non-V600 activating mutations"
     assert biomarker_1.cohort_target_mutation == "BRAF Non-V600 activating mutations"
-    assert biomarker_1.event_date == dt.date(1900, 7, 15)
+    assert biomarker_1.date == dt.date(1900, 7, 15)
 
     biomarker_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].biomarker
     assert biomarker_2.gene_and_mutation is None
     assert biomarker_2.gene_and_mutation_code is None
     assert biomarker_2.cohort_target_name == "some info"
     assert biomarker_2.cohort_target_mutation is None
-    assert biomarker_2.event_date == dt.date(1980, 2, 15)
+    assert biomarker_2.date == dt.date(1980, 2, 15)
 
     biomarker_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].biomarker
     assert biomarker_3.gene_and_mutation == "BRCA1 inactivating mutation"
     assert biomarker_3.gene_and_mutation_code == 2
     assert biomarker_3.cohort_target_name == "BRCA1 stop-gain del exon 11"
     assert biomarker_3.cohort_target_mutation == "BRCA1 stop-gain deletion"
-    assert biomarker_3.event_date is None
+    assert biomarker_3.date is None
 
     biomarker_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].biomarker
     assert biomarker_4.gene_and_mutation == "SDHAF2 mutation"
     assert biomarker_4.gene_and_mutation_code == -1
     assert biomarker_4.cohort_target_name == "more info"
     assert biomarker_4.cohort_target_mutation is None
-    assert biomarker_4.event_date == dt.date(1999, 7, 11)
+    assert biomarker_4.date == dt.date(1999, 7, 11)
 
     biomarker_5 = harmonizer.patient_data["IMPRESS-X_0005_1"].biomarker
     assert biomarker_5.gene_and_mutation is None
     assert biomarker_5.gene_and_mutation_code == 10
     assert biomarker_5.cohort_target_name is None
     assert biomarker_5.cohort_target_mutation == "some other info"
-    assert biomarker_5.event_date is None
+    assert biomarker_5.date is None
 
 
 def test_lost_to_followup(lost_to_followup_fixture):
@@ -682,7 +682,7 @@ def test_process_best_overall_respsone():
     pass
 
 
-def test_process_clinical_benefit():
+def test_process_clinical_benefit_w16():
     pass
 
 

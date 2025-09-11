@@ -73,7 +73,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         patients = list(self.patient_data.values())
 
         for idx in range(len(patients)):
-            print(f"Patient {idx}: {patients[idx].end_of_treatment_date} \n")
+            print(f"Patient {idx}: {patients[idx]} \n")
 
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
         # print(f"Impress output: {output}")
@@ -324,9 +324,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             patient_id = row["SubjectId"]
 
             biomarkers = Biomarkers(patient_id=patient_id)
-            biomarkers.event_date = CoreParsers.parse_date_flexible(
-                row["COH_EventDate"]
-            )
+            biomarkers.date = CoreParsers.parse_date_flexible(row["COH_EventDate"])
             biomarkers.gene_and_mutation = TypeCoercion.to_optional_string(
                 row["COH_GENMUT1"]
             )
