@@ -855,18 +855,29 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         def filter_previous_treatments(data: pl.DataFrame) -> pl.DataFrame:
             filtered_data = data.with_columns(
-                treatment=(PolarsParsers.null_if_na(pl.col("CT_CTTYPE")))
-                .cast(pl.Utf8, strict=False)
-                .str.strip_chars(),
+                treatment=(
+                    pl.when(pl.col("CT_CTTYPE").is_not_null())
+                    .then(
+                        pl.col("CT_CTTYPE")
+                        .cast(pl.Utf8, strict=False)
+                        .str.strip_chars()
+                    )
+                    .otherwise(None)
+                ),
                 treatment_code=(pl.col("CT_CTTYPECD")).cast(pl.Int64, strict=False),
                 sequence_id=(pl.col("CT_CTSPID")).cast(pl.Int64, strict=False),
                 start_date=PolarsParsers.parse_date_column(pl.col("CT_CTSTDAT")),
                 end_date=PolarsParsers.parse_date_column(pl.col("CT_CTENDAT")),
-                additional_treatment=pl.col("CT_CTTYPESP")
-                .cast(pl.Utf8, strict=False)
-                .str.strip_chars(),
+                additional_treatment=(
+                    pl.when(pl.col("CT_CTTYPESP").is_not_null())
+                    .then(
+                        pl.col("CT_CTTYPESP")
+                        .cast(pl.Utf8, strict=False)
+                        .str.strip_chars()
+                    )
+                    .otherwise(None)
+                ),
             ).filter(pl.col("treatment").is_not_null())
-
             return filtered_data
 
         def merge_previous_treatments(
@@ -921,8 +932,15 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_treatment_start_date(self) -> None:
         treatment_start_data = (
             self.data.lazy()
-            .select(["SubjectId", "TR_TRTNO", "TR_TRNAME", "TR_TRC1_DT", "TR_TRCNO1"])
-            .filter(pl.col("TR_TRNAME").is_not_null())
+            .select(["SubjectId", "TR_TRNAME", "TR_TRC1_DT"])
+            .with_columns(
+                tr_name=pl.col("TR_TRNAME").cast(pl.Utf8).str.strip_chars(),
+            )
+            # keep only real names: non-null AND length > 0
+            .filter(
+                pl.col("tr_name").is_not_null()
+                & (pl.col("tr_name").str.len_chars() > 0)
+            )
             .group_by("SubjectId")
             .agg(pl.col("TR_TRC1_DT").drop_nulls().min().alias("treatment_start_date"))
             .collect()

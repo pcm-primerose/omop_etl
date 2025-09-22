@@ -1,3 +1,6 @@
+from typing import Optional, Any
+import datetime as dt
+
 import pytest
 import polars as pl
 
@@ -488,9 +491,9 @@ def baseline_tumor_assessment_fixture():
     """
     rows = []
 
-    def base_row(sid):
+    def base_row(pid):
         return {
-            "SubjectId": sid,
+            "SubjectId": pid,
             # VI
             "VI_VITUMA": None,
             "VI_VITUMA__2": None,
@@ -642,3 +645,112 @@ def baseline_tumor_assessment_fixture():
     rows.append(r2)
 
     return pl.from_dicts(rows)
+
+
+@pytest.fixture
+def previous_treatment_fixture():
+    rows = []
+
+    def base_row(pid):
+        return {
+            "SubjectId": pid,
+            "CT_CTTYPE": None,
+            "CT_CTTYPECD": None,
+            "CT_CTSPID": None,
+            "CT_CTSTDAT": None,
+            "CT_CTENDAT": None,
+            "CT_CTTYPESP": None,
+        }
+
+    rows.append(base_row("empty"))
+
+    # base case
+    r = base_row("has_treatment")
+    r["CT_CTTYPE"] = "abc"
+    r["CT_CTTYPECD"] = "2"
+    r["CT_CTSPID"] = "1"
+    r["CT_CTSTDAT"] = "1900-01-01"
+    r["CT_CTENDAT"] = "1900-01-02"
+    r["CT_CTTYPESP"] = "def"
+    rows.append(r)
+
+    # missing treatment (not initialized)
+    r = base_row("missing_treatment")
+    r["CT_CTTYPECD"] = "2"
+    r["CT_CTSPID"] = "1"
+    r["CT_CTSTDAT"] = "1900-01-01"
+    r["CT_CTENDAT"] = "1900-01-02"
+    r["CT_CTTYPESP"] = "def"
+    rows.append(r)
+
+    # missing partial
+    r = base_row("missing_partial")
+    r["CT_CTTYPE"] = "abc"
+    r["CT_CTSPID"] = "1"
+    r["CT_CTSTDAT"] = "1900-01-01"
+    rows.append(r)
+
+    r = base_row("missing_partial")
+    r["CT_CTTYPE"] = "def"
+    r["CT_CTSPID"] = "2"
+    r["CT_CTSTDAT"] = "1900-01-03"
+    rows.append(r)
+
+    return pl.from_dicts(rows)
+
+
+@pytest.fixture
+def treatment_start_fixture():
+    rows = []
+
+    def base_row(pid):
+        return {"SubjectId": pid, "TR_TRNAME": None, "TR_TRC1_DT": None}
+
+    # all empty
+    rows.append(base_row("empty"))
+
+    # one entry
+    r = base_row("single_row")
+    r["TR_TRNAME"] = "b"
+    r["TR_TRC1_DT"] = "1900-01-02"
+    rows.append(r)
+
+    # multiple rows
+    r = base_row("multirow")
+    r["TR_TRNAME"] = "a"
+    r["TR_TRC1_DT"] = "1900-01-03"
+    rows.append(r)
+
+    r = base_row("multirow")
+    r["TR_TRNAME"] = "a"
+    r["TR_TRC1_DT"] = "2001-01-01"
+    rows.append(r)
+
+    r = base_row("multirow")
+    r["TR_TRNAME"] = "a"
+    r["TR_TRC1_DT"] = "1900-01-01"
+    rows.append(r)
+
+    # missing treatment name
+    r = base_row("missing_treatment_none")
+    r["TR_TRNAME"] = None
+    r["TR_TRC1_DT"] = "1900-01-03"
+    rows.append(r)
+
+    r = base_row("missing_treatment_empty_str")
+    r["TR_TRNAME"] = ""
+    r["TR_TRC1_DT"] = "1900-01-03"
+    rows.append(r)
+
+    return pl.from_dicts(rows)
+
+
+@pytest.fixture
+def treatment_end_fixture():
+    rows = []
+
+    def base_row(pid):
+        return {"SubjectId": pid, "TR_TRNAME": None, "TR_TRC1_DT": None}
+
+    # all empty
+    rows.append(base_row("empty"))

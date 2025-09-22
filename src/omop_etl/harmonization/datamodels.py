@@ -1868,9 +1868,6 @@ class Patient:
             self.__class__.has_clinical_benefit_at_week16.fset.__name__
         )
 
-    # TODO:
-    # self._end_of_treatment_date: Optional[dt.date] = None
-
     @property
     def end_of_treatment_reason(self):
         return self._end_of_treatment_reason

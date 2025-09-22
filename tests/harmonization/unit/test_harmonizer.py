@@ -37,6 +37,9 @@ from tests.harmonization.fixtures.impress_fixtures import (
     adverse_event_number_fixture,
     serious_adverse_event_number_fixture,
     baseline_tumor_assessment_fixture,
+    previous_treatment_fixture,
+    treatment_start_fixture,
+    treatment_end_fixture,
 )
 
 
@@ -484,41 +487,12 @@ def test_medical_history(medical_history_fixture):
     assert p6.medical_histories == ()
 
 
-# todo: implement for rest of treatments
-def test_previous_treatments():
-    pass
-
-
-def test_treatment_start():
-    pass
-
-
-def test_treatment_ends():
-    pass
-
-
-def test_last_treatment_start():
-    pass
-
-
-def test_treatment_cycles():
-    pass
-
-
-def test_concomitant_medications():
-    pass
-
-
-def test_has_any_adverse_events():
-    pass
-
-
 def test_adverse_event_number(adverse_event_number_fixture):
     harmonizer = ImpressHarmonizer(
         data=adverse_event_number_fixture, trial_id="IMPRESS_TEST"
     )
-    for sid in adverse_event_number_fixture.select("SubjectId").unique().to_series():
-        harmonizer.patient_data[sid] = Patient(patient_id=sid, trial_id="IMPRESS_TEST")
+    for pid in adverse_event_number_fixture.select("SubjectId").unique().to_series():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
     harmonizer._process_number_of_adverse_events()
 
@@ -564,8 +538,8 @@ def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
     harmonizer = ImpressHarmonizer(data=df, trial_id="IMPRESS_TEST")
 
     # make empty Patient entries
-    for sid in df.select("SubjectId").unique().to_series().to_list():
-        harmonizer.patient_data[sid] = Patient(patient_id=sid, trial_id="IMPRESS_TEST")
+    for pid in df.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
     harmonizer._process_baseline_tumor_assessment()
 
     # no data anywhere, attribute should be None
@@ -643,10 +617,119 @@ def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
     assert ta.target_lesion_measurment_date == dt.date(2020, 1, 1)
 
 
-# TODO: implement remaining tests
+# todo: implement rest of tests
 
 
-def test_serious_adverse_events_number():
+def test_previous_treatments(previous_treatment_fixture):
+    harmonizer = ImpressHarmonizer(
+        data=previous_treatment_fixture, trial_id="IMPRESS_TEST"
+    )
+    for pid in (
+        previous_treatment_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_previous_treatments()
+
+    p1 = harmonizer.patient_data["empty"]
+    p2 = harmonizer.patient_data["has_treatment"]
+    p3 = harmonizer.patient_data["missing_treatment"]
+    p4 = harmonizer.patient_data["missing_partial"]
+
+    # missing treatment name evaluates to None
+    assert p1.previous_treatments == ()
+    assert p3.previous_treatments == ()
+
+    assert p2.previous_treatments[0].patient_id == "has_treatment"
+    assert p2.previous_treatments[0].treatment == "abc"
+    assert p2.previous_treatments[0].treatment_code == 2
+    assert p2.previous_treatments[0].start_date == dt.date(1900, 1, 1)
+    assert p2.previous_treatments[0].end_date == dt.date(1900, 1, 2)
+    assert p2.previous_treatments[0].additional_treatment == "def"
+
+    assert p2.previous_treatments[0].patient_id == "has_treatment"
+    assert p2.previous_treatments[0].treatment == "abc"
+    assert p2.previous_treatments[0].treatment_code == 2
+    assert p2.previous_treatments[0].start_date == dt.date(1900, 1, 1)
+    assert p2.previous_treatments[0].end_date == dt.date(1900, 1, 2)
+    assert p2.previous_treatments[0].additional_treatment == "def"
+
+    assert p4.previous_treatments[0].patient_id == "missing_partial"
+    assert p4.previous_treatments[0].treatment == "abc"
+    assert p4.previous_treatments[0].treatment_code is None
+    assert p4.previous_treatments[0].start_date == dt.date(1900, 1, 1)
+    assert p4.previous_treatments[0].end_date is None
+    assert p4.previous_treatments[0].additional_treatment is None
+
+    assert p4.previous_treatments[1].patient_id == "missing_partial"
+    assert p4.previous_treatments[1].treatment == "def"
+    assert p4.previous_treatments[1].treatment_code is None
+    assert p4.previous_treatments[1].start_date == dt.date(1900, 1, 3)
+    assert p4.previous_treatments[1].end_date is None
+    assert p4.previous_treatments[1].additional_treatment is None
+
+
+def test_treatment_start(treatment_start_fixture):
+    harmonizer = ImpressHarmonizer(
+        data=treatment_start_fixture, trial_id="IMPRESS_TEST"
+    )
+    for pid in (
+        treatment_start_fixture.select("SubjectId").unique().to_series().to_list()
+    ):
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_treatment_start_date()
+
+    p1 = harmonizer.patient_data["empty"]
+    p2 = harmonizer.patient_data["missing_treatment_none"]
+    p3 = harmonizer.patient_data["missing_treatment_empty_str"]
+
+    p4 = harmonizer.patient_data["multirow"]
+    p5 = harmonizer.patient_data["single_row"]
+
+    assert p1.treatment_start_date is None
+    assert p2.treatment_start_date is None
+    assert p3.treatment_start_date is None
+
+    assert p4.treatment_start_date == dt.date(1900, 1, 1)
+    assert p5.treatment_start_date == dt.date(1900, 1, 2)
+
+
+def test_treatment_end(treatment_end_fixture):
+    harmonizer = ImpressHarmonizer(data=treatment_end_fixture, trial_id="IMPRESS_TEST")
+    for pid in treatment_end_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_treatment_stop_date()
+
+    p1 = harmonizer.patient_data["empty"]
+    p2 = harmonizer.patient_data["missing_treatment_none"]
+    p3 = harmonizer.patient_data["missing_treatment_empty_str"]
+
+    p4 = harmonizer.patient_data["multirow"]
+    p5 = harmonizer.patient_data["single_row"]
+
+    assert p1.treatment_end_date is None
+    assert p2.treatment_end_date is None
+    assert p3.treatment_end_date is None
+
+    assert p4.treatment_end_date == dt.date(1900, 1, 1)
+    assert p5.treatment_end_date == dt.date(1900, 1, 2)
+
+
+def test_last_treatment_start():
+    pass
+
+
+def test_treatment_cycles():
+    pass
+
+
+def test_concomitant_medications():
+    pass
+
+
+def test_has_any_adverse_events():
     pass
 
 
