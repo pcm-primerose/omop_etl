@@ -258,6 +258,6 @@ class OutputManager:
             normalized = "tsv"
 
         if normalized not in self.SUPPORTED_FORMATS:
-            raise ValueError(f"Unsupported format '{fmt}'. " f"Supported: {', '.join(sorted(self.SUPPORTED_FORMATS))}")
+            raise ValueError(f"Unsupported format '{fmt}'. Supported: {', '.join(sorted(self.SUPPORTED_FORMATS))}")
 
         return normalized  # type: ignore[return-value]

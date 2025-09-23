@@ -19,7 +19,9 @@ def load_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> d
 
     resources_config = _BASE / f"{trial.lower()}.json5"
     if not resources_config.exists():  # type: ignore
-        raise FileNotFoundError(f"No packaged config for trial '{trial}'. " f"Expected: omop_etl/resources/ecrf_variables/{trial.lower()}.json5. " f"Available: {', '.join(available_trials()) or 'none'}")
+        raise FileNotFoundError(
+            f"No packaged config for trial '{trial}'. Expected: omop_etl/resources/ecrf_variables/{trial.lower()}.json5. Available: {', '.join(available_trials()) or 'none'}",
+        )
     with resources_config.open("r") as f:
         return _validate(json.load(f))
 

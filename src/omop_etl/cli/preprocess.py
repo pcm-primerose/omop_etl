@@ -62,7 +62,7 @@ def _setup_logging(
         # default to same as console format
         os.environ["LOG_FILE_JSON"] = "1" if log_json else "0"
 
-    log.debug(f"Logging configured: level={log_level}, " f"console_json={log_json}, " f"file_json={os.environ.get('LOG_FILE_JSON', '?')}")
+    log.debug(f"Logging configured: level={log_level}, console_json={log_json}, file_json={os.environ.get('LOG_FILE_JSON', '?')}")
 
 
 @app.command("list-sources")
@@ -97,7 +97,9 @@ def run(
         None,
         "--output",
         "-o",
-        help=("Output path. If it has a known extension (csv/tsv/parquet), " "it's used as the exact file. If it's a directory, the file " "will be auto-named. If omitted, writes to /.data/preprocessing/."),
+        help=(
+            "Output path. If it has a known extension (csv/tsv/parquet), it's used as the exact file. If it's a directory, the file will be auto-named. If omitted, writes to /.data/preprocessing/."
+        ),
     ),
     config: Optional[Path] = typer.Option(
         None,

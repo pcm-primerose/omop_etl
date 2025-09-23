@@ -1,6 +1,5 @@
 from dataclasses import dataclass, asdict
-from typing import Optional, Any, List
-import datetime as dt
+from typing import List
 
 import pytest
 import polars as pl
@@ -563,7 +562,11 @@ def baseline_tumor_assessment_fixture() -> pl.DataFrame:
             VI_EventId="V00",
         ),
         BaselineTumorAssessmentRow("vi_none"),
-        BaselineTumorAssessmentRow("vi_no_date", VI_VITUMA="SD", VI_EventId="V00"),
+        BaselineTumorAssessmentRow(
+            "vi_no_date",
+            VI_VITUMA="SD",
+            VI_EventId="V00",
+        ),
         # non-target lesions (RCNT/RNTMNT)
         BaselineTumorAssessmentRow("no_ntl"),
         BaselineTumorAssessmentRow(
@@ -716,10 +719,26 @@ class TreatmentStartRow:
 def treatment_start_fixture() -> pl.DataFrame:
     rows: List[TreatmentStartRow] = [
         TreatmentStartRow("empty"),
-        TreatmentStartRow("single_row", TR_TRNAME="b", TR_TRC1_DT="1900-01-02"),
-        TreatmentStartRow("multirow", TR_TRNAME="a", TR_TRC1_DT="1900-01-03"),
-        TreatmentStartRow("multirow", TR_TRNAME="a", TR_TRC1_DT="2001-01-01"),
-        TreatmentStartRow("multirow", TR_TRNAME="a", TR_TRC1_DT="1900-01-01"),
+        TreatmentStartRow(
+            "single_row",
+            TR_TRNAME="b",
+            TR_TRC1_DT="1900-01-02",
+        ),
+        TreatmentStartRow(
+            "multirow",
+            TR_TRNAME="a",
+            TR_TRC1_DT="1900-01-03",
+        ),
+        TreatmentStartRow(
+            "multirow",
+            TR_TRNAME="a",
+            TR_TRC1_DT="2001-01-01",
+        ),
+        TreatmentStartRow(
+            "multirow",
+            TR_TRNAME="a",
+            TR_TRC1_DT="1900-01-01",
+        ),
         TreatmentStartRow(
             "missing_treatment_none",
             TR_TRNAME=None,

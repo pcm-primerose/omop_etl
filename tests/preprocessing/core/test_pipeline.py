@@ -31,10 +31,10 @@ def test_pipeline_with_real_components(tmp_path, sample_config):
     input_dir.mkdir()
 
     subjects_csv = input_dir / "data_subjects.csv"
-    subjects_csv.write_text("Header\n" "SubjectId,Age\n" "A001,25\n" "A002,30\n")
+    subjects_csv.write_text("Header\nSubjectId,Age\nA001,25\nA002,30\n")
 
     visits_csv = input_dir / "data_visits.csv"
-    visits_csv.write_text("Header\n" "SubjectId,VisitDate\n" "A001,2023-01-01\n" "A002,2023-01-02\n")
+    visits_csv.write_text("Header\nSubjectId,VisitDate\nA001,2023-01-01\nA002,2023-01-02\n")
 
     # mock trial processor and output manager
     mock_processor = Mock()

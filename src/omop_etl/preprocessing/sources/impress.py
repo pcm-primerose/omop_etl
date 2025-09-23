@@ -42,7 +42,11 @@ def _aggregate_no_conflicts(df: pl.DataFrame) -> pl.DataFrame:
     conflicted = nuniqs.with_columns(pl.max_horizontal([pl.col(f"{c}__n") > 1 for c in cols]).alias("conflicted"))
     keep_raw = df.join(conflicted.filter(pl.col("conflicted")), on="SubjectId", how="semi")
     # collapse non-conflicted to one row
-    agg = df.join(conflicted.filter(~pl.col("conflicted")), on="SubjectId", how="semi").group_by("SubjectId").agg([pl.col(c).drop_nulls().first().alias(c) for c in cols])
+    agg = (
+        df.join(conflicted.filter(~pl.col("conflicted")), on="SubjectId", how="semi")
+        .group_by("SubjectId")
+        .agg([pl.col(c).drop_nulls().first().alias(c) for c in cols])
+    )
     return pl.concat([keep_raw, agg]).sort("SubjectId")
 
 
@@ -57,8 +61,5 @@ def preprocess_impress(df: pl.DataFrame, ecfg: EcrfConfig, run_opts: RunOptions)
     base = _filter_valid_cohort(df) if run_opts.filter_valid_cohort else df
     return (
         # base.pipe(_keep_ecog_v00_or_na)
-        base.pipe(_add_trial, trial)
-        .pipe(_prefix_subject, trial)
-        .pipe(_aggregate_no_conflicts)
-        .pipe(_reorder_subject_trial_first)
+        base.pipe(_add_trial, trial).pipe(_prefix_subject, trial).pipe(_aggregate_no_conflicts).pipe(_reorder_subject_trial_first)
     )

@@ -7,12 +7,8 @@ from typing import (
     Dict,
     Callable,
     Sequence,
-    NewType,
-    TypeVar,
-    Type,
     Mapping,
     Any,
-    Literal,
 )
 from omop_etl.harmonization.datamodels import Patient
 from omop_etl.harmonization.datamodels import HarmonizedData

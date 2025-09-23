@@ -1,5 +1,4 @@
 # tests/harmonization/unit/test_harmonizer.py
-from typing import Dict, List, Tuple
 
 import polars as pl
 import datetime as dt
@@ -11,35 +10,9 @@ from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
 from omop_etl.harmonization.parsing.core import (
     CoreParsers,
     PolarsParsers,
-    TypeCoercion,
 )
 from omop_etl.harmonization.datamodels import (
-    TumorType,
-    StudyDrugs,
     Patient,
-    Biomarkers,
-    FollowUp,
-    EcogBaseline,
-)
-from tests.harmonization.fixtures.impress_fixtures import (
-    subject_id_fixture,
-    cohort_name_fixture,
-    age_fixture,
-    gender_fixture,
-    tumor_type_fixture,
-    study_drugs_fixture,
-    biomarker_fixture,
-    date_of_death_fixture,
-    lost_to_followup_fixture,
-    evaluability_fixture,
-    ecog_fixture,
-    medical_history_fixture,
-    adverse_event_number_fixture,
-    serious_adverse_event_number_fixture,
-    baseline_tumor_assessment_fixture,
-    previous_treatment_fixture,
-    treatment_start_fixture,
-    treatment_end_fixture,
 )
 
 

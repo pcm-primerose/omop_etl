@@ -6,7 +6,6 @@ from dataclasses import field
 import datetime as dt
 from logging import getLogger
 from dataclasses import dataclass
-from pydantic import TypeAdapter, field_validator, BaseModel, ConfigDict
 from omop_etl.harmonization.validation.validators import StrictValidators
 
 log = getLogger(__name__)
@@ -105,7 +104,10 @@ class StudyDrugs:
 
     @primary_treatment_drug.setter
     def primary_treatment_drug(self, value: Optional[str]) -> None:
-        self._primary_treatment_drug = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.primary_treatment_drug.fset.__name__)
+        self._primary_treatment_drug = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.primary_treatment_drug.fset.__name__,
+        )
         self.updated_fields.add(self.__class__.primary_treatment_drug.fset.__name__)
 
     @property
@@ -145,14 +147,7 @@ class StudyDrugs:
         self.updated_fields.add(self.__class__.secondary_treatment_drug_code.fset.__name__)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"primary_treatment_drug={self.primary_treatment_drug!r}, "
-            f"primary_treatment_drug_code={self.primary_treatment_drug_code!r}, "
-            f"secondary_treatment_drug={self.secondary_treatment_drug!r}, "
-            f"secondary_treatment_drug_code={self.secondary_treatment_drug_code!r}"
-            f")"
-        )
+        return f"{self.__class__.__name__}(primary_treatment_drug={self.primary_treatment_drug!r}, primary_treatment_drug_code={self.primary_treatment_drug_code!r}, secondary_treatment_drug={self.secondary_treatment_drug!r}, secondary_treatment_drug_code={self.secondary_treatment_drug_code!r})"
 
 
 class Biomarkers:
@@ -180,7 +175,10 @@ class Biomarkers:
 
     @gene_and_mutation_code.setter
     def gene_and_mutation_code(self, value: Optional[int]) -> None:
-        self._gene_and_mutation_code = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.gene_and_mutation_code.fset.__name__)
+        self._gene_and_mutation_code = StrictValidators.validate_optional_int(
+            value=value,
+            field_name=self.__class__.gene_and_mutation_code.fset.__name__,
+        )
         self.updated_fields.add(self.__class__.gene_and_mutation_code.fset.__name__)
 
     @property
@@ -198,7 +196,10 @@ class Biomarkers:
 
     @cohort_target_mutation.setter
     def cohort_target_mutation(self, value: Optional[str]) -> None:
-        self._cohort_target_mutation = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.cohort_target_mutation.fset.__name__)
+        self._cohort_target_mutation = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.cohort_target_mutation.fset.__name__,
+        )
         self.updated_fields.add(self.__class__.cohort_target_mutation.fset.__name__)
 
     @property
@@ -211,7 +212,7 @@ class Biomarkers:
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(" f"gene_and_mutation={self.gene_and_mutation!r}, " f"gene_and_mutation_code={self.gene_and_mutation_code!r}, " f"cohort_target_name={self.cohort_target_name!r}, " f"cohort_target_mutation={self.cohort_target_mutation!r}, " f"date={self.date!r}" f")"
+        return f"{self.__class__.__name__}(gene_and_mutation={self.gene_and_mutation!r}, gene_and_mutation_code={self.gene_and_mutation_code!r}, cohort_target_name={self.cohort_target_name!r}, cohort_target_mutation={self.cohort_target_mutation!r}, date={self.date!r})"
 
 
 class FollowUp:
@@ -240,11 +241,14 @@ class FollowUp:
 
     @date_lost_to_followup.setter
     def date_lost_to_followup(self, value: Optional[dt.date]) -> None:
-        self._date_lost_to_followup = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date_lost_to_followup.fset.__name__)
+        self._date_lost_to_followup = StrictValidators.validate_optional_date(
+            value=value,
+            field_name=self.__class__.date_lost_to_followup.fset.__name__,
+        )
         self.updated_fields.add(self.__class__.date_lost_to_followup.fset.__name__)
 
     def __str__(self):
-        return f"{self.__class__.__name__}(" f"lost_to_followup={self.lost_to_followup!r}, " f"date_lost_to_followup={self.date_lost_to_followup!r}" f")"
+        return f"{self.__class__.__name__}(lost_to_followup={self.lost_to_followup!r}, date_lost_to_followup={self.date_lost_to_followup!r})"
 
 
 class EcogBaseline:
@@ -287,7 +291,7 @@ class EcogBaseline:
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(" f"description={self.description!r},  " f"grade={self.grade!r}, " f"date={self.date!r}" f")"
+        return f"{self.__class__.__name__}(description={self.description!r},  grade={self.grade!r}, date={self.date!r})"
 
 
 class TumorAssessmentBaseline:
@@ -435,7 +439,7 @@ class BestOverallResponse:
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(" f"response={self.response!r}, " f"code={self.code!r}, " f"date={self.date!r}" f")"
+        return f"{self.__class__.__name__}(response={self.response!r}, code={self.code!r}, date={self.date!r})"
 
 
 class MedicalHistory:
@@ -511,7 +515,7 @@ class MedicalHistory:
         self.updated_fields.add(self.__class__.status_code.fset.__name__)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(" f"term={self.term!r}, " f"seq={self.sequence_id!r}, " f"start={self.start_date!r}, " f"end={self.end_date!r}, " f"status={self.status!r}, " f"code={self.status_code!r}" ")"
+        return f"{self.__class__.__name__}(term={self.term!r}, seq={self.sequence_id!r}, start={self.start_date!r}, end={self.end_date!r}, status={self.status!r}, code={self.status_code!r})"
 
 
 class PreviousTreatments:
@@ -602,16 +606,7 @@ class PreviousTreatments:
         self.updated_fields.add(self.__class__.additional_treatment.fset.__name__)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f"treatment={self.treatment!r}, "
-            f"treatment_code={self.treatment_code!r}, "
-            f"treatment_sequence_number={self.treatment_sequence_number!r}, "
-            f"start_date={self.start_date!r}, "
-            f"end_date={self.end_date!r}, "
-            f"additional_treatment={self.additional_treatment!r}"
-            ")"
-        )
+        return f"{self.__class__.__name__}(treatment={self.treatment!r}, treatment_code={self.treatment_code!r}, treatment_sequence_number={self.treatment_sequence_number!r}, start_date={self.start_date!r}, end_date={self.end_date!r}, additional_treatment={self.additional_treatment!r})"
 
 
 class TreatmentCycle:
@@ -1617,7 +1612,10 @@ class Patient:
 
     @has_any_adverse_events.setter
     def has_any_adverse_events(self, value: Optional[bool]) -> None:
-        self._has_any_adverse_events = StrictValidators.validate_optional_bool(value=value, field_name=self.__class__.has_any_adverse_events.fset.__name__)
+        self._has_any_adverse_events = StrictValidators.validate_optional_bool(
+            value=value,
+            field_name=self.__class__.has_any_adverse_events.fset.__name__,
+        )
         self.updated_fields.add(self.__class__.has_any_adverse_events.fset.__name__)
 
     @property
@@ -1662,7 +1660,10 @@ class Patient:
 
     @end_of_treatment_reason.setter
     def end_of_treatment_reason(self, value: Optional[str]) -> None:
-        self._end_of_treatment_reason = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.end_of_treatment_reason.fset.__name__)
+        self._end_of_treatment_reason = StrictValidators.validate_optional_str(
+            value=value,
+            field_name=self.__class__.end_of_treatment_reason.fset.__name__,
+        )
         self.updated_fields.add(self.__class__.end_of_treatment_reason.fset.__name__)
 
     @property

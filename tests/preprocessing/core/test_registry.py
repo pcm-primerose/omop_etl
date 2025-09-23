@@ -142,8 +142,7 @@ def test_register_different_function_types(clean_registry):
     def func_processor(df, ecfg, opts):
         return df
 
-    # lambda
-    lambda_processor = register_trial("lambda_trial")(lambda df, ecfg, opts: df)
+    _ = register_trial("lambda_trial")(lambda df, ecfg, opts: df)
 
     # class method
     class ProcessorClass:
@@ -151,7 +150,7 @@ def test_register_different_function_types(clean_registry):
         def process(df, ecfg, opts):
             return df
 
-    class_processor = register_trial("class_trial")(ProcessorClass.process)
+    _ = register_trial("class_trial")(ProcessorClass.process)
 
     trials = get_registered_trials()
     assert "function_trial" in trials

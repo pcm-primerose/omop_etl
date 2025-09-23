@@ -61,7 +61,7 @@ class BaseReader(ABC):
                 missing.append(expected)
 
         if missing:
-            raise ValueError(f"Missing required columns: {missing}. " f"Available columns: {list(df.columns)}")
+            raise ValueError(f"Missing required columns: {missing}. Available columns: {list(df.columns)}")
 
         # rename cols
         result = df.select(present)
@@ -139,7 +139,7 @@ class ExcelReader(BaseReader):
             sheet_data = SheetData(key=source_config.key, data=df, input_path=path)
             loaded_sheets.append(sheet_data)
 
-            log.debug(f"Loaded sheet '{sheet_name}': " f"{df.height} rows, {df.width} columns")
+            log.debug(f"Loaded sheet '{sheet_name}': {df.height} rows, {df.width} columns")
 
         ecfg.data = (ecfg.data or []) + loaded_sheets
         return ecfg
@@ -170,7 +170,7 @@ class CsvDirectoryReader(BaseReader):
             key_lower = source_config.key.lower()
 
             if key_lower not in file_index:
-                raise FileNotFoundError(f"No CSV file for key '{source_config.key}' in {path}. " f"Available files: {list(file_index.values())}")
+                raise FileNotFoundError(f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}")
 
             csv_path = file_index[key_lower]
             log.debug(f"Reading CSV file: {csv_path}")
@@ -182,7 +182,7 @@ class CsvDirectoryReader(BaseReader):
             sheet_data = SheetData(key=source_config.key, data=df, input_path=csv_path)
             loaded_sheets.append(sheet_data)
 
-            log.debug(f"Loaded CSV '{source_config.key}': " f"{df.height} rows, {df.width} columns")
+            log.debug(f"Loaded CSV '{source_config.key}': {df.height} rows, {df.width} columns")
 
         ecfg.data = (ecfg.data or []) + loaded_sheets
         return ecfg
@@ -204,7 +204,7 @@ class CsvDirectoryReader(BaseReader):
             key = stem_parts[-1].lower()
 
             if key in index:
-                log.warning(f"Duplicate key '{key}' found: " f"{index[key]} and {file_path}")
+                log.warning(f"Duplicate key '{key}' found: {index[key]} and {file_path}")
 
             index[key] = file_path
 
@@ -234,4 +234,4 @@ class InputResolver:
             else:
                 supported.append(reader.__class__.__name__)
 
-        raise ValueError(f"Unsupported input type: {path}. " f"Supported: {', '.join(supported)} or directory of CSVs")
+        raise ValueError(f"Unsupported input type: {path}. Supported: {', '.join(supported)} or directory of CSVs")

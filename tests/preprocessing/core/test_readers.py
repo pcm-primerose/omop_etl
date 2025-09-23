@@ -238,11 +238,11 @@ class TestCsvDirectoryReader:
         labs_csv = tmp_path / "data_labs.csv"
 
         # write csv content
-        subjects_csv.write_text("Header Row (skipped)\n" "SubjectId,Age,Sex\n" "A001,25,M\n" "A002,30,F\n")
+        subjects_csv.write_text("Header Row (skipped)\nSubjectId,Age,Sex\nA001,25,M\nA002,30,F\n")
 
-        demographics_csv.write_text("Header Row (skipped)\n" "SubjectId,Race,Ethnicity\n" "A001,White,Non-Hispanic\n" "A002,Black,Hispanic\n")
+        demographics_csv.write_text("Header Row (skipped)\nSubjectId,Race,Ethnicity\nA001,White,Non-Hispanic\nA002,Black,Hispanic\n")
 
-        labs_csv.write_text("Header Row (skipped)\n" "SubjectId,TestName,TestValue\n" "A001,Glucose,85\n" "A002,Glucose,92\n")
+        labs_csv.write_text("Header Row (skipped)\nSubjectId,TestName,TestValue\nA001,Glucose,85\nA002,Glucose,92\n")
 
         result = reader.load(tmp_path, sample_config)
         subjects_data = next(d for d in result.data if d.key == "subjects")
@@ -256,7 +256,7 @@ class TestCsvDirectoryReader:
     def test_load_csv_directory_missing_file(self, tmp_path, sample_config):
         reader = CsvDirectoryReader()
         subjects_csv = tmp_path / "data_subjects.csv"
-        subjects_csv.write_text("Header Row\n" "SubjectId,Age,Sex\n" "A001,25,M\n")
+        subjects_csv.write_text("Header Row\nSubjectId,Age,Sex\nA001,25,M\n")
         with pytest.raises(FileNotFoundError, match="No CSV file for key 'demographics'"):
             reader.load(tmp_path, sample_config)
 
@@ -359,7 +359,9 @@ def test_full_csv_workflow(tmp_path):
         "P003,35,M\n",
     )
 
-    visits_csv.write_text("Study Metadata (skip)\n" "SubjectId,VisitDate,VisitType\n" "P001,2023-01-15,Baseline\n" "P001,2023-02-15,Follow-up\n" "P002,2023-01-20,Baseline\n")
+    visits_csv.write_text(
+        "Study Metadata (skip)\nSubjectId,VisitDate,VisitType\nP001,2023-01-15,Baseline\nP001,2023-02-15,Follow-up\nP002,2023-01-20,Baseline\n",
+    )
 
     resolver = InputResolver()
     result = resolver.resolve(tmp_path, config)
@@ -388,7 +390,7 @@ def test_mixed_case_column_handling(tmp_path):
     )
 
     csv_file = tmp_path / "mixed_data.csv"
-    csv_file.write_text("Skip this header\n" "subjectid,TESTVALUE,result_code\n" "S001,85,PASS\n" "S002,92,FAIL\n")
+    csv_file.write_text("Skip this header\nsubjectid,TESTVALUE,result_code\nS001,85,PASS\nS002,92,FAIL\n")
 
     resolver = InputResolver()
     result = resolver.resolve(tmp_path, config)

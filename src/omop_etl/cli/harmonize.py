@@ -2,8 +2,6 @@ import polars as pl
 from pathlib import Path
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
-import typer
-from logging import getLogger
 
 # todo: implement cli later
 # app = typer.Typer(add_completion=True)

@@ -10,13 +10,13 @@ def test_preprocess_trial_with_real_data(tmp_path):
     input_dir.mkdir()
 
     subjects_csv = input_dir / "data_subjects.csv"
-    subjects_csv.write_text("Header\n" "SubjectId,Age,Sex\n" "A001,200,M\n" "A002,30,F\n")
+    subjects_csv.write_text("Header\nSubjectId,Age,Sex\nA001,200,M\nA002,30,F\n")
 
     visits_csv = input_dir / "data_visits.csv"
-    visits_csv.write_text("Header\n" "SubjectId,VisitDate\n" "A001,2023-01-01\n" "A002,2023-01-02\n")
+    visits_csv.write_text("Header\nSubjectId,VisitDate\nA001,2023-01-01\nA002,2023-01-02\n")
 
     ecog_csv = input_dir / "data_ECOG.csv"
-    ecog_csv.write_text("Header\n" "SubjectId,EventId\n" "A001,V00\n" "A002,S01\n")
+    ecog_csv.write_text("Header\nSubjectId,EventId\nA001,V00\nA002,S01\n")
 
     # create real config
     config = EcrfConfig(
