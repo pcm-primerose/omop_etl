@@ -67,32 +67,19 @@ def test_impress_subject_id_processing(subject_id_fixture):
 def test_impress_cohort_name_processing(cohort_name_fixture):
     harmonizer = ImpressHarmonizer(data=cohort_name_fixture, trial_id="IMPRESS_TEST")
 
-    for subject_id in (
-        cohort_name_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in cohort_name_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            trial_id="IMPRESS_TEST", patient_id=subject_id
+            trial_id="IMPRESS_TEST",
+            patient_id=subject_id,
         )
 
     harmonizer._process_cohort_name()
 
-    assert (
-        harmonizer.patient_data["IMPRESS-X_0001_1"].cohort_name
-        == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
-    )
-    assert (
-        harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name is None
-        or harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name == ""
-    )
-    assert (
-        harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name is None
-        or harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name == ""
-    )
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].cohort_name == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name is None or harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name == ""
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name is None or harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name == ""
     assert harmonizer.patient_data["IMPRESS-X_0004_1"].cohort_name == ""
-    assert (
-        harmonizer.patient_data["IMPRESS-X_0005_1"].cohort_name
-        == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
-    )
+    assert harmonizer.patient_data["IMPRESS-X_0005_1"].cohort_name == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
 
 
 def test_gender_processing(gender_fixture):
@@ -100,7 +87,8 @@ def test_gender_processing(gender_fixture):
 
     for subject_id in gender_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            trial_id="IMPRESS_TEST", patient_id=subject_id
+            trial_id="IMPRESS_TEST",
+            patient_id=subject_id,
         )
 
     harmonizer._process_gender()
@@ -120,7 +108,8 @@ def test_age_processing(age_fixture):
 
     for subject_id in age_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            trial_id="IMPRESS_TEST", patient_id=subject_id
+            trial_id="IMPRESS_TEST",
+            patient_id=subject_id,
         )
 
     harmonizer._process_age()
@@ -135,11 +124,10 @@ def test_age_processing(age_fixture):
 def test_tumor_processing(tumor_type_fixture):
     harmonizer = ImpressHarmonizer(data=tumor_type_fixture, trial_id="IMPRESS_TEST")
 
-    for subject_id in (
-        tumor_type_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in tumor_type_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            trial_id="IMPRESS_TEST", patient_id=subject_id
+            trial_id="IMPRESS_TEST",
+            patient_id=subject_id,
         )
 
     harmonizer._process_tumor_type()
@@ -188,11 +176,10 @@ def test_tumor_processing(tumor_type_fixture):
 def test_study_drugs_processing(study_drugs_fixture):
     harmonizer = ImpressHarmonizer(data=study_drugs_fixture, trial_id="IMPRESS_TEST")
 
-    for subject_id in (
-        study_drugs_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in study_drugs_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            trial_id="IMPRESS_TEST", patient_id=subject_id
+            trial_id="IMPRESS_TEST",
+            patient_id=subject_id,
         )
 
     harmonizer._process_study_drugs()
@@ -228,26 +215,33 @@ def test_study_drugs_processing(study_drugs_fixture):
 def test_date_of_death_processing(date_of_death_fixture):
     harmonizer = ImpressHarmonizer(data=date_of_death_fixture, trial_id="IMPRESS_TEST")
 
-    for subject_id in (
-        date_of_death_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in date_of_death_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            trial_id="IMPRESS_TEST", patient_id=subject_id
+            trial_id="IMPRESS_TEST",
+            patient_id=subject_id,
         )
 
     harmonizer._process_date_of_death()
 
     assert harmonizer.patient_data["IMPRESS-X_0001_1"].date_of_death == dt.date(
-        1990, 7, 2
+        1990,
+        7,
+        2,
     )
     assert harmonizer.patient_data["IMPRESS-X_0002_1"].date_of_death == dt.date(
-        2016, 9, 15
+        2016,
+        9,
+        15,
     )
     assert harmonizer.patient_data["IMPRESS-X_0003_1"].date_of_death == dt.date(
-        1900, 1, 1
+        1900,
+        1,
+        1,
     )
     assert harmonizer.patient_data["IMPRESS-X_0004_1"].date_of_death == dt.date(
-        1999, 9, 9
+        1999,
+        9,
+        9,
     )
     assert harmonizer.patient_data["IMPRESS-X_0005_1"].date_of_death is None
 
@@ -255,11 +249,10 @@ def test_date_of_death_processing(date_of_death_fixture):
 def test_biomarker_processing(biomarker_fixture):
     harmonizer = ImpressHarmonizer(data=biomarker_fixture, trial_id="IMPRESS_TEST")
 
-    for subject_id in (
-        biomarker_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in biomarker_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            trial_id="IMPRESS_TEST", patient_id=subject_id
+            trial_id="IMPRESS_TEST",
+            patient_id=subject_id,
         )
 
     harmonizer._process_biomarkers()
@@ -302,13 +295,13 @@ def test_biomarker_processing(biomarker_fixture):
 
 def test_lost_to_followup(lost_to_followup_fixture):
     harmonizer = ImpressHarmonizer(
-        data=lost_to_followup_fixture, trial_id="IMPRESS_TEST"
+        data=lost_to_followup_fixture,
+        trial_id="IMPRESS_TEST",
     )
-    for subject_id in (
-        lost_to_followup_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for subject_id in lost_to_followup_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            patient_id=subject_id, trial_id="IMPRESS_TEST"
+            patient_id=subject_id,
+            trial_id="IMPRESS_TEST",
         )
 
     harmonizer._process_date_lost_to_followup()
@@ -339,30 +332,42 @@ def test_lost_to_followup(lost_to_followup_fixture):
     [
         pytest.param("IMPRESS-X_0001_1", False, id="one IV row: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0002_1", False, id="two IV rows, gap lt 21: not evaluable"
+            "IMPRESS-X_0002_1",
+            False,
+            id="two IV rows, gap lt 21: not evaluable",
         ),
         pytest.param("IMPRESS-X_0003_1", True, id="two IV rows, gap gte 21: evaluable"),
         pytest.param(
-            "IMPRESS-X_0004_1", True, id="IV none, oral sufficient: evaluable"
+            "IMPRESS-X_0004_1",
+            True,
+            id="IV none, oral sufficient: evaluable",
         ),
         pytest.param("IMPRESS-X_0005_1", True, id="IV sufficient, oral not: evaluable"),
         pytest.param("IMPRESS-X_0006_1", False, id="oral missing end: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0007_1", False, id="oral end not a date: not evaluable"
+            "IMPRESS-X_0007_1",
+            False,
+            id="oral end not a date: not evaluable",
         ),
         pytest.param(
-            "IMPRESS-X_0008_1", False, id="oral start not a date: not evaluable"
+            "IMPRESS-X_0008_1",
+            False,
+            id="oral start not a date: not evaluable",
         ),
         pytest.param("IMPRESS-X_0009_1", False, id="oral missing start: not evaluable"),
         pytest.param("IMPRESS-X_0010_1", False, id="IV one start null: not evaluable"),
         pytest.param("IMPRESS-X_0011_1", False, id="IV gap lte 21: not evaluable"),
         pytest.param("IMPRESS-X_0012_1", False, id="oral length lte 28: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0013_1", False, id="IV gap across drugs: not evaluable"
+            "IMPRESS-X_0013_1",
+            False,
+            id="IV gap across drugs: not evaluable",
         ),
         pytest.param("IMPRESS-X_0014_1", False, id="IV one invalid row: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0015_1", False, id="oral sufficient but invalid: not evaluable"
+            "IMPRESS-X_0015_1",
+            False,
+            id="oral sufficient but invalid: not evaluable",
         ),
     ],
 )
@@ -371,7 +376,8 @@ def test_evaluability_cases(evaluability_fixture, patient_id, expected):
     harmonizer = ImpressHarmonizer(data=evaluability_fixture, trial_id="IMPRESS_TEST")
     for subject_id in evaluability_fixture.select("SubjectId").unique().to_series():
         harmonizer.patient_data[subject_id] = Patient(
-            patient_id=subject_id, trial_id="IMPRESS_TEST"
+            patient_id=subject_id,
+            trial_id="IMPRESS_TEST",
         )
 
     # process evaluability
@@ -386,7 +392,8 @@ def test_ecog(ecog_fixture):
 
     for subject_id in ecog_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
-            patient_id=subject_id, trial_id="IMPRESS_TEST"
+            patient_id=subject_id,
+            trial_id="IMPRESS_TEST",
         )
 
     harmonizer._process_ecog_baseline()
@@ -422,7 +429,8 @@ def test_ecog(ecog_fixture):
 
 def test_medical_history(medical_history_fixture):
     harmonizer = ImpressHarmonizer(
-        data=medical_history_fixture, trial_id="IMPRESS_TEST"
+        data=medical_history_fixture,
+        trial_id="IMPRESS_TEST",
     )
 
     # one Patient per unique SubjectId
@@ -489,144 +497,111 @@ def test_medical_history(medical_history_fixture):
 
 def test_adverse_event_number(adverse_event_number_fixture):
     harmonizer = ImpressHarmonizer(
-        data=adverse_event_number_fixture, trial_id="IMPRESS_TEST"
+        data=adverse_event_number_fixture,
+        trial_id="IMPRESS_TEST",
     )
     for pid in adverse_event_number_fixture.select("SubjectId").unique().to_series():
         harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
     harmonizer._process_number_of_adverse_events()
 
-    p1 = harmonizer.patient_data["IMPRESS-X_0001_1"]
-    p2 = harmonizer.patient_data["IMPRESS-X_0002_1"]
-    p3 = harmonizer.patient_data["IMPRESS-X_0003_1"]
-    p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
-    p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
-
-    assert p1.number_of_adverse_events == 2
-    assert p2.number_of_adverse_events == 3
-    assert p3.number_of_adverse_events == 1
-    assert p4.number_of_adverse_events == 1
-    assert p5.number_of_adverse_events == 0
+    assert harmonizer.patient_data["2_events"].number_of_adverse_events == 2
+    assert harmonizer.patient_data["3_events"].number_of_adverse_events == 3
+    assert harmonizer.patient_data["1_event_code_only"].number_of_adverse_events == 1
+    assert harmonizer.patient_data["1_event_term_only"].number_of_adverse_events == 1
+    assert harmonizer.patient_data["missing_data"].number_of_adverse_events == 0
 
 
 def test_serious_adverse_event_number(serious_adverse_event_number_fixture):
-    harmonizer = ImpressHarmonizer(
-        data=serious_adverse_event_number_fixture, trial_id="IMPRESS_TEST"
-    )
-    for sid in (
-        serious_adverse_event_number_fixture.select("SubjectId").unique().to_series()
-    ):
-        harmonizer.patient_data[sid] = Patient(patient_id=sid, trial_id="IMPRESS_TEST")
+    harmonizer = ImpressHarmonizer(data=serious_adverse_event_number_fixture, trial_id="IMPRESS_TEST")
+
+    for pid in serious_adverse_event_number_fixture.select("SubjectId").unique().to_series():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
     harmonizer._process_number_of_serious_adverse_events()
 
-    p1 = harmonizer.patient_data["IMPRESS-X_0001_1"]
-    p2 = harmonizer.patient_data["IMPRESS-X_0002_1"]
-    p3 = harmonizer.patient_data["IMPRESS-X_0003_1"]
-    p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
-    p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
-
-    assert p1.number_of_serious_adverse_events == 1
-    assert p2.number_of_serious_adverse_events == 2
-    assert p3.number_of_serious_adverse_events == 1
-    assert p4.number_of_serious_adverse_events == 0
-    assert p5.number_of_serious_adverse_events == 0
+    assert harmonizer.patient_data["1_event_two_rows"].number_of_serious_adverse_events == 1
+    assert harmonizer.patient_data["2_events_with_missing_fields"].number_of_serious_adverse_events == 2
+    assert harmonizer.patient_data["1_event_missing_date"].number_of_serious_adverse_events == 1
+    assert harmonizer.patient_data["0_events_missing_date"].number_of_serious_adverse_events == 0
+    assert harmonizer.patient_data["0_events_no_data"].number_of_serious_adverse_events == 0
 
 
 def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
-    df = baseline_tumor_assessment_fixture
-    harmonizer = ImpressHarmonizer(data=df, trial_id="IMPRESS_TEST")
-
-    # make empty Patient entries
-    for pid in df.select("SubjectId").unique().to_series().to_list():
+    harmonizer = ImpressHarmonizer(
+        data=baseline_tumor_assessment_fixture,
+        trial_id="IMPRESS_TEST",
+    )
+    for pid in baseline_tumor_assessment_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
     harmonizer._process_baseline_tumor_assessment()
 
-    # no data anywhere, attribute should be None
-    assert harmonizer.patient_data["S00_NONE"].tumor_assessment_baseline is None
+    assert harmonizer.patient_data["missing_data"].tumor_assessment_baseline is None
+    assert harmonizer.patient_data["vi_none"].tumor_assessment_baseline is None
+    assert harmonizer.patient_data["no_ntl"].tumor_assessment_baseline is None
+    assert harmonizer.patient_data["rntmnt_ntl_wrong_event_id"].tumor_assessment_baseline is None
+    assert harmonizer.patient_data["rcnt_invalid_int"].tumor_assessment_baseline is None
+    assert harmonizer.patient_data["missing_baseline_size"].tumor_assessment_baseline is None
 
-    # VI
-    ta = harmonizer.patient_data["S01_VI_VITUMA_ONLY"].tumor_assessment_baseline
-    assert ta.assessment_type == "PD"
-    assert ta.assessment_date == dt.date(2020, 1, 2)
+    tab1 = harmonizer.patient_data["vituma_only"].tumor_assessment_baseline
+    assert tab1.assessment_type == "PD"
+    assert tab1.assessment_date == dt.date(2020, 1, 2)
 
-    ta = harmonizer.patient_data["S02_VI_VITUMA2_ONLY"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["vituma__2_only"].tumor_assessment_baseline
     assert ta.assessment_type == "CR"
     assert ta.assessment_date == dt.date(2020, 1, 3)
 
-    assert harmonizer.patient_data["S03_VI_NONE"].tumor_assessment_baseline is None
-
-    ta = harmonizer.patient_data["S04_VI_VALUE_NO_DATE"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["vi_no_date"].tumor_assessment_baseline
     assert ta.assessment_type == "SD"
 
-    # off-target
-    ta = harmonizer.patient_data["S06_RNT_BOTH"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["both_ntl_cols"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 5
     assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 1)
 
-    ta = harmonizer.patient_data["S07_RNT_ONE"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["rntmnt_only"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 4
     assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 2)
 
-    assert (
-        harmonizer.patient_data["S08_RNT_WRONG_EVENT"].tumor_assessment_baseline is None
-    )
-
-    ta = harmonizer.patient_data["S09_RCNT_ONLY"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["rcnt_only"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 3
     assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 4)
 
-    assert harmonizer.patient_data["S10_RCNT_INVALID"].tumor_assessment_baseline is None
-
-    ta = harmonizer.patient_data["S11_OFF_SIZE_NO_DATE"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["ntl_no_date"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 6
-    assert ta.off_target_lesion_measurment_date is None  # allowed
+    assert ta.off_target_lesion_measurment_date is None
 
-    # target lesions
-    ta = harmonizer.patient_data["S12_RA_VALID"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["ra_valid"].tumor_assessment_baseline
     assert ta.target_lesion_size == 12
     assert ta.target_lesion_nadir == 12
     assert ta.target_lesion_measurment_date == dt.date(2018, 7, 27)
 
-    ta = harmonizer.patient_data["S13_RNRSP_VALID"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["rnrsp_valid"].tumor_assessment_baseline
     assert ta.target_lesion_size == 20
     assert ta.target_lesion_nadir == 18
     assert ta.target_lesion_measurment_date == dt.date(2019, 1, 1)
 
-    # allow missing date but keep size and nadir
-    ta = harmonizer.patient_data["S14_RA_NO_DATE"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["ra_no_date"].tumor_assessment_baseline
     assert ta.target_lesion_size == 8
     assert ta.target_lesion_nadir == 7
     assert ta.target_lesion_measurment_date is None
 
-    ta = harmonizer.patient_data["S15_RNRSP_NO_DATE"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["rnrsp_no_date"].tumor_assessment_baseline
     assert ta.target_lesion_size == 9
     assert ta.target_lesion_nadir == 8
     assert ta.target_lesion_measurment_date is None
 
-    # missing baseline, only nadir and date, should not create instance
-    assert (
-        harmonizer.patient_data["S16_NO_BASELINE_HAS_NADIR"].tumor_assessment_baseline
-        is None
-    )
-
-    # multiple rows, earliest by date
-    ta = harmonizer.patient_data["S17_MULTIPLE"].tumor_assessment_baseline
+    ta = harmonizer.patient_data["multiple_rows"].tumor_assessment_baseline
     assert ta.target_lesion_size == 9
     assert ta.target_lesion_nadir == 9
     assert ta.target_lesion_measurment_date == dt.date(2020, 1, 1)
 
 
-# todo: implement rest of tests
-
-
 def test_previous_treatments(previous_treatment_fixture):
     harmonizer = ImpressHarmonizer(
-        data=previous_treatment_fixture, trial_id="IMPRESS_TEST"
+        data=previous_treatment_fixture,
+        trial_id="IMPRESS_TEST",
     )
-    for pid in (
-        previous_treatment_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for pid in previous_treatment_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
     harmonizer._process_previous_treatments()
@@ -671,11 +646,10 @@ def test_previous_treatments(previous_treatment_fixture):
 
 def test_treatment_start(treatment_start_fixture):
     harmonizer = ImpressHarmonizer(
-        data=treatment_start_fixture, trial_id="IMPRESS_TEST"
+        data=treatment_start_fixture,
+        trial_id="IMPRESS_TEST",
     )
-    for pid in (
-        treatment_start_fixture.select("SubjectId").unique().to_series().to_list()
-    ):
+    for pid in treatment_start_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
     harmonizer._process_treatment_start_date()
@@ -715,6 +689,9 @@ def test_treatment_end(treatment_end_fixture):
 
     assert p4.treatment_end_date == dt.date(1900, 1, 1)
     assert p5.treatment_end_date == dt.date(1900, 1, 2)
+
+
+# todo: implement rest of tests
 
 
 def test_last_treatment_start():
@@ -801,12 +778,12 @@ def test_parse_date_column_function():
                 "1900-02-Nk",
                 "1900-nk-NK",
                 "1900-Nk-10",
-            ]
-        }
+            ],
+        },
     )
 
     parsed_df: pl.DataFrame = df.with_columns(
-        parsed_dates=PolarsParsers.parse_date_column(column=pl.col("dates"))
+        parsed_dates=PolarsParsers.parse_date_column(column=pl.col("dates")),
     )
     assert parsed_df["parsed_dates"][0] == dt.date(1900, 2, 2)
     assert parsed_df["parsed_dates"][1] == dt.date(1950, 6, 15)

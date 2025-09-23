@@ -33,9 +33,7 @@ class DrupHarmonizer(BaseHarmonizer):
 
         # create initial patient object
         for patient_id in patient_ids:
-            self.patient_data[patient_id] = Patient(
-                trial_id=self.trial_id, patient_id=patient_id
-            )
+            self.patient_data[patient_id] = Patient(trial_id=self.trial_id, patient_id=patient_id)
 
     def _process_cohort_name(self):
         """Process cohort names and update patient objects"""

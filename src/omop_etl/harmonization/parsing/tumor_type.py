@@ -21,8 +21,6 @@ class TumorTypeParsers:
         normalized = str_value.upper()
         # validate ICD-10 format: Letter + 2-3 digits + optional decimal + digits
         if not re.match(r"^[A-Z]\d{2,3}(\.\d+)?$", normalized):
-            raise ValueError(
-                f"Invalid ICD-10 code format: {value}, expected format like C30 or B38.79"
-            )
+            raise ValueError(f"Invalid ICD-10 code format: {value}, expected format like C30 or B38.79")
 
         return normalized

@@ -154,11 +154,7 @@ class BaseHarmonizer(ABC):
         if order_by_cols:
             df = df.sort([subject_col, *order_by_cols])
 
-        out = (
-            df.group_by(subject_col, maintain_order=True)
-            .agg(pl.struct(list(value_cols)).alias(items_col))
-            .select(subject_col, items_col)
-        )
+        out = df.group_by(subject_col, maintain_order=True).agg(pl.struct(list(value_cols)).alias(items_col)).select(subject_col, items_col)
         return out
 
     @staticmethod
@@ -180,9 +176,7 @@ class BaseHarmonizer(ABC):
         Defaults to raising error for missing patients.
         """
         if target_attr is None:
-            raise ValueError(
-                "Provide either target_attr to attach objects to the patient"
-            )
+            raise ValueError("Provide either target_attr to attach objects to the patient")
 
         if builder is None:
             raise ValueError("Provide builder")

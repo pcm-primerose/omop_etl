@@ -23,9 +23,7 @@ def list_trials() -> List[str]:
     return sorted(TRIAL_PROCESSORS.keys())
 
 
-def make_ecrf_config(
-    trial: str, custom_config_path: Optional[Path] = None
-) -> EcrfConfig:
+def make_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> EcrfConfig:
     cfg_map = load_ecrf_config(trial=trial, custom_config_path=custom_config_path)
     return EcrfConfig.from_mapping(cfg_map)
 
@@ -64,9 +62,7 @@ def preprocess_trial(
 
     # create pipeline with output manager
     output_manager = OutputManager(base_dir=base_output_dir)
-    pipeline = PreprocessingPipeline(
-        trial=trial, ecrf_config=config, output_manager=output_manager
-    )
+    pipeline = PreprocessingPipeline(trial=trial, ecrf_config=config, output_manager=output_manager)
 
     # run pipeline
     return pipeline.run(

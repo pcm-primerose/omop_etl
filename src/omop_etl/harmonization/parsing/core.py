@@ -21,9 +21,7 @@ class CoreParsers:
     )
 
     @staticmethod
-    def parse_date_flexible(
-        value: Any, default_day: int = 15, default_month: int = 7
-    ) -> Optional[dt.date]:
+    def parse_date_flexible(value: Any, default_day: int = 15, default_month: int = 7) -> Optional[dt.date]:
         """Parse dates from various formats including partial dates"""
         # coerce
         str_value = TypeCoercion.to_optional_string(value)
@@ -45,9 +43,7 @@ class CoreParsers:
             try:
                 parsed_date = dt.datetime.strptime(str_value, fmt)
                 if fmt == "%Y":
-                    return parsed_date.replace(
-                        month=default_month, day=default_day
-                    ).date()
+                    return parsed_date.replace(month=default_month, day=default_day).date()
                 elif fmt == "%Y-%m":
                     return parsed_date.replace(day=default_day).date()
                 else:
@@ -61,9 +57,7 @@ class CoreParsers:
             return None
 
     @staticmethod
-    def _parse_nk_date(
-        date_str: str, default_day: int, default_month: int
-    ) -> Optional[dt.date]:
+    def _parse_nk_date(date_str: str, default_day: int, default_month: int) -> Optional[dt.date]:
         """Parse clinical dates with NK (Not Known) components"""
         parts = date_str.upper().split("-")
         if len(parts) != 3:
@@ -101,9 +95,7 @@ class CoreParsers:
             raise ValueError(f"Invalid date components: {e}")
 
     @staticmethod
-    def parse_categorical(
-        value: Any, valid_values: Set[str], case_sensitive: bool = False
-    ) -> Optional[str]:
+    def parse_categorical(value: Any, valid_values: Set[str], case_sensitive: bool = False) -> Optional[str]:
         """Parse categorical value against allowed list"""
         # coerce
         str_value = TypeCoercion.to_optional_string(value)
@@ -112,9 +104,7 @@ class CoreParsers:
 
         # normalize
         check_value = str_value if case_sensitive else str_value.lower()
-        valid_set = (
-            valid_values if case_sensitive else {v.lower() for v in valid_values}
-        )
+        valid_set = valid_values if case_sensitive else {v.lower() for v in valid_values}
 
         if check_value not in valid_set:
             raise ValueError(f"Value '{value}' not in valid options: {valid_values}")
@@ -128,9 +118,7 @@ class CoreParsers:
         return str_value
 
     @staticmethod
-    def parse_text_normalized(
-        value: Any, max_length: int = None, title_case: bool = False
-    ) -> Optional[str]:
+    def parse_text_normalized(value: Any, max_length: int = None, title_case: bool = False) -> Optional[str]:
         """Parse text with normalization options"""
         # coerce
         str_value = TypeCoercion.to_optional_string(value)
@@ -157,16 +145,12 @@ class CoreParsers:
 
         # validate range
         if not (min_val <= int_value <= max_val):
-            raise ValueError(
-                f"Value {int_value} outside valid range [{min_val}, {max_val}]"
-            )
+            raise ValueError(f"Value {int_value} outside valid range [{min_val}, {max_val}]")
 
         return int_value
 
     @staticmethod
-    def parse_numeric_range(
-        value: Any, min_val: float, max_val: float
-    ) -> Optional[float]:
+    def parse_numeric_range(value: Any, min_val: float, max_val: float) -> Optional[float]:
         """Parse numeric value to float and validate range"""
         # coerce
         float_value = TypeCoercion.to_optional_float(value)
@@ -175,9 +159,7 @@ class CoreParsers:
 
         # validate range
         if not (min_val <= float_value <= max_val):
-            raise ValueError(
-                f"Value {float_value} outside valid range [{min_val}, {max_val}]"
-            )
+            raise ValueError(f"Value {float_value} outside valid range [{min_val}, {max_val}]")
 
         return float_value
 
@@ -190,9 +172,7 @@ class PolarsParsers:
     NA_VALUES = {"na", "n/a", "null", "", "unknown", "none", "nk"}
 
     @staticmethod
-    def parse_date_column(
-        column: Union[str, pl.Expr], default_day: int = 15, default_month: int = 7
-    ) -> pl.Expr:
+    def parse_date_column(column: Union[str, pl.Expr], default_day: int = 15, default_month: int = 7) -> pl.Expr:
         """Vectorized date parser for Polars columns"""
         c = pl.col(column) if isinstance(column, str) else column
 
@@ -203,9 +183,7 @@ class PolarsParsers:
             c.str.replace("'´`˙", "")
             # replace NK patterns (case-insensitive) with default values
             .str.replace_all("(?i)nk", "NK")  # Normalize to uppercase first
-            .str.replace(
-                "NK-NK$", f"{default_month:02d}-{default_day:02d}"
-            )  # YYYY-NK-NK to YYYY-MM-DD
+            .str.replace("NK-NK$", f"{default_month:02d}-{default_day:02d}")  # YYYY-NK-NK to YYYY-MM-DD
             .str.replace("-NK$", f"-{default_day:02d}")  # YYYY-MM-NK to YYYY-MM-DD
             .str.replace("-NK-", f"-{default_month:02d}-")  # YYYY-NK-DD to YYYY-MM-DD
         )
@@ -213,11 +191,7 @@ class PolarsParsers:
         # process partial dates
         result = (
             pl.when(standardized.str.len_chars() == 4)  # YYYY
-            .then(
-                pl.concat_str(
-                    [standardized, pl.lit(f"-{default_month:02d}-{default_day:02d}")]
-                )
-            )
+            .then(pl.concat_str([standardized, pl.lit(f"-{default_month:02d}-{default_day:02d}")]))
             .when(standardized.str.len_chars() == 7)  # YYYY-MM
             .then(pl.concat_str([standardized, pl.lit(f"-{default_day:02d}")]))
             .otherwise(standardized)  # already YYYY-MM-DD format or other
@@ -227,9 +201,7 @@ class PolarsParsers:
         return result.str.strptime(pl.Date, "%Y-%m-%d", strict=False)
 
     @staticmethod
-    def safe_numeric_conversion(
-        column: Union[str, pl.Expr], target_type: str = "int"
-    ) -> pl.Expr:
+    def safe_numeric_conversion(column: Union[str, pl.Expr], target_type: str = "int") -> pl.Expr:
         """Safely convert column to numeric type with NA handling"""
         if isinstance(column, str):
             column = pl.col(column)
@@ -248,38 +220,16 @@ class PolarsParsers:
     def null_if_na(expr: str | pl.Expr) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
         raw = e.cast(pl.Utf8, strict=False).str.strip_chars()
-        return (
-            pl.when(raw.str.to_lowercase().is_in(list(PolarsParsers.NA_VALUES)))
-            .then(None)
-            .otherwise(raw)
-        )
+        return pl.when(raw.str.to_lowercase().is_in(list(PolarsParsers.NA_VALUES))).then(None).otherwise(raw)
 
     @staticmethod
     def yes_no_to_bool(expr: str | pl.Expr) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
         s = e.cast(pl.Utf8).str.strip_chars().str.to_lowercase()
-        return (
-            pl.when(s.is_in(["yes", "y", "true", "1"]))
-            .then(True)
-            .when(s.is_in(["no", "n", "false", "0"]))
-            .then(False)
-            .otherwise(None)
-            .cast(pl.Boolean)
-        )
+        return pl.when(s.is_in(["yes", "y", "true", "1"])).then(True).when(s.is_in(["no", "n", "false", "0"])).then(False).otherwise(None).cast(pl.Boolean)
 
     # TODO: fix: Comparisons with None always result in null. Consider using `.is_null()` or `.is_not_null()`.
     @staticmethod
-    def int_to_bool(
-        expr: pl.Expr, true_int: Optional[int] = None, false_int: Optional[int] = None
-    ) -> pl.Expr:
+    def int_to_bool(expr: pl.Expr, true_int: Optional[int] = None, false_int: Optional[int] = None) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
-        return (
-            pl.when(e.is_null())
-            .then(None)
-            .when(e == true_int)
-            .then(True)
-            .when(e == false_int)
-            .then(False)
-            .otherwise(None)
-            .cast(pl.Boolean)
-        )
+        return pl.when(e.is_null()).then(None).when(e == true_int).then(True).when(e == false_int).then(False).otherwise(None).cast(pl.Boolean)

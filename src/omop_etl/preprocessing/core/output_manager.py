@@ -85,9 +85,7 @@ class OutputManager:
 
         # determine format and build paths
         fmt = self._normalize_format(fmt)
-        data_file = (directory / f"data_{filename_stem}").with_suffix(
-            self.FORMAT_EXTENSIONS[fmt]
-        )
+        data_file = (directory / f"data_{filename_stem}").with_suffix(self.FORMAT_EXTENSIONS[fmt])
         manifest_file = directory / f"manifest_{filename_stem}.json"
         log_file = directory / f"{filename_stem}.log"
 
@@ -139,9 +137,7 @@ class OutputManager:
             "input": str(input_path.absolute()),
             "output": str(output_path.data_file.absolute()),
             "format": output_path.format,
-            "log_file": str(output_path.log_file.absolute())
-            if log_file_created
-            else None,
+            "log_file": str(output_path.log_file.absolute()) if log_file_created else None,
             "statistics": {
                 "rows": df.height,
                 "columns": df.width,
@@ -193,9 +189,7 @@ class OutputManager:
                 json_format = os.getenv("LOG_JSON", "0") == "1"
 
             # add file handler for this run
-            self.file_handler = add_file_handler(
-                output_path.log_file, json_format=json_format, level=logging.DEBUG
-            )
+            self.file_handler = add_file_handler(output_path.log_file, json_format=json_format, level=logging.DEBUG)
 
             # log start of output writing with context
             log.info(
@@ -242,9 +236,7 @@ class OutputManager:
             )
 
         except Exception as e:
-            log.error(
-                f"Failed to write output: {e}", extra=ctx.as_dict(), exc_info=True
-            )
+            log.error(f"Failed to write output: {e}", extra=ctx.as_dict(), exc_info=True)
             raise
 
         return output_path
@@ -266,9 +258,6 @@ class OutputManager:
             normalized = "tsv"
 
         if normalized not in self.SUPPORTED_FORMATS:
-            raise ValueError(
-                f"Unsupported format '{fmt}'. "
-                f"Supported: {', '.join(sorted(self.SUPPORTED_FORMATS))}"
-            )
+            raise ValueError(f"Unsupported format '{fmt}'. " f"Supported: {', '.join(sorted(self.SUPPORTED_FORMATS))}")
 
         return normalized  # type: ignore[return-value]

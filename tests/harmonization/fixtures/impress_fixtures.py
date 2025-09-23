@@ -1,4 +1,5 @@
-from typing import Optional, Any
+from dataclasses import dataclass, asdict
+from typing import Optional, Any, List
 import datetime as dt
 
 import pytest
@@ -21,7 +22,7 @@ def subject_id_fixture():
                 "IMPRESS-X_0005_1",
                 "IMPRESS-X_0005_2",
             ],
-        }
+        },
     )
 
 
@@ -43,7 +44,7 @@ def cohort_name_fixture():
                 "",
                 "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab",
             ],
-        }
+        },
     )
 
 
@@ -60,7 +61,7 @@ def age_fixture():
             ],
             "DM_BRTHDAT": ["1900-06-02", "1950", "2000-02-14", "1970", "1990-12-07"],
             "TR_TRC1_DT": ["1990-01-30", "1990-01-01", "2020-03-25", "2000", "2000-01"],
-        }
+        },
     )
 
 
@@ -79,7 +80,7 @@ def gender_fixture():
                 "IMPRESS-X_0008_1",
             ],
             "DM_SEX": ["Female", "Male", "f", "m", "error", "", "female", "male"],
-        }
+        },
     )
 
 
@@ -114,7 +115,7 @@ def tumor_type_fixture():
                 "tumor3_subtype2",
                 "tumor4_subtype2",
             ],
-        }
+        },
     )
 
 
@@ -143,7 +144,7 @@ def study_drugs_fixture():
             "COH_COHALLO2__2CD": ["10", "", "12", "", "5"],
             "COH_COHALLO2__3": ["", "", "", "", "some_drug_3_2"],
             "COH_COHALLO2__3CD": ["", "", "", "", "999"],
-        }
+        },
     )
 
 
@@ -187,7 +188,7 @@ def biomarker_fixture():
                 "1999-nk-11",
                 "",
             ],
-        }
+        },
     )
 
 
@@ -216,7 +217,7 @@ def date_of_death_fixture():
                 "1999-NK-NK",
                 "invalid date",
             ],
-        }
+        },
     )
 
 
@@ -241,7 +242,7 @@ def lost_to_followup_fixture():
             "FU_FUPDEDAT": ["", "1980-09-12", "", "", "invalid date"],
             "FU_FUPSST": ["Alive", "Death", "lost to follow up", "alive", ""],
             "FU_FUPSSTCD": ["1", "2", "3", "", ""],
-        }
+        },
     )
 
 
@@ -272,7 +273,7 @@ def evaluability_fixture() -> pl.DataFrame:
                 "TR_TRO_STDT": tro_stdt,
                 "TR_TROSTPDT": tro_stpdt,
                 "TR_TRCYNCD": trcyncd,
-            }
+            },
         )
 
     add_row("IMPRESS-X_0001_1", trtno=1, trc1_dt="2001-01-01")
@@ -299,7 +300,10 @@ def evaluability_fixture() -> pl.DataFrame:
     add_row("IMPRESS-X_0014_1", trtno=1, trc1_dt="2001-01-01", trcyncd=1)
     add_row("IMPRESS-X_0014_1", trtno=1, trc1_dt="2001-02-05", trcyncd=0)
     add_row(
-        "IMPRESS-X_0015_1", tro_stdt="2001-01-01", tro_stpdt="2001-02-10", trcyncd=0
+        "IMPRESS-X_0015_1",
+        tro_stdt="2001-01-01",
+        tro_stpdt="2001-02-10",
+        trcyncd=0,
     )
 
     return _mk_df(rows)
@@ -330,7 +334,7 @@ def ecog_fixture():
                 "1900-nk-nk",
                 "not a date",
             ],
-        }
+        },
     )
 
 
@@ -393,356 +397,343 @@ def medical_history_fixture():
                 "1",  # wrong code
                 "",
             ],
-        }
+        },
     )
+
+
+@dataclass(frozen=True, slots=True)
+class AdverseEventNumberRow:
+    SubjectId: str
+    AE_AETOXGRECD: str | None = None
+    AE_AECTCAET: str | None = None
+    AE_AESTDAT: str | None = None
 
 
 @pytest.fixture
 def adverse_event_number_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            "AE_AETOXGRECD": [
-                "3",
-                "2",
-                "1",
-                "",
-                "",
-                "4",
-                "5",
-                "",
-            ],
-            "AE_AECTCAET": [
-                "ouch",
-                "owe",
-                "",
-                "something",
-                "else",
-                "",
-                "rash",
-                "",
-            ],
-            "AE_AESTDAT": [
-                "1900-01-01",
-                "",
-                "",
-                "1900-01-01",
-                "1889-02-23",
-                "",
-                "1900-01-01",
-                "",
-            ],
-        }
-    )
+    rows: List[AdverseEventNumberRow] = [
+        AdverseEventNumberRow(
+            "2_events",
+            AE_AETOXGRECD="3",
+            AE_AECTCAET="ouch",
+            AE_AESTDAT="1900-01-01",
+        ),
+        AdverseEventNumberRow(
+            "2_events",
+            AE_AETOXGRECD="2",
+            AE_AECTCAET="owe",
+            AE_AESTDAT="",
+        ),
+        AdverseEventNumberRow(
+            "3_events",
+            AE_AETOXGRECD="1",
+            AE_AECTCAET="",
+            AE_AESTDAT="",
+        ),
+        AdverseEventNumberRow(
+            "3_events",
+            AE_AETOXGRECD="",
+            AE_AECTCAET="something",
+            AE_AESTDAT="1900-01-01",
+        ),
+        AdverseEventNumberRow(
+            "3_events",
+            AE_AETOXGRECD="",
+            AE_AECTCAET="else",
+            AE_AESTDAT="1889-02-23",
+        ),
+        AdverseEventNumberRow(
+            "1_event_code_only",
+            AE_AETOXGRECD="4",
+            AE_AECTCAET="",
+            AE_AESTDAT="",
+        ),
+        AdverseEventNumberRow(
+            "1_event_term_only",
+            AE_AETOXGRECD="",
+            AE_AECTCAET="rash",
+            AE_AESTDAT="1900-01-01",
+        ),
+        AdverseEventNumberRow(
+            "missing_data",
+            AE_AETOXGRECD="",
+            AE_AECTCAET="",
+            AE_AESTDAT="",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class SeriousAdverseEventNumberRow:
+    SubjectId: str
+    AE_AESERCD: str | None = None
+    AE_SAESTDAT: str | None = None
 
 
 @pytest.fixture
 def serious_adverse_event_number_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",  # 1
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",  # 2
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",  # 1
-                "IMPRESS-X_0004_1",  # 0
-                "IMPRESS-X_0005_1",  # 0
-            ],
-            "AE_AESERCD": [
-                "1",
-                "0",
-                "1",
-                "1",
-                "",
-                "1",
-                "0",
-                "",
-            ],
-            "AE_SAESTDAT": [
-                "1900-01-01",
-                "1900-01-01",
-                "",
-                "1900-02-02",
-                "1900-03-03",
-                "",
-                "1900-01-01",
-                "",
-            ],
-        }
-    )
+    rows: List[SeriousAdverseEventNumberRow] = [
+        SeriousAdverseEventNumberRow(
+            "1_event_two_rows",
+            AE_AESERCD="1",
+            AE_SAESTDAT="1900-01-01",
+        ),
+        SeriousAdverseEventNumberRow(
+            "1_event_two_rows",
+            AE_AESERCD="0",
+            AE_SAESTDAT="1900-01-01",
+        ),
+        SeriousAdverseEventNumberRow(
+            "2_events_with_missing_fields",
+            AE_AESERCD="1",
+            AE_SAESTDAT="",
+        ),
+        SeriousAdverseEventNumberRow(
+            "2_events_with_missing_fields",
+            AE_AESERCD="1",
+            AE_SAESTDAT="1900-02-02",
+        ),
+        SeriousAdverseEventNumberRow(
+            "2_events_with_missing_fields",
+            AE_AESERCD="",
+            AE_SAESTDAT="1900-03-03",
+        ),
+        SeriousAdverseEventNumberRow(
+            "1_event_missing_date",
+            AE_AESERCD="1",
+            AE_SAESTDAT="",
+        ),
+        SeriousAdverseEventNumberRow(
+            "0_events_missing_date",
+            AE_AESERCD="0",
+            AE_SAESTDAT="",
+        ),
+        SeriousAdverseEventNumberRow("0_events_no_data", AE_AESERCD="", AE_SAESTDAT=""),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class BaselineTumorAssessmentRow:
+    SubjectId: str
+    # VI
+    VI_VITUMA: str | None = None
+    VI_VITUMA__2: str | None = None
+    VI_EventDate: str | None = None
+    VI_EventId: str | None = None
+    # RCNT / RNTMNT
+    RCNT_RCNTNOB: str | None = None
+    RCNT_EventDate: str | None = None
+    RCNT_EventId: str | None = None
+    RNTMNT_RNTMNTNOB: str | None = None
+    RNTMNT_RNTMNTNO: str | None = None
+    RNTMNT_EventId: str | None = None
+    RNTMNT_EventDate: str | None = None
+    # RNRSP / RA
+    RNRSP_TERNTBAS: str | None = None
+    RNRSP_TERNAD: str | None = None
+    RNRSP_EventDate: str | None = None
+    RNRSP_EventId: str | None = None
+    RA_RARECBAS: str | None = None
+    RA_RARECNAD: str | None = None
+    RA_EventDate: str | None = None
+    RA_EventId: str | None = None
 
 
 @pytest.fixture
-def baseline_tumor_assessment_fixture():
-    """
-    One big frame with many per-subject scenarios.
-    Only columns consumed by _process_baseline_tumor_assessment are provided.
-    """
-    rows = []
+def baseline_tumor_assessment_fixture() -> pl.DataFrame:
+    rows: List[BaselineTumorAssessmentRow] = [
+        BaselineTumorAssessmentRow("missing_data"),
+        # VI cases
+        BaselineTumorAssessmentRow(
+            "vituma_only",
+            VI_VITUMA="PD",
+            VI_EventDate="2020-01-02",
+            VI_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow(
+            "vituma__2_only",
+            VI_VITUMA__2="CR",
+            VI_EventDate="2020-01-03",
+            VI_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow("vi_none"),
+        BaselineTumorAssessmentRow("vi_no_date", VI_VITUMA="SD", VI_EventId="V00"),
+        # non-target lesions (RCNT/RNTMNT)
+        BaselineTumorAssessmentRow("no_ntl"),
+        BaselineTumorAssessmentRow(
+            "both_ntl_cols",
+            RNTMNT_RNTMNTNOB="5",
+            RNTMNT_RNTMNTNO="7",
+            RNTMNT_EventId="V00",
+            RNTMNT_EventDate="2020-02-01",
+        ),
+        BaselineTumorAssessmentRow(
+            "rntmnt_only",
+            RNTMNT_RNTMNTNO="4",
+            RNTMNT_EventId="V00",
+            RNTMNT_EventDate="2020-02-02",
+        ),
+        BaselineTumorAssessmentRow(
+            "rntmnt_ntl_wrong_event_id",
+            RNTMNT_RNTMNTNOB="3",
+            RNTMNT_EventId="V01",
+            RNTMNT_EventDate="2020-02-03",
+        ),
+        BaselineTumorAssessmentRow(
+            "rcnt_only",
+            RCNT_RCNTNOB="3",
+            RCNT_EventId="V00",
+            RCNT_EventDate="2020-02-04",
+        ),
+        BaselineTumorAssessmentRow(
+            "rcnt_invalid_int",
+            RCNT_RCNTNOB="abc",
+            RCNT_EventId="V00",
+            RCNT_EventDate="2020-02-05",
+        ),
+        BaselineTumorAssessmentRow(
+            "ntl_no_date",
+            RNTMNT_RNTMNTNOB="6",
+            RNTMNT_EventId="V00",
+        ),
+        # target lesions (RA/RNRSP)
+        BaselineTumorAssessmentRow(
+            "ra_valid",
+            RA_RARECBAS="12",
+            RA_RARECNAD="12",
+            RA_EventDate="2018-07-27",
+            RA_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow(
+            "rnrsp_valid",
+            RNRSP_TERNTBAS="20",
+            RNRSP_TERNAD="18",
+            RNRSP_EventDate="2019-01-01",
+            RNRSP_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow(
+            "ra_no_date",
+            RA_RARECBAS="8",
+            RA_RARECNAD="7",
+            RA_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow(
+            "rnrsp_no_date",
+            RNRSP_TERNTBAS="9",
+            RNRSP_TERNAD="8",
+            RNRSP_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow(
+            "missing_baseline_size",
+            RA_RARECNAD="11",
+            RA_EventDate="2020-03-01",
+            RA_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow(
+            "multiple_rows",
+            RA_RARECBAS="10",
+            RA_RARECNAD="10",
+            RA_EventDate="2020-01-03",
+            RA_EventId="V00",
+        ),
+        BaselineTumorAssessmentRow(
+            "multiple_rows",
+            RA_RARECBAS="9",
+            RA_RARECNAD="9",
+            RA_EventDate="2020-01-01",
+            RA_EventId="V00",
+        ),
+    ]
 
-    def base_row(pid):
-        return {
-            "SubjectId": pid,
-            # VI
-            "VI_VITUMA": None,
-            "VI_VITUMA__2": None,
-            "VI_EventDate": None,
-            "VI_EventId": None,
-            # RCNT / RNTMNT
-            "RCNT_RCNTNOB": None,
-            "RCNT_EventDate": None,
-            "RCNT_EventId": None,
-            "RNTMNT_RNTMNTNOB": None,
-            "RNTMNT_RNTMNTNO": None,
-            "RNTMNT_EventId": None,
-            "RNTMNT_EventDate": None,
-            # RNRSP / RA
-            "RNRSP_TERNTBAS": None,
-            "RNRSP_TERNAD": None,
-            "RNRSP_EventDate": None,
-            "RNRSP_EventId": None,
-            "RA_RARECBAS": None,
-            "RA_RARECNAD": None,
-            "RA_EventDate": None,
-            "RA_EventId": None,
-        }
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
 
-    # No data anywhere -> subject should not get a baseline instance
-    rows.append(base_row("S00_NONE"))
 
-    # VI cases
-    # VI_VITUMA only
-    r = base_row("S01_VI_VITUMA_ONLY")
-    r["VI_VITUMA"] = "PD"
-    r["VI_EventDate"] = "2020-01-02"
-    r["VI_EventId"] = "V00"
-    rows.append(r)
-
-    # VI_VITUMA__2 only
-    r = base_row("S02_VI_VITUMA2_ONLY")
-    r["VI_VITUMA__2"] = "CR"
-    r["VI_EventDate"] = "2020-01-03"
-    r["VI_EventId"] = "V00"
-    rows.append(r)
-
-    # Neither VI value -> None
-    rows.append(base_row("S03_VI_NONE"))
-
-    # VI value but no date -> should be filtered out (None)
-    r = base_row("S04_VI_VALUE_NO_DATE")
-    r["VI_VITUMA"] = "SD"
-    r["VI_EventId"] = "V00"
-    rows.append(r)
-
-    # Off-target lesions (RCNT/RNTMNT) — EventId must be V00
-    # No off-target data
-    rows.append(base_row("S05_OFF_NONE"))
-
-    # RNTMNT both cols present -> pick RNTMNT_RNTMNTNOB
-    r = base_row("S06_RNT_BOTH")
-    r["RNTMNT_RNTMNTNOB"] = "5"
-    r["RNTMNT_RNTMNTNO"] = "7"
-    r["RNTMNT_EventId"] = "V00"
-    r["RNTMNT_EventDate"] = "2020-02-01"
-    rows.append(r)
-
-    # RNTMNT only second col
-    r = base_row("S07_RNT_ONE")
-    r["RNTMNT_RNTMNTNO"] = "4"
-    r["RNTMNT_EventId"] = "V00"
-    r["RNTMNT_EventDate"] = "2020-02-02"
-    rows.append(r)
-
-    # Off-target present but wrong EventId -> None
-    r = base_row("S08_RNT_WRONG_EVENT")
-    r["RNTMNT_RNTMNTNOB"] = "3"
-    r["RNTMNT_EventId"] = "V01"
-    r["RNTMNT_EventDate"] = "2020-02-03"
-    rows.append(r)
-
-    # RCNT only
-    r = base_row("S09_RCNT_ONLY")
-    r["RCNT_RCNTNOB"] = "3"
-    r["RCNT_EventId"] = "V00"
-    r["RCNT_EventDate"] = "2020-02-04"
-    rows.append(r)
-
-    # RCNT invalid integer -> None
-    r = base_row("S10_RCNT_INVALID")
-    r["RCNT_RCNTNOB"] = "abc"
-    r["RCNT_EventId"] = "V00"
-    r["RCNT_EventDate"] = "2020-02-05"
-    rows.append(r)
-
-    # Valid off-target size but no date -> keep size, date None
-    r = base_row("S11_OFF_SIZE_NO_DATE")
-    r["RNTMNT_RNTMNTNOB"] = "6"
-    r["RNTMNT_EventId"] = "V00"
-    # date missing
-    rows.append(r)
-
-    # Target lesions (RA/RNRSP)
-    # RA valid
-    r = base_row("S12_RA_VALID")
-    r["RA_RARECBAS"] = "12"
-    r["RA_RARECNAD"] = "12"
-    r["RA_EventDate"] = "2018-07-27"
-    r["RA_EventId"] = "V00"
-    rows.append(r)
-
-    # RNRSP valid
-    r = base_row("S13_RNRSP_VALID")
-    r["RNRSP_TERNTBAS"] = "20"
-    r["RNRSP_TERNAD"] = "18"
-    r["RNRSP_EventDate"] = "2019-01-01"
-    r["RNRSP_EventId"] = "V00"
-    rows.append(r)
-
-    # RA missing date but value present -> expect parsed size, date None (intended)
-    r = base_row("S14_RA_NO_DATE")
-    r["RA_RARECBAS"] = "8"
-    r["RA_RARECNAD"] = "7"
-    r["RA_EventId"] = "V00"
-    rows.append(r)
-
-    # RNRSP missing date but value present -> expect parsed size, date None (intended)
-    r = base_row("S15_RNRSP_NO_DATE")
-    r["RNRSP_TERNTBAS"] = "9"
-    r["RNRSP_TERNAD"] = "8"
-    r["RNRSP_EventId"] = "V00"
-    rows.append(r)
-
-    # Missing baseline, have nadir + date -> should NOT parse (size None)
-    r = base_row("S16_NO_BASELINE_HAS_NADIR")
-    r["RA_RARECNAD"] = "11"
-    r["RA_EventDate"] = "2020-03-01"
-    r["RA_EventId"] = "V00"
-    rows.append(r)
-
-    # Multiple valid rows -> take earliest by date
-    r1 = base_row("S17_MULTIPLE")
-    r1["RA_RARECBAS"] = "10"
-    r1["RA_RARECNAD"] = "10"
-    r1["RA_EventDate"] = "2020-01-03"
-    r1["RA_EventId"] = "V00"
-    rows.append(r1)
-    r2 = base_row("S17_MULTIPLE")
-    r2["RA_RARECBAS"] = "9"
-    r2["RA_RARECNAD"] = "9"
-    r2["RA_EventDate"] = "2020-01-01"
-    r2["RA_EventId"] = "V00"
-    rows.append(r2)
-
-    return pl.from_dicts(rows)
+@dataclass(frozen=True, slots=True)
+class PreviousTreatmentRow:
+    SubjectId: str
+    CT_CTTYPE: str | None = None
+    CT_CTTYPECD: str | None = None
+    CT_CTSPID: str | None = None
+    CT_CTSTDAT: str | None = None
+    CT_CTENDAT: str | None = None
+    CT_CTTYPESP: str | None = None
 
 
 @pytest.fixture
-def previous_treatment_fixture():
-    rows = []
+def previous_treatment_fixture() -> pl.DataFrame:
+    rows: List[PreviousTreatmentRow] = [
+        PreviousTreatmentRow("empty"),
+        PreviousTreatmentRow(
+            "has_treatment",
+            CT_CTTYPE="abc",
+            CT_CTTYPECD="2",
+            CT_CTSPID="1",
+            CT_CTSTDAT="1900-01-01",
+            CT_CTENDAT="1900-01-02",
+            CT_CTTYPESP="def",
+        ),
+        PreviousTreatmentRow(
+            "missing_treatment",
+            CT_CTTYPECD="2",
+            CT_CTSPID="1",
+            CT_CTSTDAT="1900-01-01",
+            CT_CTENDAT="1900-01-02",
+            CT_CTTYPESP="def",
+        ),
+        PreviousTreatmentRow(
+            "missing_partial",
+            CT_CTTYPE="abc",
+            CT_CTSPID="1",
+            CT_CTSTDAT="1900-01-01",
+        ),
+        PreviousTreatmentRow(
+            "missing_partial",
+            CT_CTTYPE="def",
+            CT_CTSPID="2",
+            CT_CTSTDAT="1900-01-03",
+        ),
+    ]
 
-    def base_row(pid):
-        return {
-            "SubjectId": pid,
-            "CT_CTTYPE": None,
-            "CT_CTTYPECD": None,
-            "CT_CTSPID": None,
-            "CT_CTSTDAT": None,
-            "CT_CTENDAT": None,
-            "CT_CTTYPESP": None,
-        }
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
 
-    rows.append(base_row("empty"))
 
-    # base case
-    r = base_row("has_treatment")
-    r["CT_CTTYPE"] = "abc"
-    r["CT_CTTYPECD"] = "2"
-    r["CT_CTSPID"] = "1"
-    r["CT_CTSTDAT"] = "1900-01-01"
-    r["CT_CTENDAT"] = "1900-01-02"
-    r["CT_CTTYPESP"] = "def"
-    rows.append(r)
-
-    # missing treatment (not initialized)
-    r = base_row("missing_treatment")
-    r["CT_CTTYPECD"] = "2"
-    r["CT_CTSPID"] = "1"
-    r["CT_CTSTDAT"] = "1900-01-01"
-    r["CT_CTENDAT"] = "1900-01-02"
-    r["CT_CTTYPESP"] = "def"
-    rows.append(r)
-
-    # missing partial
-    r = base_row("missing_partial")
-    r["CT_CTTYPE"] = "abc"
-    r["CT_CTSPID"] = "1"
-    r["CT_CTSTDAT"] = "1900-01-01"
-    rows.append(r)
-
-    r = base_row("missing_partial")
-    r["CT_CTTYPE"] = "def"
-    r["CT_CTSPID"] = "2"
-    r["CT_CTSTDAT"] = "1900-01-03"
-    rows.append(r)
-
-    return pl.from_dicts(rows)
+@dataclass(frozen=True, slots=True)
+class TreatmentStartRow:
+    SubjectId: str
+    TR_TRNAME: str | None = None
+    TR_TRC1_DT: str | None = None
 
 
 @pytest.fixture
-def treatment_start_fixture():
-    rows = []
+def treatment_start_fixture() -> pl.DataFrame:
+    rows: List[TreatmentStartRow] = [
+        TreatmentStartRow("empty"),
+        TreatmentStartRow("single_row", TR_TRNAME="b", TR_TRC1_DT="1900-01-02"),
+        TreatmentStartRow("multirow", TR_TRNAME="a", TR_TRC1_DT="1900-01-03"),
+        TreatmentStartRow("multirow", TR_TRNAME="a", TR_TRC1_DT="2001-01-01"),
+        TreatmentStartRow("multirow", TR_TRNAME="a", TR_TRC1_DT="1900-01-01"),
+        TreatmentStartRow(
+            "missing_treatment_none",
+            TR_TRNAME=None,
+            TR_TRC1_DT="1900-01-03",
+        ),
+        TreatmentStartRow(
+            "missing_treatment_empty_str",
+            TR_TRNAME="",
+            TR_TRC1_DT="1900-01-03",
+        ),
+    ]
 
-    def base_row(pid):
-        return {"SubjectId": pid, "TR_TRNAME": None, "TR_TRC1_DT": None}
-
-    # all empty
-    rows.append(base_row("empty"))
-
-    # one entry
-    r = base_row("single_row")
-    r["TR_TRNAME"] = "b"
-    r["TR_TRC1_DT"] = "1900-01-02"
-    rows.append(r)
-
-    # multiple rows
-    r = base_row("multirow")
-    r["TR_TRNAME"] = "a"
-    r["TR_TRC1_DT"] = "1900-01-03"
-    rows.append(r)
-
-    r = base_row("multirow")
-    r["TR_TRNAME"] = "a"
-    r["TR_TRC1_DT"] = "2001-01-01"
-    rows.append(r)
-
-    r = base_row("multirow")
-    r["TR_TRNAME"] = "a"
-    r["TR_TRC1_DT"] = "1900-01-01"
-    rows.append(r)
-
-    # missing treatment name
-    r = base_row("missing_treatment_none")
-    r["TR_TRNAME"] = None
-    r["TR_TRC1_DT"] = "1900-01-03"
-    rows.append(r)
-
-    r = base_row("missing_treatment_empty_str")
-    r["TR_TRNAME"] = ""
-    r["TR_TRC1_DT"] = "1900-01-03"
-    rows.append(r)
-
-    return pl.from_dicts(rows)
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
 
 
 @pytest.fixture

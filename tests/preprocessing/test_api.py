@@ -10,14 +10,10 @@ def test_preprocess_trial_with_real_data(tmp_path):
     input_dir.mkdir()
 
     subjects_csv = input_dir / "data_subjects.csv"
-    subjects_csv.write_text(
-        "Header\n" "SubjectId,Age,Sex\n" "A001,200,M\n" "A002,30,F\n"
-    )
+    subjects_csv.write_text("Header\n" "SubjectId,Age,Sex\n" "A001,200,M\n" "A002,30,F\n")
 
     visits_csv = input_dir / "data_visits.csv"
-    visits_csv.write_text(
-        "Header\n" "SubjectId,VisitDate\n" "A001,2023-01-01\n" "A002,2023-01-02\n"
-    )
+    visits_csv.write_text("Header\n" "SubjectId,VisitDate\n" "A001,2023-01-01\n" "A002,2023-01-02\n")
 
     ecog_csv = input_dir / "data_ECOG.csv"
     ecog_csv.write_text("Header\n" "SubjectId,EventId\n" "A001,V00\n" "A002,S01\n")
@@ -28,7 +24,7 @@ def test_preprocess_trial_with_real_data(tmp_path):
             SheetConfig(key="subjects", usecols=["SubjectId", "Age", "Sex"]),
             SheetConfig(key="visits", usecols=["SubjectId", "VisitDate"]),
             SheetConfig(key="ECOG", usecols=["SubjectId", "EventId"]),
-        ]
+        ],
     )
 
     # mock trial processor
@@ -41,7 +37,7 @@ def test_preprocess_trial_with_real_data(tmp_path):
             "Sex": ["M", "F"],
             "ECOG_EventId": ["", "V00"],
             "visits_VisitDate": ["2023-01-01", "2023-01-02"],
-        }
+        },
     )
     mock_processor.return_value = processed_df
 
@@ -52,9 +48,7 @@ def test_preprocess_trial_with_real_data(tmp_path):
     ):
         with patch.dict("os.environ", {"DISABLE_LOG_FILE": "1"}):
             # mock the output manager
-            with patch(
-                "omop_etl.preprocessing.api.OutputManager"
-            ) as mock_output_manager_class:
+            with patch("omop_etl.preprocessing.api.OutputManager") as mock_output_manager_class:
                 mock_output_manager = Mock()
                 mock_result_path = Mock()
                 mock_result_path.data_file = tmp_path / "output.csv"

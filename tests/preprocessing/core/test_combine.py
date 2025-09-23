@@ -19,7 +19,7 @@ def df_subjects():
                 "A_003_2",
             ],
             "sex": ["F", "M", "M", "F", "M", "F"],
-        }
+        },
     )
 
 
@@ -29,7 +29,7 @@ def df_demographics():
         {
             "SubjectId": ["A_001_1", "A_002_1", "A_003_1", "B_999_1"],
             "age": [34, 51, 28, 99],
-        }
+        },
     )
 
 
@@ -39,7 +39,7 @@ def df_icd10():
         {
             "SubjectId": ["A_001_1", "A_002_1", "A_003_1"],
             "icd10": ["C70.0", "C34.0", "C71.0"],
-        }
+        },
     )
 
 
@@ -50,7 +50,7 @@ def df_extra_subjectid():
         {
             "SubjectId": ["A_001_1", "A_002_1", "A_003_2", "extra_id"],
             "cancer_type": ["CRC", "NSCLC", "HNSCC", "something"],
-        }
+        },
     )
 
 
@@ -75,9 +75,7 @@ def demographics_merged_subjects(df_subjects, df_demographics) -> pl.DataFrame:
 
 
 @pytest.fixture
-def all_merged(
-    df_subjects, df_demographics, df_icd10, df_extra_subjectid
-) -> pl.DataFrame:
+def all_merged(df_subjects, df_demographics, df_icd10, df_extra_subjectid) -> pl.DataFrame:
     e = ecfg(
         sheet("subjects", df_subjects),
         sheet("demographics", df_demographics),
@@ -134,15 +132,11 @@ def test_matching_keys_get_combined_data(all_merged):
 
 
 def test_unique_keys_create_separate_rows(all_merged):
-    only_in_subjects_df = all_merged.filter(pl.col("SubjectId") == "A_004_1").row(
-        0, named=True
-    )
+    only_in_subjects_df = all_merged.filter(pl.col("SubjectId") == "A_004_1").row(0, named=True)
     assert only_in_subjects_df["subjects_sex"] == "M"
     assert only_in_subjects_df["extra_cancer_type"] is None
 
-    only_in_extra_df = all_merged.filter(pl.col("SubjectId") == "A_003_2").row(
-        0, named=True
-    )
+    only_in_extra_df = all_merged.filter(pl.col("SubjectId") == "A_003_2").row(0, named=True)
     assert only_in_extra_df["demographics_age"] is None
     assert only_in_extra_df["extra_cancer_type"] == "HNSCC"
 
@@ -154,9 +148,7 @@ def test_results_sorted_by_key_column(all_merged):
 
 
 def test_sorting_handles_null_keys():
-    df_with_nulls = pl.DataFrame(
-        {"SubjectId": ["B_001", None, "A_001"], "value": [1, 2, 3]}
-    )
+    df_with_nulls = pl.DataFrame({"SubjectId": ["B_001", None, "A_001"], "value": [1, 2, 3]})
 
     e = ecfg(sheet("test", df_with_nulls))
     out = combine(e, on="SubjectId")

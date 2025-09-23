@@ -133,7 +133,7 @@ def configure(
                 "class": "logging.StreamHandler",
                 "stream": sys.stdout,
                 "formatter": "json" if json_out else "plain",
-            }
+            },
         },
         "root": {
             "level": level,
@@ -182,9 +182,7 @@ def add_file_handler(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     # create handler
-    handler = RotatingFileHandler(
-        path, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
-    )
+    handler = RotatingFileHandler(path, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8")
 
     # set formatter
     if json_format is None:

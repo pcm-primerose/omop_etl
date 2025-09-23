@@ -20,10 +20,7 @@ class PreprocessingPipeline:
         output_manager: Optional[OutputManager] = None,
     ):
         if trial not in TRIAL_PROCESSORS:
-            raise ValueError(
-                f"Unknown trial '{trial}'. "
-                f"Available: {', '.join(sorted(TRIAL_PROCESSORS.keys()))}"
-            )
+            raise ValueError(f"Unknown trial '{trial}'. " f"Available: {', '.join(sorted(TRIAL_PROCESSORS.keys()))}")
 
         self.trial = trial
         self.ecrf_config = ecrf_config
@@ -87,6 +84,4 @@ class PreprocessingPipeline:
             },
         )
 
-        return PreprocessResult(
-            output_path=output_path, rows=df.height, columns=df.width, context=ctx
-        )
+        return PreprocessResult(output_path=output_path, rows=df.height, columns=df.width, context=ctx)

@@ -20,7 +20,7 @@ class TestCohortFiltering:
                 "SubjectId": ["A001", "A001", "A002", "A002"],
                 "COH_COHORTNAME": ["Valid Cohort", None, "Another Cohort", ""],
                 "data": [1, 2, 3, 4],
-            }
+            },
         )
 
         result = _filter_valid_cohort(df)
@@ -37,7 +37,7 @@ class TestCohortFiltering:
                 "SubjectId": ["A001", "A001", "A002", "A002", "A003"],
                 "COH_COHORTNAME": ["Valid Cohort", None, None, "", "NA"],
                 "data": [1, 2, 3, 4, 5],
-            }
+            },
         )
 
         result = _filter_valid_cohort(df)
@@ -52,7 +52,7 @@ class TestCohortFiltering:
             {
                 "SubjectId": ["A001", "A002", "A003"],
                 "COH_COHORTNAME": ["  ", "\t\n", "Valid Name"],
-            }
+            },
         )
 
         result = _filter_valid_cohort(df)
@@ -71,7 +71,7 @@ class TestEcogFiltering:
                 "SubjectId": ["A001", "A002"],
                 "ECOG_EventId": ["V00", "V00"],
                 "data": [1, 2],
-            }
+            },
         )
 
         result = _keep_ecog_v00_or_na(df)
@@ -83,7 +83,7 @@ class TestEcogFiltering:
                 "SubjectId": ["A001", "A002", "A003", "A004"],
                 "ECOG_EventId": ["V00", None, "V01", "V02"],
                 "data": [1, 2, 3, 4],
-            }
+            },
         )
 
         result = _keep_ecog_v00_or_na(df)
@@ -145,7 +145,7 @@ class TestConflictMerging:
                 "SubjectId": ["A001", "A001", "A002", "A002"],
                 "age": [25, 30, 35, None],  # age conflict in A001
                 "sex": ["M", "M", "F", "F"],
-            }
+            },
         )
 
         result = _aggregate_no_conflicts(df)
@@ -161,7 +161,7 @@ class TestConflictMerging:
                 "SubjectId": ["A001", "A001"],
                 "age": [25, None],
                 "sex": ["M", None],  # no conflict, null ignored
-            }
+            },
         )
 
         result = _aggregate_no_conflicts(df)
@@ -173,9 +173,7 @@ class TestConflictMerging:
         assert row["sex"] == "M"
 
     def test_empty_dataframe(self):
-        df = pl.DataFrame(
-            {"SubjectId": [], "age": []}, schema={"SubjectId": pl.Utf8, "age": pl.Int64}
-        )
+        df = pl.DataFrame({"SubjectId": [], "age": []}, schema={"SubjectId": pl.Utf8, "age": pl.Int64})
 
         result = _aggregate_no_conflicts(df)
 
@@ -201,7 +199,7 @@ class TestPreprocessImpressIntegration:
                 "COH_COHORTNAME": ["Valid Cohort", None, "Invalid"],
                 "ECOG_EventId": [None, "V00", "V01"],
                 "age": [25, None, 30],
-            }
+            },
         )
 
         ecfg = EcrfConfig(trial="IMPRESS", configs=[])
@@ -220,9 +218,7 @@ class TestPreprocessImpressIntegration:
         assert result.columns[1] == "Trial"
 
     def test_defaults_to_impress_when_no_trial_name(self):
-        df = pl.DataFrame(
-            {"SubjectId": ["001"], "COH_COHORTNAME": ["Valid"], "ECOG_EventId": ["V00"]}
-        )
+        df = pl.DataFrame({"SubjectId": ["001"], "COH_COHORTNAME": ["Valid"], "ECOG_EventId": ["V00"]})
 
         ecfg = EcrfConfig(trial=None, configs=[])
         run_opts = RunOptions(filter_valid_cohort=False)

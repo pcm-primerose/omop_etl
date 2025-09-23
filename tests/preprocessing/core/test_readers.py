@@ -31,7 +31,7 @@ def sample_dataframe():
             "age": [25, 30, 35],
             "Sex": ["M", "F", "M"],  # mixed casing
             "extra_col": ["A", "B", "C"],
-        }
+        },
     )
 
 
@@ -52,9 +52,7 @@ class TestBaseReaderNormalization:
 
     def test_normalize_dataframe_missing_columns_raises_error(self, sample_dataframe):
         expected_cols = ["SubjectId", "Age", "MissingColumn"]
-        with pytest.raises(
-            ValueError, match="Missing required columns: \\['MissingColumn'\\]"
-        ):
+        with pytest.raises(ValueError, match="Missing required columns: \\['MissingColumn'\\]"):
             BaseReader.normalize_dataframe(sample_dataframe, expected_cols)
 
     def test_normalize_dataframe_column_order_preserved(self, sample_dataframe):
@@ -77,14 +75,12 @@ class TestBaseReaderNormalization:
                 "Name": ["Alice", "Bob", "Charlie"],
                 "Score": ["85", "92", "78"],
                 "Notes": ["Good", "Excellent", "Fair"],
-            }
+            },
         )
 
         result = BaseReader.normalize_numeric_types(df)
 
-        assert (
-            result.schema["SubjectId"] == pl.Int64
-        ), "Should convert to int as numeric only"
+        assert result.schema["SubjectId"] == pl.Int64, "Should convert to int as numeric only"
         assert result.schema["Name"] == pl.Utf8, "str"
         assert result.schema["Score"] == pl.Int64, "int"
         assert result.schema["Notes"] == pl.Utf8, "str"
@@ -109,7 +105,7 @@ class TestBaseReaderNormalization:
                 "Id": ["A01", "B02", "C03"],
                 "Value": ["12.5", "13.7", "14.2"],
                 "Code": ["", None, "N/A"],
-            }
+            },
         )
 
         result = BaseReader.normalize_numeric_types(df)
@@ -119,9 +115,7 @@ class TestBaseReaderNormalization:
         assert result.schema["Code"] == pl.Utf8
 
     def test_normalize_numeric_types_handles_nulls(self):
-        df = pl.DataFrame(
-            {"Numbers": ["123", None, "456"], "Mixed": ["123", "abc", None]}
-        )
+        df = pl.DataFrame({"Numbers": ["123", None, "456"], "Mixed": ["123", "abc", None]})
 
         result = BaseReader.normalize_numeric_types(df)
 
@@ -244,23 +238,11 @@ class TestCsvDirectoryReader:
         labs_csv = tmp_path / "data_labs.csv"
 
         # write csv content
-        subjects_csv.write_text(
-            "Header Row (skipped)\n" "SubjectId,Age,Sex\n" "A001,25,M\n" "A002,30,F\n"
-        )
+        subjects_csv.write_text("Header Row (skipped)\n" "SubjectId,Age,Sex\n" "A001,25,M\n" "A002,30,F\n")
 
-        demographics_csv.write_text(
-            "Header Row (skipped)\n"
-            "SubjectId,Race,Ethnicity\n"
-            "A001,White,Non-Hispanic\n"
-            "A002,Black,Hispanic\n"
-        )
+        demographics_csv.write_text("Header Row (skipped)\n" "SubjectId,Race,Ethnicity\n" "A001,White,Non-Hispanic\n" "A002,Black,Hispanic\n")
 
-        labs_csv.write_text(
-            "Header Row (skipped)\n"
-            "SubjectId,TestName,TestValue\n"
-            "A001,Glucose,85\n"
-            "A002,Glucose,92\n"
-        )
+        labs_csv.write_text("Header Row (skipped)\n" "SubjectId,TestName,TestValue\n" "A001,Glucose,85\n" "A002,Glucose,92\n")
 
         result = reader.load(tmp_path, sample_config)
         subjects_data = next(d for d in result.data if d.key == "subjects")
@@ -275,9 +257,7 @@ class TestCsvDirectoryReader:
         reader = CsvDirectoryReader()
         subjects_csv = tmp_path / "data_subjects.csv"
         subjects_csv.write_text("Header Row\n" "SubjectId,Age,Sex\n" "A001,25,M\n")
-        with pytest.raises(
-            FileNotFoundError, match="No CSV file for key 'demographics'"
-        ):
+        with pytest.raises(FileNotFoundError, match="No CSV file for key 'demographics'"):
             reader.load(tmp_path, sample_config)
 
     def test_load_csv_directory_no_csv_files(self, tmp_path, sample_config):
@@ -376,16 +356,10 @@ def test_full_csv_workflow(tmp_path):
         "SUBJECTID,AGE,SEX\n"  # different case
         "P001,25,M\n"
         "P002,30,F\n"
-        "P003,35,M\n"
+        "P003,35,M\n",
     )
 
-    visits_csv.write_text(
-        "Study Metadata (skip)\n"
-        "SubjectId,VisitDate,VisitType\n"
-        "P001,2023-01-15,Baseline\n"
-        "P001,2023-02-15,Follow-up\n"
-        "P002,2023-01-20,Baseline\n"
-    )
+    visits_csv.write_text("Study Metadata (skip)\n" "SubjectId,VisitDate,VisitType\n" "P001,2023-01-15,Baseline\n" "P001,2023-02-15,Follow-up\n" "P002,2023-01-20,Baseline\n")
 
     resolver = InputResolver()
     result = resolver.resolve(tmp_path, config)
@@ -410,18 +384,11 @@ def test_mixed_case_column_handling(tmp_path):
     """Test handling of mixed case columns across different scenarios"""
     config = EcrfConfig(
         trial="case_test",
-        configs=[
-            SheetConfig(key="data", usecols=["SubjectId", "TestValue", "Result_Code"])
-        ],
+        configs=[SheetConfig(key="data", usecols=["SubjectId", "TestValue", "Result_Code"])],
     )
 
     csv_file = tmp_path / "mixed_data.csv"
-    csv_file.write_text(
-        "Skip this header\n"
-        "subjectid,TESTVALUE,result_code\n"
-        "S001,85,PASS\n"
-        "S002,92,FAIL\n"
-    )
+    csv_file.write_text("Skip this header\n" "subjectid,TESTVALUE,result_code\n" "S001,85,PASS\n" "S002,92,FAIL\n")
 
     resolver = InputResolver()
     result = resolver.resolve(tmp_path, config)

@@ -29,9 +29,7 @@ class TumorType:
 
     @icd10_code.setter
     def icd10_code(self, value: Optional[str]) -> None:
-        self._icd10_code = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.icd10_code.fset.__name__
-        )
+        self._icd10_code = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.icd10_code.fset.__name__)
         self.updated_fields.add(self.__class__.icd10_code.fset.__name__)
 
     @property
@@ -40,9 +38,7 @@ class TumorType:
 
     @icd10_description.setter
     def icd10_description(self, value: Optional[str]) -> None:
-        self._icd10_description = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.icd10_description.fset.__name__
-        )
+        self._icd10_description = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.icd10_description.fset.__name__)
         self.updated_fields.add(self.__class__.icd10_description.fset.__name__)
 
     @property
@@ -51,9 +47,7 @@ class TumorType:
 
     @main_tumor_type.setter
     def main_tumor_type(self, value: Optional[str]) -> None:
-        self._main_tumor_type = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.main_tumor_type.fset.__name__
-        )
+        self._main_tumor_type = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.main_tumor_type.fset.__name__)
         self.updated_fields.add(self.__class__.main_tumor_type.fset.__name__)
 
     @property
@@ -62,9 +56,7 @@ class TumorType:
 
     @main_tumor_type_code.setter
     def main_tumor_type_code(self, value: Optional[int]) -> None:
-        self._main_tumor_type_code = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.main_tumor_type_code.fset.__name__
-        )
+        self._main_tumor_type_code = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.main_tumor_type_code.fset.__name__)
         self.updated_fields.add(self.__class__.main_tumor_type_code.fset.__name__)
 
     @property
@@ -73,9 +65,7 @@ class TumorType:
 
     @cohort_tumor_type.setter
     def cohort_tumor_type(self, value: Optional[str]) -> None:
-        self._cohort_tumor_type = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.cohort_tumor_type.fset.__name__
-        )
+        self._cohort_tumor_type = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.cohort_tumor_type.fset.__name__)
         self.updated_fields.add(self.__class__.cohort_tumor_type.fset.__name__)
 
     @property
@@ -84,9 +74,7 @@ class TumorType:
 
     @other_tumor_type.setter
     def other_tumor_type(self, value: Optional[str]) -> None:
-        self._other_tumor_type = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.other_tumor_type.fset.__name__
-        )
+        self._other_tumor_type = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.other_tumor_type.fset.__name__)
         self.updated_fields.add(self.__class__.other_tumor_type.fset.__name__)
 
     def __repr__(self) -> str:
@@ -117,9 +105,7 @@ class StudyDrugs:
 
     @primary_treatment_drug.setter
     def primary_treatment_drug(self, value: Optional[str]) -> None:
-        self._primary_treatment_drug = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.primary_treatment_drug.fset.__name__
-        )
+        self._primary_treatment_drug = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.primary_treatment_drug.fset.__name__)
         self.updated_fields.add(self.__class__.primary_treatment_drug.fset.__name__)
 
     @property
@@ -144,9 +130,7 @@ class StudyDrugs:
             value=value,
             field_name=self.__class__.primary_treatment_drug_code.fset.__name__,
         )
-        self.updated_fields.add(
-            self.__class__.primary_treatment_drug_code.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.primary_treatment_drug_code.fset.__name__)
 
     @property
     def secondary_treatment_drug_code(self) -> Optional[int]:
@@ -158,9 +142,7 @@ class StudyDrugs:
             value=value,
             field_name=self.__class__.secondary_treatment_drug_code.fset.__name__,
         )
-        self.updated_fields.add(
-            self.__class__.secondary_treatment_drug_code.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.secondary_treatment_drug_code.fset.__name__)
 
     def __repr__(self):
         return (
@@ -189,9 +171,7 @@ class Biomarkers:
 
     @gene_and_mutation.setter
     def gene_and_mutation(self, value: Optional[str]) -> None:
-        self._gene_and_mutation = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.gene_and_mutation.fset.__name__
-        )
+        self._gene_and_mutation = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.gene_and_mutation.fset.__name__)
         self.updated_fields.add(self.__class__.gene_and_mutation.fset.__name__)
 
     @property
@@ -200,9 +180,7 @@ class Biomarkers:
 
     @gene_and_mutation_code.setter
     def gene_and_mutation_code(self, value: Optional[int]) -> None:
-        self._gene_and_mutation_code = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.gene_and_mutation_code.fset.__name__
-        )
+        self._gene_and_mutation_code = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.gene_and_mutation_code.fset.__name__)
         self.updated_fields.add(self.__class__.gene_and_mutation_code.fset.__name__)
 
     @property
@@ -211,9 +189,7 @@ class Biomarkers:
 
     @cohort_target_name.setter
     def cohort_target_name(self, value: Optional[str]) -> None:
-        self._cohort_target_name = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.cohort_target_name.fset.__name__
-        )
+        self._cohort_target_name = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.cohort_target_name.fset.__name__)
         self.updated_fields.add(self.__class__.cohort_target_name.fset.__name__)
 
     @property
@@ -222,9 +198,7 @@ class Biomarkers:
 
     @cohort_target_mutation.setter
     def cohort_target_mutation(self, value: Optional[str]) -> None:
-        self._cohort_target_mutation = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.cohort_target_mutation.fset.__name__
-        )
+        self._cohort_target_mutation = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.cohort_target_mutation.fset.__name__)
         self.updated_fields.add(self.__class__.cohort_target_mutation.fset.__name__)
 
     @property
@@ -233,21 +207,11 @@ class Biomarkers:
 
     @date.setter
     def date(self, value: Optional[dt.date]) -> None:
-        self._date = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.date.fset.__name__
-        )
+        self._date = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date.fset.__name__)
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"gene_and_mutation={self.gene_and_mutation!r}, "
-            f"gene_and_mutation_code={self.gene_and_mutation_code!r}, "
-            f"cohort_target_name={self.cohort_target_name!r}, "
-            f"cohort_target_mutation={self.cohort_target_mutation!r}, "
-            f"date={self.date!r}"
-            f")"
-        )
+        return f"{self.__class__.__name__}(" f"gene_and_mutation={self.gene_and_mutation!r}, " f"gene_and_mutation_code={self.gene_and_mutation_code!r}, " f"cohort_target_name={self.cohort_target_name!r}, " f"cohort_target_mutation={self.cohort_target_mutation!r}, " f"date={self.date!r}" f")"
 
 
 class FollowUp:
@@ -267,9 +231,7 @@ class FollowUp:
 
     @lost_to_followup.setter
     def lost_to_followup(self, value: Optional[bool]) -> None:
-        self._lost_to_followup = StrictValidators.validate_optional_bool(
-            value=value, field_name=self.__class__.lost_to_followup.fset.__name__
-        )
+        self._lost_to_followup = StrictValidators.validate_optional_bool(value=value, field_name=self.__class__.lost_to_followup.fset.__name__)
         self.updated_fields.add(self.__class__.lost_to_followup.fset.__name__)
 
     @property
@@ -278,18 +240,11 @@ class FollowUp:
 
     @date_lost_to_followup.setter
     def date_lost_to_followup(self, value: Optional[dt.date]) -> None:
-        self._date_lost_to_followup = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.date_lost_to_followup.fset.__name__
-        )
+        self._date_lost_to_followup = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date_lost_to_followup.fset.__name__)
         self.updated_fields.add(self.__class__.date_lost_to_followup.fset.__name__)
 
     def __str__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"lost_to_followup={self.lost_to_followup!r}, "
-            f"date_lost_to_followup={self.date_lost_to_followup!r}"
-            f")"
-        )
+        return f"{self.__class__.__name__}(" f"lost_to_followup={self.lost_to_followup!r}, " f"date_lost_to_followup={self.date_lost_to_followup!r}" f")"
 
 
 class EcogBaseline:
@@ -310,9 +265,7 @@ class EcogBaseline:
 
     @description.setter
     def description(self, value: Optional[str]) -> None:
-        self._description = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.description.fset.__name__
-        )
+        self._description = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.description.fset.__name__)
         self.updated_fields.add(self.__class__.description.fset.__name__)
 
     @property
@@ -321,9 +274,7 @@ class EcogBaseline:
 
     @grade.setter
     def grade(self, value: Optional[int]) -> None:
-        self._grade = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.grade.fset.__name__
-        )
+        self._grade = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.grade.fset.__name__)
         self.updated_fields.add(self.__class__.grade.fset.__name__)
 
     @property
@@ -332,19 +283,11 @@ class EcogBaseline:
 
     @date.setter
     def date(self, value: Optional[dt.date]) -> None:
-        self._date = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.date.fset.__name__
-        )
+        self._date = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date.fset.__name__)
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"description={self.description!r},  "
-            f"grade={self.grade!r}, "
-            f"date={self.date!r}"
-            f")"
-        )
+        return f"{self.__class__.__name__}(" f"description={self.description!r},  " f"grade={self.grade!r}, " f"date={self.date!r}" f")"
 
 
 class TumorAssessmentBaseline:
@@ -369,9 +312,7 @@ class TumorAssessmentBaseline:
 
     @assessment_type.setter
     def assessment_type(self, value: Optional[str]) -> None:
-        self._asssessment_type = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.assessment_type.fset.__name__
-        )
+        self._asssessment_type = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.assessment_type.fset.__name__)
         self.updated_fields.add(self.__class__.assessment_type.fset.__name__)
 
     @property
@@ -380,9 +321,7 @@ class TumorAssessmentBaseline:
 
     @assessment_date.setter
     def assessment_date(self, value: Optional[dt.date]) -> None:
-        self._assessment_date = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.assessment_date.fset.__name__
-        )
+        self._assessment_date = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.assessment_date.fset.__name__)
         self.updated_fields.add(self.__class__.assessment_date.fset.__name__)
 
     @property
@@ -391,9 +330,7 @@ class TumorAssessmentBaseline:
 
     @target_lesion_size.setter
     def target_lesion_size(self, value: Optional[int]) -> None:
-        self._target_lesion_size = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.target_lesion_size.fset.__name__
-        )
+        self._target_lesion_size = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.target_lesion_size.fset.__name__)
         self.updated_fields.add(self.__class__.target_lesion_size.fset.__name__)
 
     @property
@@ -402,9 +339,7 @@ class TumorAssessmentBaseline:
 
     @target_lesion_nadir.setter
     def target_lesion_nadir(self, value: Optional[int]) -> None:
-        self._target_lesion_nadir = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.target_lesion_nadir.fset.__name__
-        )
+        self._target_lesion_nadir = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.target_lesion_nadir.fset.__name__)
         self.updated_fields.add(self.__class__.target_lesion_nadir.fset.__name__)
 
     @property
@@ -417,9 +352,7 @@ class TumorAssessmentBaseline:
             value=value,
             field_name=self.__class__.target_lesion_measurment_date.fset.__name__,
         )
-        self.updated_fields.add(
-            self.__class__.target_lesion_measurment_date.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.target_lesion_measurment_date.fset.__name__)
 
     @property
     def number_off_target_lesions(self) -> Optional[int]:
@@ -443,9 +376,7 @@ class TumorAssessmentBaseline:
             value=value,
             field_name=self.__class__.off_target_lesion_measurment_date.fset.__name__,
         )
-        self.updated_fields.add(
-            self.__class__.off_target_lesion_measurment_date.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.off_target_lesion_measurment_date.fset.__name__)
 
     def __repr__(self) -> str:
         return (
@@ -479,9 +410,7 @@ class BestOverallResponse:
 
     @response.setter
     def response(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.response.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.response.fset.__name__)
         self._response = validated
         self.updated_fields.add(self.__class__.response.fset.__name__)
 
@@ -491,9 +420,7 @@ class BestOverallResponse:
 
     @code.setter
     def code(self, value: Optional[int]) -> None:
-        validated = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.code.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.code.fset.__name__)
         self._code = validated
         self.updated_fields.add(self.__class__.code.fset.__name__)
 
@@ -503,20 +430,12 @@ class BestOverallResponse:
 
     @date.setter
     def date(self, value: Optional[dt.date]) -> None:
-        validated = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.date.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date.fset.__name__)
         self._date = validated
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f"response={self.response!r}, "
-            f"code={self.code!r}, "
-            f"date={self.date!r}"
-            f")"
-        )
+        return f"{self.__class__.__name__}(" f"response={self.response!r}, " f"code={self.code!r}, " f"date={self.date!r}" f")"
 
 
 class MedicalHistory:
@@ -540,9 +459,7 @@ class MedicalHistory:
 
     @term.setter
     def term(self, value: Optional[str]) -> None:
-        self._term = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.term.fset.__name__
-        )
+        self._term = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.term.fset.__name__)
         self.updated_fields.add(self.__class__.term.fset.__name__)
 
     @property
@@ -551,9 +468,7 @@ class MedicalHistory:
 
     @sequence_id.setter
     def sequence_id(self, value: Optional[int]) -> None:
-        self._sequence_id = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.sequence_id.fset.__name__
-        )
+        self._sequence_id = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.sequence_id.fset.__name__)
         self.updated_fields.add(self.__class__.sequence_id.fset.__name__)
 
     @property
@@ -562,9 +477,7 @@ class MedicalHistory:
 
     @start_date.setter
     def start_date(self, value: Optional[dt.date]) -> None:
-        self._start_date = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.start_date.fset.__name__
-        )
+        self._start_date = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.start_date.fset.__name__)
         self.updated_fields.add(self.__class__.start_date.fset.__name__)
 
     @property
@@ -573,9 +486,7 @@ class MedicalHistory:
 
     @end_date.setter
     def end_date(self, value: Optional[dt.date]) -> None:
-        self._end_date = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.end_date.fset.__name__
-        )
+        self._end_date = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.end_date.fset.__name__)
         self.updated_fields.add(self.__class__.end_date.fset.__name__)
 
     @property
@@ -584,9 +495,7 @@ class MedicalHistory:
 
     @status.setter
     def status(self, value: Optional[str]) -> None:
-        self._status = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.status.fset.__name__
-        )
+        self._status = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.status.fset.__name__)
         self.updated_fields.add(self.__class__.status.fset.__name__)
 
     @property
@@ -602,16 +511,7 @@ class MedicalHistory:
         self.updated_fields.add(self.__class__.status_code.fset.__name__)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f"term={self.term!r}, "
-            f"seq={self.sequence_id!r}, "
-            f"start={self.start_date!r}, "
-            f"end={self.end_date!r}, "
-            f"status={self.status!r}, "
-            f"code={self.status_code!r}"
-            ")"
-        )
+        return f"{self.__class__.__name__}(" f"term={self.term!r}, " f"seq={self.sequence_id!r}, " f"start={self.start_date!r}, " f"end={self.end_date!r}, " f"status={self.status!r}, " f"code={self.status_code!r}" ")"
 
 
 class PreviousTreatments:
@@ -753,9 +653,7 @@ class TreatmentCycle:
 
     @treatment_name.setter
     def treatment_name(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.treatment_name.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.treatment_name.fset.__name__)
         self._treatment_name = validated
         self.updated_fields.add(self.__class__.treatment_name.fset.__name__)
 
@@ -835,9 +733,7 @@ class TreatmentCycle:
             field_name=self.__class__.recieved_treatment_this_cycle.fset.__name__,
         )
         self._recieved_treatment_this_cycle = validated
-        self.updated_fields.add(
-            self.__class__.recieved_treatment_this_cycle.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.recieved_treatment_this_cycle.fset.__name__)
 
     @property
     def iv_dose_prescribed_unit(self) -> Optional[str]:
@@ -890,9 +786,7 @@ class TreatmentCycle:
             field_name=self.__class__.was_dose_administered_to_spec.fset.__name__,
         )
         self._was_dose_administered_to_spec = validated
-        self.updated_fields.add(
-            self.__class__.was_dose_administered_to_spec.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.was_dose_administered_to_spec.fset.__name__)
 
     @property
     def reason_not_administered_to_spec(self) -> Optional[str]:
@@ -905,9 +799,7 @@ class TreatmentCycle:
             field_name=self.__class__.reason_not_administered_to_spec.fset.__name__,
         )
         self._reason_not_administered_to_spec = validated
-        self.updated_fields.add(
-            self.__class__.reason_not_administered_to_spec.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.reason_not_administered_to_spec.fset.__name__)
 
     @property
     def oral_dose_prescribed_per_day(self) -> Optional[float]:
@@ -920,9 +812,7 @@ class TreatmentCycle:
             field_name=self.__class__.oral_dose_prescribed_per_day.fset.__name__,
         )
         self._oral_dose_prescribed_per_day = validated
-        self.updated_fields.add(
-            self.__class__.oral_dose_prescribed_per_day.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.oral_dose_prescribed_per_day.fset.__name__)
 
     @property
     def oral_dose_unit(self) -> Optional[str]:
@@ -961,9 +851,7 @@ class TreatmentCycle:
             field_name=self.__class__.number_of_days_tablet_not_taken.fset.__name__,
         )
         self._number_of_days_tablet_not_taken = validated
-        self.updated_fields.add(
-            self.__class__.number_of_days_tablet_not_taken.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.number_of_days_tablet_not_taken.fset.__name__)
 
     @property
     def reason_tablet_not_taken(self) -> Optional[str]:
@@ -983,17 +871,13 @@ class TreatmentCycle:
         return self._was_tablet_taken_to_prescription_in_previous_cycle
 
     @was_tablet_taken_to_prescription_in_previous_cycle.setter
-    def was_tablet_taken_to_prescription_in_previous_cycle(
-        self, value: Optional[bool]
-    ) -> None:
+    def was_tablet_taken_to_prescription_in_previous_cycle(self, value: Optional[bool]) -> None:
         validated = StrictValidators.validate_optional_bool(
             value=value,
             field_name=self.__class__.was_tablet_taken_to_prescription_in_previous_cycle.fset.__name__,
         )
         self._was_tablet_taken_to_prescription_in_previous_cycle = validated
-        self.updated_fields.add(
-            self.__class__.was_tablet_taken_to_prescription_in_previous_cycle.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.was_tablet_taken_to_prescription_in_previous_cycle.fset.__name__)
 
     def __repr__(self) -> str:
         return (
@@ -1046,9 +930,7 @@ class TumorAssessment:
 
     @assessment_type.setter
     def assessment_type(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.assessment_type.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.assessment_type.fset.__name__)
         self._assessment_type = validated
         self.updated_fields.add(self.__class__.assessment_type.fset.__name__)
 
@@ -1063,9 +945,7 @@ class TumorAssessment:
             field_name=self.__class__.target_lesion_change_from_baseline.fset.__name__,
         )
         self._target_lesion_change_from_baseline = validated
-        self.updated_fields.add(
-            self.__class__.target_lesion_change_from_baseline.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.target_lesion_change_from_baseline.fset.__name__)
 
     @property
     def target_lesion_change_from_nadir(self) -> Optional[float]:
@@ -1078,9 +958,7 @@ class TumorAssessment:
             field_name=self.__class__.target_lesion_change_from_nadir.fset.__name__,
         )
         self._target_lesion_change_from_nadir = validated
-        self.updated_fields.add(
-            self.__class__.target_lesion_change_from_nadir.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.target_lesion_change_from_nadir.fset.__name__)
 
     @property
     def was_new_lesions_registered_after_baseline(self) -> Optional[bool]:
@@ -1093,9 +971,7 @@ class TumorAssessment:
             field_name=self.__class__.was_new_lesions_registered_after_baseline.fset.__name__,
         )
         self._was_new_lesions_registered_after_baseline = validated
-        self.updated_fields.add(
-            self.__class__.was_new_lesions_registered_after_baseline.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.was_new_lesions_registered_after_baseline.fset.__name__)
 
     @property
     def date(self) -> Optional[dt.date]:
@@ -1103,9 +979,7 @@ class TumorAssessment:
 
     @date.setter
     def date(self, value: Optional[dt.date]) -> None:
-        validated = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.date.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date.fset.__name__)
         self._date = validated
         self.updated_fields.add(self.__class__.date.fset.__name__)
 
@@ -1115,9 +989,7 @@ class TumorAssessment:
 
     @recist_response.setter
     def recist_response(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.recist_response.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.recist_response.fset.__name__)
         self._recist_response = validated
         self.updated_fields.add(self.__class__.recist_response.fset.__name__)
 
@@ -1127,9 +999,7 @@ class TumorAssessment:
 
     @irecist_response.setter
     def irecist_response(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.irecist_response.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.irecist_response.fset.__name__)
         self._irecist_response = validated
         self.updated_fields.add(self.__class__.irecist_response.fset.__name__)
 
@@ -1139,9 +1009,7 @@ class TumorAssessment:
 
     @rano_response.setter
     def rano_response(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.rano_response.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.rano_response.fset.__name__)
         self._rano_response = validated
         self.updated_fields.add(self.__class__.rano_response.fset.__name__)
 
@@ -1169,9 +1037,7 @@ class TumorAssessment:
             field_name=self.__class__.irecist_date_of_progression.fset.__name__,
         )
         self._irecist_date_of_progression = validated
-        self.updated_fields.add(
-            self.__class__.irecist_date_of_progression.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.irecist_date_of_progression.fset.__name__)
 
     @property
     def event_id(self) -> Optional[str]:
@@ -1179,9 +1045,7 @@ class TumorAssessment:
 
     @event_id.setter
     def event_id(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.event_id.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.event_id.fset.__name__)
         self._event_id = validated
         self.updated_fields.add(self.__class__.event_id.fset.__name__)
 
@@ -1226,9 +1090,7 @@ class ConcomitantMedication:
 
     @medication_name.setter
     def medication_name(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.medication_name.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.medication_name.fset.__name__)
         self._medication_name = validated
         self.updated_fields.add(self.__class__.medication_name.fset.__name__)
 
@@ -1238,9 +1100,7 @@ class ConcomitantMedication:
 
     @medication_ongoing.setter
     def medication_ongoing(self, value: Optional[bool]) -> None:
-        validated = StrictValidators.validate_optional_bool(
-            value=value, field_name=self.__class__.medication_ongoing.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_bool(value=value, field_name=self.__class__.medication_ongoing.fset.__name__)
         self._medication_ongoing = validated
         self.updated_fields.add(self.__class__.medication_ongoing.fset.__name__)
 
@@ -1255,9 +1115,7 @@ class ConcomitantMedication:
             field_name=self.__class__.was_taken_due_to_medical_history_event.fset.__name__,
         )
         self._was_taken_due_to_medical_history_event = validated
-        self.updated_fields.add(
-            self.__class__.was_taken_due_to_medical_history_event.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.was_taken_due_to_medical_history_event.fset.__name__)
 
     @property
     def was_taken_due_to_adverse_event(self) -> Optional[bool]:
@@ -1270,9 +1128,7 @@ class ConcomitantMedication:
             field_name=self.__class__.was_taken_due_to_adverse_event.fset.__name__,
         )
         self._was_taken_due_to_adverse_event = validated
-        self.updated_fields.add(
-            self.__class__.was_taken_due_to_adverse_event.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.was_taken_due_to_adverse_event.fset.__name__)
 
     @property
     def is_adverse_event_ongoing(self) -> Optional[bool]:
@@ -1293,9 +1149,7 @@ class ConcomitantMedication:
 
     @start_date.setter
     def start_date(self, value: Optional[dt.date]) -> None:
-        validated = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.start_date.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.start_date.fset.__name__)
         self._start_date = validated
         self.updated_fields.add(self.__class__.start_date.fset.__name__)
 
@@ -1305,9 +1159,7 @@ class ConcomitantMedication:
 
     @end_date.setter
     def end_date(self, value: Optional[dt.date]) -> None:
-        validated = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.end_date.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.end_date.fset.__name__)
         self._end_date = validated
         self.updated_fields.add(self.__class__.end_date.fset.__name__)
 
@@ -1317,9 +1169,7 @@ class ConcomitantMedication:
 
     @sequence_id.setter
     def sequence_id(self, value: Optional[int]) -> None:
-        validated = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.sequence_id.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.sequence_id.fset.__name__)
         self._sequence_id = validated
         self.updated_fields.add(self.__class__.sequence_id.fset.__name__)
 
@@ -1374,9 +1224,7 @@ class AdverseEvent:
 
     @term.setter
     def term(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.term.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.term.fset.__name__)
         self._term = validated
         self.updated_fields.add(self.__class__.term.fset.__name__)
 
@@ -1386,9 +1234,7 @@ class AdverseEvent:
 
     @grade.setter
     def grade(self, value: Optional[int]) -> None:
-        validated = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.grade.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.grade.fset.__name__)
         self._grade = validated
         self.updated_fields.add(self.__class__.grade.fset.__name__)
 
@@ -1398,9 +1244,7 @@ class AdverseEvent:
 
     @outcome.setter
     def outcome(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.outcome.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.outcome.fset.__name__)
         self._outcome = validated
         self.updated_fields.add(self.__class__.outcome.fset.__name__)
 
@@ -1410,9 +1254,7 @@ class AdverseEvent:
 
     @start_date.setter
     def start_date(self, value: Optional[dt.date]) -> None:
-        validated = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.start_date.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.start_date.fset.__name__)
         self._start_date = validated
         self.updated_fields.add(self.__class__.start_date.fset.__name__)
 
@@ -1422,9 +1264,7 @@ class AdverseEvent:
 
     @end_date.setter
     def end_date(self, value: Optional[dt.date]) -> None:
-        validated = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.end_date.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.end_date.fset.__name__)
         self._end_date = validated
         self.updated_fields.add(self.__class__.end_date.fset.__name__)
 
@@ -1434,9 +1274,7 @@ class AdverseEvent:
 
     @was_serious.setter
     def was_serious(self, value: Optional[bool]) -> None:
-        validated = StrictValidators.validate_optional_bool(
-            value=value, field_name=self.__class__.was_serious.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_bool(value=value, field_name=self.__class__.was_serious.fset.__name__)
         self._was_serious = validated
         self.updated_fields.add(self.__class__.was_serious.fset.__name__)
 
@@ -1446,9 +1284,7 @@ class AdverseEvent:
 
     @turned_serious_date.setter
     def turned_serious_date(self, value: Optional[dt.date]) -> None:
-        validated = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.turned_serious_date.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.turned_serious_date.fset.__name__)
         self._turned_serious_date = validated
         self.updated_fields.add(self.__class__.turned_serious_date.fset.__name__)
 
@@ -1463,9 +1299,7 @@ class AdverseEvent:
             field_name=self.__class__.related_to_treatment_1_status.fset.__name__,
         )
         self._related_to_treatment_1_status = validated
-        self.updated_fields.add(
-            self.__class__.related_to_treatment_1_status.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.related_to_treatment_1_status.fset.__name__)
 
     @property
     def treatment_1_name(self) -> Optional[str]:
@@ -1473,9 +1307,7 @@ class AdverseEvent:
 
     @treatment_1_name.setter
     def treatment_1_name(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.treatment_1_name.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.treatment_1_name.fset.__name__)
         self._treatment_1_name = validated
         self.updated_fields.add(self.__class__.treatment_1_name.fset.__name__)
 
@@ -1490,9 +1322,7 @@ class AdverseEvent:
             field_name=self.__class__.related_to_treatment_2_status.fset.__name__,
         )
         self._related_to_treatment_2_status = validated
-        self.updated_fields.add(
-            self.__class__.related_to_treatment_2_status.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.related_to_treatment_2_status.fset.__name__)
 
     @property
     def treatment_2_name(self) -> Optional[str]:
@@ -1500,9 +1330,7 @@ class AdverseEvent:
 
     @treatment_2_name.setter
     def treatment_2_name(self, value: Optional[str]) -> None:
-        validated = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.treatment_2_name.fset.__name__
-        )
+        validated = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.treatment_2_name.fset.__name__)
         self._treatment_2_name = validated
         self.updated_fields.add(self.__class__.treatment_2_name.fset.__name__)
 
@@ -1517,9 +1345,7 @@ class AdverseEvent:
             field_name=self.__class__.was_serious_grade_expected_treatment_1.fset.__name__,
         )
         self._was_serious_grade_expected_treatment_1 = validated
-        self.updated_fields.add(
-            self.__class__.was_serious_grade_expected_treatment_1.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.was_serious_grade_expected_treatment_1.fset.__name__)
 
     @property
     def was_serious_grade_expected_treatment_2(self) -> Optional[bool]:
@@ -1532,9 +1358,7 @@ class AdverseEvent:
             field_name=self.__class__.was_serious_grade_expected_treatment_2.fset.__name__,
         )
         self._was_serious_grade_expected_treatment_2 = validated
-        self.updated_fields.add(
-            self.__class__.was_serious_grade_expected_treatment_2.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.was_serious_grade_expected_treatment_2.fset.__name__)
 
     def __repr__(self) -> str:
         return (
@@ -1581,17 +1405,9 @@ class C30:
         super().__setattr__(name, value)
 
     def __repr__(self) -> str:
-        q_args = [
-            f"q{i}={getattr(self, f'q{i}')!r}"
-            for i in range(1, 31)
-            if getattr(self, f"q{i}") is not None
-        ]
+        q_args = [f"q{i}={getattr(self, f'q{i}')!r}" for i in range(1, 31) if getattr(self, f"q{i}") is not None]
 
-        qc_args = [
-            f"q{i}_code={getattr(self, f'q{i}_code')!r}"
-            for i in range(1, 31)
-            if getattr(self, f"q{i}_code") is not None
-        ]
+        qc_args = [f"q{i}_code={getattr(self, f'q{i}_code')!r}" for i in range(1, 31) if getattr(self, f"q{i}_code") is not None]
 
         base_args = [
             f"patient_id={self.patient_id!r}",
@@ -1625,17 +1441,9 @@ class EQ5D:
         super().__setattr__(name, value)
 
     def __repr__(self) -> str:
-        q_args = [
-            f"q{i}={getattr(self, f'q{i}')!r}"
-            for i in range(1, 6)
-            if getattr(self, f"q{i}") is not None
-        ]
+        q_args = [f"q{i}={getattr(self, f'q{i}')!r}" for i in range(1, 6) if getattr(self, f"q{i}") is not None]
 
-        qc_args = [
-            f"q{i}_code={getattr(self, f'q{i}_code')!r}"
-            for i in range(1, 6)
-            if getattr(self, f"q{i}_code") is not None
-        ]
+        qc_args = [f"q{i}_code={getattr(self, f'q{i}_code')!r}" for i in range(1, 6) if getattr(self, f"q{i}_code") is not None]
 
         base_args = [
             f"patient_id={self.patient_id!r}",
@@ -1701,9 +1509,7 @@ class Patient:
 
     @patient_id.setter
     def patient_id(self, value: Optional[str]) -> None:
-        self._patient_id = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.patient_id.fset.__name__
-        )
+        self._patient_id = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.patient_id.fset.__name__)
         self.updated_fields.add(self.__class__.patient_id.fset.__name__)
 
     @property
@@ -1714,9 +1520,7 @@ class Patient:
     @trial_id.setter
     def trial_id(self, value: Optional[str]) -> None:
         """Trial ID (immutable)"""
-        self._trial_id = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.trial_id.fset.__name__
-        )
+        self._trial_id = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.trial_id.fset.__name__)
         self.updated_fields.add(self.__class__.trial_id.fset.__name__)
 
     @property
@@ -1725,9 +1529,7 @@ class Patient:
 
     @cohort_name.setter
     def cohort_name(self, value: Optional[str]) -> None:
-        self._cohort_name = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.cohort_name.fset.__name__
-        )
+        self._cohort_name = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.cohort_name.fset.__name__)
         self.updated_fields.add(self.__class__.cohort_name.fset.__name__)
 
     @property
@@ -1737,9 +1539,7 @@ class Patient:
     @age.setter
     def age(self, value: Optional[str | int | None]) -> None:
         """Set age with validation"""
-        self._age = StrictValidators.validate_optional_int(
-            value=value, field_name=self.__class__.age.fset.__name__
-        )
+        self._age = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.age.fset.__name__)
         self.updated_fields.add(self.__class__.age.fset.__name__)
 
     @property
@@ -1749,9 +1549,7 @@ class Patient:
     @sex.setter
     def sex(self, value: Optional[str | None]) -> None:
         """Set sex with validation"""
-        self._sex = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.sex.fset.__name__
-        )
+        self._sex = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.sex.fset.__name__)
         self.updated_fields.add(self.__class__.sex.fset.__name__)
 
     @property
@@ -1761,9 +1559,7 @@ class Patient:
     @date_of_death.setter
     def date_of_death(self, value: Optional[dt.date | None]) -> None:
         """Set date of death with validation"""
-        self._date_of_death = StrictValidators.validate_optional_date(
-            value=value, field_name=self.__class__.date_of_death.fset.__name__
-        )
+        self._date_of_death = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date_of_death.fset.__name__)
         self.updated_fields.add(self.__class__.date_of_death.fset.__name__)
 
     @property
@@ -1777,9 +1573,7 @@ class Patient:
             value=value,
             field_name=self.__class__.evaluable_for_efficacy_analysis.fset.__name__,
         )
-        self.updated_fields.add(
-            self.__class__.evaluable_for_efficacy_analysis.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.evaluable_for_efficacy_analysis.fset.__name__)
 
     @property
     def treatment_start_date(self) -> Optional[dt.date]:
@@ -1823,9 +1617,7 @@ class Patient:
 
     @has_any_adverse_events.setter
     def has_any_adverse_events(self, value: Optional[bool]) -> None:
-        self._has_any_adverse_events = StrictValidators.validate_optional_bool(
-            value=value, field_name=self.__class__.has_any_adverse_events.fset.__name__
-        )
+        self._has_any_adverse_events = StrictValidators.validate_optional_bool(value=value, field_name=self.__class__.has_any_adverse_events.fset.__name__)
         self.updated_fields.add(self.__class__.has_any_adverse_events.fset.__name__)
 
     @property
@@ -1850,9 +1642,7 @@ class Patient:
             value=value,
             field_name=self.__class__.number_of_serious_adverse_events.fset.__name__,
         )
-        self.updated_fields.add(
-            self.__class__.number_of_serious_adverse_events.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.number_of_serious_adverse_events.fset.__name__)
 
     @property
     def has_clinical_benefit_at_week16(self) -> Optional[bool]:
@@ -1864,9 +1654,7 @@ class Patient:
             value=value,
             field_name=self.__class__.has_clinical_benefit_at_week16.fset.__name__,
         )
-        self.updated_fields.add(
-            self.__class__.has_clinical_benefit_at_week16.fset.__name__
-        )
+        self.updated_fields.add(self.__class__.has_clinical_benefit_at_week16.fset.__name__)
 
     @property
     def end_of_treatment_reason(self):
@@ -1874,9 +1662,7 @@ class Patient:
 
     @end_of_treatment_reason.setter
     def end_of_treatment_reason(self, value: Optional[str]) -> None:
-        self._end_of_treatment_reason = StrictValidators.validate_optional_str(
-            value=value, field_name=self.__class__.end_of_treatment_reason.fset.__name__
-        )
+        self._end_of_treatment_reason = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.end_of_treatment_reason.fset.__name__)
         self.updated_fields.add(self.__class__.end_of_treatment_reason.fset.__name__)
 
     @property
@@ -1899,9 +1685,7 @@ class Patient:
     @tumor_type.setter
     def tumor_type(self, value: Optional[TumorType | None]) -> None:
         if value is not None and not isinstance(value, TumorType):
-            raise ValueError(
-                f"tumor_type must be {TumorType.__name__} or None, got {value} with type {type(value)}"
-            )
+            raise ValueError(f"tumor_type must be {TumorType.__name__} or None, got {value} with type {type(value)}")
         if value is not None:
             value._patient_id = self._patient_id
 
@@ -1915,9 +1699,7 @@ class Patient:
     @study_drugs.setter
     def study_drugs(self, value: Optional[StudyDrugs | None]) -> None:
         if value is not None and not isinstance(value, StudyDrugs):
-            raise ValueError(
-                f"study_drugs must be {StudyDrugs.__name__} or None, got {value} with type {type(value)}"
-            )
+            raise ValueError(f"study_drugs must be {StudyDrugs.__name__} or None, got {value} with type {type(value)}")
         if value is not None:
             value._patient_id = self._patient_id
 
@@ -1931,9 +1713,7 @@ class Patient:
     @biomarker.setter
     def biomarker(self, value: Optional[Biomarkers | None]) -> None:
         if value is not None and not isinstance(value, Biomarkers):
-            raise ValueError(
-                f"biomarker must be {Biomarkers.__name__} or None, got {value} with type {type(value)}"
-            )
+            raise ValueError(f"biomarker must be {Biomarkers.__name__} or None, got {value} with type {type(value)}")
         if value is not None:
             value._patient_id = self._patient_id
 
@@ -1947,9 +1727,7 @@ class Patient:
     @lost_to_followup.setter
     def lost_to_followup(self, value: Optional[FollowUp | None]) -> None:
         if value is not None and not isinstance(value, FollowUp):
-            raise ValueError(
-                f"lost_to_followup must be {FollowUp.__name__} or None, got {value} with type {type(value)}"
-            )
+            raise ValueError(f"lost_to_followup must be {FollowUp.__name__} or None, got {value} with type {type(value)}")
         if value is not None:
             value._patient_id = self._patient_id
 
@@ -1963,9 +1741,7 @@ class Patient:
     @ecog_baseline.setter
     def ecog_baseline(self, value: Optional[EcogBaseline | None]) -> None:
         if value is not None and not isinstance(value, EcogBaseline):
-            raise ValueError(
-                f"ecog must be {EcogBaseline.__name__} or None, got {value} with type {type(value)}"
-            )
+            raise ValueError(f"ecog must be {EcogBaseline.__name__} or None, got {value} with type {type(value)}")
         if value is not None:
             value._patient_id = self._patient_id
 
@@ -1977,13 +1753,9 @@ class Patient:
         return self._tumor_assessment_baseline
 
     @tumor_assessment_baseline.setter
-    def tumor_assessment_baseline(
-        self, value: Optional[TumorAssessmentBaseline] | None
-    ) -> None:
+    def tumor_assessment_baseline(self, value: Optional[TumorAssessmentBaseline] | None) -> None:
         if value is not None and not isinstance(value, TumorAssessmentBaseline):
-            raise ValueError(
-                f"Tumor assessment baseline must be {TumorAssessmentBaseline.__name__} or None, got {value} with type{type(value)}"
-            )
+            raise ValueError(f"Tumor assessment baseline must be {TumorAssessmentBaseline.__name__} or None, got {value} with type{type(value)}")
 
         if value is not None:
             value._patient_id = self._patient_id
@@ -1996,13 +1768,9 @@ class Patient:
         return self._best_overall_response
 
     @best_overall_response.setter
-    def best_overall_response(
-        self, value: Optional[BestOverallResponse] | None
-    ) -> None:
+    def best_overall_response(self, value: Optional[BestOverallResponse] | None) -> None:
         if value is not None and not isinstance(value, BestOverallResponse):
-            raise ValueError(
-                f"Best overall resoonse must be {BestOverallResponse.__name__} or None, got {value} with type{type(value)}"
-            )
+            raise ValueError(f"Best overall resoonse must be {BestOverallResponse.__name__} or None, got {value} with type{type(value)}")
 
         if value is not None:
             value._patient_id = self._patient_id
@@ -2023,22 +1791,16 @@ class Patient:
             items = []
         else:
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-                raise TypeError(
-                    f"expected a sequence of MedicalHistory, got {type(value)}"
-                )
+                raise TypeError(f"expected a sequence of MedicalHistory, got {type(value)}")
 
             wrong_type = [type(x) for x in value if not isinstance(x, MedicalHistory)]
             if wrong_type:
-                raise TypeError(
-                    f"all elements must be MedicalHistory, got {wrong_type}"
-                )
+                raise TypeError(f"all elements must be MedicalHistory, got {wrong_type}")
             items = list(value)
 
         for mh in items:
             if mh._patient_id and mh._patient_id != self._patient_id:
-                raise ValueError(
-                    f"Mismatched patient_id in MedicalHistory: {mh._patient_id} != {self._patient_id}"
-                )
+                raise ValueError(f"Mismatched patient_id in MedicalHistory: {mh._patient_id} != {self._patient_id}")
             mh._patient_id = self._patient_id
 
         self._medical_histories = items
@@ -2049,25 +1811,17 @@ class Patient:
         return tuple(self._previous_treatments)
 
     @previous_treatments.setter
-    def previous_treatments(
-        self, value: Optional[Sequence[PreviousTreatments]]
-    ) -> None:
+    def previous_treatments(self, value: Optional[Sequence[PreviousTreatments]]) -> None:
         items: list[PreviousTreatments]
         if value is None:
             items = []
         else:
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-                raise TypeError(
-                    f"expected a sequence of PreviousTreatments, got {type(value)}"
-                )
+                raise TypeError(f"expected a sequence of PreviousTreatments, got {type(value)}")
 
-            wrong_type = [
-                type(x) for x in value if not isinstance(x, PreviousTreatments)
-            ]
+            wrong_type = [type(x) for x in value if not isinstance(x, PreviousTreatments)]
             if wrong_type:
-                raise TypeError(
-                    f"all elements must be PreviousTreatments, got {wrong_type}"
-                )
+                raise TypeError(f"all elements must be PreviousTreatments, got {wrong_type}")
             items = list(value)
 
         for pt in items:
@@ -2088,15 +1842,11 @@ class Patient:
 
         else:
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-                raise TypeError(
-                    f"Expected a sequence of TreatmentCycles, got {type(value)}"
-                )
+                raise TypeError(f"Expected a sequence of TreatmentCycles, got {type(value)}")
 
             wrong_type = [type(x) for x in value if not isinstance(x, TreatmentCycle)]
             if wrong_type:
-                raise TypeError(
-                    f"All elements must be TreatmentCycle, got {wrong_type}"
-                )
+                raise TypeError(f"All elements must be TreatmentCycle, got {wrong_type}")
 
             items = list(value)
 
@@ -2111,26 +1861,18 @@ class Patient:
         return tuple(self._concomitant_medications)
 
     @concomitant_medications.setter
-    def concomitant_medications(
-        self, value: Optional[Sequence[ConcomitantMedication]]
-    ) -> None:
+    def concomitant_medications(self, value: Optional[Sequence[ConcomitantMedication]]) -> None:
         items: List[ConcomitantMedication]
         if value is None:
             items = []
 
         else:
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-                raise TypeError(
-                    f"Expected Sequence of ConcomitantMedication, got {type(value)}"
-                )
+                raise TypeError(f"Expected Sequence of ConcomitantMedication, got {type(value)}")
 
-            wrong_type = [
-                type(x) for x in value if not isinstance(x, ConcomitantMedication)
-            ]
+            wrong_type = [type(x) for x in value if not isinstance(x, ConcomitantMedication)]
             if wrong_type:
-                raise TypeError(
-                    f"All elements should be of type ConcomitantMedication, got {wrong_type}"
-                )
+                raise TypeError(f"All elements should be of type ConcomitantMedication, got {wrong_type}")
 
             items = list(value)
 
@@ -2152,15 +1894,11 @@ class Patient:
 
         else:
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-                raise TypeError(
-                    f"Expected Sequence of AdverseEvents, got {type(value)}"
-                )
+                raise TypeError(f"Expected Sequence of AdverseEvents, got {type(value)}")
 
             wrong_type = [type(x) for x in value if not isinstance(x, AdverseEvent)]
             if wrong_type:
-                raise TypeError(
-                    f"All elements should be of type AdverseEvents, got {wrong_type}"
-                )
+                raise TypeError(f"All elements should be of type AdverseEvents, got {wrong_type}")
 
             items = list(value)
 
@@ -2182,15 +1920,11 @@ class Patient:
 
         else:
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-                raise TypeError(
-                    f"Expected Sequence of TumorAssessment, got {type(value)}"
-                )
+                raise TypeError(f"Expected Sequence of TumorAssessment, got {type(value)}")
 
             wrong_type = [type(x) for x in value if not isinstance(x, TumorAssessment)]
             if wrong_type:
-                raise TypeError(
-                    f"All elements should be of type TumorAssessment, got {wrong_type}"
-                )
+                raise TypeError(f"All elements should be of type TumorAssessment, got {wrong_type}")
 
             items = list(value)
 
@@ -2242,9 +1976,7 @@ class Patient:
 
             wrong_type = [type(x) for x in value if not isinstance(x, EQ5D)]
             if wrong_type:
-                raise TypeError(
-                    f"All elements should be of type EQ5D, got {wrong_type}"
-                )
+                raise TypeError(f"All elements should be of type EQ5D, got {wrong_type}")
 
             items = list(value)
 

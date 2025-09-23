@@ -39,9 +39,7 @@ class BaseReader(ABC):
         pass
 
     @staticmethod
-    def normalize_dataframe(
-        df: pl.DataFrame, expected_cols: Sequence[str]
-    ) -> pl.DataFrame:
+    def normalize_dataframe(df: pl.DataFrame, expected_cols: Sequence[str]) -> pl.DataFrame:
         """
         Normalize a dataframe to match expected schema.
         """
@@ -63,10 +61,7 @@ class BaseReader(ABC):
                 missing.append(expected)
 
         if missing:
-            raise ValueError(
-                f"Missing required columns: {missing}. "
-                f"Available columns: {list(df.columns)}"
-            )
+            raise ValueError(f"Missing required columns: {missing}. " f"Available columns: {list(df.columns)}")
 
         # rename cols
         result = df.select(present)
@@ -96,14 +91,7 @@ class BaseReader(ABC):
                 continue
 
             # check if all non-null values are integer strings
-            is_int_col = df.select(
-                (
-                    pl.col(col_name).is_null()
-                    | pl.col(col_name)
-                    .str.strip_chars()
-                    .str.contains(int_pattern.pattern)
-                ).all()
-            ).item()
+            is_int_col = df.select((pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()).item()
 
             if is_int_col:
                 int_columns.append(col_name)
@@ -123,11 +111,7 @@ class ExcelReader(BaseReader):
 
     def can_read(self, path: Path) -> bool:
         """Check if path is a readable Excel file."""
-        return (
-            path.exists()
-            and path.is_file()
-            and path.suffix.lower() in self.SUPPORTED_EXTENSIONS
-        )
+        return path.exists() and path.is_file() and path.suffix.lower() in self.SUPPORTED_EXTENSIONS
 
     def load(self, path: Path, ecfg: EcrfConfig) -> EcrfConfig:
         """
@@ -135,9 +119,7 @@ class ExcelReader(BaseReader):
         """
         log.info(f"Loading Excel file: {path}")
 
-        all_sheets = pl.read_excel(
-            path, sheet_id=0, has_header=True, read_options={"header_row": 1}
-        )
+        all_sheets = pl.read_excel(path, sheet_id=0, has_header=True, read_options={"header_row": 1})
 
         loaded_sheets = []
 
@@ -157,9 +139,7 @@ class ExcelReader(BaseReader):
             sheet_data = SheetData(key=source_config.key, data=df, input_path=path)
             loaded_sheets.append(sheet_data)
 
-            log.debug(
-                f"Loaded sheet '{sheet_name}': " f"{df.height} rows, {df.width} columns"
-            )
+            log.debug(f"Loaded sheet '{sheet_name}': " f"{df.height} rows, {df.width} columns")
 
         ecfg.data = (ecfg.data or []) + loaded_sheets
         return ecfg
@@ -190,10 +170,7 @@ class CsvDirectoryReader(BaseReader):
             key_lower = source_config.key.lower()
 
             if key_lower not in file_index:
-                raise FileNotFoundError(
-                    f"No CSV file for key '{source_config.key}' in {path}. "
-                    f"Available files: {list(file_index.values())}"
-                )
+                raise FileNotFoundError(f"No CSV file for key '{source_config.key}' in {path}. " f"Available files: {list(file_index.values())}")
 
             csv_path = file_index[key_lower]
             log.debug(f"Reading CSV file: {csv_path}")
@@ -205,10 +182,7 @@ class CsvDirectoryReader(BaseReader):
             sheet_data = SheetData(key=source_config.key, data=df, input_path=csv_path)
             loaded_sheets.append(sheet_data)
 
-            log.debug(
-                f"Loaded CSV '{source_config.key}': "
-                f"{df.height} rows, {df.width} columns"
-            )
+            log.debug(f"Loaded CSV '{source_config.key}': " f"{df.height} rows, {df.width} columns")
 
         ecfg.data = (ecfg.data or []) + loaded_sheets
         return ecfg
@@ -230,9 +204,7 @@ class CsvDirectoryReader(BaseReader):
             key = stem_parts[-1].lower()
 
             if key in index:
-                log.warning(
-                    f"Duplicate key '{key}' found: " f"{index[key]} and {file_path}"
-                )
+                log.warning(f"Duplicate key '{key}' found: " f"{index[key]} and {file_path}")
 
             index[key] = file_path
 
@@ -262,7 +234,4 @@ class InputResolver:
             else:
                 supported.append(reader.__class__.__name__)
 
-        raise ValueError(
-            f"Unsupported input type: {path}. "
-            f"Supported: {', '.join(supported)} or directory of CSVs"
-        )
+        raise ValueError(f"Unsupported input type: {path}. " f"Supported: {', '.join(supported)} or directory of CSVs")

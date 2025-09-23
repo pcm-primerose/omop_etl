@@ -34,9 +34,7 @@ def test_pipeline_with_real_components(tmp_path, sample_config):
     subjects_csv.write_text("Header\n" "SubjectId,Age\n" "A001,25\n" "A002,30\n")
 
     visits_csv = input_dir / "data_visits.csv"
-    visits_csv.write_text(
-        "Header\n" "SubjectId,VisitDate\n" "A001,2023-01-01\n" "A002,2023-01-02\n"
-    )
+    visits_csv.write_text("Header\n" "SubjectId,VisitDate\n" "A001,2023-01-01\n" "A002,2023-01-02\n")
 
     # mock trial processor and output manager
     mock_processor = Mock()
@@ -45,7 +43,7 @@ def test_pipeline_with_real_components(tmp_path, sample_config):
             "SubjectId": ["TEST-A001", "TEST-A002"],
             "Trial": ["TEST", "TEST"],
             "Age": [25, 30],
-        }
+        },
     )
     mock_processor.return_value = processed_df
 
@@ -64,9 +62,7 @@ def test_pipeline_with_real_components(tmp_path, sample_config):
         "omop_etl.preprocessing.core.pipeline.TRIAL_PROCESSORS",
         {"test_trial": mock_processor},
     ):
-        pipeline = PreprocessingPipeline(
-            "test_trial", sample_config, mock_output_manager
-        )
+        pipeline = PreprocessingPipeline("test_trial", sample_config, mock_output_manager)
         result = pipeline.run(input_dir)
 
     assert isinstance(result, PreprocessResult)
