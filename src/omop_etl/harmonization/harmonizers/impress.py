@@ -1,6 +1,6 @@
 import re
 from typing import Mapping, Any, Optional
-from warnings import deprecated
+from deprecated import deprecated
 import polars as pl
 from logging import getLogger
 

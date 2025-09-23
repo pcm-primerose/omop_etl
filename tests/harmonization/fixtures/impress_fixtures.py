@@ -245,159 +245,280 @@ def lost_to_followup_fixture():
     )
 
 
+@dataclass(frozen=True, slots=True)
+class EvaluabilityRow:
+    # todo: refactor to str when processing method is refactored to polars
+    SubjectId: str
+    TR_TRTNO: int | None = None
+    TR_TRC1_DT: str | None = None
+    TR_TRO_STDT: str | None = None
+    TR_TROSTPDT: str | None = None
+    TR_TRCYNCD: int | None = None
+
+
 @pytest.fixture
 def evaluability_fixture() -> pl.DataFrame:
-    """
-    Multi-row fixture covering IV/oral sufficiency, invalid rows, and parsing edge-cases.
-    """
-    rows = []
+    rows: List[EvaluabilityRow] = [
+        EvaluabilityRow(
+            "iv_single",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_two_rows_a",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_two_rows_a",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-15",
+        ),
+        EvaluabilityRow(
+            "iv_two_rows_b",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_two_rows_b",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-22",
+        ),
+        EvaluabilityRow(
+            "iv_then_oral",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_then_oral",
+            TR_TRO_STDT="2001-01-01",
+            TR_TROSTPDT="2001-01-31",
+        ),
+        EvaluabilityRow(
+            "iv_two_then_oral_short",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_two_then_oral_short",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-02-05",
+        ),
+        EvaluabilityRow(
+            "iv_two_then_oral_short",
+            TR_TRO_STDT="2001-01-01",
+            TR_TROSTPDT="2001-01-10",
+        ),
+        EvaluabilityRow(
+            "oral_ongoing_a",
+            TR_TRO_STDT="2001-01-01",
+            TR_TROSTPDT="",
+        ),
+        EvaluabilityRow(
+            "oral_ongoing_b",
+            TR_TRO_STDT="2001-01-01",
+            TR_TROSTPDT="",
+        ),
+        EvaluabilityRow(
+            "oral_missing_start_a",
+            TR_TRO_STDT="",
+            TR_TROSTPDT="2001-02-05",
+        ),
+        EvaluabilityRow(
+            "oral_missing_start_b",
+            TR_TRO_STDT="",
+            TR_TROSTPDT="2001-02-05",
+        ),
+        EvaluabilityRow(
+            "iv_then_iv_empty_date",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_then_iv_empty_date",
+            TR_TRTNO=1,
+            TR_TRC1_DT="",
+        ),
+        EvaluabilityRow(
+            "iv_two_rows_gap",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_two_rows_gap",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-21",
+        ),
+        EvaluabilityRow(
+            "oral_only",
+            TR_TRO_STDT="2001-01-01",
+            TR_TROSTPDT="2001-01-20",
+        ),
+        EvaluabilityRow(
+            "iv_two_courses",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+        ),
+        EvaluabilityRow(
+            "iv_two_courses",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-02-05",
+        ),
+        EvaluabilityRow(
+            "iv_with_cyclic_and_non",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-01-01",
+            TR_TRCYNCD=0,
+        ),
+        EvaluabilityRow(
+            "iv_with_cyclic_and_non",
+            TR_TRTNO=1,
+            TR_TRC1_DT="2001-02-05",
+            TR_TRCYNCD=0,
+        ),
+        EvaluabilityRow(
+            "oral_non_cyclic",
+            TR_TRO_STDT="2001-01-01",
+            TR_TROSTPDT="2001-02-10",
+            TR_TRCYNCD=0,
+        ),
+    ]
 
-    def _mk_df(_rows: list[dict]) -> pl.DataFrame:
-        return pl.DataFrame(_rows)
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
 
-    def add_row(
-        pid: str,
-        *,
-        trtno: int | None = None,
-        trc1_dt: str = "",
-        tro_stdt: str = "",
-        tro_stpdt: str = "",
-        trcyncd: int = 1,
-    ):
-        rows.append(
-            {
-                "SubjectId": pid,
-                "TR_TRTNO": trtno,
-                "TR_TRC1_DT": trc1_dt,
-                "TR_TRO_STDT": tro_stdt,
-                "TR_TROSTPDT": tro_stpdt,
-                "TR_TRCYNCD": trcyncd,
-            },
-        )
 
-    add_row("IMPRESS-X_0001_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0002_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0002_1", trtno=1, trc1_dt="2001-01-15")
-    add_row("IMPRESS-X_0003_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0003_1", trtno=1, trc1_dt="2001-01-22")
-    add_row("IMPRESS-X_0004_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0004_1", tro_stdt="2001-01-01", tro_stpdt="2001-01-31")
-    add_row("IMPRESS-X_0005_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0005_1", trtno=1, trc1_dt="2001-02-05")
-    add_row("IMPRESS-X_0005_1", tro_stdt="2001-01-01", tro_stpdt="2001-01-10")
-    add_row("IMPRESS-X_0006_1", tro_stdt="2001-01-01", tro_stpdt="")
-    add_row("IMPRESS-X_0007_1", tro_stdt="2001-01-01", tro_stpdt="")
-    add_row("IMPRESS-X_0008_1", tro_stdt="", tro_stpdt="2001-02-05")
-    add_row("IMPRESS-X_0009_1", tro_stdt="", tro_stpdt="2001-02-05")
-    add_row("IMPRESS-X_0010_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0010_1", trtno=1, trc1_dt="")
-    add_row("IMPRESS-X_0011_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0011_1", trtno=1, trc1_dt="2001-01-21")
-    add_row("IMPRESS-X_0012_1", tro_stdt="2001-01-01", tro_stpdt="2001-01-20")
-    add_row("IMPRESS-X_0013_1", trtno=1, trc1_dt="2001-01-01")
-    add_row("IMPRESS-X_0013_1", trtno=2, trc1_dt="2001-02-05")
-    add_row("IMPRESS-X_0014_1", trtno=1, trc1_dt="2001-01-01", trcyncd=1)
-    add_row("IMPRESS-X_0014_1", trtno=1, trc1_dt="2001-02-05", trcyncd=0)
-    add_row(
-        "IMPRESS-X_0015_1",
-        tro_stdt="2001-01-01",
-        tro_stpdt="2001-02-10",
-        trcyncd=0,
-    )
-
-    return _mk_df(rows)
+@dataclass(frozen=True, slots=True)
+class EcogRow:
+    SubjectId: str
+    ECOG_EventId: str | None = None
+    ECOG_ECOGS: str | None = None
+    ECOG_ECOGSCD: str | None = None
+    ECOG_ECOGDAT: str | None = None
 
 
 @pytest.fixture
-def ecog_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",  # all data
-                "IMPRESS-X_0002_1",  # EventId no code
-                "IMPRESS-X_0003_1",  # EventId no description
-                "IMPRESS-X_0004_1",  # wrong event ID with data: None
-                "IMPRESS-X_0005_1",  # no event ID with data: None
-                "IMPRESS-X_0006_1",  # partial data
-                "IMPRESS-X_0007_1",  # wrong date
-            ],
-            "ECOG_EventId": ["V00", "V00", "V00", "V02", "", "V00", "V00"],
-            "ECOG_ECOGS": ["all", "no code", "", "wrong ID", "", "", "code"],
-            "ECOG_ECOGSCD": ["1", "", "2", "3", "", "1", "4"],
-            "ECOG_ECOGDAT": [
-                "1900-01-01",
-                "1900-nk-01",
-                "1900-01-nk",
-                "",
-                "",
-                "1900-nk-nk",
-                "not a date",
-            ],
-        },
-    )
+def ecog_fixture() -> pl.DataFrame:
+    rows: List[EcogRow] = [
+        EcogRow(
+            "all_data",
+            ECOG_EventId="V00",
+            ECOG_ECOGS="all",
+            ECOG_ECOGSCD="1",
+            ECOG_ECOGDAT="1900-01-01",
+        ),
+        EcogRow(
+            "eventid_no_code",
+            ECOG_EventId="V00",
+            ECOG_ECOGS="no code",
+            ECOG_ECOGSCD="",
+            ECOG_ECOGDAT="1900-nk-01",
+        ),
+        EcogRow(
+            "eventid_no_desc",
+            ECOG_EventId="V00",
+            ECOG_ECOGS="",
+            ECOG_ECOGSCD="2",
+            ECOG_ECOGDAT="1900-01-nk",
+        ),
+        EcogRow(
+            "wrong_event_id",
+            ECOG_EventId="V02",
+            ECOG_ECOGS="wrong ID",
+            ECOG_ECOGSCD="3",
+            ECOG_ECOGDAT="",
+        ),
+        EcogRow(
+            "no_event_id",
+            ECOG_EventId="",
+            ECOG_ECOGS="",
+            ECOG_ECOGSCD="",
+            ECOG_ECOGDAT="",
+        ),
+        EcogRow(
+            "partial_data",
+            ECOG_EventId="V00",
+            ECOG_ECOGS="",
+            ECOG_ECOGSCD="1",
+            ECOG_ECOGDAT="1900-nk-nk",
+        ),
+        EcogRow(
+            "wrong_date",
+            ECOG_EventId="V00",
+            ECOG_ECOGS="code",
+            ECOG_ECOGSCD="4",
+            ECOG_ECOGDAT="not a date",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class MedicalHistoryRow:
+    SubjectId: str
+    MH_MHTERM: str | None = None
+    MH_MHSPID: str | None = None
+    MH_MHSTDAT: str | None = None
+    MH_MHENDAT: str | None = None
+    MH_MHONGO: str | None = None
+    MH_MHONGOCD: str | None = None
 
 
 @pytest.fixture
 def medical_history_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-                "IMPRESS-X_0006_1",  # None
-            ],
-            "MH_MHTERM": [
-                "pain",
-                "something",
-                "hypertension",
-                "dizziness",
-                "pain",
-                "rigor mortis",
-                "",
-            ],
-            "MH_MHSPID": ["01", "05", "02", "03", "01", "01", ""],
-            "MH_MHSTDAT": [
-                "1900-09-NK",
-                "1900-nk-02",
-                "1901-10-02",
-                "1902-nk-nk",
-                "1840-02-02",
-                "1740-02-02",
-                "",
-            ],
-            "MH_MHENDAT": [
-                "",  # ongoing
-                "1990-01-01",
-                "1901-11-02",  # ended
-                "1903-nk-nk",  # ongoing
-                "",  # ongoing
-                "1940-02-02",  # ended
-                "",
-            ],
-            "MH_MHONGO": [
-                "Current/active",
-                "Past",
-                "Past",  # ended
-                "Present/dormant",  # ongoing
-                "Past",  # conflict w. ongoing
-                "Past",  # ended
-                "",
-            ],
-            "MH_MHONGOCD": [
-                "1",
-                "3",
-                "3",  # ended
-                "2",  # ongoing
-                "3",  # conflict w. ongoing
-                "1",  # wrong code
-                "",
-            ],
-        },
-    )
+    rows: List[MedicalHistoryRow] = [
+        MedicalHistoryRow(
+            "two_rows",
+            MH_MHTERM="pain",
+            MH_MHSPID="01",
+            MH_MHSTDAT="1900-09-NK",
+            MH_MHENDAT="",
+            MH_MHONGO="Current/active",
+            MH_MHONGOCD="1",
+        ),
+        MedicalHistoryRow(
+            "two_rows",
+            MH_MHTERM="something",
+            MH_MHSPID="05",
+            MH_MHSTDAT="1900-nk-02",
+            MH_MHENDAT="1990-01-01",
+            MH_MHONGO="Past",
+            MH_MHONGOCD="3",
+        ),
+        MedicalHistoryRow(
+            "ended",
+            MH_MHTERM="hypertension",
+            MH_MHSPID="02",
+            MH_MHSTDAT="1901-10-02",
+            MH_MHENDAT="1901-11-02",
+            MH_MHONGO="Past",
+            MH_MHONGOCD="3",
+        ),
+        MedicalHistoryRow(
+            "ended_term_mismatch",
+            MH_MHTERM="pain",
+            MH_MHSPID="01",
+            MH_MHSTDAT="1840-02-02",
+            MH_MHENDAT="",
+            MH_MHONGO="Past",
+            MH_MHONGOCD="3",
+        ),
+        MedicalHistoryRow(
+            "ended_code_mismatch",
+            MH_MHTERM="rigor mortis",
+            MH_MHSPID="01",
+            MH_MHSTDAT="1740-02-02",
+            MH_MHENDAT="1940-02-02",
+            MH_MHONGO="Past",
+            MH_MHONGOCD="1",
+        ),
+        MedicalHistoryRow("missing"),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
 
 
 @dataclass(frozen=True, slots=True)

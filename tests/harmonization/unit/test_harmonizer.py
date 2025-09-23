@@ -1,19 +1,13 @@
-# tests/harmonization/unit/test_harmonizer.py
-
 import polars as pl
 import datetime as dt
-
 import pytest
 
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.parsing.core import (
-    CoreParsers,
-    PolarsParsers,
-)
-from omop_etl.harmonization.datamodels import (
-    Patient,
-)
+from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
+from omop_etl.harmonization.datamodels import Patient
+
+pytest_plugins = "tests.harmonization.fixtures.impress_fixtures"
 
 
 def test_impress_subject_id_processing(subject_id_fixture):
@@ -187,7 +181,6 @@ def test_study_drugs_processing(study_drugs_fixture):
 
 def test_date_of_death_processing(date_of_death_fixture):
     harmonizer = ImpressHarmonizer(data=date_of_death_fixture, trial_id="IMPRESS_TEST")
-
     for subject_id in date_of_death_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
             trial_id="IMPRESS_TEST",
@@ -196,26 +189,10 @@ def test_date_of_death_processing(date_of_death_fixture):
 
     harmonizer._process_date_of_death()
 
-    assert harmonizer.patient_data["IMPRESS-X_0001_1"].date_of_death == dt.date(
-        1990,
-        7,
-        2,
-    )
-    assert harmonizer.patient_data["IMPRESS-X_0002_1"].date_of_death == dt.date(
-        2016,
-        9,
-        15,
-    )
-    assert harmonizer.patient_data["IMPRESS-X_0003_1"].date_of_death == dt.date(
-        1900,
-        1,
-        1,
-    )
-    assert harmonizer.patient_data["IMPRESS-X_0004_1"].date_of_death == dt.date(
-        1999,
-        9,
-        9,
-    )
+    assert harmonizer.patient_data["IMPRESS-X_0001_1"].date_of_death == dt.date(1990, 7, 2)
+    assert harmonizer.patient_data["IMPRESS-X_0002_1"].date_of_death == dt.date(2016, 9, 15)
+    assert harmonizer.patient_data["IMPRESS-X_0003_1"].date_of_death == dt.date(1900, 1, 1)
+    assert harmonizer.patient_data["IMPRESS-X_0004_1"].date_of_death == dt.date(1999, 9, 9)
     assert harmonizer.patient_data["IMPRESS-X_0005_1"].date_of_death is None
 
 
@@ -303,42 +280,78 @@ def test_lost_to_followup(lost_to_followup_fixture):
 @pytest.mark.parametrize(
     "patient_id,expected",
     [
-        pytest.param("IMPRESS-X_0001_1", False, id="one IV row: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0002_1",
+            "iv_single",
+            False,
+            id="one IV row: not evaluable",
+        ),
+        pytest.param(
+            "iv_two_rows_a",
             False,
             id="two IV rows, gap lt 21: not evaluable",
         ),
-        pytest.param("IMPRESS-X_0003_1", True, id="two IV rows, gap gte 21: evaluable"),
         pytest.param(
-            "IMPRESS-X_0004_1",
+            "iv_two_rows_b",
+            True,
+            id="two IV rows, gap gte 21: evaluable",
+        ),
+        pytest.param(
+            "iv_then_oral",
             True,
             id="IV none, oral sufficient: evaluable",
         ),
-        pytest.param("IMPRESS-X_0005_1", True, id="IV sufficient, oral not: evaluable"),
-        pytest.param("IMPRESS-X_0006_1", False, id="oral missing end: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0007_1",
+            "iv_two_then_oral_short",
+            True,
+            id="IV sufficient, oral not: evaluable",
+        ),
+        pytest.param(
+            "oral_ongoing_a",
+            False,
+            id="oral missing end: not evaluable",
+        ),
+        pytest.param(
+            "oral_ongoing_b",
             False,
             id="oral end not a date: not evaluable",
         ),
         pytest.param(
-            "IMPRESS-X_0008_1",
+            "oral_missing_start_a",
             False,
             id="oral start not a date: not evaluable",
         ),
-        pytest.param("IMPRESS-X_0009_1", False, id="oral missing start: not evaluable"),
-        pytest.param("IMPRESS-X_0010_1", False, id="IV one start null: not evaluable"),
-        pytest.param("IMPRESS-X_0011_1", False, id="IV gap lte 21: not evaluable"),
-        pytest.param("IMPRESS-X_0012_1", False, id="oral length lte 28: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0013_1",
+            "oral_missing_start_b",
+            False,
+            id="oral missing start: not evaluable",
+        ),
+        pytest.param(
+            "iv_then_iv_empty_date",
+            False,
+            id="IV one start null: not evaluable",
+        ),
+        pytest.param(
+            "iv_two_rows_gap",
+            False,
+            id="IV gap lte 21: not evaluable",
+        ),
+        pytest.param(
+            "oral_only",
+            False,
+            id="oral length lte 28: not evaluable",
+        ),
+        pytest.param(
+            "iv_two_courses",
             False,
             id="IV gap across drugs: not evaluable",
         ),
-        pytest.param("IMPRESS-X_0014_1", False, id="IV one invalid row: not evaluable"),
         pytest.param(
-            "IMPRESS-X_0015_1",
+            "iv_with_cyclic_and_non",
+            False,
+            id="IV one invalid row: not evaluable",
+        ),
+        pytest.param(
+            "oral_non_cyclic",
             False,
             id="oral sufficient but invalid: not evaluable",
         ),
@@ -371,33 +384,33 @@ def test_ecog(ecog_fixture):
 
     harmonizer._process_ecog_baseline()
 
-    ins1 = harmonizer.patient_data["IMPRESS-X_0001_1"].ecog_baseline
+    assert harmonizer.patient_data["wrong_event_id"].ecog_baseline is None
+    assert harmonizer.patient_data["no_event_id"].ecog_baseline is None
+
+    ins1 = harmonizer.patient_data["all_data"].ecog_baseline
     assert ins1.description == "all"
     assert ins1.grade == 1
     assert ins1.date == dt.date(1900, 1, 1)
 
-    ins2 = harmonizer.patient_data["IMPRESS-X_0002_1"].ecog_baseline
+    ins2 = harmonizer.patient_data["eventid_no_code"].ecog_baseline
     assert ins2.description == "no code"
     assert ins2.grade is None
     assert ins2.date == dt.date(1900, 7, 1)
 
-    ins3 = harmonizer.patient_data["IMPRESS-X_0003_1"].ecog_baseline
+    ins3 = harmonizer.patient_data["eventid_no_desc"].ecog_baseline
     assert ins3.description is None
     assert ins3.grade == 2
     assert ins3.date == dt.date(1900, 1, 15)
 
-    ins4 = harmonizer.patient_data["IMPRESS-X_0006_1"].ecog_baseline
+    ins4 = harmonizer.patient_data["partial_data"].ecog_baseline
     assert ins4.description is None
     assert ins4.grade == 1
     assert ins4.date == dt.date(1900, 7, 15)
 
-    ins5 = harmonizer.patient_data["IMPRESS-X_0007_1"].ecog_baseline
+    ins5 = harmonizer.patient_data["wrong_date"].ecog_baseline
     assert ins5.description == "code"
     assert ins5.grade == 4
     assert ins5.date is None
-
-    assert harmonizer.patient_data["IMPRESS-X_0004_1"].ecog_baseline is None
-    assert harmonizer.patient_data["IMPRESS-X_0005_1"].ecog_baseline is None
 
 
 def test_medical_history(medical_history_fixture):
@@ -412,17 +425,15 @@ def test_medical_history(medical_history_fixture):
 
     harmonizer._process_medical_histories()
 
-    p1 = harmonizer.patient_data["IMPRESS-X_0001_1"]
-    p2 = harmonizer.patient_data["IMPRESS-X_0002_1"]
-    p3 = harmonizer.patient_data["IMPRESS-X_0003_1"]
-    p4 = harmonizer.patient_data["IMPRESS-X_0004_1"]
-    p5 = harmonizer.patient_data["IMPRESS-X_0005_1"]
-    p6 = harmonizer.patient_data["IMPRESS-X_0006_1"]
+    p1 = harmonizer.patient_data["two_rows"]
+    p2 = harmonizer.patient_data["ended"]
+    p3 = harmonizer.patient_data["ended_term_mismatch"]
+    p4 = harmonizer.patient_data["ended_code_mismatch"]
+    p5 = harmonizer.patient_data["missing"]
 
     mh1 = list(p1.medical_histories)
     assert len(mh1) == 2
 
-    # todo: add getters later
     assert mh1[0].term == "pain"
     assert mh1[0].sequence_id == 1
     assert mh1[0].start_date == dt.date(1900, 9, 15)
@@ -444,28 +455,21 @@ def test_medical_history(medical_history_fixture):
     assert p2.medical_histories[0].status == "Past"
     assert p2.medical_histories[0].status_code == 3
 
-    assert p3.medical_histories[0].term == "dizziness"
-    assert p3.medical_histories[0].sequence_id == 3
-    assert p3.medical_histories[0].start_date == dt.date(1902, 7, 15)
-    assert p3.medical_histories[0].end_date == dt.date(1903, 7, 15)
-    assert p3.medical_histories[0].status == "Present/dormant"
-    assert p3.medical_histories[0].status_code == 2
+    assert p3.medical_histories[0].term == "pain"
+    assert p3.medical_histories[0].sequence_id == 1
+    assert p3.medical_histories[0].start_date == dt.date(1840, 2, 2)
+    assert p3.medical_histories[0].end_date is None
+    assert p3.medical_histories[0].status == "Past"
+    assert p3.medical_histories[0].status_code == 3
 
-    assert p4.medical_histories[0].term == "pain"
+    assert p4.medical_histories[0].term == "rigor mortis"
     assert p4.medical_histories[0].sequence_id == 1
-    assert p4.medical_histories[0].start_date == dt.date(1840, 2, 2)
-    assert p4.medical_histories[0].end_date is None  # == dt.date(1940, 7, 2)
+    assert p4.medical_histories[0].start_date == dt.date(1740, 2, 2)
+    assert p4.medical_histories[0].end_date == dt.date(1940, 2, 2)
     assert p4.medical_histories[0].status == "Past"
-    assert p4.medical_histories[0].status_code == 3
+    assert p4.medical_histories[0].status_code == 1
 
-    assert p5.medical_histories[0].term == "rigor mortis"
-    assert p5.medical_histories[0].sequence_id == 1
-    assert p5.medical_histories[0].start_date == dt.date(1740, 2, 2)
-    assert p5.medical_histories[0].end_date == dt.date(1940, 2, 2)
-    assert p5.medical_histories[0].status == "Past"
-    assert p5.medical_histories[0].status_code == 1
-
-    assert p6.medical_histories == ()
+    assert p5.medical_histories == ()
 
 
 def test_adverse_event_number(adverse_event_number_fixture):

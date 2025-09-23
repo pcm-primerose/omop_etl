@@ -47,7 +47,6 @@ fix = true
 select = ["E", "F", "W"]
 ignore = ["E203", "E501"]
 extend-select = ["COM812"]
-#ignore = ["E203", "F401", "F811", "F821", "F841"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

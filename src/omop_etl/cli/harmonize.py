@@ -54,7 +54,6 @@ def process_impress(file: Path) -> HarmonizedData:
 
 if __name__ == "__main__":
     impress_150_file = Path(__file__).parents[3] / ".data" / "preprocessing" / "impress" / "20250909T144845Z_19d79919" / "data_preprocessed.csv"
-
     impress_1k_file = Path(__file__).parents[3] / ".data" / "preprocessing" / "impress" / "20250909T144845Z_19d79919" / "data_preprocessed.csv"
 
     impress = process_impress(impress_150_file)
