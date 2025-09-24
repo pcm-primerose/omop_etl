@@ -1182,9 +1182,18 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             return end_date_frame
 
+        def coerce(frame: pl.DataFrame) -> pl.DataFrame:
+            return frame.with_columns(
+                pl.col("AE_AECTCAET").cast(pl.Utf8),
+                pl.col("AE_AETOXGRECD").cast(pl.Int64),
+                pl.col("AE_AETRT1").cast(pl.Utf8),
+                pl.col("AE_AETRT2").cast(pl.Utf8),
+            )
+
         parsed = parse_events(ae_base)
         annot = locate_end_date_for_deceased(parsed)
-        packed = self.pack_structs(df=annot, value_cols=annot.select(pl.all().exclude("SubjectId")).columns)
+        coerced = coerce(annot)
+        packed = self.pack_structs(df=coerced, value_cols=annot.select(pl.all().exclude("SubjectId")).columns)
 
         def build_ae(pid: str, s: Mapping[str, Any]) -> AdverseEvent:
             obj = AdverseEvent(pid)

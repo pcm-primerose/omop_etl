@@ -1399,3 +1399,138 @@ def concomitant_medication_fixture() -> pl.DataFrame:
 
     records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class AdverseEventsFlagRow:
+    SubjectId: str
+    AE_AECTCAET: str | None = None
+    AE_AESTDAT: str | None = None
+    AE_AETOXGRECD: str | None = None
+
+
+@pytest.fixture
+def adverse_events_flag_fixture() -> pl.DataFrame:
+    rows: List[AdverseEventsFlagRow] = [
+        AdverseEventsFlagRow("none_all_empty"),
+        AdverseEventsFlagRow(
+            "none_whitespace_only",
+            AE_AECTCAET="   ",
+            AE_AESTDAT="  ",
+            AE_AETOXGRECD="",
+        ),
+        AdverseEventsFlagRow(
+            "text_only",
+            AE_AECTCAET="headache",
+        ),
+        AdverseEventsFlagRow(
+            "date_only",
+            AE_AESTDAT="1900-01-01",
+        ),
+        AdverseEventsFlagRow(
+            "grade_only",
+            AE_AETOXGRECD="3",
+        ),
+        AdverseEventsFlagRow(
+            "mixed",
+            AE_AECTCAET=" pain ",
+        ),
+        AdverseEventsFlagRow("multirow_any_true"),
+        AdverseEventsFlagRow(
+            "multirow_any_true",
+            AE_AETOXGRECD="2",
+        ),
+        AdverseEventsFlagRow("multirow_all_false"),
+        AdverseEventsFlagRow("multirow_all_false"),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class AdverseEventRow:
+    SubjectId: str
+    AE_AECTCAET: str | None = None
+    AE_AETOXGRECD: str | None = None
+    AE_AEOUT: str | None = None
+    AE_AESTDAT: str | None = None
+    AE_AEENDAT: str | None = None
+    AE_SAESTDAT: str | None = None
+    AE_AEREL1: str | None = None
+    AE_AEREL1CD: int | None = None
+    AE_AETRT1: str | None = None
+    AE_AEREL2: str | None = None
+    AE_AEREL2CD: int | None = None
+    AE_AETRT2: str | None = None
+    AE_AESERCD: int | None = None
+    AE_SAEEXP1CD: int | None = None
+    AE_SAEEXP2CD: int | None = None
+    FU_FUPDEDAT: str | None = None
+    TR_TRNAME: str | None = None
+    TR_TRTNO: int | None = None
+
+
+@pytest.fixture
+def adverse_events_fixture() -> pl.DataFrame:
+    rows: List[AdverseEventRow] = [
+        AdverseEventRow(
+            "drop_null_term",
+            AE_AECTCAET=None,
+        ),
+        AdverseEventRow(
+            "simple",
+            AE_AECTCAET="Headache",
+            AE_AETOXGRECD="2",
+            AE_AEOUT="Recovered",
+            AE_AESTDAT="1900-01-01",
+            AE_AEENDAT="1900-01-03",
+            AE_AESERCD="0",
+            AE_SAEEXP1CD="1",
+            AE_SAEEXP2CD="2",
+            AE_AEREL1CD="4",
+            AE_AEREL2CD="3",
+            AE_AETRT1="Drug A",
+            AE_AETRT2="Drug B",
+            TR_TRNAME="Regimen X",
+            TR_TRTNO="1",
+        ),
+        AdverseEventRow(
+            "serious_fill_end_from_death",
+            AE_AECTCAET="Sepsis",
+            AE_AETOXGRECD="5",
+            AE_AEOUT="Fatal",
+            AE_AESTDAT="1900-01-10",
+            AE_SAESTDAT="1900-01-12",
+            AE_AESERCD=1,
+            AE_SAEEXP1CD=2,
+            AE_SAEEXP2CD=1,
+            AE_AEREL1CD=1,
+            FU_FUPDEDAT="1900-02-01",
+            TR_TRNAME="Regimen Y",
+            TR_TRTNO=2,
+        ),
+        AdverseEventRow(
+            "multi",
+            AE_AECTCAET="Nausea",
+            AE_AETOXGRECD="1",
+            AE_AESTDAT="1900-03-01",
+            AE_AEENDAT="1900-03-02",
+            AE_AESERCD=0,
+            AE_AEREL1CD=2,
+            AE_AEREL2CD=4,
+        ),
+        AdverseEventRow(
+            "multi",
+            AE_AECTCAET="Vomiting",
+            AE_AETOXGRECD="2",
+            AE_AESTDAT="1900-03-05",
+            AE_AESERCD=0,
+            AE_SAEEXP1CD=2,
+            AE_SAEEXP2CD=1,
+            AE_AEREL2CD=1,
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)

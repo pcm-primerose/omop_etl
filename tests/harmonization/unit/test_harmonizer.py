@@ -761,15 +761,78 @@ def test_concomitant_medications(concomitant_medication_fixture):
     assert cm.sequence_id == 3
 
 
+def test_has_any_adverse_events(adverse_events_flag_fixture):
+    harmonizer = ImpressHarmonizer(data=adverse_events_flag_fixture, trial_id="IMPRESS_TEST")
+    for pid in adverse_events_flag_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_has_any_adverse_events()
+
+    assert harmonizer.patient_data["none_all_empty"].has_any_adverse_events is False
+    assert harmonizer.patient_data["none_whitespace_only"].has_any_adverse_events is False
+
+    assert harmonizer.patient_data["text_only"].has_any_adverse_events is True
+    assert harmonizer.patient_data["date_only"].has_any_adverse_events is True
+    assert harmonizer.patient_data["grade_only"].has_any_adverse_events is True
+    assert harmonizer.patient_data["mixed"].has_any_adverse_events is True
+
+    assert harmonizer.patient_data["multirow_any_true"].has_any_adverse_events is True
+    assert harmonizer.patient_data["multirow_all_false"].has_any_adverse_events is False
+
+
 # todo: implement rest of tests
 
 
-def test_has_any_adverse_events():
-    pass
+def test_adverse_events(adverse_events_fixture):
+    harmonizer = ImpressHarmonizer(data=adverse_events_fixture, trial_id="IMPRESS_TEST")
+    for pid in adverse_events_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
+    harmonizer._process_adverse_events()
 
-def test_adverse_events():
-    pass
+    assert harmonizer.patient_data["drop_null_term"].adverse_events == ()
+
+    (ae1,) = harmonizer.patient_data["simple"].adverse_events
+    assert ae1.term == "Headache"
+    assert ae1.grade == 2
+    assert ae1.outcome == "Recovered"
+    assert ae1.was_serious is False
+    assert ae1.turned_serious_date is None
+    assert ae1.related_to_treatment_1_status == "related"
+    assert ae1.related_to_treatment_2_status == "unknown"
+    assert ae1.was_serious_grade_expected_treatment_1 is True
+    assert ae1.was_serious_grade_expected_treatment_2 is False
+    assert ae1.treatment_1_name == "Drug A"
+    assert ae1.treatment_2_name == "Drug B"
+    assert ae1.start_date == dt.date(1900, 1, 1)
+    assert ae1.end_date == dt.date(1900, 1, 3)
+
+    (ae2,) = harmonizer.patient_data["serious_fill_end_from_death"].adverse_events
+    assert ae2.was_serious is True
+    assert ae2.turned_serious_date == dt.date(1900, 1, 12)
+    assert ae2.end_date == dt.date(1900, 2, 1)
+    assert ae2.related_to_treatment_1_status == "not_related"
+    assert ae2.related_to_treatment_2_status is None
+    assert ae2.was_serious_grade_expected_treatment_1 is False
+    assert ae2.was_serious_grade_expected_treatment_2 is True
+
+    aes = harmonizer.patient_data["multi"].adverse_events
+    assert {ae.term for ae in aes} == {"Nausea", "Vomiting"}
+
+    n = next(a for a in aes if a.term == "Nausea")
+    v = next(a for a in aes if a.term == "Vomiting")
+
+    assert n.start_date == dt.date(1900, 3, 1)
+    assert n.end_date == dt.date(1900, 3, 2)
+    assert n.related_to_treatment_1_status == "unknown"
+    assert n.related_to_treatment_2_status == "related"
+    assert n.was_serious is False
+
+    assert v.start_date == dt.date(1900, 3, 5)
+    assert v.end_date is None
+    assert v.related_to_treatment_1_status is None
+    assert v.related_to_treatment_2_status == "not_related"
+    assert v.was_serious is False
 
 
 def test_process_tumor_assessments():
