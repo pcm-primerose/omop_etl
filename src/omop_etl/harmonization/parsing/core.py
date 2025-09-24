@@ -236,7 +236,10 @@ class PolarsParsers:
         )
 
     # TODO: fix: Comparisons with None always result in null. Consider using `.is_null()` or `.is_not_null()`.
+    #   -also, cast str input to int before comparison, should handle str of int case
     @staticmethod
-    def int_to_bool(expr: pl.Expr, true_int: Optional[int] = None, false_int: Optional[int] = None) -> pl.Expr:
+    def int_to_bool(expr: pl.Expr, true_int: int = 1, false_int: int = 0) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
+        e = e.cast(pl.Int64, strict=False)
+
         return pl.when(e.is_null()).then(None).when(e == true_int).then(True).when(e == false_int).then(False).otherwise(None).cast(pl.Boolean)

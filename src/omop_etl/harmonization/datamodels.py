@@ -629,7 +629,7 @@ class TreatmentCycle:
         # oral only
         self._was_dose_administered_to_spec: Optional[bool] = None
         self._reason_not_administered_to_spec: Optional[str] = None
-        self._oral_dose_prescribed_per_day: Optional[str] = None
+        self._oral_dose_prescribed_per_day: Optional[float] = None
         self._oral_dose_unit: Optional[str] = None
         self._other_dose_unit: Optional[str] = None
         self._number_of_days_tablet_not_taken: Optional[int] = None
@@ -1600,7 +1600,7 @@ class Patient:
 
     @treatment_start_last_cycle.setter
     def treatment_start_last_cycle(self, value: Optional[dt.date]) -> None:
-        self._treatment_end_date = StrictValidators.validate_optional_date(
+        self._treatment_start_last_cycle = StrictValidators.validate_optional_date(
             value=value,
             field_name=self.__class__.treatment_start_last_cycle.fset.__name__,
         )

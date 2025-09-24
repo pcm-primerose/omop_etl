@@ -1133,3 +1133,269 @@ def treatment_stop_fixture() -> pl.DataFrame:
 
     records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class LastTreatmentStartRow:
+    SubjectId: str
+    TR_TRC1_DT: str | None = None
+    TR_TRCYNCD: str | None = None
+
+
+@pytest.fixture
+def last_treatment_start_fixture() -> pl.DataFrame:
+    rows: List[LastTreatmentStartRow] = [
+        LastTreatmentStartRow(
+            "empty",
+        ),
+        LastTreatmentStartRow(
+            "two_rows_both_valid",
+            TR_TRC1_DT="1900-01-01",
+            TR_TRCYNCD="1",
+        ),
+        LastTreatmentStartRow(
+            "two_rows_both_valid",
+            TR_TRC1_DT="1900-01-02",
+            TR_TRCYNCD="1",
+        ),
+        LastTreatmentStartRow(
+            "one_invalid",
+            TR_TRC1_DT="1900-01-01",
+            TR_TRCYNCD="1",
+        ),
+        LastTreatmentStartRow(
+            "one_invalid",
+            TR_TRC1_DT="1900-01-02",
+            TR_TRCYNCD="0",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+# @dataclass(frozen=True, slots=True)
+# class TreatmentCycleRow:
+#     SubjectId: str
+#     TR_TRNAME: str | None = None
+#     TR_TRTNO: int | None = None
+#     TR_TRCNO1: int | None = None
+#     TR_TRC1_DT: str = ""        # IV start (string; blank allowed)
+#     TR_TRO_STDT: str = ""       # Oral start
+#     TR_TROSTPDT: str = ""       # Oral stop
+#     TR_TRDSDEL1: str = ""       # (unused by processor; keep for schema)
+#     TR_TRCYN: str = ""          # (unused)
+#     TR_TRO_YNCD: int | None = None
+#     TR_TRIVU1: str = ""         # IV unit
+#     TR_TRIVDS1: str = ""        # IV dose
+#     TR_TRCYNCD: int | None = None
+#     TR_TRIVDELYN1: str = ""     # "Yes"/"No"
+#     TR_TRO_YN: str = ""         # (oral flag text)
+#     TR_TROREA: str = ""         # oral reason not administered to spec
+#     TR_TROOTH: str = ""         # (unused)
+#     TR_TRODSU: str = ""         # oral dose unit
+#     TR_TRODSUOT: str = ""       # (unused)
+#     TR_TRODSTOT: float | None = None      # oral dose per day
+#     TR_TROTAKE: str = ""        # (unused)
+#     TR_TROTAKECD: int | None = None
+#     TR_TROTABNO: int | None = None
+#     TR_TROSPE: str = ""         # reason tablet not taken
+
+
+@dataclass(frozen=True, slots=True)
+class TreatmentCycleRow:
+    SubjectId: str
+    TR_TRNAME: str | None = None
+    TR_TRTNO: int | None = None
+    TR_TRCNO1: int | None = None
+    TR_TRC1_DT: str | None = None  # IV start (string; blank allowed)
+    TR_TRO_STDT: str | None = None  # Oral start
+    TR_TROSTPDT: str | None = None  # Oral stop
+    TR_TRDSDEL1: str | None = None  # (unused by processor; keep for schema)
+    TR_TRCYN: str | None = None  # (unused)
+    TR_TRO_YNCD: int | None = None
+    TR_TRIVU1: str | None = None  # IV unit
+    TR_TRIVDS1: str | None = None  # IV dose
+    TR_TRCYNCD: int | None = None
+    TR_TRIVDELYN1: str | None = None  # "Yes"/"No"
+    TR_TRO_YN: str | None = None  # (oral flag text)
+    TR_TROREA: str | None = None  # oral reason not administered to spec
+    TR_TROOTH: str | None = None  # (unused)
+    TR_TRODSU: str | None = None  # oral dose unit
+    TR_TRODSUOT: str | None = None  # (unused)
+    TR_TRODSTOT: float | None = None  # oral dose per day
+    TR_TROTAKE: str | None = None  # (unused)
+    TR_TROTAKECD: int | None = None
+    TR_TROTABNO: int | None = None
+    TR_TROSPE: str | None = None  # reason tablet not taken
+
+
+@pytest.fixture
+def treatment_cycle_fixture() -> pl.DataFrame:
+    rows: List[TreatmentCycleRow] = [
+        TreatmentCycleRow(
+            "iv_two_cycles",
+            TR_TRNAME="IV Drug",
+            TR_TRTNO="1",
+            TR_TRCNO1="1",
+            TR_TRC1_DT="1900-01-01",
+            TR_TRIVDS1="100",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD="1",
+        ),
+        TreatmentCycleRow(
+            "iv_two_cycles",
+            TR_TRNAME="IV Drug",
+            TR_TRTNO=1,
+            TR_TRCNO1=2,
+            TR_TRC1_DT="1900-01-10",
+            TR_TRIVDS1="100",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="No",
+            TR_TRCYNCD=1,
+        ),
+        TreatmentCycleRow(
+            "oral_single",
+            TR_TRNAME="Oral Drug",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="1900-01-01",
+            TR_TROSTPDT="1900-01-20",
+            TR_TRO_YNCD=1,
+            TR_TROTAKECD=0,
+            TR_TRODSTOT=200.0,
+            TR_TRODSU="mg",
+            TR_TROTABNO=3,
+            TR_TROSPE="nausea",
+            TR_TRCYNCD=1,
+        ),
+        TreatmentCycleRow(
+            "both_modalities",
+            TR_TRNAME="IV Part",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="1900-01-01",
+            TR_TRIVDS1="50",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD=1,
+        ),
+        TreatmentCycleRow(
+            "both_modalities",
+            TR_TRNAME="Oral Part",
+            TR_TRTNO=2,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="1900-03-01",
+            TR_TROSTPDT="1900-03-30",
+            TR_TRO_YNCD=0,
+            TR_TROTAKECD=1,
+            TR_TRODSTOT=100,
+            TR_TRODSU="mg",
+            TR_TRCYNCD=1,
+        ),
+        TreatmentCycleRow(
+            "drop_no_name",
+            TR_TRNAME=None,
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="1900-01-01",
+            TR_TRCYNCD=1,
+        ),
+        TreatmentCycleRow(
+            "both_in_row",
+            TR_TRNAME="Mixed Row",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="1900-01-01",
+            TR_TRO_STDT="1900-01-03",
+            TR_TROSTPDT="1900-01-10",
+            TR_TRIVDS1="10",
+            TR_TRIVU1="mg",
+            TR_TRCYNCD=1,
+            TR_TRIVDELYN1="Yes",
+            TR_TRO_YNCD=1,
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class ConcomitantMedicationRow:
+    SubjectId: str
+    CM_CMTRT: str | None = None
+    CM_CMMHYNCD: int | None = None
+    CM_CMAEYN: str | None = None
+    CM_CMONGOCD: int | None = None
+    CM_CMSTDAT: str | None = None
+    CM_CMENDAT: str | None = None
+    CM_CMSPID: int | None = None
+
+
+@pytest.fixture
+def concomitant_medication_fixture() -> pl.DataFrame:
+    rows: List[ConcomitantMedicationRow] = [
+        ConcomitantMedicationRow("drop_null_name", CM_CMTRT=None),
+        ConcomitantMedicationRow(
+            "name_is_na",
+            CM_CMTRT="Na",
+            CM_CMMHYNCD="0",
+            CM_CMAEYN="No",
+            CM_CMONGOCD="0",
+            CM_CMSTDAT="not a date",
+            CM_CMENDAT=None,
+            CM_CMSPID=10,
+        ),
+        ConcomitantMedicationRow(
+            "all_fields",
+            CM_CMTRT="  Paracetamol  ",
+            CM_CMMHYNCD="1",
+            CM_CMAEYN="Yes",
+            CM_CMONGOCD="1",
+            CM_CMSTDAT="1900-01-01",
+            CM_CMENDAT="1900-01-10",
+            CM_CMSPID="2",
+        ),
+        ConcomitantMedicationRow(
+            "ordering",
+            CM_CMTRT="Drug A",
+            CM_CMMHYNCD=1,
+            CM_CMAEYN="No",
+            CM_CMONGOCD=1,
+            CM_CMSTDAT="1900-02-01",
+            CM_CMSPID=1,
+        ),
+        ConcomitantMedicationRow(
+            "ordering",
+            CM_CMTRT="Drug A",
+            CM_CMMHYNCD=1,
+            CM_CMAEYN="No",
+            CM_CMONGOCD=1,
+            CM_CMSTDAT="1900-01-01",
+            CM_CMSPID=1,
+        ),
+        ConcomitantMedicationRow(
+            "ordering",
+            CM_CMTRT="Drug B",
+            CM_CMMHYNCD=0,
+            CM_CMAEYN="Yes",
+            CM_CMONGOCD=0,
+            CM_CMSTDAT="1899-12-12",
+            CM_CMSPID=2,
+        ),
+        ConcomitantMedicationRow(
+            "ongoing_none",
+            CM_CMTRT="Drug C",
+            CM_CMMHYNCD=None,
+            CM_CMAEYN="",
+            CM_CMONGOCD=None,
+            CM_CMSTDAT="",
+            CM_CMENDAT="",
+            CM_CMSPID=3,
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)

@@ -664,19 +664,104 @@ def test_treatment_end(treatment_stop_fixture):
     assert harmonizer.patient_data["invalid_row_doesnt_count"].treatment_end_date == dt.date(1900, 1, 1)
 
 
+def test_last_treatment_start(last_treatment_start_fixture):
+    harmonizer = ImpressHarmonizer(data=last_treatment_start_fixture, trial_id="IMPRESS_TEST")
+    for pid in last_treatment_start_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_start_last_cycle()
+
+    assert harmonizer.patient_data["empty"].treatment_start_last_cycle is None
+    assert harmonizer.patient_data["two_rows_both_valid"].treatment_start_last_cycle == dt.date(1900, 1, 2)
+    # note: not enforcing valid cycles so includes invalid starts as well:
+    assert harmonizer.patient_data["one_invalid"].treatment_start_last_cycle == dt.date(1900, 1, 2)
+
+
+def test_treatment_cycles(treatment_cycle_fixture):
+    harmonizer = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="IMPRESS_TEST")
+    for pid in treatment_cycle_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_treatment_cycle()
+
+    assert harmonizer.patient_data["drop_no_name"].treatment_cycles == ()
+
+    p1 = harmonizer.patient_data["iv_two_cycles"].treatment_cycles
+    assert len(p1) == 2
+
+    cycle_1, cycle_2 = p1[0], p1[1]
+    assert cycle_1.cycle_type == "IV" and cycle_2.cycle_type == "IV"
+    assert cycle_1.start_date == dt.date(1900, 1, 1)
+    assert cycle_1.end_date == dt.date(1900, 1, 9)
+    assert cycle_1.was_total_dose_delivered is True
+    assert cycle_1.iv_dose_prescribed == "100" and cycle_1.iv_dose_prescribed_unit == "mg"
+
+    assert cycle_2.start_date == dt.date(1900, 1, 10)
+    assert cycle_2.end_date is None
+    assert cycle_2.was_total_dose_delivered is False
+
+    p2 = harmonizer.patient_data["oral_single"].treatment_cycles
+    cycle_3 = p2[0]
+    assert cycle_3.cycle_type == "oral"
+    assert cycle_3.start_date == dt.date(1900, 1, 1)
+    assert cycle_3.end_date == dt.date(1900, 1, 20)
+    assert cycle_3.was_dose_administered_to_spec is True
+    assert cycle_3.was_tablet_taken_to_prescription_in_previous_cycle is False
+    assert cycle_3.oral_dose_prescribed_per_day == 200
+    assert cycle_3.oral_dose_prescribed_unit == "mg"
+    assert cycle_3.number_of_days_tablet_not_taken == 3
+    assert cycle_3.reason_tablet_not_taken == "nausea"
+
+    p3 = harmonizer.patient_data["both_modalities"].treatment_cycles
+    assert len(p3) == 2
+    iv_cycle, oral_cycle = p3[0], p3[1]
+    assert iv_cycle.cycle_type == "IV"
+    assert oral_cycle.cycle_type == "oral"
+    assert iv_cycle.end_date is None
+    assert oral_cycle.end_date == dt.date(1900, 3, 30)
+
+    # if conflict, oral takes precedence
+    p4 = harmonizer.patient_data["both_in_row"].treatment_cycles
+    both_row_cycle = p4[0]
+    assert both_row_cycle.cycle_type == "oral"
+    assert both_row_cycle.end_date == dt.date(1900, 1, 10)
+
+
+def test_concomitant_medications(concomitant_medication_fixture):
+    harmonizer = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="IMPRESS_TEST")
+    for pid in concomitant_medication_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_concomitant_medication()
+
+    assert harmonizer.patient_data["drop_null_name"].concomitant_medications == ()
+    assert harmonizer.patient_data["name_is_na"].concomitant_medications == ()
+
+    (cm,) = harmonizer.patient_data["all_fields"].concomitant_medications
+    assert cm.medication_name == "Paracetamol"
+    assert cm.was_taken_due_to_medical_history_event is True
+    assert cm.was_taken_due_to_adverse_event is True
+    assert cm.medication_ongoing is True
+    assert cm.is_adverse_event_ongoing is True
+    assert cm.start_date == dt.date(1900, 1, 1)
+    assert cm.end_date == dt.date(1900, 1, 10)
+    assert cm.sequence_id == 2
+
+    cms = harmonizer.patient_data["ordering"].concomitant_medications
+    assert [cm.sequence_id for cm in cms] == [1, 1, 2]
+    assert [cm.start_date for cm in cms[:2]] == [dt.date(1900, 1, 1), dt.date(1900, 2, 1)]
+    assert cms[2].medication_name == "Drug B"
+
+    (cm,) = harmonizer.patient_data["ongoing_none"].concomitant_medications
+    assert cm.medication_ongoing is None
+    assert cm.is_adverse_event_ongoing is None
+    assert cm.was_taken_due_to_medical_history_event is None
+    assert cm.was_taken_due_to_adverse_event is None
+    assert cm.start_date is None and cm.end_date is None
+    assert cm.sequence_id == 3
+
+
 # todo: implement rest of tests
-
-
-def test_last_treatment_start():
-    pass
-
-
-def test_treatment_cycles():
-    pass
-
-
-def test_concomitant_medications():
-    pass
 
 
 def test_has_any_adverse_events():

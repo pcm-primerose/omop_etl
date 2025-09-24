@@ -861,18 +861,20 @@ class ImpressHarmonizer(BaseHarmonizer):
         last_cycle_data = (
             self.data.select("SubjectId", "TR_TRC1_DT", "TR_TRCYNCD")
             .with_columns(
-                cycle_start=PolarsParsers.parse_date_column("TR_TRC1_DT"),
-                valid=pl.col("TR_TRCYNCD").cast(pl.Int64, strict=False) == 1,
+                cycle_start=PolarsParsers.parse_date_column(pl.col("TR_TRC1_DT")),
+                valid=pl.col("TR_TRCYNCD").cast(pl.Int64, strict=False).eq(1),
             )
-            .with_columns(cycle_start=pl.when(~pl.lit(enforce_valid) | pl.col("valid")).then(pl.col("cycle_start")).otherwise(None))
+            # null-out only if enforce_valid and row invalid
+            .with_columns(
+                cycle_start=pl.when(pl.lit(enforce_valid) & ~pl.col("valid")).then(None).otherwise(pl.col("cycle_start")),
+            )
             .group_by("SubjectId")
             .agg(treatment_start_last_cycle=pl.col("cycle_start").max())
             .select("SubjectId", "treatment_start_last_cycle")
         )
 
-        # hydrate
-        for pid, last_cycle in last_cycle_data.select("SubjectId", "treatment_start_last_cycle").iter_rows():
-            self.patient_data[pid].treatment_start_last_cycle = last_cycle
+        for pid, end_date in last_cycle_data.select("SubjectId", "treatment_start_last_cycle").iter_rows():
+            self.patient_data[pid].treatment_start_last_cycle = end_date
 
     def _process_treatment_cycle(self) -> None:
         treatment_cycle_cols = [
@@ -976,7 +978,25 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             return filtered_data
 
-        treatment_typed = add_treatment_type(cycle_base)
+        def coerce_types(frame: pl.DataFrame) -> pl.DataFrame:
+            """Cast non-processed cols"""
+            _coerced = frame.with_columns(
+                pl.col("TR_TRNAME").cast(pl.Utf8),
+                pl.col("TR_TRTNO").cast(pl.Int64),
+                pl.col("TR_TRCNO1").cast(pl.Int64),
+                pl.col("TR_TRIVDS1").cast(pl.Utf8),
+                pl.col("TR_TRIVU1").cast(pl.Utf8),
+                pl.col("TR_TRODSTOT").cast(pl.Float64),
+                pl.col("TR_TRODSU").cast(pl.Utf8),
+                pl.col("TR_TROREA").cast(pl.Utf8),
+                pl.col("TR_TROSPE").cast(pl.Utf8),
+                pl.col("TR_TROTABNO").cast(pl.Int64),
+            )
+
+            return _coerced
+
+        coerced = coerce_types(cycle_base)
+        treatment_typed = add_treatment_type(coerced)
         iv_cycle_end_dates = add_iv_cycle_stop_dates(treatment_typed)
         combined_end_dates = coalesce_cycle_ends(iv_cycle_end_dates)
         filtered = filter_parse_treatment_cycles(combined_end_dates)
@@ -1048,7 +1068,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 start_date=PolarsParsers.parse_date_column(pl.col("CM_CMSTDAT")),
                 end_date=PolarsParsers.parse_date_column(pl.col("CM_CMENDAT")),
                 sequence_id=pl.col("CM_CMSPID").cast(pl.Int16, strict=False),
-            ).filter(pl.col("CM_CMTRT").is_not_null())
+            ).filter(pl.col("medication_name").is_not_null())
 
             return filtered_data
 
