@@ -1644,7 +1644,7 @@ class Patient:
 
     @property
     def has_clinical_benefit_at_week16(self) -> Optional[bool]:
-        return self._has_any_adverse_events
+        return self._has_clinical_benefit_at_week16
 
     @has_clinical_benefit_at_week16.setter
     def has_clinical_benefit_at_week16(self, value: Optional[bool]) -> None:

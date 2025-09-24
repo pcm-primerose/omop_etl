@@ -780,9 +780,6 @@ def test_has_any_adverse_events(adverse_events_flag_fixture):
     assert harmonizer.patient_data["multirow_all_false"].has_any_adverse_events is False
 
 
-# todo: implement rest of tests
-
-
 def test_adverse_events(adverse_events_fixture):
     harmonizer = ImpressHarmonizer(data=adverse_events_fixture, trial_id="IMPRESS_TEST")
     for pid in adverse_events_fixture.select("SubjectId").unique().to_series().to_list():
@@ -930,24 +927,48 @@ def test_process_best_overall_respsone(best_overall_response_fixture):
     assert p7.date == dt.date(1900, 4, 1)
 
 
-def test_process_eot_reason():
-    pass
+def test_process_clinical_benefit_w16(clinical_benefit_fixture):
+    harmonizer = ImpressHarmonizer(data=clinical_benefit_fixture, trial_id="IMPRESS_TEST")
+    for pid in clinical_benefit_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_clinical_benefit()
+
+    assert harmonizer.patient_data["recist_le3"].has_clinical_benefit_at_week16 is True
+    assert harmonizer.patient_data["recist_gt3"].has_clinical_benefit_at_week16 is False
+    assert harmonizer.patient_data["irecist_le3"].has_clinical_benefit_at_week16 is True
+    assert harmonizer.patient_data["rano_le3"].has_clinical_benefit_at_week16 is True
+    assert harmonizer.patient_data["both_present"].has_clinical_benefit_at_week16 is True
+    assert harmonizer.patient_data["v03_no_codes"].has_clinical_benefit_at_week16 is False
+    assert harmonizer.patient_data["not_v03"].has_clinical_benefit_at_week16 is None
 
 
-def test_eot_reason():
-    pass
+def test_eot_reason(eot_fixture):
+    harmonizer = ImpressHarmonizer(data=eot_fixture, trial_id="IMPRESS_TEST")
+    for pid in eot_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_eot_reason()
+
+    assert harmonizer.patient_data["reason_trim"].end_of_treatment_reason == "Progression"
+    assert harmonizer.patient_data["reason_empty_string"].end_of_treatment_reason == ""
+    assert harmonizer.patient_data["reason_whitespace_only"].end_of_treatment_reason == ""
+    assert harmonizer.patient_data["reason_none"].end_of_treatment_reason is None
+    assert harmonizer.patient_data["reason_multi_overwrite"].end_of_treatment_reason == "Patient decision"
 
 
-def test_process_clinical_benefit_w16():
-    pass
+def test_eot_date(eot_fixture):
+    harmonizer = ImpressHarmonizer(data=eot_fixture, trial_id="IMPRESS_TEST")
+    for pid in eot_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
+    harmonizer._process_eot_date()
 
-def test_process_c30():
-    pass
-
-
-def test_process_eq5d():
-    pass
+    assert harmonizer.patient_data["date_valid"].end_of_treatment_date == dt.date(1900, 1, 1)
+    assert harmonizer.patient_data["date_empty_string"].end_of_treatment_date is None
+    assert harmonizer.patient_data["date_invalid"].end_of_treatment_date is None
+    assert harmonizer.patient_data["date_none"].end_of_treatment_date is None
+    assert harmonizer.patient_data["date_multi_overwrite"].end_of_treatment_date == dt.date(1901, 1, 1)
 
 
 def test_basic_inheritance(subject_id_fixture):

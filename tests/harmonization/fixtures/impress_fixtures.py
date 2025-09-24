@@ -1664,3 +1664,115 @@ def best_overall_response_fixture() -> pl.DataFrame:
 
     records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class ClinicalBenefitRow:
+    SubjectId: str
+    RA_RATIMRESCD: int | None = None
+    RA_RAiMODCD: int | None = None
+    RNRSP_RNRSPCLCD: int | None = None
+    RNRSP_EventId: str | None = None
+    RA_EventId: str | None = None
+
+
+@pytest.fixture
+def clinical_benefit_fixture() -> pl.DataFrame:
+    rows: List[ClinicalBenefitRow] = [
+        ClinicalBenefitRow(
+            "recist_le3",
+            RA_RATIMRESCD=3,
+            RA_EventId="V03",
+        ),
+        ClinicalBenefitRow(
+            "recist_gt3",
+            RA_RATIMRESCD=4,
+            RA_EventId="V03",
+        ),
+        ClinicalBenefitRow(
+            "irecist_le3",
+            RA_RAiMODCD=2,
+            RA_EventId="V03",
+        ),
+        ClinicalBenefitRow(
+            "rano_le3",
+            RNRSP_RNRSPCLCD=3,
+            RNRSP_EventId="V03",
+        ),
+        ClinicalBenefitRow(
+            "both_present",
+            RA_RATIMRESCD=4,
+            RA_RAiMODCD=3,
+            RA_EventId="V03",
+        ),
+        ClinicalBenefitRow("v03_no_codes", RA_EventId="V03"),
+        ClinicalBenefitRow(
+            "not_v03",
+            RA_RATIMRESCD=2,
+            RA_EventId="V02",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class EOTRow:
+    SubjectId: str
+    EOT_EOTREOT: str | None = None
+    EOT_EOTDAT: str | None = None
+
+
+@pytest.fixture
+def eot_fixture() -> pl.DataFrame:
+    rows: List[EOTRow] = [
+        EOTRow(
+            "reason_trim",
+            EOT_EOTREOT="  Progression  ",
+        ),
+        EOTRow(
+            "reason_empty_string",
+            EOT_EOTREOT="",
+        ),
+        EOTRow(
+            "reason_whitespace_only",
+            EOT_EOTREOT="   ",
+        ),
+        EOTRow(
+            "reason_none",
+            EOT_EOTREOT=None,
+        ),
+        EOTRow(
+            "reason_multi_overwrite",
+            EOT_EOTREOT="Toxicity",
+        ),
+        EOTRow(
+            "reason_multi_overwrite",
+            EOT_EOTREOT="Patient decision",
+        ),
+        EOTRow(
+            "date_valid",
+            EOT_EOTDAT="1900-01-01",
+        ),
+        EOTRow(
+            "date_empty_string",
+            EOT_EOTDAT="",
+        ),
+        EOTRow(
+            "date_invalid",
+            EOT_EOTDAT="not a date",
+        ),
+        EOTRow("date_none"),
+        EOTRow(
+            "date_multi_overwrite",
+            EOT_EOTDAT="1900-01-01",
+        ),
+        EOTRow(
+            "date_multi_overwrite",
+            EOT_EOTDAT="1901-01-01",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
