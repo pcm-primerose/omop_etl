@@ -835,11 +835,110 @@ def test_adverse_events(adverse_events_fixture):
     assert v.was_serious is False
 
 
-def test_process_tumor_assessments():
+def test_tumor_assessments(tumor_assessments_fixture):
+    harmonizer = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="IMPRESS_TEST")
+    for pid in tumor_assessments_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_tumor_assessments()
+
+    assert harmonizer.patient_data["no_signal"].tumor_assessments == ()
+
+    p1 = harmonizer.patient_data["recist_full"].tumor_assessments[0]
+    assert p1.assessment_type == "recist"
+    assert p1.target_lesion_change_from_baseline == 0.25
+    assert p1.target_lesion_change_from_nadir == 0
+    assert p1.was_new_lesions_registered_after_baseline is True
+    assert p1.date == dt.date(1900, 1, 10)
+    assert p1.recist_response == "PR"
+    assert p1.recist_date_of_progression == dt.date(1900, 2, 1)
+    assert p1.event_id == "V01"
+
+    p2 = harmonizer.patient_data["irecist_full"].tumor_assessments[0]
+    assert p2.assessment_type == "irecist"
+    assert p2.target_lesion_change_from_baseline == 0  # explicit 0 stays 0
+    assert p2.irecist_response == "iCR"
+    assert p2.irecist_date_of_progression == dt.date(1900, 2, 10)
+    assert p2.date == dt.date(1900, 1, 15)
+    assert p2.event_id == "V02"
+
+    p3 = harmonizer.patient_data["rano_full"].tumor_assessments[0]
+    assert p3.assessment_type == "rano"
+    assert p3.target_lesion_change_from_baseline == -0.30
+    assert p3.target_lesion_change_from_nadir == -0.10
+    assert p3.was_new_lesions_registered_after_baseline is False
+    assert p3.rano_response == "RANO-PR"
+    assert p3.date == dt.date(1900, 1, 20)
+    assert p3.event_id == "V03"
+
+    p4 = harmonizer.patient_data["collision_irecist_wins"].tumor_assessments[0]
+    assert p4.assessment_type == "irecist"
+
+    p5 = harmonizer.patient_data["recist_bad_date"].tumor_assessments[0]
+    assert p5.assessment_type == "recist"
+    assert p5.date is None
+    assert p5.recist_response == "SD"
+    assert p5.event_id == "V06"
+
+    p6 = harmonizer.patient_data["event_from_rnrsp"].tumor_assessments[0]
+    assert p6.assessment_type == "rano"
+    assert p6.date == dt.date(1900, 4, 1)
+    assert p6.event_id == "V05"
+    assert p6.was_new_lesions_registered_after_baseline is True
+
+
+def test_process_best_overall_respsone(best_overall_response_fixture):
+    harmonizer = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="IMPRESS_TEST")
+    for pid in best_overall_response_fixture.select("SubjectId").unique().to_series().to_list():
+        harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
+
+    harmonizer._process_best_overall_response()
+
+    p1 = harmonizer.patient_data["recist_only"].best_overall_response
+    assert p1.response == "PR"
+    assert p1.code == 20
+    assert p1.date == dt.date(1900, 1, 10)
+
+    p2 = harmonizer.patient_data["irecist_only"].best_overall_response
+    assert p2.response == "CR"
+    assert p2.code == 4
+    assert p2.date == dt.date(1900, 1, 5)
+
+    p3 = harmonizer.patient_data["both_pick_irecist"].best_overall_response
+    assert p3.response == "iCR"
+    assert p3.code == 4
+    assert p3.date == dt.date(1900, 2, 1)
+
+    p4 = harmonizer.patient_data["irecist_unconfirmed_drop"].best_overall_response
+    assert p4.response == "PD"
+    assert p4.code == 40
+    assert p4.date == dt.date(1900, 3, 1)
+
+    p5 = harmonizer.patient_data["rano_only"].best_overall_response
+    assert p5.response == "RANO-PR"
+    assert p5.code == 15
+    assert p5.date == dt.date(1900, 1, 20)
+
+    p6 = harmonizer.patient_data["multi_best"].best_overall_response
+    assert p6.response == "PR"
+    assert p6.code == 20
+    assert p6.date == dt.date(1900, 2, 1)
+
+    p7 = harmonizer.patient_data["irecist_ne_maps_96"].best_overall_response
+    assert p7.response == "SD"
+    assert p7.code == 30
+    assert p7.date == dt.date(1900, 4, 1)
+
+
+def test_process_eot_reason():
     pass
 
 
-def test_process_adverse_events():
+def test_eot_reason():
+    pass
+
+
+def test_process_clinical_benefit_w16():
     pass
 
 
@@ -848,22 +947,6 @@ def test_process_c30():
 
 
 def test_process_eq5d():
-    pass
-
-
-def test_process_eot():
-    pass
-
-
-def test_process_eot_reason():
-    pass
-
-
-def test_process_best_overall_respsone():
-    pass
-
-
-def test_process_clinical_benefit_w16():
     pass
 
 

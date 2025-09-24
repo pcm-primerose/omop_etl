@@ -1666,6 +1666,10 @@ class ImpressHarmonizer(BaseHarmonizer):
         def process(frame: pl.DataFrame) -> pl.DataFrame:
             result = (
                 frame.with_columns(
+                    pl.col("RA_RAiMODCD").cast(pl.Int64),
+                    pl.col("RA_RATIMRESCD").cast(pl.Int64),
+                )
+                .with_columns(
                     [
                         # map irecist code to recist scale
                         pl.when(pl.col("RA_RAiMODCD").cast(pl.Int64, strict=False) == 4)

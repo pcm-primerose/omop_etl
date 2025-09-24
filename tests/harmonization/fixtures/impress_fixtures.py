@@ -1174,60 +1174,32 @@ def last_treatment_start_fixture() -> pl.DataFrame:
     return pl.from_dicts(records)
 
 
-# @dataclass(frozen=True, slots=True)
-# class TreatmentCycleRow:
-#     SubjectId: str
-#     TR_TRNAME: str | None = None
-#     TR_TRTNO: int | None = None
-#     TR_TRCNO1: int | None = None
-#     TR_TRC1_DT: str = ""        # IV start (string; blank allowed)
-#     TR_TRO_STDT: str = ""       # Oral start
-#     TR_TROSTPDT: str = ""       # Oral stop
-#     TR_TRDSDEL1: str = ""       # (unused by processor; keep for schema)
-#     TR_TRCYN: str = ""          # (unused)
-#     TR_TRO_YNCD: int | None = None
-#     TR_TRIVU1: str = ""         # IV unit
-#     TR_TRIVDS1: str = ""        # IV dose
-#     TR_TRCYNCD: int | None = None
-#     TR_TRIVDELYN1: str = ""     # "Yes"/"No"
-#     TR_TRO_YN: str = ""         # (oral flag text)
-#     TR_TROREA: str = ""         # oral reason not administered to spec
-#     TR_TROOTH: str = ""         # (unused)
-#     TR_TRODSU: str = ""         # oral dose unit
-#     TR_TRODSUOT: str = ""       # (unused)
-#     TR_TRODSTOT: float | None = None      # oral dose per day
-#     TR_TROTAKE: str = ""        # (unused)
-#     TR_TROTAKECD: int | None = None
-#     TR_TROTABNO: int | None = None
-#     TR_TROSPE: str = ""         # reason tablet not taken
-
-
 @dataclass(frozen=True, slots=True)
 class TreatmentCycleRow:
     SubjectId: str
     TR_TRNAME: str | None = None
     TR_TRTNO: int | None = None
     TR_TRCNO1: int | None = None
-    TR_TRC1_DT: str | None = None  # IV start (string; blank allowed)
-    TR_TRO_STDT: str | None = None  # Oral start
-    TR_TROSTPDT: str | None = None  # Oral stop
-    TR_TRDSDEL1: str | None = None  # (unused by processor; keep for schema)
-    TR_TRCYN: str | None = None  # (unused)
+    TR_TRC1_DT: str | None = None
+    TR_TRO_STDT: str | None = None
+    TR_TROSTPDT: str | None = None
+    TR_TRDSDEL1: str | None = None
+    TR_TRCYN: str | None = None
     TR_TRO_YNCD: int | None = None
-    TR_TRIVU1: str | None = None  # IV unit
-    TR_TRIVDS1: str | None = None  # IV dose
+    TR_TRIVU1: str | None = None
+    TR_TRIVDS1: str | None = None
     TR_TRCYNCD: int | None = None
-    TR_TRIVDELYN1: str | None = None  # "Yes"/"No"
-    TR_TRO_YN: str | None = None  # (oral flag text)
-    TR_TROREA: str | None = None  # oral reason not administered to spec
-    TR_TROOTH: str | None = None  # (unused)
-    TR_TRODSU: str | None = None  # oral dose unit
-    TR_TRODSUOT: str | None = None  # (unused)
-    TR_TRODSTOT: float | None = None  # oral dose per day
-    TR_TROTAKE: str | None = None  # (unused)
+    TR_TRIVDELYN1: str | None = None
+    TR_TRO_YN: str | None = None
+    TR_TROREA: str | None = None
+    TR_TROOTH: str | None = None
+    TR_TRODSU: str | None = None
+    TR_TRODSUOT: str | None = None
+    TR_TRODSTOT: float | None = None
+    TR_TROTAKE: str | None = None
     TR_TROTAKECD: int | None = None
     TR_TROTABNO: int | None = None
-    TR_TROSPE: str | None = None  # reason tablet not taken
+    TR_TROSPE: str | None = None
 
 
 @pytest.fixture
@@ -1529,6 +1501,164 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_SAEEXP1CD=2,
             AE_SAEEXP2CD=1,
             AE_AEREL2CD=1,
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class TumorAssessmentRow:
+    SubjectId: str
+    RA_RAASSESS1: str | None = None
+    RA_RAASSESS2: str | None = None
+    RA_RABASECH: str | None = None
+    RNRSP_TERNCFB: str | None = None
+    RA_RARECCH: str | None = None
+    RNRSP_TERNCFN: str | None = None
+    RA_RANLBASECD: int | None = None
+    RNRSP_RNRSPNLCD: int | None = None
+    RA_EventDate: str | None = None
+    RNRSP_EventDate: str | None = None
+    RA_RATIMRES: str | None = None
+    RNRSP_RNRSPCL: str | None = None
+    RA_RAiMOD: str | None = None
+    RA_RAPROGDT: str | None = None
+    RA_RAiUNPDT: str | None = None
+    RA_EventId: str | None = None
+    RNRSP_EventId: str | None = None
+
+
+@pytest.fixture
+def tumor_assessments_fixture() -> pl.DataFrame:
+    rows: List[TumorAssessmentRow] = [
+        TumorAssessmentRow("no_signal"),
+        TumorAssessmentRow(
+            "recist_full",
+            RA_RAASSESS1="RECIST",
+            RA_RABASECH="25",
+            RA_RARECCH="0",
+            RA_RANLBASECD="1",
+            RA_EventDate="1900-01-10",
+            RA_RATIMRES="  PR  ",
+            RA_RAPROGDT="1900-02-01",
+            RA_EventId="V01",
+        ),
+        TumorAssessmentRow(
+            "irecist_full",
+            RA_RAASSESS2="iRECIST",
+            RA_RAiMOD="iCR",
+            RA_RAiUNPDT="1900-02-10",
+            RA_EventDate="1900-01-15",
+            RA_RABASECH="0",
+            RA_EventId="V02",
+        ),
+        TumorAssessmentRow(
+            "rano_full",
+            RNRSP_TERNCFB="-30",
+            RNRSP_TERNCFN="-10",
+            RNRSP_RNRSPNLCD=0,
+            RNRSP_RNRSPCL="RANO-PR",
+            RNRSP_EventDate="1900-01-20",
+            RNRSP_EventId="V03",
+        ),
+        TumorAssessmentRow(
+            "collision_irecist_wins",
+            RA_RAASSESS1="RECIST",
+            RA_RAASSESS2="iRECIST",
+            RA_EventDate="1900-03-01",
+            RA_EventId="V04",
+        ),
+        TumorAssessmentRow(
+            "recist_bad_date",
+            RA_RAASSESS1="RECIST",
+            RA_RATIMRES="SD",
+            RA_EventDate="not a date",
+            RA_EventId="V06",
+        ),
+        TumorAssessmentRow(
+            "event_from_rnrsp",
+            RNRSP_TERNCFB="10",
+            RNRSP_RNRSPNLCD=1,
+            RNRSP_EventDate="1900-04-01",
+            RNRSP_EventId="V05",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class BestOverallResponseRow:
+    SubjectId: str
+    RA_RATIMRES: str | None = None
+    RA_RATIMRESCD: int | None = None
+    RA_RAiMOD: str | None = None
+    RA_RAiMODCD: int | None = None
+    RA_EventDate: str | None = None
+    RNRSP_RNRSPCL: str | None = None
+    RNRSP_RNRSPCLCD: int | None = None
+    RNRSP_EventDate: str | None = None
+
+
+@pytest.fixture
+def best_overall_response_fixture() -> pl.DataFrame:
+    rows: List[BestOverallResponseRow] = [
+        BestOverallResponseRow(
+            "recist_only",
+            RA_RATIMRES=" PR ",
+            RA_RATIMRESCD=20,
+            RA_EventDate="1900-01-10",
+        ),
+        BestOverallResponseRow(
+            "irecist_only",
+            RA_RAiMOD="CR",
+            RA_RAiMODCD=5,
+            RA_EventDate="1900-01-05",
+        ),
+        BestOverallResponseRow(
+            "both_pick_irecist",
+            RA_RATIMRES="SD",
+            RA_RATIMRESCD="30",
+            RA_RAiMOD="iCR",
+            RA_RAiMODCD="5",
+            RA_EventDate="1900-02-01",
+        ),
+        BestOverallResponseRow(
+            "irecist_unconfirmed_drop",
+            RA_RATIMRES="PD",
+            RA_RATIMRESCD=40,
+            RA_RAiMOD="iUPD?",
+            RA_RAiMODCD=4,
+            RA_EventDate="1900-03-01",
+        ),
+        BestOverallResponseRow(
+            "rano_only",
+            RNRSP_RNRSPCL="RANO-PR",
+            RNRSP_RNRSPCLCD=15,
+            RNRSP_EventDate="1900-01-20",
+        ),
+        BestOverallResponseRow(
+            "multi_best",
+            RA_RATIMRES="SD",
+            RA_RATIMRESCD=30,
+            RA_EventDate="1900-01-01",
+        ),
+        BestOverallResponseRow(
+            "multi_best",
+            RA_RATIMRES="PR",
+            RA_RATIMRESCD=20,
+            RA_EventDate="1900-02-01",
+        ),
+        BestOverallResponseRow(
+            "irecist_ne_maps_96",
+            RA_RATIMRES="SD",
+            RA_RATIMRESCD=30,
+            RA_RAiMOD="iNE",
+            RA_RAiMODCD=6,
+            RA_EventDate="1900-04-01",
         ),
     ]
 
