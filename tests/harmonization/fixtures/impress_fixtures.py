@@ -1078,12 +1078,58 @@ def treatment_start_fixture() -> pl.DataFrame:
     return pl.from_dicts(records)
 
 
+@dataclass(frozen=True, slots=True)
+class TreatmentStopRow:
+    SubjectId: str
+    TR_TRCYNCD: str | None = None
+    TR_TROSTPDT: str | None = None
+    TR_TRC1_DT: str | None = None
+    EOT_EOTDAT: str | None = None
+
+
 @pytest.fixture
-def treatment_end_fixture():
-    rows = []
+def treatment_stop_fixture() -> pl.DataFrame:
+    rows: List[TreatmentStopRow] = [
+        TreatmentStopRow("empty"),
+        TreatmentStopRow(
+            "missing_treatment_empty_str",
+            TR_TROSTPDT="",
+            TR_TRCYNCD="1",
+        ),
+        TreatmentStopRow(
+            "missing_treatment_eot_empty_str",
+            EOT_EOTDAT="",
+            TR_TRCYNCD="1",
+        ),
+        TreatmentStopRow(
+            "multirow",
+            TR_TROSTPDT="1899-01-01",
+            TR_TRCYNCD="1",
+        ),
+        TreatmentStopRow(
+            "multirow",
+            TR_TROSTPDT="1900-01-01",
+            TR_TRCYNCD="1",
+        ),
+        TreatmentStopRow(
+            "eot_precedence",
+            EOT_EOTDAT="1900-01-02",
+        ),
+        TreatmentStopRow(
+            "eot_precedence",
+            TR_TROSTPDT="1900-01-01",
+            TR_TRCYNCD="1",
+        ),
+        TreatmentStopRow(
+            "invalid_row_doesnt_count",
+            TR_TROSTPDT="1900-01-02",
+        ),
+        TreatmentStopRow(
+            "invalid_row_doesnt_count",
+            TR_TROSTPDT="1900-01-01",
+            TR_TRCYNCD="1",
+        ),
+    ]
 
-    def base_row(pid):
-        return {"SubjectId": pid, "TR_TRNAME": None, "TR_TRC1_DT": None}
-
-    # all empty
-    rows.append(base_row("empty"))
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)

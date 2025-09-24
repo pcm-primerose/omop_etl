@@ -648,26 +648,20 @@ def test_treatment_start(treatment_start_fixture):
     assert p5.treatment_start_date == dt.date(1900, 1, 2)
 
 
-def test_treatment_end(treatment_end_fixture):
-    harmonizer = ImpressHarmonizer(data=treatment_end_fixture, trial_id="IMPRESS_TEST")
-    for pid in treatment_end_fixture.select("SubjectId").unique().to_series().to_list():
+def test_treatment_end(treatment_stop_fixture):
+    harmonizer = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="IMPRESS_TEST")
+    for pid in treatment_stop_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[pid] = Patient(patient_id=pid, trial_id="IMPRESS_TEST")
 
     harmonizer._process_treatment_stop_date()
 
-    p1 = harmonizer.patient_data["empty"]
-    p2 = harmonizer.patient_data["missing_treatment_none"]
-    p3 = harmonizer.patient_data["missing_treatment_empty_str"]
+    assert harmonizer.patient_data["empty"].treatment_end_date is None
+    assert harmonizer.patient_data["missing_treatment_empty_str"].treatment_end_date is None
+    assert harmonizer.patient_data["missing_treatment_eot_empty_str"].treatment_end_date is None
 
-    p4 = harmonizer.patient_data["multirow"]
-    p5 = harmonizer.patient_data["single_row"]
-
-    assert p1.treatment_end_date is None
-    assert p2.treatment_end_date is None
-    assert p3.treatment_end_date is None
-
-    assert p4.treatment_end_date == dt.date(1900, 1, 1)
-    assert p5.treatment_end_date == dt.date(1900, 1, 2)
+    assert harmonizer.patient_data["multirow"].treatment_end_date == dt.date(1900, 1, 1)
+    assert harmonizer.patient_data["eot_precedence"].treatment_end_date == dt.date(1900, 1, 2)
+    assert harmonizer.patient_data["invalid_row_doesnt_count"].treatment_end_date == dt.date(1900, 1, 1)
 
 
 # todo: implement rest of tests

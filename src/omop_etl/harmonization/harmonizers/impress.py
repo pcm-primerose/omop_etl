@@ -810,9 +810,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             .with_columns(
                 valid=pl.col("TR_TRCYNCD").cast(pl.Int64, strict=False) == 1,
-                eot_date=PolarsParsers.parse_date_column("EOT_EOTDAT"),
-                oral_stop=PolarsParsers.parse_date_column("TR_TROSTPDT"),
-                iv_start=PolarsParsers.parse_date_column("TR_TRC1_DT"),
+                eot_date=PolarsParsers.parse_date_column(pl.col("EOT_EOTDAT").cast(pl.Utf8)),
+                oral_stop=PolarsParsers.parse_date_column(pl.col("TR_TROSTPDT").cast(pl.Utf8)),
+                iv_start=PolarsParsers.parse_date_column(pl.col("TR_TRC1_DT").cast(pl.Utf8)),
             )
             # only valid TR rows for oral/IV
             .with_columns(
