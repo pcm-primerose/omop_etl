@@ -484,8 +484,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             oral_sufficient_treatment_length = (
                 evaluability_data.select(["SubjectId", "TR_TRO_STDT", "TR_TROSTPDT", "TR_TRCYNCD"])
                 .with_columns(
-                    start=pl.col("TR_TRO_STDT").str.strptime(pl.Date, strict=False),
-                    stop=pl.col("TR_TROSTPDT").str.strptime(pl.Date, strict=False),
+                    start=pl.col("TR_TRO_STDT").cast(pl.Utf8).replace("", None).str.strptime(pl.Date, strict=False),
+                    stop=pl.col("TR_TROSTPDT").cast(pl.Utf8).replace("", None).str.strptime(pl.Date, strict=False),
                     not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
                 )
                 .filter(~pl.col("not_recieved_treatment_this_cycle"))
@@ -508,9 +508,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 # remove oral treatment rows
                 .with_columns(
                     oral_present=pl.any_horizontal(
-                        pl.col(["TR_TRO_STDT", "TR_TROSTPDT"]).cast(pl.Utf8, strict=False).str.len_bytes().fill_null(0) > 0,
+                        pl.col(["TR_TRO_STDT", "TR_TROSTPDT"]).cast(pl.Utf8).replace("", None).str.len_bytes().fill_null(0) > 0,
                     ),
-                    start=pl.col("TR_TRC1_DT").cast(pl.Utf8, strict=False).str.strptime(pl.Date, strict=False),
+                    start=pl.col("TR_TRC1_DT").cast(pl.Utf8, strict=False).replace("", None).str.strptime(pl.Date, strict=False),
                     not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
                 )
                 .filter(~pl.col("oral_present") & ~pl.col("not_recieved_treatment_this_cycle"))
