@@ -97,6 +97,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         for row in cohort_data.iter_rows(named=True):
             patient_id = row["SubjectId"]
             cohort_name = row["COH_COHORTNAME"]
+            if cohort_name == "":
+                cohort_name = None
 
             if patient_id in self.patient_data:
                 self.patient_data[patient_id].cohort_name = cohort_name
@@ -111,7 +113,6 @@ class ImpressHarmonizer(BaseHarmonizer):
                 log.warning(f"No sex found for patient {patient_id}")
                 continue
 
-            # todo: parse in polars instead
             if sex.lower() == "m" or sex.lower() == "male":
                 sex = "male"
             elif sex.lower() == "f" or sex.lower() == "female":
@@ -444,16 +445,17 @@ class ImpressHarmonizer(BaseHarmonizer):
         """
         Filtering criteria:
             Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
-            Days are not inclusive, the end date of the previous cycle is the start of following,
-              e.g. 01-01-2001 to 21-01-2001 has insufficient length.
+            For IV cycles, the cycle end is modeled as the day before the next cycles start.
+            Inclusive length = next_start − start days. Length ≥ 21 qualifies.
+            For oral cycles, length = stop − start days; ≥ 28 qualifies.
 
         For subjects with oral drugs, the start and end date per cycle is checked directly.
-            - if a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
+            If a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
 
         For subjects without oral drugs, cycle stop date is set to start date of next cycle and needs to last 21 days or more.
-            - Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
-            - each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
-            - assumes no malformed dates, because imputing would change the length.
+            Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
+            each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
+            assumes no malformed dates, because imputing would change the length.
 
         Old filteing criteria:
             Patients marked as evaluable for efficacy analysis needs to have:

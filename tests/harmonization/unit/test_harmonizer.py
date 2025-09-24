@@ -16,13 +16,15 @@ def test_impress_subject_id_processing(subject_id_fixture):
 
     assert len(harmonizer.patient_data) == 6
 
+    # note: dedupe logic and combining not implemented yet
     expected_ids = [
-        "IMPRESS-X_0001_1",
-        "IMPRESS-X_0002_1",
-        "IMPRESS-X_0003_1",
-        "IMPRESS-X_0004_1",
-        "IMPRESS-X_0005_1",
-        "IMPRESS-X_0005_2",  # todo: collapsing not implemented yet
+        "unique_1",
+        "unique_2",
+        "unique_3",
+        "unique_4",
+        "duplicate_id",
+        "duplicate_id",
+        "duplicate_variant",
     ]
     assert set(expected_ids) == set(harmonizer.patient_data)
 
@@ -42,11 +44,11 @@ def test_impress_cohort_name_processing(cohort_name_fixture):
 
     harmonizer._process_cohort_name()
 
-    assert harmonizer.patient_data["IMPRESS-X_0001_1"].cohort_name == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
-    assert harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name is None or harmonizer.patient_data["IMPRESS-X_0002_1"].cohort_name == ""
-    assert harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name is None or harmonizer.patient_data["IMPRESS-X_0003_1"].cohort_name == ""
-    assert harmonizer.patient_data["IMPRESS-X_0004_1"].cohort_name == ""
-    assert harmonizer.patient_data["IMPRESS-X_0005_1"].cohort_name == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
+    assert harmonizer.patient_data["cohort_hit_1"].cohort_name == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
+    assert harmonizer.patient_data["cohort_empty_1"].cohort_name is None
+    assert harmonizer.patient_data["cohort_empty_2"].cohort_name is None
+    assert harmonizer.patient_data["cohort_empty_3"].cohort_name is None
+    assert harmonizer.patient_data["cohort_hit_2"].cohort_name == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
 
 
 def test_gender_processing(gender_fixture):
@@ -60,14 +62,14 @@ def test_gender_processing(gender_fixture):
 
     harmonizer._process_gender()
 
-    assert harmonizer.patient_data["IMPRESS-X_0001_1"].sex == "female"
-    assert harmonizer.patient_data["IMPRESS-X_0002_1"].sex == "male"
-    assert harmonizer.patient_data["IMPRESS-X_0003_1"].sex == "female"
-    assert harmonizer.patient_data["IMPRESS-X_0004_1"].sex == "male"
-    assert harmonizer.patient_data["IMPRESS-X_0005_1"].sex is None
-    assert harmonizer.patient_data["IMPRESS-X_0006_1"].sex is None
-    assert harmonizer.patient_data["IMPRESS-X_0007_1"].sex == "female"
-    assert harmonizer.patient_data["IMPRESS-X_0008_1"].sex == "male"
+    assert harmonizer.patient_data["female_titlecase"].sex == "female"
+    assert harmonizer.patient_data["male_titlecase"].sex == "male"
+    assert harmonizer.patient_data["female_short_f"].sex == "female"
+    assert harmonizer.patient_data["male_short_m"].sex == "male"
+    assert harmonizer.patient_data["invalid_value"].sex is None
+    assert harmonizer.patient_data["empty_value"].sex is None
+    assert harmonizer.patient_data["female_lowercase"].sex == "female"
+    assert harmonizer.patient_data["male_lowercase"].sex == "male"
 
 
 def test_age_processing(age_fixture):
@@ -81,11 +83,11 @@ def test_age_processing(age_fixture):
 
     harmonizer._process_age()
 
-    assert harmonizer.patient_data["IMPRESS-X_0001_1"].age == 89
-    assert harmonizer.patient_data["IMPRESS-X_0002_1"].age == 39
-    assert harmonizer.patient_data["IMPRESS-X_0003_1"].age == 20
-    assert harmonizer.patient_data["IMPRESS-X_0004_1"].age == 30
-    assert harmonizer.patient_data["IMPRESS-X_0005_1"].age == 9
+    assert harmonizer.patient_data["birth_full_tx_full"].age == 89
+    assert harmonizer.patient_data["birth_year_tx_full"].age == 39
+    assert harmonizer.patient_data["birth_full_tx_full_recent"].age == 20
+    assert harmonizer.patient_data["birth_year_tx_year"].age == 30
+    assert harmonizer.patient_data["birth_full_tx_year_month"].age == 9
 
 
 def test_tumor_processing(tumor_type_fixture):
@@ -99,7 +101,7 @@ def test_tumor_processing(tumor_type_fixture):
 
     harmonizer._process_tumor_type()
 
-    tumor_instance_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].tumor_type
+    tumor_instance_1 = harmonizer.patient_data["tumor1_multi_subtypes"].tumor_type
     assert tumor_instance_1.icd10_code == "C30"
     assert tumor_instance_1.icd10_description == "tumor1"
     assert tumor_instance_1.main_tumor_type == "tumor1_subtype1"
@@ -107,7 +109,7 @@ def test_tumor_processing(tumor_type_fixture):
     assert tumor_instance_1.cohort_tumor_type == "tumor1_subtype2"
     assert tumor_instance_1.other_tumor_type == "tumor1_subtype3"
 
-    tumor_instance_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].tumor_type
+    tumor_instance_2 = harmonizer.patient_data["crc_subtype_slot2"].tumor_type
     assert tumor_instance_2.icd10_code == "C40.50"
     assert tumor_instance_2.icd10_description == "CRC"
     assert tumor_instance_2.main_tumor_type == "CRC_subtype"
@@ -115,7 +117,7 @@ def test_tumor_processing(tumor_type_fixture):
     assert tumor_instance_2.cohort_tumor_type is None
     assert tumor_instance_2.other_tumor_type is None
 
-    tumor_instance_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].tumor_type
+    tumor_instance_3 = harmonizer.patient_data["tumor2_dual_subtypes"].tumor_type
     assert tumor_instance_3.icd10_code == "C07"
     assert tumor_instance_3.icd10_description == "tumor2"
     assert tumor_instance_3.main_tumor_type == "tumor2_subtype1"
@@ -123,7 +125,7 @@ def test_tumor_processing(tumor_type_fixture):
     assert tumor_instance_3.cohort_tumor_type == "tumor2_subtype2"
     assert tumor_instance_3.other_tumor_type is None
 
-    tumor_instance_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].tumor_type
+    tumor_instance_4 = harmonizer.patient_data["tumor3_sp_subtype"].tumor_type
     assert tumor_instance_4.icd10_code == "C70.1"
     assert tumor_instance_4.icd10_description == "tumor3"
     assert tumor_instance_4.main_tumor_type == "tumor3_subtype1"
@@ -131,7 +133,7 @@ def test_tumor_processing(tumor_type_fixture):
     assert tumor_instance_4.cohort_tumor_type is None
     assert tumor_instance_4.other_tumor_type == "tumor3_subtype2"
 
-    tumor_instance_5 = harmonizer.patient_data["IMPRESS-X_0005_1"].tumor_type
+    tumor_instance_5 = harmonizer.patient_data["tumor4_slot2_and_sp"].tumor_type
     assert tumor_instance_5.icd10_code == "C23.20"
     assert tumor_instance_5.icd10_description == "tumor4"
     assert tumor_instance_5.main_tumor_type == "tumor4_subtype1"
@@ -151,32 +153,32 @@ def test_study_drugs_processing(study_drugs_fixture):
 
     harmonizer._process_study_drugs()
 
-    study_drug_instance_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].study_drugs
+    study_drug_instance_1 = harmonizer.patient_data["sd_from_alt_slots"].study_drugs
     assert study_drug_instance_1.primary_treatment_drug == "Traztuzumab"
     assert study_drug_instance_1.primary_treatment_drug_code == 31
     assert study_drug_instance_1.secondary_treatment_drug == "Tafinlar"
     assert study_drug_instance_1.secondary_treatment_drug_code == 10
 
-    study_drug_instance_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].study_drugs
+    study_drug_instance_2 = harmonizer.patient_data["sd1_match_sd2_match"].study_drugs
     assert study_drug_instance_2.primary_treatment_drug == "some drug"
     assert study_drug_instance_2.primary_treatment_drug_code == 99
     assert study_drug_instance_2.secondary_treatment_drug == "some drug 2"
     assert study_drug_instance_2.secondary_treatment_drug_code == 1
 
-    study_drug_instance_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].study_drugs
+    study_drug_instance_3 = harmonizer.patient_data["sd1_mismatch1_sd2_mismatch1_2"].study_drugs
     assert study_drug_instance_3.primary_treatment_drug == "mismatch_1"
     assert study_drug_instance_3.primary_treatment_drug_code == 10
     assert study_drug_instance_3.secondary_treatment_drug == "mismatch_1_2"
     assert study_drug_instance_3.secondary_treatment_drug_code == 12
 
-    study_drug_instance_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].study_drugs
+    study_drug_instance_4 = harmonizer.patient_data["sd1_mismatch2_sd2_mismatch2_1"].study_drugs
     assert study_drug_instance_4.primary_treatment_drug == "mismatch_2"
     assert study_drug_instance_4.primary_treatment_drug_code == 50
     assert study_drug_instance_4.secondary_treatment_drug == "mismatch_2_1"
     assert study_drug_instance_4.secondary_treatment_drug_code == 60
 
     # data with mutually exclusive fields colliding is logged, and returned as None
-    assert harmonizer.patient_data["IMPRESS-X_0005_1"].study_drugs is None
+    assert harmonizer.patient_data["sd_collision"].study_drugs is None
 
 
 def test_date_of_death_processing(date_of_death_fixture):
@@ -189,11 +191,11 @@ def test_date_of_death_processing(date_of_death_fixture):
 
     harmonizer._process_date_of_death()
 
-    assert harmonizer.patient_data["IMPRESS-X_0001_1"].date_of_death == dt.date(1990, 7, 2)
-    assert harmonizer.patient_data["IMPRESS-X_0002_1"].date_of_death == dt.date(2016, 9, 15)
-    assert harmonizer.patient_data["IMPRESS-X_0003_1"].date_of_death == dt.date(1900, 1, 1)
-    assert harmonizer.patient_data["IMPRESS-X_0004_1"].date_of_death == dt.date(1999, 9, 9)
-    assert harmonizer.patient_data["IMPRESS-X_0005_1"].date_of_death is None
+    assert harmonizer.patient_data["both_partial_nk"].date_of_death == dt.date(1990, 7, 2)
+    assert harmonizer.patient_data["eos_valid_fu_partial_nk"].date_of_death == dt.date(2016, 9, 15)
+    assert harmonizer.patient_data["fu_valid_only"].date_of_death == dt.date(1900, 1, 1)
+    assert harmonizer.patient_data["eos_valid_fu_partial_upper_nk"].date_of_death == dt.date(1999, 9, 9)
+    assert harmonizer.patient_data["both_invalid"].date_of_death is None
 
 
 def test_biomarker_processing(biomarker_fixture):
@@ -207,35 +209,35 @@ def test_biomarker_processing(biomarker_fixture):
 
     harmonizer._process_biomarkers()
 
-    biomarker_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].biomarker
+    biomarker_1 = harmonizer.patient_data["mut_braf_activating"].biomarker
     assert biomarker_1.gene_and_mutation == "BRAF activating mutations"
     assert biomarker_1.gene_and_mutation_code == 21
     assert biomarker_1.cohort_target_name == "BRAF Non-V600 activating mutations"
     assert biomarker_1.cohort_target_mutation == "BRAF Non-V600 activating mutations"
     assert biomarker_1.date == dt.date(1900, 7, 15)
 
-    biomarker_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].biomarker
+    biomarker_2 = harmonizer.patient_data["some_info_no_mut"].biomarker
     assert biomarker_2.gene_and_mutation is None
     assert biomarker_2.gene_and_mutation_code is None
     assert biomarker_2.cohort_target_name == "some info"
     assert biomarker_2.cohort_target_mutation is None
     assert biomarker_2.date == dt.date(1980, 2, 15)
 
-    biomarker_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].biomarker
+    biomarker_3 = harmonizer.patient_data["brca1_inactivating"].biomarker
     assert biomarker_3.gene_and_mutation == "BRCA1 inactivating mutation"
     assert biomarker_3.gene_and_mutation_code == 2
     assert biomarker_3.cohort_target_name == "BRCA1 stop-gain del exon 11"
     assert biomarker_3.cohort_target_mutation == "BRCA1 stop-gain deletion"
     assert biomarker_3.date is None
 
-    biomarker_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].biomarker
+    biomarker_4 = harmonizer.patient_data["sdhaf2_mut"].biomarker
     assert biomarker_4.gene_and_mutation == "SDHAF2 mutation"
     assert biomarker_4.gene_and_mutation_code == -1
     assert biomarker_4.cohort_target_name == "more info"
     assert biomarker_4.cohort_target_mutation is None
     assert biomarker_4.date == dt.date(1999, 7, 11)
 
-    biomarker_5 = harmonizer.patient_data["IMPRESS-X_0005_1"].biomarker
+    biomarker_5 = harmonizer.patient_data["code_only_misc"].biomarker
     assert biomarker_5.gene_and_mutation is None
     assert biomarker_5.gene_and_mutation_code == 10
     assert biomarker_5.cohort_target_name is None
@@ -256,23 +258,23 @@ def test_lost_to_followup(lost_to_followup_fixture):
 
     harmonizer._process_date_lost_to_followup()
 
-    ins_1 = harmonizer.patient_data["IMPRESS-X_0001_1"].lost_to_followup
+    ins_1 = harmonizer.patient_data["alive_valid"].lost_to_followup
     assert not ins_1.lost_to_followup
     assert ins_1.date_lost_to_followup is None
 
-    ins_2 = harmonizer.patient_data["IMPRESS-X_0002_1"].lost_to_followup
+    ins_2 = harmonizer.patient_data["death_valid"].lost_to_followup
     assert not ins_2.lost_to_followup
     assert ins_2.date_lost_to_followup is None
 
-    ins_3 = harmonizer.patient_data["IMPRESS-X_0003_1"].lost_to_followup
+    ins_3 = harmonizer.patient_data["ltfu_valid"].lost_to_followup
     assert ins_3.lost_to_followup
     assert ins_3.date_lost_to_followup == dt.date(1900, 1, 1)
 
-    ins_4 = harmonizer.patient_data["IMPRESS-X_0004_1"].lost_to_followup
+    ins_4 = harmonizer.patient_data["alive_lowercase_code_missing"].lost_to_followup
     assert not ins_4.lost_to_followup
     assert ins_4.date_lost_to_followup is None
 
-    ins_5 = harmonizer.patient_data["IMPRESS-X_0005_1"].lost_to_followup
+    ins_5 = harmonizer.patient_data["invalid_dates"].lost_to_followup
     assert not ins_5.lost_to_followup
     assert ins_5.date_lost_to_followup is None
 

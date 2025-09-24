@@ -4,245 +4,426 @@ from typing import List
 import pytest
 import polars as pl
 
-# TODO: also store full mock data for trials and use in intragation test
-#   and maybe move fixture to conf test later if needed
+
+@dataclass(frozen=True, slots=True)
+class SubjectIdRow:
+    SubjectId: str
 
 
 @pytest.fixture
-def subject_id_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-                "IMPRESS-X_0005_1",
-                "IMPRESS-X_0005_2",
-            ],
-        },
-    )
+def subject_id_fixture() -> pl.DataFrame:
+    rows: List[SubjectIdRow] = [
+        SubjectIdRow("unique_1"),
+        SubjectIdRow("unique_2"),
+        SubjectIdRow("unique_3"),
+        SubjectIdRow("unique_4"),
+        SubjectIdRow("duplicate_id"),
+        SubjectIdRow("duplicate_id"),
+        SubjectIdRow("duplicate_variant"),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class CohortNameRow:
+    SubjectId: str
+    COH_COHORTNAME: str | None = None
 
 
 @pytest.fixture
-def cohort_name_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            "COH_COHORTNAME": [
-                "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib",
-                "",
-                "",
-                "",
-                "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab",
-            ],
-        },
-    )
+def cohort_name_fixture() -> pl.DataFrame:
+    rows: List[CohortNameRow] = [
+        CohortNameRow(
+            "cohort_hit_1",
+            "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib",
+        ),
+        CohortNameRow(
+            "cohort_empty_1",
+            None,
+        ),
+        CohortNameRow(
+            "cohort_empty_2",
+            "",
+        ),
+        CohortNameRow(
+            "cohort_empty_3",
+        ),
+        CohortNameRow(
+            "cohort_hit_2",
+            "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class AgeRow:
+    SubjectId: str
+    DM_BRTHDAT: str | None = None
+    TR_TRC1_DT: str | None = None
 
 
 @pytest.fixture
-def age_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            "DM_BRTHDAT": ["1900-06-02", "1950", "2000-02-14", "1970", "1990-12-07"],
-            "TR_TRC1_DT": ["1990-01-30", "1990-01-01", "2020-03-25", "2000", "2000-01"],
-        },
-    )
+def age_fixture() -> pl.DataFrame:
+    rows: List[AgeRow] = [
+        AgeRow(
+            "birth_full_tx_full",
+            DM_BRTHDAT="1900-06-02",
+            TR_TRC1_DT="1990-01-30",
+        ),
+        AgeRow(
+            "birth_year_tx_full",
+            DM_BRTHDAT="1950",
+            TR_TRC1_DT="1990-01-01",
+        ),
+        AgeRow(
+            "birth_full_tx_full_recent",
+            DM_BRTHDAT="2000-02-14",
+            TR_TRC1_DT="2020-03-25",
+        ),
+        AgeRow(
+            "birth_year_tx_year",
+            DM_BRTHDAT="1970",
+            TR_TRC1_DT="2000",
+        ),
+        AgeRow(
+            "birth_full_tx_year_month",
+            DM_BRTHDAT="1990-12-07",
+            TR_TRC1_DT="2000-01",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class GenderRow:
+    SubjectId: str
+    DM_SEX: str | None = None
 
 
 @pytest.fixture
-def gender_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-                "IMPRESS-X_0006_1",
-                "IMPRESS-X_0007_1",
-                "IMPRESS-X_0008_1",
-            ],
-            "DM_SEX": ["Female", "Male", "f", "m", "error", "", "female", "male"],
-        },
-    )
+def gender_fixture() -> pl.DataFrame:
+    rows: List[GenderRow] = [
+        GenderRow(
+            "female_titlecase",
+            DM_SEX="Female",
+        ),
+        GenderRow(
+            "male_titlecase",
+            DM_SEX="Male",
+        ),
+        GenderRow(
+            "female_short_f",
+            DM_SEX="f",
+        ),
+        GenderRow(
+            "male_short_m",
+            DM_SEX="m",
+        ),
+        GenderRow(
+            "invalid_value",
+            DM_SEX="error",
+        ),
+        GenderRow(
+            "empty_value",
+            DM_SEX="",
+        ),
+        GenderRow(
+            "female_lowercase",
+            DM_SEX="female",
+        ),
+        GenderRow(
+            "male_lowercase",
+            DM_SEX="male",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class TumorTypeRow:
+    SubjectId: str
+    COH_ICD10COD: str | None = None
+    COH_ICD10DES: str | None = None
+    COH_COHTTYPE: str | None = None
+    COH_COHTTYPECD: int | None = None
+    COH_COHTTYPE__2: str | None = None
+    COH_COHTTYPE__2CD: int | None = None
+    COH_COHTT: str | None = None
+    COH_COHTTOSP: str | None = None
 
 
 @pytest.fixture
-def tumor_type_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            "COH_ICD10COD": ["C30", "C40.50", "C07", "C70.1", "C23.20"],
-            "COH_ICD10DES": ["tumor1", "CRC", "tumor2", "tumor3", "tumor4"],
-            "COH_COHTTYPE": [
-                "tumor1_subtype1",
-                "",
-                "tumor2_subtype1",
-                "tumor3_subtype1",
-                "",
-            ],
-            "COH_COHTTYPECD": [50, None, 70, 10, None],
-            "COH_COHTTYPE__2": ["", "CRC_subtype", "", "", "tumor4_subtype1"],
-            "COH_COHTTYPE__2CD": [None, 40, None, None, 30],
-            "COH_COHTT": ["tumor1_subtype2", "", "tumor2_subtype2", "", ""],
-            "COH_COHTTOSP": [
-                "tumor1_subtype3",
-                "",
-                "",
-                "tumor3_subtype2",
-                "tumor4_subtype2",
-            ],
-        },
-    )
+def tumor_type_fixture() -> pl.DataFrame:
+    rows: List[TumorTypeRow] = [
+        TumorTypeRow(
+            "tumor1_multi_subtypes",
+            COH_ICD10COD="C30",
+            COH_ICD10DES="tumor1",
+            COH_COHTTYPE="tumor1_subtype1",
+            COH_COHTTYPECD=50,
+            COH_COHTT="tumor1_subtype2",
+            COH_COHTTOSP="tumor1_subtype3",
+        ),
+        TumorTypeRow(
+            "crc_subtype_slot2",
+            COH_ICD10COD="C40.50",
+            COH_ICD10DES="CRC",
+            COH_COHTTYPECD=None,
+            COH_COHTTYPE__2="CRC_subtype",
+            COH_COHTTYPE__2CD=40,
+        ),
+        TumorTypeRow(
+            "tumor2_dual_subtypes",
+            COH_ICD10COD="C07",
+            COH_ICD10DES="tumor2",
+            COH_COHTTYPE="tumor2_subtype1",
+            COH_COHTTYPECD=70,
+            COH_COHTT="tumor2_subtype2",
+        ),
+        TumorTypeRow(
+            "tumor3_sp_subtype",
+            COH_ICD10COD="C70.1",
+            COH_ICD10DES="tumor3",
+            COH_COHTTYPE="tumor3_subtype1",
+            COH_COHTTYPECD=10,
+            COH_COHTTOSP="tumor3_subtype2",
+        ),
+        TumorTypeRow(
+            "tumor4_slot2_and_sp",
+            COH_ICD10COD="C23.20",
+            COH_ICD10DES="tumor4",
+            COH_COHTTYPECD=None,
+            COH_COHTTYPE__2="tumor4_subtype1",
+            COH_COHTTYPE__2CD=30,
+            COH_COHTTOSP="tumor4_subtype2",
+        ),
+    ]
+
+    recrods = [asdict(r) for r in rows]
+    return pl.from_dicts(recrods)
+
+
+@dataclass(frozen=True, slots=True)
+class StudyDrugsRow:
+    SubjectId: str
+    # sd1
+    COH_COHALLO1: str | None = None
+    COH_COHALLO1CD: str | None = None
+    COH_COHALLO1__2: str | None = None
+    COH_COHALLO1__2CD: str | None = None
+    COH_COHALLO1__3: str | None = None
+    COH_COHALLO1__3CD: str | None = None
+    # sd2
+    COH_COHALLO2: str | None = None
+    COH_COHALLO2CD: str | None = None
+    COH_COHALLO2__2: str | None = None
+    COH_COHALLO2__2CD: str | None = None
+    COH_COHALLO2__3: str | None = None
+    COH_COHALLO2__3CD: str | None = None
 
 
 @pytest.fixture
-def study_drugs_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            # sd1
-            "COH_COHALLO1": ["", "some drug", "mismatch_1", "", "collision"],
-            "COH_COHALLO1CD": ["", "99", "10", "", ""],
-            "COH_COHALLO1__2": ["Traztuzumab", "", "", "mismatch_2", ""],
-            "COH_COHALLO1__2CD": ["31", "", "", "50", ""],
-            "COH_COHALLO1__3": ["", "", "", "", "some_drug_3"],
-            "COH_COHALLO1__3CD": ["", "", "", "", "99"],
-            # sd2
-            "COH_COHALLO2": ["", "some drug 2", "", "mismatch_2_1", ""],
-            "COH_COHALLO2CD": ["", "1", "", "60", ""],
-            "COH_COHALLO2__2": ["Tafinlar", "", "mismatch_1_2", "", ""],
-            "COH_COHALLO2__2CD": ["10", "", "12", "", "5"],
-            "COH_COHALLO2__3": ["", "", "", "", "some_drug_3_2"],
-            "COH_COHALLO2__3CD": ["", "", "", "", "999"],
-        },
-    )
+def study_drugs_fixture() -> pl.DataFrame:
+    rows: List[StudyDrugsRow] = [
+        StudyDrugsRow(
+            "sd_from_alt_slots",
+            COH_COHALLO1__2="Traztuzumab",
+            COH_COHALLO1__2CD="31",
+            COH_COHALLO2__2="Tafinlar",
+            COH_COHALLO2__2CD="10",
+        ),
+        StudyDrugsRow(
+            "sd1_match_sd2_match",
+            COH_COHALLO1="some drug",
+            COH_COHALLO1CD="99",
+            COH_COHALLO2="some drug 2",
+            COH_COHALLO2CD="1",
+        ),
+        StudyDrugsRow(
+            "sd1_mismatch1_sd2_mismatch1_2",
+            COH_COHALLO1="mismatch_1",
+            COH_COHALLO1CD="10",
+            COH_COHALLO2__2="mismatch_1_2",
+            COH_COHALLO2__2CD="12",
+        ),
+        StudyDrugsRow(
+            "sd1_mismatch2_sd2_mismatch2_1",
+            COH_COHALLO1__2="mismatch_2",
+            COH_COHALLO1__2CD="50",
+            COH_COHALLO2="mismatch_2_1",
+            COH_COHALLO2CD="60",
+        ),
+        StudyDrugsRow(
+            "sd_collision",
+            COH_COHALLO1="collision",
+            COH_COHALLO1__3="some_drug_3",
+            COH_COHALLO1__3CD="99",
+            COH_COHALLO2__2CD="5",
+            COH_COHALLO2__3="some_drug_3_2",
+            COH_COHALLO2__3CD="999",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class BiomarkerRow:
+    SubjectId: str
+    COH_GENMUT1: str | None = None
+    COH_GENMUT1CD: int | None = None
+    COH_COHCTN: str | None = None
+    COH_COHTMN: str | None = None
+    COH_EventDate: str | None = None
 
 
 @pytest.fixture
-def biomarker_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            "COH_GENMUT1": [
-                "BRAF activating mutations",
-                "",
-                "BRCA1 inactivating mutation",
-                "SDHAF2 mutation",
-                "",
-            ],
-            "COH_GENMUT1CD": [21, None, 2, -1, 10],
-            "COH_COHCTN": [
-                "BRAF Non-V600 activating mutations",
-                "some info",
-                "BRCA1 stop-gain del exon 11",
-                "more info",
-                "",
-            ],
-            "COH_COHTMN": [
-                "BRAF Non-V600 activating mutations",
-                "",
-                "BRCA1 stop-gain deletion",
-                "",
-                "some other info",
-            ],
-            "COH_EventDate": [
-                "1900-nk-nk",
-                "1980-02-nk",
-                "not a date",
-                "1999-nk-11",
-                "",
-            ],
-        },
-    )
+def biomarker_fixture() -> pl.DataFrame:
+    rows: List[BiomarkerRow] = [
+        BiomarkerRow(
+            "mut_braf_activating",
+            COH_GENMUT1="BRAF activating mutations",
+            COH_GENMUT1CD=21,
+            COH_COHCTN="BRAF Non-V600 activating mutations",
+            COH_COHTMN="BRAF Non-V600 activating mutations",
+            COH_EventDate="1900-nk-nk",
+        ),
+        BiomarkerRow(
+            "some_info_no_mut",
+            COH_GENMUT1="",
+            COH_GENMUT1CD=None,
+            COH_COHCTN="some info",
+            COH_COHTMN="",
+            COH_EventDate="1980-02-nk",
+        ),
+        BiomarkerRow(
+            "brca1_inactivating",
+            COH_GENMUT1="BRCA1 inactivating mutation",
+            COH_GENMUT1CD=2,
+            COH_COHCTN="BRCA1 stop-gain del exon 11",
+            COH_COHTMN="BRCA1 stop-gain deletion",
+            COH_EventDate="not a date",
+        ),
+        BiomarkerRow(
+            "sdhaf2_mut",
+            COH_GENMUT1="SDHAF2 mutation",
+            COH_GENMUT1CD=-1,
+            COH_COHCTN="more info",
+            COH_COHTMN="",
+            COH_EventDate="1999-nk-11",
+        ),
+        BiomarkerRow(
+            "code_only_misc",
+            COH_GENMUT1="",
+            COH_GENMUT1CD=10,
+            COH_COHCTN="",
+            COH_COHTMN="some other info",
+            COH_EventDate="",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class DateOfDeathRow:
+    SubjectId: str
+    EOS_DEATHDTC: str | None = None
+    FU_FUPDEDAT: str | None = None
 
 
 @pytest.fixture
-def date_of_death_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            "EOS_DEATHDTC": [
-                "1990-nk-02",
-                "1961-09-12",
-                "",
-                "1999-09-09",
-                "not a date",
-            ],
-            "FU_FUPDEDAT": [
-                "1990-nk-02",
-                "2016-09-nk",
-                "1900-01-01",
-                "1999-NK-NK",
-                "invalid date",
-            ],
-        },
-    )
+def date_of_death_fixture() -> pl.DataFrame:
+    rows: List[DateOfDeathRow] = [
+        DateOfDeathRow(
+            "both_partial_nk",
+            EOS_DEATHDTC="1990-nk-02",
+            FU_FUPDEDAT="1990-nk-02",
+        ),
+        DateOfDeathRow(
+            "eos_valid_fu_partial_nk",
+            EOS_DEATHDTC="1961-09-12",
+            FU_FUPDEDAT="2016-09-nk",
+        ),
+        DateOfDeathRow(
+            "fu_valid_only",
+            EOS_DEATHDTC="",
+            FU_FUPDEDAT="1900-01-01",
+        ),
+        DateOfDeathRow(
+            "eos_valid_fu_partial_upper_nk",
+            EOS_DEATHDTC="1999-09-09",
+            FU_FUPDEDAT="1999-NK-NK",
+        ),
+        DateOfDeathRow(
+            "both_invalid",
+            EOS_DEATHDTC="not a date",
+            FU_FUPDEDAT="invalid date",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
+
+
+@dataclass(frozen=True, slots=True)
+class LostToFollowupRow:
+    SubjectId: str | None = None
+    FU_FUPALDAT: str | None = None
+    FU_FUPDEDAT: str | None = None
+    FU_FUPSST: str | None = None
+    FU_FUPSSTCD: str | None = None
 
 
 @pytest.fixture
-def lost_to_followup_fixture():
-    return pl.DataFrame(
-        data={
-            "SubjectId": [
-                "IMPRESS-X_0001_1",
-                "IMPRESS-X_0002_1",
-                "IMPRESS-X_0003_1",
-                "IMPRESS-X_0004_1",
-                "IMPRESS-X_0005_1",
-            ],
-            "FU_FUPALDAT": [
-                "1990-10-02",
-                "",
-                "1900-01-01",
-                "1999-09-09",
-                "not a date",
-            ],
-            "FU_FUPDEDAT": ["", "1980-09-12", "", "", "invalid date"],
-            "FU_FUPSST": ["Alive", "Death", "lost to follow up", "alive", ""],
-            "FU_FUPSSTCD": ["1", "2", "3", "", ""],
-        },
-    )
+def lost_to_followup_fixture() -> pl.DataFrame:
+    rows: List[LostToFollowupRow] = [
+        LostToFollowupRow(
+            "alive_valid",
+            FU_FUPALDAT="1990-10-02",
+            FU_FUPSST="Alive",
+            FU_FUPSSTCD="1",
+        ),
+        LostToFollowupRow(
+            "death_valid",
+            FU_FUPDEDAT="1980-09-12",
+            FU_FUPSST="Death",
+            FU_FUPSSTCD="2",
+        ),
+        LostToFollowupRow(
+            "ltfu_valid",
+            FU_FUPALDAT="1900-01-01",
+            FU_FUPSST="lost to follow up",
+            FU_FUPSSTCD="3",
+        ),
+        LostToFollowupRow(
+            "alive_lowercase_code_missing",
+            FU_FUPALDAT="1999-09-09",
+            FU_FUPSST="alive",
+            FU_FUPSSTCD="",
+        ),
+        LostToFollowupRow(
+            "invalid_dates",
+            FU_FUPALDAT="not a date",
+            FU_FUPDEDAT="invalid date",
+            FU_FUPSST="",
+            FU_FUPSSTCD="",
+        ),
+    ]
+
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
 
 
 @dataclass(frozen=True, slots=True)
