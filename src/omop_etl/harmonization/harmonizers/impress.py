@@ -86,92 +86,101 @@ class ImpressHarmonizer(BaseHarmonizer):
         """Process patient ID and create patient object"""
         patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
 
-        # create initial patient object
-        for patient_id in patient_ids:
-            self.patient_data[patient_id] = Patient(trial_id=self.trial_id, patient_id=patient_id)
+        for pid in patient_ids:
+            self.patient_data[pid] = Patient(trial_id=self.trial_id, patient_id=pid)
 
     def _process_cohort_name(self) -> None:
         """Process cohort names and update patient objects"""
-        cohort_data = self.data.filter(pl.col("COH_COHORTNAME").is_not_null())
+        cohort_data = self.data.filter(PolarsParsers.null_if_na(pl.col("COH_COHORTNAME")).is_not_null())
 
         for row in cohort_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
+            pid = row["SubjectId"]
             cohort_name = row["COH_COHORTNAME"]
-            if cohort_name == "":
-                cohort_name = None
-
-            if patient_id in self.patient_data:
-                self.patient_data[patient_id].cohort_name = cohort_name
+            self.patient_data[pid].cohort_name = cohort_name
 
     def _process_gender(self) -> None:
-        gender_data = (self.data.select(["SubjectId", "DM_SEX"])).filter(pl.col("DM_SEX").is_not_null())
+        gender_data = (self.data.lazy().select(["SubjectId", "DM_SEX"])).filter(PolarsParsers.null_if_na(pl.col("DM_SEX")).is_not_null())
+        gender_data = gender_data.with_columns(
+            processed_sex=(
+                pl.when(pl.col("DM_SEX").cast(pl.Utf8).str.to_lowercase().is_in(["m", "male"]))
+                .then(pl.lit("male"))
+                .when(pl.col("DM_SEX").cast(pl.Utf8).str.to_lowercase().is_in(["f", "female"]))
+                .then(pl.lit("female"))
+                .otherwise(None)
+            ),
+        ).collect()
 
         for row in gender_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            sex = TypeCoercion.to_optional_string(row["DM_SEX"])
-            if not sex:
-                log.warning(f"No sex found for patient {patient_id}")
-                continue
-
-            if sex.lower() == "m" or sex.lower() == "male":
-                sex = "male"
-            elif sex.lower() == "f" or sex.lower() == "female":
-                sex = "female"
-            else:
-                log.warning(f"Cannot parse sex from {patient_id}, {sex}")
-                continue
-
-            self.patient_data[patient_id].sex = sex
+            pid = row["SubjectId"]
+            sex = row["processed_sex"]
+            self.patient_data[pid].sex = sex
 
     def _process_age(self) -> None:
         """Process and calculate age at treatment start and update patient object"""
         age_data = (
-            self.data.lazy()
-            .group_by("SubjectId")
+            self.data.group_by("SubjectId")
             .agg(
                 [
                     pl.col("DM_BRTHDAT").drop_nulls().first().alias("birth_date"),
-                    pl.col("TR_TRC1_DT").drop_nulls().min().alias("first_treatment"),
+                    pl.col("TR_TRC1_DT").drop_nulls().max().alias("last_treatment"),
                 ],
             )
-            .collect()
+            .with_columns(
+                birth_date=(PolarsParsers.parse_date_column(pl.col("birth_date"))),
+                last_treatment=(PolarsParsers.parse_date_column(pl.col("last_treatment"))),
+            )
+            .with_columns(
+                age=((pl.col("last_treatment") - pl.col("birth_date")).dt.total_days().cast(pl.Int64) / 365.25).cast(pl.Int64),
+            )
         )
 
         for row in age_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            birth_date = CoreParsers.parse_date_flexible(row["birth_date"])
-            latest_treatment = CoreParsers.parse_date_flexible(row["first_treatment"])
-
-            # TODO: use inclusion date or molecular profiling date as fallbacks?
-            if not birth_date:
-                log.warning(f"No birth date found for {patient_id}")
-                continue
-
-            if not latest_treatment:
-                log.warning(f"No latest treatment date found for {patient_id}")
-                continue
-
-            age_years = int((latest_treatment - birth_date).days / 365.25)
-            self.patient_data[patient_id].age = age_years
+            pid = row["SubjectId"]
+            self.patient_data[pid].age = row["age"]
 
     def _process_tumor_type(self) -> None:
         tumor_data = (
-            self.data.select(
-                (
-                    "SubjectId",
-                    "COH_ICD10COD",
-                    "COH_ICD10DES",
-                    "COH_COHTTYPE",
-                    "COH_COHTTYPECD",
-                    "COH_COHTTYPE__2",
-                    "COH_COHTTYPE__2CD",
-                    "COH_COHTT",
-                    "COH_COHTTOSP",
+            (
+                self.data.select(
+                    (
+                        "SubjectId",
+                        "COH_ICD10COD",
+                        "COH_ICD10DES",
+                        "COH_COHTTYPE",
+                        "COH_COHTTYPECD",
+                        "COH_COHTTYPE__2",
+                        "COH_COHTTYPE__2CD",
+                        "COH_COHTT",
+                        "COH_COHTTOSP",
+                    ),
+                )
+            )
+            .filter(
+                pl.col("COH_ICD10COD").is_not_null()
+                | pl.col("COH_COHTTYPE").is_not_null()
+                | pl.col("COH_COHTTYPE__2").is_not_null()
+                | pl.col("COH_COHTT").is_not_null()
+                | pl.col("COH_COHTTOSP").is_not_null(),
+            )
+            .with_columns(
+                icd10_code=TypeCoercion.to_optional_string(PolarsParsers.null_if_na(pl.col("COH_ICD10COD"))),
+                icd10_description=TypeCoercion.to_optional_string(PolarsParsers.null_if_na(pl.col("COH_ICD10COD"))),
+                cohort_tumor_type=TypeCoercion.to_optional_string(PolarsParsers.null_if_na(pl.col("COH_COHTT"))),
+                other_tumor_type=TypeCoercion.to_optional_string(PolarsParsers.null_if_na(pl.col("COH_COHTTOSP"))),
+            )
+            .with_columns(
+                main_tumor_type=(
+                    pl.when(
+                        pl.col(TypeCoercion.to_optional_string(PolarsParsers.null_if_na(pl.col("COH_COHTTYPE"))))
+                        & pl.col(TypeCoercion.to_optional_int(pl.col("COH_COHTTYPECD"))),
+                    ).then(
+                        pl.lit(),
+                    )
                 ),
             )
-        ).filter(
-            pl.col("COH_ICD10COD").is_not_null(),
-        )  # Note: assumes tumor type data is always on the same row and we don't have multiple
+        )
+
+        # todo: finish refactor to polars
 
         # update patient objects
         for row in tumor_data.iter_rows(named=True):
@@ -1759,7 +1768,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_clinical_benefit(self):
         """
         Clinical benefit at W16 (visit 3).
-        Note: If patient has iRecist *and* Recist at same assessment, iRecist evaluation currently has prevalence.
+        Note: If patient has iRecist *and* Recist at same assessment, iRecist evaluation takes precedence as it's a more specific assessment.
         """
         timepoint = "V03"
 

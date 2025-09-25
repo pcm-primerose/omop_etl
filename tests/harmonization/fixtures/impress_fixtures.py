@@ -22,7 +22,7 @@ def subject_id_fixture() -> pl.DataFrame:
         SubjectIdRow("duplicate_variant"),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -56,7 +56,7 @@ def cohort_name_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -97,7 +97,7 @@ def age_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -144,7 +144,7 @@ def gender_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -208,7 +208,7 @@ def tumor_type_fixture() -> pl.DataFrame:
         ),
     ]
 
-    recrods = [asdict(r) for r in rows]
+    recrods = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(recrods)
 
 
@@ -273,7 +273,7 @@ def study_drugs_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -332,7 +332,7 @@ def biomarker_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -373,7 +373,7 @@ def date_of_death_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -422,13 +422,12 @@ def lost_to_followup_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
 @dataclass(frozen=True, slots=True)
 class EvaluabilityRow:
-    # todo: refactor to str when processing method is refactored to polars
     SubjectId: str
     TR_TRTNO: int | None = None
     TR_TRC1_DT: str | None = None
@@ -448,7 +447,7 @@ def evaluability_fixture() -> pl.DataFrame:
         ),
         EvaluabilityRow(
             "iv_two_rows_a",
-            TR_TRTNO=1,
+            TR_TRTNO="1",  # type: ignore
             TR_TRC1_DT="2001-01-01",
             TR_TRCYNCD=1,
         ),
@@ -586,7 +585,7 @@ def evaluability_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -653,7 +652,7 @@ def ecog_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -719,7 +718,7 @@ def medical_history_fixture():
         MedicalHistoryRow("missing"),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -784,7 +783,7 @@ def adverse_event_number_fixture():
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -836,7 +835,7 @@ def serious_adverse_event_number_fixture():
         SeriousAdverseEventNumberRow("0_events_no_data", AE_AESERCD="", AE_SAESTDAT=""),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -977,7 +976,7 @@ def baseline_tumor_assessment_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1027,7 +1026,7 @@ def previous_treatment_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1074,7 +1073,7 @@ def treatment_start_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1131,7 +1130,7 @@ def treatment_stop_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1170,7 +1169,7 @@ def last_treatment_start_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1208,13 +1207,13 @@ def treatment_cycle_fixture() -> pl.DataFrame:
         TreatmentCycleRow(
             "iv_two_cycles",
             TR_TRNAME="IV Drug",
-            TR_TRTNO="1",
-            TR_TRCNO1="1",
+            TR_TRTNO="1",  # type: ignore
+            TR_TRCNO1="1",  # type: ignore
             TR_TRC1_DT="1900-01-01",
             TR_TRIVDS1="100",
             TR_TRIVU1="mg",
             TR_TRIVDELYN1="Yes",
-            TR_TRCYNCD="1",
+            TR_TRCYNCD="1",  # type: ignore
         ),
         TreatmentCycleRow(
             "iv_two_cycles",
@@ -1290,7 +1289,7 @@ def treatment_cycle_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1313,9 +1312,9 @@ def concomitant_medication_fixture() -> pl.DataFrame:
         ConcomitantMedicationRow(
             "name_is_na",
             CM_CMTRT="Na",
-            CM_CMMHYNCD="0",
+            CM_CMMHYNCD="0",  # type: ignore
             CM_CMAEYN="No",
-            CM_CMONGOCD="0",
+            CM_CMONGOCD="0",  # type: ignore
             CM_CMSTDAT="not a date",
             CM_CMENDAT=None,
             CM_CMSPID=10,
@@ -1323,12 +1322,12 @@ def concomitant_medication_fixture() -> pl.DataFrame:
         ConcomitantMedicationRow(
             "all_fields",
             CM_CMTRT="  Paracetamol  ",
-            CM_CMMHYNCD="1",
+            CM_CMMHYNCD="1",  # type: ignore
             CM_CMAEYN="Yes",
-            CM_CMONGOCD="1",
+            CM_CMONGOCD="1",  # type: ignore
             CM_CMSTDAT="1900-01-01",
             CM_CMENDAT="1900-01-10",
-            CM_CMSPID="2",
+            CM_CMSPID="2",  # type: ignore
         ),
         ConcomitantMedicationRow(
             "ordering",
@@ -1369,7 +1368,7 @@ def concomitant_medication_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1416,7 +1415,7 @@ def adverse_events_flag_fixture() -> pl.DataFrame:
         AdverseEventsFlagRow("multirow_all_false"),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1457,15 +1456,15 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_AEOUT="Recovered",
             AE_AESTDAT="1900-01-01",
             AE_AEENDAT="1900-01-03",
-            AE_AESERCD="0",
-            AE_SAEEXP1CD="1",
-            AE_SAEEXP2CD="2",
-            AE_AEREL1CD="4",
-            AE_AEREL2CD="3",
+            AE_AESERCD="0",  # type: ignore
+            AE_SAEEXP1CD="1",  # type: ignore
+            AE_SAEEXP2CD="2",  # type: ignore
+            AE_AEREL1CD="4",  # type: ignore
+            AE_AEREL2CD="3",  # type: ignore
             AE_AETRT1="Drug A",
             AE_AETRT2="Drug B",
             TR_TRNAME="Regimen X",
-            TR_TRTNO="1",
+            TR_TRTNO="1",  # type: ignore
         ),
         AdverseEventRow(
             "serious_fill_end_from_death",
@@ -1504,7 +1503,7 @@ def adverse_events_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1539,7 +1538,7 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             RA_RAASSESS1="RECIST",
             RA_RABASECH="25",
             RA_RARECCH="0",
-            RA_RANLBASECD="1",
+            RA_RANLBASECD="1",  # type: ignore
             RA_EventDate="1900-01-10",
             RA_RATIMRES="  PR  ",
             RA_RAPROGDT="1900-02-01",
@@ -1586,7 +1585,7 @@ def tumor_assessments_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1621,9 +1620,9 @@ def best_overall_response_fixture() -> pl.DataFrame:
         BestOverallResponseRow(
             "both_pick_irecist",
             RA_RATIMRES="SD",
-            RA_RATIMRESCD="30",
+            RA_RATIMRESCD="30",  # type: ignore
             RA_RAiMOD="iCR",
-            RA_RAiMODCD="5",
+            RA_RAiMODCD="5",  # type: ignore
             RA_EventDate="1900-02-01",
         ),
         BestOverallResponseRow(
@@ -1662,7 +1661,7 @@ def best_overall_response_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1713,7 +1712,7 @@ def clinical_benefit_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)
 
 
@@ -1774,5 +1773,5 @@ def eot_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]
+    records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)

@@ -226,17 +226,8 @@ class PolarsParsers:
     def yes_no_to_bool(expr: str | pl.Expr) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
         s = e.cast(pl.Utf8).str.strip_chars().str.to_lowercase()
-        return (
-            pl.when(s.is_in(["yes", "y", "true", "1"]))
-            .then(True)
-            .when(s.is_in(["no", "n", "false", "0"]))
-            .then(False)
-            .otherwise(None)
-            .cast(pl.Boolean)
-        )
+        return pl.when(s.is_in(["yes", "y", "true"])).then(True).when(s.is_in(["no", "n", "false"])).then(False).otherwise(None).cast(pl.Boolean)
 
-    # TODO: fix: Comparisons with None always result in null. Consider using `.is_null()` or `.is_not_null()`.
-    #   -also, cast str input to int before comparison, should handle str of int case
     @staticmethod
     def int_to_bool(expr: pl.Expr, true_int: int = 1, false_int: int = 0) -> pl.Expr:
         e = pl.col(expr) if isinstance(expr, str) else expr
