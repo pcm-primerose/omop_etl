@@ -27,9 +27,9 @@ def sample_config():
 def sample_dataframe():
     return pl.DataFrame(
         {
-            "SUBJECTID": ["001", "002", "003"],  # allcaps
+            "SUBJECTID": ["001", "002", "003"],
             "age": [25, 30, 35],
-            "Sex": ["M", "F", "M"],  # mixed casing
+            "Sex": ["M", "F", "M"],
             "extra_col": ["A", "B", "C"],
         },
     )
@@ -42,11 +42,8 @@ class TestBaseReaderNormalization:
         expected_cols = ["SubjectId", "Age", "Sex"]
         result = BaseReader.normalize_dataframe(sample_dataframe, expected_cols)
 
-        # should have correct columns in correct order
-        assert result.columns == expected_cols
+        assert result.columns == expected_cols, "should have correct columns in correct order"
         assert result.height == 3
-
-        # should preserve data
         assert result["SubjectId"].to_list() == ["001", "002", "003"]
         assert result["Age"].to_list() == [25, 30, 35]
 
@@ -56,7 +53,7 @@ class TestBaseReaderNormalization:
             BaseReader.normalize_dataframe(sample_dataframe, expected_cols)
 
     def test_normalize_dataframe_column_order_preserved(self, sample_dataframe):
-        expected_cols = ["Sex", "SubjectId", "Age"]  # diff order
+        expected_cols = ["Sex", "SubjectId", "Age"]
         result = BaseReader.normalize_dataframe(sample_dataframe, expected_cols)
         assert result.columns == expected_cols
 
@@ -352,11 +349,7 @@ def test_full_csv_workflow(tmp_path):
     visits_csv = tmp_path / "study_visits.csv"
 
     patients_csv.write_text(
-        "Study Metadata (skip)\n"
-        "SUBJECTID,AGE,SEX\n"  # different case
-        "P001,25,M\n"
-        "P002,30,F\n"
-        "P003,35,M\n",
+        "Study Metadata (skip)\nSUBJECTID,AGE,SEX\nP001,25,M\nP002,30,F\nP003,35,M\n",
     )
 
     visits_csv.write_text(
@@ -377,7 +370,6 @@ def test_full_csv_workflow(tmp_path):
     assert visits_data.data.height == 3
     assert visits_data.data.columns == ["SubjectId", "VisitDate", "VisitType"]
 
-    # verify type conversion worked
     if patients_data.data.schema["Age"] == pl.Int64:
         assert patients_data.data["Age"].to_list() == [25, 30, 35]
 
@@ -396,6 +388,5 @@ def test_mixed_case_column_handling(tmp_path):
     result = resolver.resolve(tmp_path, config)
     data = result.data[0]
 
-    # normalize to expected case
     assert data.data.columns == ["SubjectId", "TestValue", "Result_Code"]
     assert data.data.height == 2

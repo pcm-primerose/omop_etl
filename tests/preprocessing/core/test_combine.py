@@ -68,7 +68,7 @@ def demographics_merged_subjects(df_subjects, df_demographics) -> pl.DataFrame:
         sheet("subjects", df_subjects),
         sheet("demographics", df_demographics),
     )
-    combined = combine(e, on="SubjectId")
+    combined = combine(e, on="SubjectId")  # type: ignore
 
     aggregated = _aggregate_no_conflicts(combined)
     return aggregated
@@ -82,7 +82,7 @@ def all_merged(df_subjects, df_demographics, df_icd10, df_extra_subjectid) -> pl
         sheet("icd10", df_icd10),
         sheet("extra", df_extra_subjectid),
     )
-    combined = combine(e, on="SubjectId")
+    combined = combine(e, on="SubjectId")  # type: ignore
 
     # apply aggregations
     aggregated = _aggregate_no_conflicts(combined)
@@ -151,7 +151,7 @@ def test_sorting_handles_null_keys():
     df_with_nulls = pl.DataFrame({"SubjectId": ["B_001", None, "A_001"], "value": [1, 2, 3]})
 
     e = ecfg(sheet("test", df_with_nulls))
-    out = combine(e, on="SubjectId")
+    out = combine(e, on="SubjectId")  # type: ignore
 
     _keys = out.select("SubjectId").to_series().to_list()
     assert _keys == [
@@ -167,7 +167,7 @@ def test_total_row_count_matches_unique_keys(all_merged):
 
 def test_no_duplicate_rows_for_same_key(df_subjects):
     e = ecfg(sheet("subjects", df_subjects))
-    out = combine(e, on="SubjectId")
+    out = combine(e, on="SubjectId")  # type: ignore
     subject_ids = out.select("SubjectId").to_series()
 
     assert len(out) == len(df_subjects)
@@ -179,19 +179,19 @@ def test_missing_key_column_raises_error():
     e = ecfg(sheet("no_key", df_no_key))
 
     with pytest.raises(ValueError, match="'SubjectId' not in sheet no_key"):
-        combine(e, on="SubjectId")
+        combine(e, on="SubjectId")  # type: ignore
 
 
 def test_empty_ecrf_config_raises_error():
     e = ecfg()  # no sheets
     with pytest.raises(ValueError, match="No eCRF config data loaded"):
-        combine(e, on="SubjectId")
+        combine(e, on="SubjectId")  # type: ignore
 
 
 def test_custom_key_column(df_subjects):
     df_renamed = df_subjects.rename({"SubjectId": "PatientId"})
     e = ecfg(sheet("patients", df_renamed))
-    out = combine(e, on="PatientId")
+    out = combine(e, on="PatientId")  # type: ignore
 
     assert "PatientId" in out.columns
     assert "patients_sex" in out.columns

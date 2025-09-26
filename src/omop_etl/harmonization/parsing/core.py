@@ -41,13 +41,8 @@ class PolarsParsers:
 
     @staticmethod
     def to_optional_bool(x: StrOrExprOrScalar) -> pl.Expr:
-        """
-        Boolish strings to optional booleans:
-        yes|y|true -> True
-        no|n|false -> False
-        """
         expr = PolarsParsers._as_expr(x)
-        s = expr.cast(pl.Utf8).str.strip_chars().str.to_lowercase()
+        s = expr.cast(pl.Utf8, strict=False).str.strip_chars().str.to_lowercase()
         return (
             pl.when(s.is_in(list(PolarsParsers.TRUE)))
             .then(True)
@@ -59,9 +54,8 @@ class PolarsParsers:
 
     @staticmethod
     def int_to_bool(x: StrOrExprOrScalar, true_int: int = 1, false_int: int = 0) -> pl.Expr:
-        """Int to bool or None"""
         expr = PolarsParsers._as_expr(x)
-        e = expr.cast(pl.Int64)
+        e = expr.cast(pl.Int64, strict=False)
         return pl.when(e.is_null()).then(None).when(e == true_int).then(True).when(e == false_int).then(False).otherwise(None).cast(pl.Boolean)
 
     @staticmethod

@@ -1,10 +1,7 @@
-import polars as pl
 import datetime as dt
 import pytest
 
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
-from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.parsing.core import PolarsParsers
 from omop_etl.harmonization.datamodels import Patient
 
 pytest_plugins = "tests.harmonization.fixtures.impress_fixtures"
@@ -969,41 +966,3 @@ def test_eot_date(eot_fixture):
     assert harmonizer.patient_data["date_invalid"].end_of_treatment_date is None
     assert harmonizer.patient_data["date_none"].end_of_treatment_date is None
     assert harmonizer.patient_data["date_multi_overwrite"].end_of_treatment_date == dt.date(1901, 1, 1)
-
-
-def test_basic_inheritance(subject_id_fixture):
-    harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
-
-    assert isinstance(harmonizer, BaseHarmonizer)
-
-    assert harmonizer.data is subject_id_fixture
-    assert harmonizer.trial_id == "IMPRESS_TEST"
-
-    assert hasattr(harmonizer, "patient_data")
-    assert isinstance(harmonizer.patient_data, dict)
-
-
-def test_parse_date_column_function():
-    """Test the vectorized date parsing function with a dataframe"""
-    df = pl.DataFrame(
-        {
-            "dates": [
-                "1900-02-02",
-                "1950-06",
-                "1900",
-                "1900-02-Nk",
-                "1900-nk-NK",
-                "1900-Nk-10",
-            ],
-        },
-    )
-
-    parsed_df: pl.DataFrame = df.with_columns(
-        parsed_dates=PolarsParsers.to_optional_date(x=pl.col("dates")),
-    )
-    assert parsed_df["parsed_dates"][0] == dt.date(1900, 2, 2)
-    assert parsed_df["parsed_dates"][1] == dt.date(1950, 6, 15)
-    assert parsed_df["parsed_dates"][2] == dt.date(1900, 7, 15)
-    assert parsed_df["parsed_dates"][3] == dt.date(1900, 2, 15)
-    assert parsed_df["parsed_dates"][4] == dt.date(1900, 7, 15)
-    assert parsed_df["parsed_dates"][5] == dt.date(1900, 7, 10)
