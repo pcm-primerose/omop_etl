@@ -4,7 +4,7 @@ import pytest
 
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.parsing.core import CoreParsers, PolarsParsers
+from omop_etl.harmonization.parsing.core import PolarsParsers
 from omop_etl.harmonization.datamodels import Patient
 
 pytest_plugins = "tests.harmonization.fixtures.impress_fixtures"
@@ -951,8 +951,8 @@ def test_eot_reason(eot_fixture):
     harmonizer._process_eot_reason()
 
     assert harmonizer.patient_data["reason_trim"].end_of_treatment_reason == "Progression"
-    assert harmonizer.patient_data["reason_empty_string"].end_of_treatment_reason == ""
-    assert harmonizer.patient_data["reason_whitespace_only"].end_of_treatment_reason == ""
+    assert harmonizer.patient_data["reason_empty_string"].end_of_treatment_reason is None
+    assert harmonizer.patient_data["reason_whitespace_only"].end_of_treatment_reason is None
     assert harmonizer.patient_data["reason_none"].end_of_treatment_reason is None
     assert harmonizer.patient_data["reason_multi_overwrite"].end_of_treatment_reason == "Patient decision"
 
@@ -983,15 +983,6 @@ def test_basic_inheritance(subject_id_fixture):
     assert isinstance(harmonizer.patient_data, dict)
 
 
-def test_parse_flexible_date_function():
-    assert CoreParsers.parse_date_flexible("1900-02-02") == dt.date(1900, 2, 2)
-    assert CoreParsers.parse_date_flexible("1950-06") == dt.date(1950, 6, 15)
-    assert CoreParsers.parse_date_flexible("1900") == dt.date(1900, 7, 15)
-    assert CoreParsers.parse_date_flexible("1900-02-Nk") == dt.date(1900, 2, 15)
-    assert CoreParsers.parse_date_flexible("1900-nK-NK") == dt.date(1900, 7, 15)
-    assert CoreParsers.parse_date_flexible("1900-nK-10") == dt.date(1900, 7, 10)
-
-
 def test_parse_date_column_function():
     """Test the vectorized date parsing function with a dataframe"""
     df = pl.DataFrame(
@@ -1008,7 +999,7 @@ def test_parse_date_column_function():
     )
 
     parsed_df: pl.DataFrame = df.with_columns(
-        parsed_dates=PolarsParsers.parse_date_column(column=pl.col("dates")),
+        parsed_dates=PolarsParsers.to_optional_date(x=pl.col("dates")),
     )
     assert parsed_df["parsed_dates"][0] == dt.date(1900, 2, 2)
     assert parsed_df["parsed_dates"][1] == dt.date(1950, 6, 15)
