@@ -14,7 +14,7 @@ class StrictValidators:
     def validate_optional_int(value, field_name):
         if value is None:
             return None
-        if type(value) is not int:  # disallow bool
+        if type(value) is not int:
             raise TypeError(f"{field_name} must be int or None, got {type(value)}: {value}")
         return value
 
