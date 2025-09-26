@@ -1,6 +1,6 @@
 import polars as pl
 import datetime as dt
-from src.omop_etl.harmonization.parsing.core import PolarsParsers as pp
+from src.omop_etl.harmonization.core.parsers import PolarsParsers as pp
 
 
 def eval_expr(expr, values, col_name="x", dtype=None):

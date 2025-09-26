@@ -3,7 +3,7 @@ from typing import Mapping, Any, Optional
 from deprecated import deprecated
 import polars as pl
 from logging import getLogger
-from omop_etl.harmonization.parsing.core import PolarsParsers
+from omop_etl.harmonization.core.parsers import PolarsParsers
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
 from omop_etl.harmonization.datamodels import (
     HarmonizedData,
@@ -65,7 +65,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_eot_reason()
         self._process_eot_date()
 
-        # flatten patient values
         patients = list(self.patient_data.values())
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
 

@@ -1,6 +1,6 @@
 import datetime as dt
 import pytest
-from src.omop_etl.harmonization.validation.validators import StrictValidators as va
+from omop_etl.harmonization.core.validators import StrictValidators as va
 
 
 @pytest.mark.parametrize("val", [None, "a", ""])

@@ -5,7 +5,7 @@ from dataclasses import field
 import datetime as dt
 from logging import getLogger
 from dataclasses import dataclass
-from omop_etl.harmonization.validation.validators import StrictValidators
+from omop_etl.harmonization.core.validators import StrictValidators
 
 log = getLogger(__name__)
 
@@ -2040,9 +2040,8 @@ class HarmonizedData:
     # - but then might as well just fitler and calcualte on tumor assessments..?
     # other fields and metadata etc on *dataset* level
 
-    def __str__(self):
-        patient_str = "\n".join(str(p) for p in self.patients)
-        return f"Trial ID: {self.trial_id}\nPatients:\n{patient_str}"
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.trial_id}, {self.patients}"
 
     # repr, to_dict, to_df, to_csv, to_json
     # need to serialize (can evantually convert to pydantic model)
