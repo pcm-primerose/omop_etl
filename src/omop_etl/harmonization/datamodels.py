@@ -1,10 +1,16 @@
+import json
 import re
+import polars as pl
 from enum import Enum
-from typing import List, Optional, Set, Sequence
+from typing import List, Optional, Set, Sequence, Dict, Any, Callable
 from dataclasses import field
 import datetime as dt
 from logging import getLogger
 from dataclasses import dataclass
+
+from omop_etl.harmonization.core.serialize import classify_fields, ExportOptions, export_by_properties
+
+# from omop_etl.harmonization.core.serialize import obj_to_dict
 from omop_etl.harmonization.core.validators import StrictValidators
 
 log = getLogger(__name__)
@@ -2026,6 +2032,16 @@ class Patient:
         )
 
 
+# clinical_benefit? proportion of patients with CR PR SD,
+# does this even make sense to have in Patient class?
+# - could have flag "clinical benefit" at different visits, with date
+# - but then might as well just fitler and calcualte on tumor assessments..?
+# other fields and metadata etc on *dataset* level
+
+# repr, to_dict, to_df, to_csv, to_json
+# need to serialize (can evantually convert to pydantic model?)
+
+
 @dataclass
 class HarmonizedData:
     """
@@ -2034,14 +2050,142 @@ class HarmonizedData:
 
     trial_id: str
     patients: List[Patient] = field(default_factory=list)
-    # clinical_benefit? proportion of patients with CR PR SD,
-    # does this even make sense to have in Patient class?
-    # - could have flag "clinical benefit" at different visits, with date
-    # - but then might as well just fitler and calcualte on tumor assessments..?
-    # other fields and metadata etc on *dataset* level
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.trial_id}, {self.patients}"
 
-    # repr, to_dict, to_df, to_csv, to_json
-    # need to serialize (can evantually convert to pydantic model)
+    # add serialization, to dict, to df etc?
+
+    def filter(self, predicate: Callable[["Patient"], bool]) -> "HarmonizedData":
+        """
+        Filter patients using a predicate function.
+
+        Args:
+            predicate: Function that returns True for patients to include
+
+        Returns:
+            New HarmonizedData with filtered patients
+        """
+        filtered_patients = [p for p in self.patients if predicate(p)]
+        return HarmonizedData(
+            trial_id=self.trial_id,
+            patients=filtered_patients,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert entire HarmonizedData to dictionary.
+        """
+        return {
+            "trial_id": self.trial_id,
+            "patients": [self._serialize_patient(p) for p in self.patients],
+        }
+
+    def to_json(self, indent: int = 2) -> str:
+        """
+        Convert to JSON string.
+        """
+        return json.dumps(self.to_dict(), indent=indent, default=str)
+
+    def to_frames_normalized(
+        self,
+        *,
+        include_singletons: bool = True,
+        include_collections: bool = True,
+        skip_empty_tables: bool = False,
+    ) -> Dict[str, pl.DataFrame]:
+        """
+        Normalized export:
+          - patients: scalars only
+          - <singleton_attr>: one row per patient (if present)
+          - <collection_attr>: one row per item with row_index (sequence_id if present else enumerate)
+        """
+        # configure identities once
+        patient_cls = type(next(iter(self.patients), object()))
+        opts = ExportOptions(identity_fields={patient_cls: ("patient_id", "trial_id")})
+
+        tables: Dict[str, List[Dict[str, Any]]] = {"patients": []}
+
+        for p in self.patients:
+            scalars, singles, colls = classify_fields(p, include_collections=include_collections, opts=opts)
+
+            tables["patients"].append(scalars)
+
+            if include_singletons:
+                for attr, obj in singles.items():
+                    row = export_by_properties(obj, opts=opts)
+                    row["patient_id"] = scalars["patient_id"]
+                    row["trial_id"] = scalars["trial_id"]
+                    tables.setdefault(attr, []).append(row)
+
+            if include_collections:
+                for attr, items in colls.items():
+                    for idx, item in enumerate(items):
+                        row = export_by_properties(item, opts=opts)
+                        row["patient_id"] = scalars["patient_id"]
+                        row["trial_id"] = scalars["trial_id"]
+                        row["row_index"] = row.get("sequence_id", idx)
+                        tables.setdefault(attr, []).append(row)
+
+        return {name: pl.DataFrame(rows) for name, rows in tables.items() if rows or not skip_empty_tables}
+
+    def to_dataframe_wide_single_csv(
+        self,
+        *,
+        include_singletons: bool = True,
+        include_collections: bool = True,
+        prefix_sep: str = "__",
+        add_collection_counts: bool = False,
+    ) -> pl.DataFrame:
+        """
+        One big sheet:
+          - Always includes scalars (one set per row)
+          - Flattens singletons as '<attr>__<field>'
+          - If include_collections=True: creates *one row per collection item* per patient,
+            adds columns for that collection (prefixed) and metadata: '_collection', 'row_index'.
+            Patients with no collections still get a single row (scalars + singletons only).
+          - If include_collections=False but add_collection_counts=True: adds '<attr>__count' columns.
+        Note: When a patient has multiple collection types, you’ll get multiple rows (one per item per type).
+        """
+        patient_cls = type(next(iter(self.patients), object()))
+        opts = ExportOptions(identity_fields={patient_cls: ("patient_id", "trial_id")})
+        rows: List[Dict[str, Any]] = []
+
+        for p in self.patients:
+            scalars, singles, colls = classify_fields(p, include_collections=True, opts=opts)
+
+            # base scalar+singleton projection
+            base = dict(scalars)
+            if include_singletons:
+                for attr, obj in singles.items():
+                    d = export_by_properties(obj, opts=opts)
+                    for k, v in d.items():
+                        base[f"{attr}{prefix_sep}{k}"] = v
+
+            if not include_collections:
+                if add_collection_counts:
+                    for attr, items in colls.items():
+                        base[f"{attr}{prefix_sep}count"] = len(items)
+                rows.append(base)
+                continue
+
+            any_emitted = False
+            for attr, items in colls.items():
+                if not items:
+                    continue
+                for idx, item in enumerate(items):
+                    r = dict(base)
+                    d = export_by_properties(item, opts=opts)
+                    for k, v in d.items():
+                        r[f"{attr}{prefix_sep}{k}"] = v
+                    r["_collection"] = attr
+                    r["row_index"] = d.get("sequence_id", idx)
+                    rows.append(r)
+                    any_emitted = True
+
+            if not any_emitted:
+                # still emit a row?
+                # rows.append(base)
+                continue
+
+        return pl.DataFrame(rows)

@@ -1,4 +1,3 @@
-from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Optional
@@ -6,11 +5,15 @@ import json
 import polars as pl
 from logging import getLogger
 from logging.handlers import RotatingFileHandler
+import os
 
 from .models import OutputFormat, RunContext, OutputPath
 from ...infra.logging_setup import add_file_handler
 
 log = getLogger(__name__)
+
+# TODO: refactor to use dp injection, handle context from main/cli
+#   - i.e. just write to a path
 
 
 class OutputManager:
@@ -173,10 +176,6 @@ class OutputManager:
             OutputPath with paths to written files
         """
         output_path = self.resolve_output_path(ctx, output, fmt)
-
-        # check if log file disabled in env
-        import os
-
         disable_log_file = os.getenv("DISABLE_LOG_FILE", "0") == "1"
 
         # set up log file if enabled
