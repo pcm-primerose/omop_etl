@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 import polars as pl
 
-from omop_etl.preprocessing.core.output_manager import OutputManager
+from omop_etl.preprocessing.core.io_export import OutputManager
 from omop_etl.preprocessing.core.models import RunContext
 
 

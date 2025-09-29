@@ -157,8 +157,6 @@ class TumorTypeRow:
     COH_COHTTYPECD: int | None = None
     COH_COHTTYPE__2: str | None = None
     COH_COHTTYPE__2CD: int | None = None
-    COH_COHTTYPE__3: str | None = None
-    COH_COHTTYPE__3CD: int | None = None
     COH_COHTT: str | None = None
     COH_COHTTOSP: str | None = None
 

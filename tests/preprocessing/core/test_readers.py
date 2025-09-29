@@ -2,7 +2,7 @@ import pytest
 import polars as pl
 from unittest.mock import Mock
 
-from omop_etl.preprocessing.core.readers import (
+from omop_etl.preprocessing.core.io_load import (
     BaseReader,
     ExcelReader,
     CsvDirectoryReader,

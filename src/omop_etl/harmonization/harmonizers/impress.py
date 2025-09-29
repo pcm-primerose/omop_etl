@@ -126,6 +126,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             pid = row["SubjectId"]
             self.patient_data[pid].age = row["age"]
 
+    # TODO: fix: is COHTTYPE__3/CD in actual dataset, or present but not used?
+    # - present but no data
     def _process_tumor_type(self) -> None:
         df = (
             self.data.with_row_index("_row")
@@ -141,8 +143,6 @@ class ImpressHarmonizer(BaseHarmonizer):
                 t1cd=PolarsParsers.to_optional_int64(pl.col("COH_COHTTYPECD")),
                 t2=PolarsParsers.to_optional_utf8(pl.col("COH_COHTTYPE__2")).str.strip_chars(),
                 t2cd=PolarsParsers.to_optional_int64(pl.col("COH_COHTTYPE__2CD")),
-                t3=PolarsParsers.to_optional_utf8(pl.col("COH_COHTTYPE__3")).str.strip_chars(),
-                t3cd=PolarsParsers.to_optional_int64(pl.col("COH_COHTTYPE__3CD")),
             )
             # keep rows where any relevant field is populated
             .filter(
@@ -151,7 +151,6 @@ class ImpressHarmonizer(BaseHarmonizer):
                     pl.col("cohort_tumor_type").is_not_null(),
                     pl.col("t1").is_not_null(),
                     pl.col("t2").is_not_null(),
-                    pl.col("t3").is_not_null(),
                     pl.col("other_tumor_type").is_not_null(),
                 ),
             )
@@ -159,23 +158,20 @@ class ImpressHarmonizer(BaseHarmonizer):
             .with_columns(
                 t1_has=(pl.col("t1").is_not_null() & pl.col("t1cd").is_not_null()).cast(pl.Int8),
                 t2_has=(pl.col("t2").is_not_null() & pl.col("t2cd").is_not_null()).cast(pl.Int8),
-                t3_has=(pl.col("t3").is_not_null() & pl.col("t3cd").is_not_null()).cast(pl.Int8),
             )
-            .with_columns(collisions=(pl.sum_horizontal(["t1_has", "t2_has", "t3_has"]) > 1))
+            .with_columns(collisions=(pl.sum_horizontal(["t1_has", "t2_has"]) > 1))
             # pick first complete slot if no collision
             .with_columns(
                 m_type_raw=pl.coalesce(
                     [
                         pl.when(pl.col("t1_has") == 1).then(pl.col("t1")),
                         pl.when(pl.col("t2_has") == 1).then(pl.col("t2")),
-                        pl.when(pl.col("t3_has") == 1).then(pl.col("t3")),
                     ],
                 ),
                 m_code_raw=pl.coalesce(
                     [
                         pl.when(pl.col("t1_has") == 1).then(pl.col("t1cd")),
                         pl.when(pl.col("t2_has") == 1).then(pl.col("t2cd")),
-                        pl.when(pl.col("t3_has") == 1).then(pl.col("t3cd")),
                     ],
                 ),
             )

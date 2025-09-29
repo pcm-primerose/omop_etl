@@ -4,7 +4,7 @@ from typing import Optional, List
 import copy
 
 from .core.pipeline import PreprocessingPipeline, PreprocessResult
-from .core.output_manager import OutputManager
+from .core.io_export import OutputManager
 from .core.config_loader import load_ecrf_config
 from .core.registry import TRIAL_PROCESSORS
 from .core.models import EcrfConfig, RunOptions
