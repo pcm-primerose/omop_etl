@@ -532,44 +532,44 @@ def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
 
     ta = harmonizer.patient_data["both_ntl_cols"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 5
-    assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 1)
+    assert ta.off_target_lesion_measurement_date == dt.date(2020, 2, 1)
 
     ta = harmonizer.patient_data["rntmnt_only"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 4
-    assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 2)
+    assert ta.off_target_lesion_measurement_date == dt.date(2020, 2, 2)
 
     ta = harmonizer.patient_data["rcnt_only"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 3
-    assert ta.off_target_lesion_measurment_date == dt.date(2020, 2, 4)
+    assert ta.off_target_lesion_measurement_date == dt.date(2020, 2, 4)
 
     ta = harmonizer.patient_data["ntl_no_date"].tumor_assessment_baseline
     assert ta.number_off_target_lesions == 6
-    assert ta.off_target_lesion_measurment_date is None
+    assert ta.off_target_lesion_measurement_date is None
 
     ta = harmonizer.patient_data["ra_valid"].tumor_assessment_baseline
     assert ta.target_lesion_size == 12
     assert ta.target_lesion_nadir == 12
-    assert ta.target_lesion_measurment_date == dt.date(2018, 7, 27)
+    assert ta.target_lesion_measurement_date == dt.date(2018, 7, 27)
 
     ta = harmonizer.patient_data["rnrsp_valid"].tumor_assessment_baseline
     assert ta.target_lesion_size == 20
     assert ta.target_lesion_nadir == 18
-    assert ta.target_lesion_measurment_date == dt.date(2019, 1, 1)
+    assert ta.target_lesion_measurement_date == dt.date(2019, 1, 1)
 
     ta = harmonizer.patient_data["ra_no_date"].tumor_assessment_baseline
     assert ta.target_lesion_size == 8
     assert ta.target_lesion_nadir == 7
-    assert ta.target_lesion_measurment_date is None
+    assert ta.target_lesion_measurement_date is None
 
     ta = harmonizer.patient_data["rnrsp_no_date"].tumor_assessment_baseline
     assert ta.target_lesion_size == 9
     assert ta.target_lesion_nadir == 8
-    assert ta.target_lesion_measurment_date is None
+    assert ta.target_lesion_measurement_date is None
 
     ta = harmonizer.patient_data["multiple_rows"].tumor_assessment_baseline
     assert ta.target_lesion_size == 9
     assert ta.target_lesion_nadir == 9
-    assert ta.target_lesion_measurment_date == dt.date(2020, 1, 1)
+    assert ta.target_lesion_measurement_date == dt.date(2020, 1, 1)
 
 
 def test_previous_treatments(previous_treatment_fixture):

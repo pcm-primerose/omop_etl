@@ -1329,9 +1329,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             tab.assessment_date = row["assessment_date_vi"]
             tab.target_lesion_size = row["target_lesion_size"]
             tab.target_lesion_nadir = row["target_lesion_nadir"]
-            tab.target_lesion_measurment_date = row["assessment_date"]
+            tab.target_lesion_measurement_date = row["assessment_date"]
             tab.number_off_target_lesions = row["off_target_lesions_number"]
-            tab.off_target_lesion_measurment_date = row["off_target_lesion_size_measurment_date"]
+            tab.off_target_lesion_measurement_date = row["off_target_lesion_size_measurment_date"]
             return tab
 
         self.hydrate_singleton(

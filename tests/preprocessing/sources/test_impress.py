@@ -8,7 +8,7 @@ from omop_etl.preprocessing.sources.impress import (
     _aggregate_no_conflicts,
     preprocess_impress,
 )
-from omop_etl.preprocessing.core.models import EcrfConfig, RunOptions
+from omop_etl.preprocessing.core.models import EcrfConfig, PreprocessingRunOptions
 
 
 class TestCohortFiltering:
@@ -203,7 +203,7 @@ class TestPreprocessImpressIntegration:
         )
 
         ecfg = EcrfConfig(trial="IMPRESS", configs=[])
-        run_opts = RunOptions(filter_valid_cohort=True)
+        run_opts = PreprocessingRunOptions(filter_valid_cohort=True)
 
         result = preprocess_impress(df, ecfg, run_opts)
 
@@ -221,7 +221,7 @@ class TestPreprocessImpressIntegration:
         df = pl.DataFrame({"SubjectId": ["001"], "COH_COHORTNAME": ["Valid"], "ECOG_EventId": ["V00"]})
 
         ecfg = EcrfConfig(trial=None, configs=[])
-        run_opts = RunOptions(filter_valid_cohort=False)
+        run_opts = PreprocessingRunOptions(filter_valid_cohort=False)
 
         result = preprocess_impress(df, ecfg, run_opts)
 

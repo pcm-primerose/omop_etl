@@ -1,7 +1,7 @@
 import polars as pl
 from deprecated import deprecated
 from ..core.registry import register_trial
-from ..core.models import EcrfConfig, RunOptions
+from ..core.models import EcrfConfig, PreprocessingRunOptions
 
 
 def _filter_valid_cohort(df: pl.DataFrame) -> pl.DataFrame:
@@ -56,7 +56,7 @@ def _reorder_subject_trial_first(df: pl.DataFrame) -> pl.DataFrame:
 
 
 @register_trial("impress")
-def preprocess_impress(df: pl.DataFrame, ecfg: EcrfConfig, run_opts: RunOptions) -> pl.DataFrame:
+def preprocess_impress(df: pl.DataFrame, ecfg: EcrfConfig, run_opts: PreprocessingRunOptions) -> pl.DataFrame:
     trial = (ecfg.trial or "impress").upper()
     base = _filter_valid_cohort(df) if run_opts.filter_valid_cohort else df
     return (

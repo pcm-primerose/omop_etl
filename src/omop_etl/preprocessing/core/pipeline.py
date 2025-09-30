@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 from logging import getLogger
 
-from .models import EcrfConfig, RunOptions, PreprocessResult
+from .models import EcrfConfig, PreprocessingRunOptions, PreprocessResult
 from .io_load import InputResolver
 from .combine import combine
 from .registry import TRIAL_PROCESSORS
@@ -29,7 +29,7 @@ class PreprocessingPipeline:
     def run(
         self,
         input_path: Path,
-        options: Optional[RunOptions] = None,
+        options: Optional[PreprocessingRunOptions] = None,
         output: Optional[Path] = None,
         format: Optional[str] = None,
         combine_key: str = "SubjectId",
@@ -62,7 +62,7 @@ class PreprocessingPipeline:
 
         # apply trial-specific processing
         processor = TRIAL_PROCESSORS[self.trial]
-        df = processor(df, ecrf, options or RunOptions())
+        df = processor(df, ecrf, options or PreprocessingRunOptions())
 
         # write output
         output_path = self.output_manager.write(

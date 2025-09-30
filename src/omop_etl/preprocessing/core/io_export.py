@@ -12,8 +12,7 @@ from ...infra.logging_setup import add_file_handler
 
 log = getLogger(__name__)
 
-# TODO: refactor to use dp injection, handle context from main/cli
-#   - i.e. just write to a path
+# TODO: refactor to use infra/io_core.py
 
 
 class OutputManager:

@@ -1,9 +1,9 @@
 from typing import Callable, Dict, List
 import polars as pl
 
-from .models import EcrfConfig, RunOptions
+from .models import EcrfConfig, PreprocessingRunOptions
 
-Processor = Callable[[pl.DataFrame, EcrfConfig, RunOptions], pl.DataFrame]
+Processor = Callable[[pl.DataFrame, EcrfConfig, PreprocessingRunOptions], pl.DataFrame]
 TRIAL_PROCESSORS: Dict[str, Processor] = {}
 
 

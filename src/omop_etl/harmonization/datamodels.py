@@ -1,16 +1,11 @@
-import json
 import re
-import polars as pl
 from enum import Enum
-from typing import List, Optional, Set, Sequence, Dict, Any, Callable
-from dataclasses import field
+from typing import List, Optional, Set, Sequence, Callable
+from dataclasses import field, dataclass
 import datetime as dt
 from logging import getLogger
-from dataclasses import dataclass
 
-from omop_etl.harmonization.core.serialize import classify_fields, ExportOptions, export_by_properties
-
-# from omop_etl.harmonization.core.serialize import obj_to_dict
+from omop_etl.harmonization.core.serialize import to_normalized, build_nested_df, to_wide
 from omop_etl.harmonization.core.validators import StrictValidators
 
 log = getLogger(__name__)
@@ -306,9 +301,9 @@ class TumorAssessmentBaseline:
         self._assessment_date: Optional[dt.date] = None
         self._target_lesion_size: Optional[int] = None
         self._target_lesion_nadir: Optional[int] = None
-        self._target_lesion_measurment_date: Optional[dt.date] = None
+        self._target_lesion_measurement_date: Optional[dt.date] = None
         self._number_off_target_lesions: Optional[int] = None
-        self._off_target_lesion_measurment_date: Optional[dt.date] = None
+        self._off_target_lesion_measurement_date: Optional[dt.date] = None
         self.updated_fields: Set[str] = set()
 
     @property
@@ -352,16 +347,16 @@ class TumorAssessmentBaseline:
         self.updated_fields.add(self.__class__.target_lesion_nadir.fset.__name__)
 
     @property
-    def target_lesion_measurment_date(self) -> Optional[dt.date]:
-        return self._target_lesion_measurment_date
+    def target_lesion_measurement_date(self) -> Optional[dt.date]:
+        return self._target_lesion_measurement_date
 
-    @target_lesion_measurment_date.setter
-    def target_lesion_measurment_date(self, value: Optional[dt.date]) -> None:
-        self._target_lesion_measurment_date = StrictValidators.validate_optional_date(
+    @target_lesion_measurement_date.setter
+    def target_lesion_measurement_date(self, value: Optional[dt.date]) -> None:
+        self._target_lesion_measurement_date = StrictValidators.validate_optional_date(
             value=value,
-            field_name=self.__class__.target_lesion_measurment_date.fset.__name__,
+            field_name=self.__class__.target_lesion_measurement_date.fset.__name__,
         )
-        self.updated_fields.add(self.__class__.target_lesion_measurment_date.fset.__name__)
+        self.updated_fields.add(self.__class__.target_lesion_measurement_date.fset.__name__)
 
     @property
     def number_off_target_lesions(self) -> Optional[int]:
@@ -376,16 +371,16 @@ class TumorAssessmentBaseline:
         self.updated_fields.add(self.__class__.number_off_target_lesions.fset.__name__)
 
     @property
-    def off_target_lesion_measurment_date(self) -> Optional[dt.date]:
-        return self._off_target_lesion_measurment_date
+    def off_target_lesion_measurement_date(self) -> Optional[dt.date]:
+        return self._off_target_lesion_measurement_date
 
-    @off_target_lesion_measurment_date.setter
-    def off_target_lesion_measurment_date(self, value: Optional[dt.date]) -> None:
-        self._off_target_lesion_measurment_date = StrictValidators.validate_optional_date(
+    @off_target_lesion_measurement_date.setter
+    def off_target_lesion_measurement_date(self, value: Optional[dt.date]) -> None:
+        self._off_target_lesion_measurement_date = StrictValidators.validate_optional_date(
             value=value,
-            field_name=self.__class__.off_target_lesion_measurment_date.fset.__name__,
+            field_name=self.__class__.off_target_lesion_measurement_date.fset.__name__,
         )
-        self.updated_fields.add(self.__class__.off_target_lesion_measurment_date.fset.__name__)
+        self.updated_fields.add(self.__class__.off_target_lesion_measurement_date.fset.__name__)
 
     def __repr__(self) -> str:
         return (
@@ -394,9 +389,9 @@ class TumorAssessmentBaseline:
             f"assessment_date={self.assessment_date!r}, "
             f"target_lesion_size={self.target_lesion_size!r}, "
             f"target_lesion_nadir={self.target_lesion_nadir!r}, "
-            f"target_lesion_measurment_date={self.target_lesion_measurment_date!r}, "
+            f"target_lesion_measurement_date={self.target_lesion_measurement_date!r}, "
             f"off_target_lesion_size={self.number_off_target_lesions!r}, "
-            f"off_target_lesion_measurment_date={self.off_target_lesion_measurment_date!r}"
+            f"off_target_lesion_measurement_date={self.off_target_lesion_measurement_date!r}"
             f")"
         )
 
@@ -2054,8 +2049,6 @@ class HarmonizedData:
     def __repr__(self):
         return f"{self.__class__.__name__}({self.trial_id}, {self.patients}"
 
-    # add serialization, to dict, to df etc?
-
     def filter(self, predicate: Callable[["Patient"], bool]) -> "HarmonizedData":
         """
         Filter patients using a predicate function.
@@ -2072,120 +2065,154 @@ class HarmonizedData:
             patients=filtered_patients,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert entire HarmonizedData to dictionary.
-        """
-        return {
-            "trial_id": self.trial_id,
-            "patients": [self._serialize_patient(p) for p in self.patients],
-        }
+    # def to_dict(self) -> Dict[str, Any]:
+    #     """
+    #     Convert entire HarmonizedData to dictionary.
+    #     """
+    #     return {
+    #         "trial_id": self.trial_id,
+    #         "patients": [export_by_properties(p) for p in self.patients],
+    #     }
 
-    def to_json(self, indent: int = 2) -> str:
-        """
-        Convert to JSON string.
-        """
-        return json.dumps(self.to_dict(), indent=indent, default=str)
+    # def to_json(self, indent: int = 2) -> str:
+    #     """
+    #     Convert to JSON string.
+    #     """
+    #     return json.dumps(self.to_dict(), indent=indent, default=str)
 
-    def to_frames_normalized(
-        self,
-        *,
-        include_singletons: bool = True,
-        include_collections: bool = True,
-        skip_empty_tables: bool = False,
-    ) -> Dict[str, pl.DataFrame]:
-        """
-        Normalized export:
-          - patients: scalars only
-          - <singleton_attr>: one row per patient (if present)
-          - <collection_attr>: one row per item with row_index (sequence_id if present else enumerate)
-        """
-        # configure identities once
+    def to_dataframe_wide(self, prefix_sep="."):
         patient_cls = type(next(iter(self.patients), object()))
-        opts = ExportOptions(identity_fields={patient_cls: ("patient_id", "trial_id")})
+        df_nested = build_nested_df(self.patients, patient_cls)
+        return to_wide(df_nested, prefix_sep)
 
-        tables: Dict[str, List[Dict[str, Any]]] = {"patients": []}
-
-        for p in self.patients:
-            scalars, singles, colls = classify_fields(p, include_collections=include_collections, opts=opts)
-
-            tables["patients"].append(scalars)
-
-            if include_singletons:
-                for attr, obj in singles.items():
-                    row = export_by_properties(obj, opts=opts)
-                    row["patient_id"] = scalars["patient_id"]
-                    row["trial_id"] = scalars["trial_id"]
-                    tables.setdefault(attr, []).append(row)
-
-            if include_collections:
-                for attr, items in colls.items():
-                    for idx, item in enumerate(items):
-                        row = export_by_properties(item, opts=opts)
-                        row["patient_id"] = scalars["patient_id"]
-                        row["trial_id"] = scalars["trial_id"]
-                        row["row_index"] = row.get("sequence_id", idx)
-                        tables.setdefault(attr, []).append(row)
-
-        return {name: pl.DataFrame(rows) for name, rows in tables.items() if rows or not skip_empty_tables}
-
-    def to_dataframe_wide_single_csv(
-        self,
-        *,
-        include_singletons: bool = True,
-        include_collections: bool = True,
-        prefix_sep: str = "__",
-        add_collection_counts: bool = False,
-    ) -> pl.DataFrame:
-        """
-        One big sheet:
-          - Always includes scalars (one set per row)
-          - Flattens singletons as '<attr>__<field>'
-          - If include_collections=True: creates *one row per collection item* per patient,
-            adds columns for that collection (prefixed) and metadata: '_collection', 'row_index'.
-            Patients with no collections still get a single row (scalars + singletons only).
-          - If include_collections=False but add_collection_counts=True: adds '<attr>__count' columns.
-        Note: When a patient has multiple collection types, you’ll get multiple rows (one per item per type).
-        """
+    def to_frames_normalized(self, **_):
         patient_cls = type(next(iter(self.patients), object()))
-        opts = ExportOptions(identity_fields={patient_cls: ("patient_id", "trial_id")})
-        rows: List[Dict[str, Any]] = []
+        df_nested = build_nested_df(self.patients, patient_cls)
+        return to_normalized(df_nested)
 
-        for p in self.patients:
-            scalars, singles, colls = classify_fields(p, include_collections=True, opts=opts)
-
-            # base scalar+singleton projection
-            base = dict(scalars)
-            if include_singletons:
-                for attr, obj in singles.items():
-                    d = export_by_properties(obj, opts=opts)
-                    for k, v in d.items():
-                        base[f"{attr}{prefix_sep}{k}"] = v
-
-            if not include_collections:
-                if add_collection_counts:
-                    for attr, items in colls.items():
-                        base[f"{attr}{prefix_sep}count"] = len(items)
-                rows.append(base)
-                continue
-
-            any_emitted = False
-            for attr, items in colls.items():
-                if not items:
-                    continue
-                for idx, item in enumerate(items):
-                    r = dict(base)
-                    d = export_by_properties(item, opts=opts)
-                    for k, v in d.items():
-                        r[f"{attr}{prefix_sep}{k}"] = v
-                    r["_collection"] = attr
-                    r["row_index"] = d.get("sequence_id", idx)
-                    rows.append(r)
-                    any_emitted = True
-
-            if not any_emitted:
-                # still emit a row?
-                # rows.append(base)
-                continue
-
-        return pl.DataFrame(rows)
+    # def to_frames_normalized_polars(self) -> dict[str, pl.DataFrame]:
+    #     patient_cls = type(next(iter(self.patients), object()))
+    #     schema_nested = patient_nested_schema(patient_cls)
+    #     # build df_nested as above...
+    #     df = self._to_nested_dataframe()
+    #
+    #     tables: dict[str, pl.DataFrame] = {}
+    #     # patients: keep primitives + singleton identities if they live in leaves
+    #     primitive_cols = [c for c, tp in df.schema.items() if tp not in (pl.Struct,) and not isinstance(tp, pl.List)]
+    #     tables["patients"] = df.select(primitive_cols)
+    #
+    #     # singletons
+    #     for c, tp in df.schema.items():
+    #         if tp == pl.Struct:
+    #             rows = df.unnest(c).with_columns([pl.col("patient_id"), pl.col("trial_id")])
+    #             tables[c] = rows
+    #
+    #     # collections
+    #     for c, tp in df.schema.items():
+    #         if isinstance(tp, pl.List):
+    #             ex = df.explode(c).filter(pl.col(c).is_not_null())
+    #             # derive row_index
+    #             has_seq = ex.select(pl.col(c).struct.field("sequence_id").is_not_null().any()).item()
+    #             if has_seq:
+    #                 ex = ex.with_columns(pl.col(c).struct.field("sequence_id").cast(pl.Int64, strict=False).alias("row_index"))
+    #             else:
+    #                 ex = ex.with_row_count("row_index")
+    #             rows = ex.unnest(c).with_columns([pl.col("patient_id"), pl.col("trial_id"), pl.col("row_index")])
+    #             tables[c] = rows
+    #
+    #     return tables
+    #
+    # def _to_nested_dataframe(self):
+    #     patient_cls = type(next(iter(self.patients), object()))
+    #     schema_nested = patient_nested_schema(patient_cls)
+    #
+    #     rows = []
+    #     for p in self.patients:
+    #         scalars, singles, colls = classify_fields(p, include_collections=True)
+    #
+    #         # Base row: primitives
+    #         row = dict(scalars)
+    #         for k, v in scalars.items():
+    #             scalars[k] = coerce_iso_date(v)
+    #
+    #         # Singletons: put dicts under struct columns
+    #         for attr, obj in singles.items():
+    #             row[attr] = export_by_properties(obj)  # dict → Struct
+    #
+    #         # Collections: list of dicts (each dict → Struct element)
+    #         for attr, items in colls.items():
+    #             row[attr] = [export_by_properties(it) for it in items]
+    #
+    #         rows.append(row)
+    #
+    #     print(f"schema nested: {schema_nested}")
+    #
+    #     df_nested = pl.DataFrame(rows, schema=schema_nested, strict=False, infer_schema_length=0)
+    #     return df_nested
+    #
+    # def _unnest_singleton(self, df: pl.DataFrame, attr: str, prefix: str) -> pl.DataFrame:
+    #     # If singleton struct exists, unnest and prefix its fields
+    #     if attr not in df.columns or df.schema[attr] != pl.Struct:
+    #         return df
+    #     fields = list(df.schema[attr].fields)  # Polars 1.5+: .fields is dict-like; else infer from sample
+    #     out = df.unnest(attr)
+    #     rename = {f: f"{prefix}__{f}" for f in fields}
+    #     return out.rename(rename)
+    #
+    # def _explode_collection(self, df: pl.DataFrame, attr: str, prefix: str) -> pl.DataFrame:
+    #     if attr not in df.columns or not isinstance(df.schema[attr], pl.List):
+    #         return None  # caller checks
+    #     # explode to one row per element, unnest the struct, prefix fields
+    #     exploded = df.explode(attr)
+    #     # element may be null for patients with empty lists; drop those rows if needed
+    #     exploded = exploded.filter(pl.col(attr).is_not_null())
+    #     # derive row_index
+    #     # try to use 'sequence_id' if present, else dense_rank within patient
+    #     have_seq = exploded.select(pl.col(attr).struct.field("sequence_id").is_not_null().any()).item()
+    #     if have_seq:
+    #         exploded = exploded.with_columns(
+    #             pl.col(attr).struct.field("sequence_id").cast(pl.Int64, strict=False).alias("row_index")
+    #         )
+    #     else:
+    #         exploded = exploded.with_row_count(name="_tmp_idx")
+    #         exploded = exploded.with_columns(pl.col("_tmp_idx").alias("row_index")).drop("_tmp_idx")
+    #
+    #     # unnest + prefix
+    #     fields = exploded.select(pl.col(attr).struct.fields()).columns  # list of field names
+    #     out = exploded.unnest(attr).rename({f: f"{prefix}__{f}" for f in fields})
+    #     out = out.with_columns(pl.lit(prefix).alias("_collection"))
+    #     return out
+    #
+    # def to_dataframe_wide_polars(self, prefix_sep="__") -> pl.DataFrame:
+    #     patient_cls = type(next(iter(self.patients), object()))
+    #     schema_nested = patient_nested_schema(patient_cls)
+    #
+    #     # build df_nested as above ...
+    #     df = self._to_nested_dataframe()
+    #
+    #     # Unnest singletons (keeps rows)
+    #     singleton_attrs = [c for c, dtp in df.schema.items() if dtp == pl.Struct]
+    #     for attr in singleton_attrs:
+    #         df = self._unnest_singleton(df, attr, attr)
+    #
+    #     # For each collection, explode/unnest/prefix, then vstack them
+    #     collection_attrs = [c for c, dtp in df.schema.items() if isinstance(dtp, pl.List)]
+    #     parts = []
+    #     for attr in collection_attrs:
+    #         part = self._explode_collection(df, attr, attr)
+    #         if part is not None:
+    #             parts.append(part)
+    #
+    #     if parts:
+    #         wide = pl.concat(parts, how="diagonal_relaxed")
+    #     else:
+    #         # no collections; just one row per patient
+    #         wide = df
+    #
+    #     # Ensure mandatory metadata
+    #     if "_collection" not in wide.columns:
+    #         wide = wide.with_columns(pl.lit(None, dtype=pl.Utf8).alias("_collection"))
+    #     if "row_index" not in wide.columns:
+    #         wide = wide.with_columns(pl.lit(None, dtype=pl.Int64).alias("row_index"))
+    #
+    #     return wide

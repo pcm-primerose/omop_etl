@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 from pathlib import Path
 from typing import Optional
@@ -11,7 +9,7 @@ from omop_etl.preprocessing.api import (
     preprocess_trial,
     make_ecrf_config,
     list_trials,
-    RunOptions,
+    PreprocessingRunOptions,
     PreprocessResult,
 )
 
@@ -176,7 +174,7 @@ def run(
 
     try:
         # build runtime options
-        run_options = RunOptions(filter_valid_cohort=only_cohort)
+        run_options = PreprocessingRunOptions(filter_valid_cohort=only_cohort)
 
         # load or create config
         ecrf_config = make_ecrf_config(trial=source, custom_config_path=config)

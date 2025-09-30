@@ -7,14 +7,14 @@ from .core.pipeline import PreprocessingPipeline, PreprocessResult
 from .core.io_export import OutputManager
 from .core.config_loader import load_ecrf_config
 from .core.registry import TRIAL_PROCESSORS
-from .core.models import EcrfConfig, RunOptions
+from .core.models import EcrfConfig, PreprocessingRunOptions
 
 __all__ = [
     "preprocess_trial",
     "make_ecrf_config",
     "list_trials",
     "PreprocessResult",
-    "RunOptions",
+    "PreprocessingRunOptions",
 ]
 
 
@@ -32,7 +32,7 @@ def preprocess_trial(
     trial: str,
     input_path: Path,
     config: Optional[EcrfConfig] = None,
-    run_options: Optional[RunOptions] = None,
+    run_options: Optional[PreprocessingRunOptions] = None,
     output: Optional[Path] = None,
     fmt: Optional[str] = None,
     combine_key: str = "SubjectId",

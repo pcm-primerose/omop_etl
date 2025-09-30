@@ -45,7 +45,7 @@ fix = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W"]
-ignore = ["E203", "E501"]
+ignore = ["E203", "E501", "F841"]
 extend-select = ["COM812"]
 
 [tool.pytest.ini_options]
