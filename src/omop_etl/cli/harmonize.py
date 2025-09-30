@@ -124,7 +124,4 @@ def run_harmonization_test(input_csv: Path, outdir: Path, trial: str = "IMPRESS"
 
 if __name__ == "__main__":
     impress_150_file = Path(__file__).parents[3] / ".data" / "preprocessing" / "impress" / "20250909T144845Z_19d79919" / "data_preprocessed.csv"
-    # impress_1k_file = Path(__file__).parents[3] / ".data" / "preprocessing" / "impress" / "20250909T144845Z_19d79919" / "data_preprocessed.csv"
-    # impress = process_impress(impress_150_file)
-
     run_harmonization_test(input_csv=Path(impress_150_file), trial="IMPRESS", outdir=Path(".data/harmonized"))

@@ -45,7 +45,6 @@ class HarmonizedOutputManager:
         )
 
         df = hd.to_dataframe_wide()
-
         # wide supports csv/tsv/parquet; json/ndjson from hd.to_dict()
         if op.format in {"csv", "tsv", "parquet"}:
             write_single_frame(df, op.data_file, op.format)

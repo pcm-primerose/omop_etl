@@ -1757,8 +1757,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[patient_id].has_clinical_benefit_at_week16 = bool(row["benefit_w16"])
 
     def _process_eot_reason(self):
-        filtered = self.data.select("SubjectId", "EOT_EOTREOT").with_columns(
-            eot_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
+        filtered = (
+            self.data.select("SubjectId", "EOT_EOTREOT")
+            .with_columns(
+                eot_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
+            )
+            .filter(pl.col("eot_reason").is_not_null())
         )
 
         for row in filtered.iter_rows(named=True):

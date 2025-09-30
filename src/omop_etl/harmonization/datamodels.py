@@ -1465,7 +1465,7 @@ class Patient:
         self._cohort_name: Optional[str] = None
         self._age: Optional[int] = None
         self._sex: Optional[str] = None
-        self._evaluable_for_efficacy_analysis: bool = False
+        self._evaluable_for_efficacy_analysis: Optional[bool] = None
         self._treatment_start_date: Optional[dt.date] = None
         self._treatment_end_date: Optional[dt.date] = None
         self._treatment_start_last_cycle: Optional[dt.date] = None
@@ -1499,7 +1499,6 @@ class Patient:
     # scalars
     @property
     def patient_id(self) -> str:
-        """Patient ID (immutable)"""
         return self._patient_id
 
     @patient_id.setter
@@ -1509,12 +1508,10 @@ class Patient:
 
     @property
     def trial_id(self) -> str:
-        """Trial ID (immutable)"""
         return self._trial_id
 
     @trial_id.setter
     def trial_id(self, value: Optional[str]) -> None:
-        """Trial ID (immutable)"""
         self._trial_id = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.trial_id.fset.__name__)
         self.updated_fields.add(self.__class__.trial_id.fset.__name__)
 
@@ -1528,42 +1525,38 @@ class Patient:
         self.updated_fields.add(self.__class__.cohort_name.fset.__name__)
 
     @property
-    def age(self):
+    def age(self) -> Optional[int]:
         return self._age
 
     @age.setter
-    def age(self, value: Optional[str | int | None]) -> None:
-        """Set age with validation"""
+    def age(self, value: Optional[int | None]) -> None:
         self._age = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.age.fset.__name__)
         self.updated_fields.add(self.__class__.age.fset.__name__)
 
     @property
-    def sex(self):
+    def sex(self) -> Optional[str]:
         return self._sex
 
     @sex.setter
     def sex(self, value: Optional[str | None]) -> None:
-        """Set sex with validation"""
         self._sex = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.sex.fset.__name__)
         self.updated_fields.add(self.__class__.sex.fset.__name__)
 
     @property
-    def date_of_death(self):
+    def date_of_death(self) -> Optional[dt.date]:
         return self._date_of_death
 
     @date_of_death.setter
     def date_of_death(self, value: Optional[dt.date | None]) -> None:
-        """Set date of death with validation"""
         self._date_of_death = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date_of_death.fset.__name__)
         self.updated_fields.add(self.__class__.date_of_death.fset.__name__)
 
     @property
-    def evaluable_for_efficacy_analysis(self):
+    def evaluable_for_efficacy_analysis(self) -> Optional[bool]:
         return self._evaluable_for_efficacy_analysis
 
     @evaluable_for_efficacy_analysis.setter
     def evaluable_for_efficacy_analysis(self, value: Optional[bool]) -> None:
-        """Set evaluable for efficacy analysis status with validation"""
         self._evaluable_for_efficacy_analysis = StrictValidators.validate_optional_bool(
             value=value,
             field_name=self.__class__.evaluable_for_efficacy_analysis.fset.__name__,
@@ -1655,7 +1648,7 @@ class Patient:
         self.updated_fields.add(self.__class__.has_clinical_benefit_at_week16.fset.__name__)
 
     @property
-    def end_of_treatment_reason(self):
+    def end_of_treatment_reason(self) -> Optional[str]:
         return self._end_of_treatment_reason
 
     @end_of_treatment_reason.setter
@@ -2027,16 +2020,6 @@ class Patient:
         )
 
 
-# clinical_benefit? proportion of patients with CR PR SD,
-# does this even make sense to have in Patient class?
-# - could have flag "clinical benefit" at different visits, with date
-# - but then might as well just fitler and calcualte on tumor assessments..?
-# other fields and metadata etc on *dataset* level
-
-# repr, to_dict, to_df, to_csv, to_json
-# need to serialize (can evantually convert to pydantic model?)
-
-
 @dataclass
 class HarmonizedData:
     """
@@ -2089,130 +2072,3 @@ class HarmonizedData:
         patient_cls = type(next(iter(self.patients), object()))
         df_nested = build_nested_df(self.patients, patient_cls)
         return to_normalized(df_nested)
-
-    # def to_frames_normalized_polars(self) -> dict[str, pl.DataFrame]:
-    #     patient_cls = type(next(iter(self.patients), object()))
-    #     schema_nested = patient_nested_schema(patient_cls)
-    #     # build df_nested as above...
-    #     df = self._to_nested_dataframe()
-    #
-    #     tables: dict[str, pl.DataFrame] = {}
-    #     # patients: keep primitives + singleton identities if they live in leaves
-    #     primitive_cols = [c for c, tp in df.schema.items() if tp not in (pl.Struct,) and not isinstance(tp, pl.List)]
-    #     tables["patients"] = df.select(primitive_cols)
-    #
-    #     # singletons
-    #     for c, tp in df.schema.items():
-    #         if tp == pl.Struct:
-    #             rows = df.unnest(c).with_columns([pl.col("patient_id"), pl.col("trial_id")])
-    #             tables[c] = rows
-    #
-    #     # collections
-    #     for c, tp in df.schema.items():
-    #         if isinstance(tp, pl.List):
-    #             ex = df.explode(c).filter(pl.col(c).is_not_null())
-    #             # derive row_index
-    #             has_seq = ex.select(pl.col(c).struct.field("sequence_id").is_not_null().any()).item()
-    #             if has_seq:
-    #                 ex = ex.with_columns(pl.col(c).struct.field("sequence_id").cast(pl.Int64, strict=False).alias("row_index"))
-    #             else:
-    #                 ex = ex.with_row_count("row_index")
-    #             rows = ex.unnest(c).with_columns([pl.col("patient_id"), pl.col("trial_id"), pl.col("row_index")])
-    #             tables[c] = rows
-    #
-    #     return tables
-    #
-    # def _to_nested_dataframe(self):
-    #     patient_cls = type(next(iter(self.patients), object()))
-    #     schema_nested = patient_nested_schema(patient_cls)
-    #
-    #     rows = []
-    #     for p in self.patients:
-    #         scalars, singles, colls = classify_fields(p, include_collections=True)
-    #
-    #         # Base row: primitives
-    #         row = dict(scalars)
-    #         for k, v in scalars.items():
-    #             scalars[k] = coerce_iso_date(v)
-    #
-    #         # Singletons: put dicts under struct columns
-    #         for attr, obj in singles.items():
-    #             row[attr] = export_by_properties(obj)  # dict → Struct
-    #
-    #         # Collections: list of dicts (each dict → Struct element)
-    #         for attr, items in colls.items():
-    #             row[attr] = [export_by_properties(it) for it in items]
-    #
-    #         rows.append(row)
-    #
-    #     print(f"schema nested: {schema_nested}")
-    #
-    #     df_nested = pl.DataFrame(rows, schema=schema_nested, strict=False, infer_schema_length=0)
-    #     return df_nested
-    #
-    # def _unnest_singleton(self, df: pl.DataFrame, attr: str, prefix: str) -> pl.DataFrame:
-    #     # If singleton struct exists, unnest and prefix its fields
-    #     if attr not in df.columns or df.schema[attr] != pl.Struct:
-    #         return df
-    #     fields = list(df.schema[attr].fields)  # Polars 1.5+: .fields is dict-like; else infer from sample
-    #     out = df.unnest(attr)
-    #     rename = {f: f"{prefix}__{f}" for f in fields}
-    #     return out.rename(rename)
-    #
-    # def _explode_collection(self, df: pl.DataFrame, attr: str, prefix: str) -> pl.DataFrame:
-    #     if attr not in df.columns or not isinstance(df.schema[attr], pl.List):
-    #         return None  # caller checks
-    #     # explode to one row per element, unnest the struct, prefix fields
-    #     exploded = df.explode(attr)
-    #     # element may be null for patients with empty lists; drop those rows if needed
-    #     exploded = exploded.filter(pl.col(attr).is_not_null())
-    #     # derive row_index
-    #     # try to use 'sequence_id' if present, else dense_rank within patient
-    #     have_seq = exploded.select(pl.col(attr).struct.field("sequence_id").is_not_null().any()).item()
-    #     if have_seq:
-    #         exploded = exploded.with_columns(
-    #             pl.col(attr).struct.field("sequence_id").cast(pl.Int64, strict=False).alias("row_index")
-    #         )
-    #     else:
-    #         exploded = exploded.with_row_count(name="_tmp_idx")
-    #         exploded = exploded.with_columns(pl.col("_tmp_idx").alias("row_index")).drop("_tmp_idx")
-    #
-    #     # unnest + prefix
-    #     fields = exploded.select(pl.col(attr).struct.fields()).columns  # list of field names
-    #     out = exploded.unnest(attr).rename({f: f"{prefix}__{f}" for f in fields})
-    #     out = out.with_columns(pl.lit(prefix).alias("_collection"))
-    #     return out
-    #
-    # def to_dataframe_wide_polars(self, prefix_sep="__") -> pl.DataFrame:
-    #     patient_cls = type(next(iter(self.patients), object()))
-    #     schema_nested = patient_nested_schema(patient_cls)
-    #
-    #     # build df_nested as above ...
-    #     df = self._to_nested_dataframe()
-    #
-    #     # Unnest singletons (keeps rows)
-    #     singleton_attrs = [c for c, dtp in df.schema.items() if dtp == pl.Struct]
-    #     for attr in singleton_attrs:
-    #         df = self._unnest_singleton(df, attr, attr)
-    #
-    #     # For each collection, explode/unnest/prefix, then vstack them
-    #     collection_attrs = [c for c, dtp in df.schema.items() if isinstance(dtp, pl.List)]
-    #     parts = []
-    #     for attr in collection_attrs:
-    #         part = self._explode_collection(df, attr, attr)
-    #         if part is not None:
-    #             parts.append(part)
-    #
-    #     if parts:
-    #         wide = pl.concat(parts, how="diagonal_relaxed")
-    #     else:
-    #         # no collections; just one row per patient
-    #         wide = df
-    #
-    #     # Ensure mandatory metadata
-    #     if "_collection" not in wide.columns:
-    #         wide = wide.with_columns(pl.lit(None, dtype=pl.Utf8).alias("_collection"))
-    #     if "row_index" not in wide.columns:
-    #         wide = wide.with_columns(pl.lit(None, dtype=pl.Int64).alias("row_index"))
-    #
-    #     return wide

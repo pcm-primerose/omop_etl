@@ -64,8 +64,8 @@ def resolve_output_path(
 
 def write_single_frame(df: pl.DataFrame, path: Path, fmt: str) -> None:
     if fmt == "csv":
-        print(f"{df.schema}")
-        print(f"head: {df.head(100)}")
+        print(df.schema)
+        print(df.head(100))
         df.write_csv(path, include_header=True, null_value=None, float_precision=6)
     elif fmt == "tsv":
         df.write_csv(path, include_header=True, null_value=None, float_precision=6, separator="\t")
