@@ -6,9 +6,9 @@ from logging import getLogger
 from .models import EcrfConfig, PreprocessingRunOptions, PreprocessResult
 from .io_load import InputResolver
 from .combine import combine
-from omop_etl.infra.utils.registry import TRIAL_PROCESSORS
 from .io_export import OutputManager
 from ...infra.utils.run_context import RunMetadata
+from .dispatch import resolve_processor
 
 log = getLogger(__name__)
 
@@ -19,13 +19,12 @@ class PreprocessingPipeline:
         trial: str,
         ecrf_config: EcrfConfig,
         output_manager: Optional[OutputManager] = None,
+        processor: Optional[resolve_processor] = None,
     ):
-        if trial not in TRIAL_PROCESSORS:
-            raise ValueError(f"Unknown trial '{trial}'. Available: {', '.join(sorted(TRIAL_PROCESSORS.keys()))}")
-
         self.trial = trial
         self.ecrf_config = ecrf_config
         self.output_manager = output_manager or OutputManager()
+        self._processor = processor
 
     def run(
         self,
@@ -51,6 +50,9 @@ class PreprocessingPipeline:
         # create run context
         ctx = RunMetadata.create(self.trial)
 
+        # get trial from registry
+        processor = self._get_processor()
+
         log.info("Pipeline started", extra={**ctx.as_dict(), "input": str(input_path)})
 
         # load data
@@ -62,7 +64,6 @@ class PreprocessingPipeline:
         df = combine(ecrf, on=combine_key)
 
         # apply trial-specific processing
-        processor = TRIAL_PROCESSORS[self.trial]
         df = processor(df, ecrf, options or PreprocessingRunOptions())
 
         # write output
@@ -86,3 +87,6 @@ class PreprocessingPipeline:
         )
 
         return PreprocessResult(output_path=output_path, rows=df.height, columns=df.width, context=ctx)
+
+    def _get_processor(self) -> resolve_processor:
+        return self._processor or resolve_processor(self.trial)

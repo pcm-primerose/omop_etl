@@ -87,7 +87,7 @@ class HarmonizedExporter:
         frames = hd.to_frames_normalized()
         for fmt in formats:
             if fmt not in Formats.NORMALIZED_FORMATS:
-                raise ValueError(f"Unsupported fmt:{fmt}. HarmonizedExporter.export_wide supports {Formats.NORMALIZED_FORMATS}")
+                raise ValueError(f"Unsupported fmt:{fmt}. HarmonizedExporter.export_normalized supports {Formats.NORMALIZED_FORMATS}")
 
             ctx = plan_paths(
                 base_out=self.base_out,

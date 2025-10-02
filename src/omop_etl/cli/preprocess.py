@@ -66,6 +66,9 @@ def _setup_logging(
 @app.command("list-sources")
 def list_sources_cmd() -> None:
     """List all available trial sources."""
+    from omop_etl.preprocessing.core.bootstrap import load_builtin_trials
+
+    load_builtin_trials()
     trials = list_trials()
     if trials:
         typer.echo("Available sources:")
@@ -160,14 +163,13 @@ def run(
     )
 
     # validate source
-    available_trials = list_trials()
-    if source not in available_trials:
+    if source not in list_trials():
         typer.secho(
             f"Unknown source: '{source}'",
             fg=typer.colors.RED,
         )
-        if available_trials:
-            typer.echo(f"Available sources: {', '.join(sorted(available_trials))}")
+        if list_trials():
+            typer.echo(f"Available sources: {', '.join(sorted(list_trials()))}")
         else:
             typer.echo("No trial sources are registered.")
         raise typer.Exit(code=2)

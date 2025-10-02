@@ -1,4 +1,3 @@
-from __future__ import annotations
 from pathlib import Path
 from typing import Optional, List
 import copy
@@ -6,8 +5,8 @@ import copy
 from .core.pipeline import PreprocessingPipeline, PreprocessResult
 from .core.io_export import OutputManager
 from .core.config_loader import load_ecrf_config
-from omop_etl.infra.utils.registry import TRIAL_PROCESSORS
 from .core.models import EcrfConfig, PreprocessingRunOptions
+from .core.dispatch import resolve_processor as _resolve_processor, list_trials as _list_trials
 
 __all__ = [
     "preprocess_trial",
@@ -19,8 +18,7 @@ __all__ = [
 
 
 def list_trials() -> List[str]:
-    """List available trial processors."""
-    return sorted(TRIAL_PROCESSORS.keys())
+    return _list_trials()
 
 
 def make_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> EcrfConfig:
@@ -38,33 +36,23 @@ def preprocess_trial(
     combine_key: str = "SubjectId",
     base_output_dir: Optional[Path] = None,
 ) -> PreprocessResult:
-    """
-    High-level API for preprocessing trial data.
+    """High-level API for preprocessing trial data."""
+    # resolve processor explicitly
+    processor = _resolve_processor(trial)
 
-    Args:
-        trial: Trial name
-        input_path: Input Excel or CSV directory
-        config: Optional eCRF config (creates default if None)
-        run_options: Optional processing options
-        output: Optional output path
-        fmt: Optional output format
-        combine_key: Key for joining sheets
-        base_output_dir: Optional base directory for outputs
-
-    Returns:
-        PreprocessResult with output details
-    """
-    # create config if not provided
     if config is None:
         config = make_ecrf_config(trial)
     else:
         config = copy.deepcopy(config)
 
-    # create pipeline with output manager
     output_manager = OutputManager(base_dir=base_output_dir)
-    pipeline = PreprocessingPipeline(trial=trial, ecrf_config=config, output_manager=output_manager)
+    pipeline = PreprocessingPipeline(
+        trial=trial,
+        ecrf_config=config,
+        output_manager=output_manager,
+        processor=processor,
+    )
 
-    # run pipeline
     return pipeline.run(
         input_path=input_path,
         options=run_options,

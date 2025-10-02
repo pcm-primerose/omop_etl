@@ -57,6 +57,7 @@ def test_pipeline_with_real_components(tmp_path, sample_config):
     )
     mock_output_manager.write.return_value = mock_output_path
 
+    # TODO: fix: this fails
     # run with InputResolver and combine
     with patch(
         "omop_etl.preprocessing.core.pipeline.TRIAL_PROCESSORS",
