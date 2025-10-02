@@ -1,6 +1,9 @@
 # infra/run_context.py
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import (
+    datetime,
+    timezone,
+)
 import uuid
 from typing import Optional
 
@@ -11,7 +14,7 @@ class RunMetadata:
     run_id: str
     started_at: str
     user: Optional[str] = None
-    source: Optional[str] = None  # "api", "cli"
+    source: Optional[str] = None  # "api", "cli" todo: typify
 
     @classmethod
     def create(cls, trial: str, *, run_id: Optional[str] = None) -> "RunMetadata":

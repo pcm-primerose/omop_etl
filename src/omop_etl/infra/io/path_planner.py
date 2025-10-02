@@ -1,8 +1,6 @@
-# infra/paths.py
 from dataclasses import dataclass
 from pathlib import Path
-
-from .types import Layout
+from omop_etl.infra.io.types import Layout
 
 
 @dataclass(frozen=True)
@@ -15,10 +13,19 @@ class WriterContext:
 
 
 def _ext(fmt: str) -> str:
-    return {"csv": ".csv", "tsv": ".tsv", "parquet": ".parquet", "json": ".json", "ndjson": ".ndjson"}[fmt]
+    return {"csv": ".csv", "tsv": ".tsv", "parquet": ".parquet", "json": ".json"}[fmt]
 
 
-def plan_paths(*, base_out: Path, module: str, trial: str, run_id: str, stem: str, fmt: str, layout: Layout, started_at: str) -> WriterContext:
+def plan_paths(
+    base_out: Path,
+    module: str,
+    trial: str,
+    run_id: str,
+    stem: str,
+    fmt: str,
+    layout: Layout,
+    started_at: str,
+) -> WriterContext:
     trial = trial.lower()
     if layout == Layout.TRIAL_ONLY:
         root = base_out / module / trial

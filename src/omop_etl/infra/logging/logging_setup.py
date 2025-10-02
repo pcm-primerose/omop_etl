@@ -8,7 +8,11 @@ import multiprocessing as mp
 import atexit
 from pathlib import Path
 from logging.config import dictConfig
-from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
+from logging.handlers import (
+    QueueHandler,
+    QueueListener,
+    RotatingFileHandler,
+)
 from typing import Optional, Dict, Any, List
 
 # global controller for multiprocessing logging

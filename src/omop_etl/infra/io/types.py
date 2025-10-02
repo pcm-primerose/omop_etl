@@ -13,7 +13,7 @@ class Layout(str, Enum):
     TRIAL_TIMESTAMP_RUN = "trial_timestamp_run"
 
 
-Format = Literal["csv", "tsv", "parquet", "json", "ndjson"]
-TABULAR_FORMATS: set[str] = {"csv", "tsv", "parquet"}
-WIDE_FORMATS: set[str] = {"csv", "tsv", "parquet", "json", "ndjson"}
-NORMALIZED_FORMATS: set[str] = {"csv", "tsv", "parquet"}
+class Formats:
+    Format = Literal["csv", "tsv", "parquet", "json", "all"]
+    WIDE_FORMATS: set[str] = {"csv", "tsv", "parquet", "json"}
+    NORMALIZED_FORMATS: set[str] = {"csv", "tsv", "parquet"}

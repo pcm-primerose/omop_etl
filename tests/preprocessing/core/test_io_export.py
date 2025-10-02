@@ -6,7 +6,7 @@ import pytest
 import polars as pl
 
 from omop_etl.preprocessing.core.io_export import OutputManager
-from omop_etl.preprocessing.core.models import RunContext
+from omop_etl.infra.utils.run_context import RunMetadata
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def sample_dataframe():
 
 @pytest.fixture
 def run_context():
-    return RunContext(trial="test_trial", timestamp="20231201_143000", run_id="abc123")
+    return RunMetadata(trial="test_trial", started_at="20231201_143000", run_id="abc123")
 
 
 @pytest.fixture
@@ -173,7 +173,7 @@ class TestManifestCreation:
         manifest = json.loads(output_path.manifest_file.read_text())
 
         assert manifest["trial"] == "test_trial"
-        assert manifest["timestamp"] == "20231201_143000"
+        assert manifest["started_at"] == "20231201_143000"
         assert manifest["run_id"] == "abc123"
         assert manifest["format"] == "csv"
         assert manifest["statistics"]["rows"] == 3

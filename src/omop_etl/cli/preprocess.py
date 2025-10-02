@@ -4,7 +4,7 @@ from typing import Optional
 import typer
 from logging import getLogger
 
-from omop_etl.infra.logging_setup import configure
+from omop_etl.infra.logging.logging_setup import configure
 from omop_etl.preprocessing.api import (
     preprocess_trial,
     make_ecrf_config,

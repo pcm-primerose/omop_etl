@@ -1,11 +1,11 @@
 import re
 from enum import Enum
-from typing import List, Optional, Set, Sequence, Callable
+from typing import List, Optional, Set, Sequence, Callable, Iterable, Dict, Any
 from dataclasses import field, dataclass
 import datetime as dt
 from logging import getLogger
 
-from omop_etl.harmonization.core.serialize import to_normalized, build_nested_df, to_wide
+from omop_etl.harmonization.core.serialize import to_normalized, build_nested_df, to_wide, _export_leaf_object
 from omop_etl.harmonization.core.validators import StrictValidators
 
 log = getLogger(__name__)
@@ -2048,21 +2048,21 @@ class HarmonizedData:
             patients=filtered_patients,
         )
 
-    # TODO: Implement this:
-    # def to_dict(self) -> Dict[str, Any]:
-    #     """
-    #     Convert entire HarmonizedData to dictionary.
-    #     """
-    #     return {
-    #         "trial_id": self.trial_id,
-    #         "patients": [export_by_properties(p) for p in self.patients],
-    #     }
+    def to_dict(self) -> Dict[str, Any]:
+        patients = []
+        for p in self.patients:
+            # include ids
+            d = _export_leaf_object(p, exclude=set())
+            # trial_id present in each record
+            d.setdefault("trial_id", self.trial_id)
+            patients.append(d)
+        return {"trial_id": self.trial_id, "patients": patients}
 
-    # def to_json(self, indent: int = 2) -> str:
-    #     """
-    #     Convert to JSON string.
-    #     """
-    #     return json.dumps(self.to_dict(), indent=indent, default=str)
+    def ndjson_iter(self) -> Iterable[Dict[str, Any]]:
+        for p in self.patients:
+            d = _export_leaf_object(p, exclude=set())
+            d.setdefault("trial_id", self.trial_id)
+            yield d
 
     def to_dataframe_wide(self, prefix_sep="."):
         patient_cls = type(next(iter(self.patients), object()))

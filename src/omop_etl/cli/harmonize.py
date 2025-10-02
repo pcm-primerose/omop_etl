@@ -1,8 +1,8 @@
 from pathlib import Path
 import json
 import polars as pl
-from omop_etl.infra.types import Layout
-from omop_etl.infra.run_context import RunMetadata
+from omop_etl.infra.io.types import Layout
+from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.api import HarmonizationService
 
 
@@ -22,7 +22,7 @@ def run_harmonization_test(input_csv: Path, base_root: Path, trial: str = "IMPRE
     hd = svc.run(
         trial=trial,
         input_path=input_csv,
-        formats=formats,
+        formats="all",
         write_wide=True,
         write_normalized=True,
         meta=meta,

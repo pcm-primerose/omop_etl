@@ -1,3 +1,4 @@
+# harmonization/core/serialize.py
 import datetime as dt
 import inspect
 import typing as t
@@ -132,6 +133,7 @@ def build_nested_df(patients: list, patient_cls: type) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=schema, strict=False, infer_schema_length=0)
 
 
+# TODO: use generics
 def _unwrap_optional(tp: t.Any) -> t.Any:
     """Optional[T] -> T: otherwise unchanged."""
     if t.get_origin(tp) is t.Union:

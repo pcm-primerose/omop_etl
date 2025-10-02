@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, Mapping, Sequence, Literal
 import polars as pl
 
-from ...infra.run_context import RunContext
+from omop_etl.infra.utils.run_context import RunMetadata
 
 
 @dataclass(frozen=True)
@@ -57,4 +57,4 @@ class PreprocessResult:
     output_path: OutputPath
     rows: int
     columns: int
-    context: RunContext
+    context: RunMetadata

@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 import polars as pl
 import pytest
-from omop_etl.preprocessing.core.registry import (
+from omop_etl.infra.utils.registry import (
     register_trial,
     get_registered_trials,
     get_processor,
@@ -24,7 +24,7 @@ def clean_registry():
 def test_config_and_processor_trials_match():
     """Ensure every available config has a corresponding processor"""
     # real registered trials
-    from omop_etl.preprocessing.core.registry import TRIAL_PROCESSORS
+    from omop_etl.infra.utils.registry import TRIAL_PROCESSORS
     from omop_etl.preprocessing.core.config_loader import available_trials
 
     available_configs = set(available_trials())

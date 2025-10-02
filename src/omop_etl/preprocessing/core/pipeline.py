@@ -6,8 +6,9 @@ from logging import getLogger
 from .models import EcrfConfig, PreprocessingRunOptions, PreprocessResult
 from .io_load import InputResolver
 from .combine import combine
-from .registry import TRIAL_PROCESSORS
-from .io_export import OutputManager, RunContext
+from omop_etl.infra.utils.registry import TRIAL_PROCESSORS
+from .io_export import OutputManager
+from ...infra.utils.run_context import RunMetadata
 
 log = getLogger(__name__)
 
@@ -48,7 +49,7 @@ class PreprocessingPipeline:
             PreprocessResult with output details
         """
         # create run context
-        ctx = RunContext.create(self.trial)
+        ctx = RunMetadata.create(self.trial)
 
         log.info("Pipeline started", extra={**ctx.as_dict(), "input": str(input_path)})
 

@@ -43,7 +43,7 @@ def test_preprocess_trial_with_real_data(tmp_path):
 
     # patch the registry directly
     with patch(
-        "omop_etl.preprocessing.core.registry.TRIAL_PROCESSORS",
+        "omop_etl.infra.utils.registry.TRIAL_PROCESSORS",
         {"impress": mock_processor},
     ):
         with patch.dict("os.environ", {"DISABLE_LOG_FILE": "1"}):

@@ -1,6 +1,6 @@
 import polars as pl
 from deprecated import deprecated
-from ..core.registry import register_trial
+from omop_etl.infra.utils.registry import register_trial
 from ..core.models import EcrfConfig, PreprocessingRunOptions
 
 

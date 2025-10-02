@@ -7,8 +7,8 @@ from logging import getLogger
 from logging.handlers import RotatingFileHandler
 import os
 
-from .models import OutputFormat, RunContext, OutputPath
-from ...infra.logging_setup import add_file_handler
+from .models import OutputFormat, RunMetadata, OutputPath
+from omop_etl.infra.logging.logging_setup import add_file_handler
 
 log = getLogger(__name__)
 
@@ -35,7 +35,7 @@ class OutputManager:
 
     def resolve_output_path(
         self,
-        ctx: RunContext,
+        ctx: RunMetadata,
         output: Optional[Path] = None,
         fmt: Optional[str] = None,
         filename_stem: str = "preprocessed",
@@ -44,7 +44,7 @@ class OutputManager:
         Resolve the output path based on provided arguments.
 
         Args:
-            ctx: Run context with trial, timestamp, and run_id
+            ctx: Run context with trial, started_at, and run_id
             output: Optional explicit output path (file or dir)
             fmt: Optional format override
             filename_stem: Base name for generated files
@@ -82,7 +82,7 @@ class OutputManager:
             base = self.base_dir
 
         # create structured dir
-        directory = base / ctx.trial.lower() / f"{ctx.timestamp}_{ctx.run_id}"
+        directory = base / ctx.trial.lower() / f"{ctx.started_at}_{ctx.run_id}"
         directory.mkdir(parents=True, exist_ok=True)
 
         # determine format and build paths
@@ -126,7 +126,7 @@ class OutputManager:
     @staticmethod
     def write_manifest(
         output_path: OutputPath,
-        ctx: RunContext,
+        ctx: RunMetadata,
         df: pl.DataFrame,
         input_path: Path,
         log_file_created: bool = True,
@@ -134,7 +134,7 @@ class OutputManager:
     ) -> None:
         manifest = {
             "trial": ctx.trial,
-            "timestamp": ctx.timestamp,
+            "started_at": ctx.started_at,
             "run_id": ctx.run_id,
             "input": str(input_path.absolute()),
             "output": str(output_path.data_file.absolute()),
@@ -154,7 +154,7 @@ class OutputManager:
     def write(
         self,
         df: pl.DataFrame,
-        ctx: RunContext,
+        ctx: RunMetadata,
         input_path: Path,
         output: Optional[Path] = None,
         fmt: Optional[str] = None,

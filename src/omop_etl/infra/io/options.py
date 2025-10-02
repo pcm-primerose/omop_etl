@@ -20,11 +20,7 @@ class ParquetOptions:
 class JsonOptions:
     indent: int = 2
     ensure_ascii: bool = False
-
-
-@dataclass(frozen=True)
-class NdjsonOptions:
-    ensure_ascii: bool = False
+    datetime: str = "iso"
 
 
 @dataclass(frozen=True)
@@ -33,4 +29,3 @@ class WriterOptions:
     tsv: CsvOptions = CsvOptions(separator="\t")
     parquet: ParquetOptions = ParquetOptions()
     json: JsonOptions = JsonOptions()
-    ndjson: NdjsonOptions = NdjsonOptions()

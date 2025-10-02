@@ -1,7 +1,9 @@
-# infra/manifest.py
 from pathlib import Path
 from typing import Optional
-from .io_core import WriterResult, TableMeta
+from omop_etl.infra.io.io_core import (
+    WriterResult,
+    TableMeta,
+)
 
 
 def build_manifest(

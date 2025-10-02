@@ -1,7 +1,7 @@
 from typing import Callable, Dict, List
 import polars as pl
 
-from .models import EcrfConfig, PreprocessingRunOptions
+from omop_etl.preprocessing.core.models import EcrfConfig, PreprocessingRunOptions
 
 Processor = Callable[[pl.DataFrame, EcrfConfig, PreprocessingRunOptions], pl.DataFrame]
 TRIAL_PROCESSORS: Dict[str, Processor] = {}
