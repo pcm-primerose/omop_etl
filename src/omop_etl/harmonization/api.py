@@ -1,32 +1,31 @@
 from __future__ import annotations
 from pathlib import Path
 import polars as pl
-from typing import Optional
+from typing import Optional, Sequence
 
 from .datamodels import HarmonizedData
 from .harmonizers.impress import ImpressHarmonizer
-from ..infra.run_context import RunContext
-from .core.io_export import HarmonizedOutputManager
+from ..infra.path_planner import Layout
+from ..infra.run_context import RunMetadata
+from .core.io_export import HarmonizedExporter
+from ..infra.types import Format
 
 
 class HarmonizationService:
-    def __init__(self, out_manager: Optional[HarmonizedOutputManager] = None):
-        self.out = out_manager or HarmonizedOutputManager()
+    def __init__(self, outdir: Path, layout: Layout = Layout.TRIAL_RUN, out_manager: Optional[HarmonizedExporter] = None):
+        self.out = out_manager or HarmonizedExporter(base_out=outdir, layout=layout)
 
     def run(
         self,
         *,
         trial: str,
         input_path: Path,
-        output_format: str = "csv",
-        output_dir: Optional[Path] = None,
+        formats: Sequence[Format] = ("csv",),
         write_wide: bool = True,
         write_normalized: bool = True,
-        ctx: Optional[RunContext] = None,
+        meta: Optional[RunMetadata] = None,
     ) -> HarmonizedData:
-        ctx = ctx or RunContext.create(trial)
-
-        # TODO: replace with factory later
+        meta = meta or RunMetadata.create(trial)
         if trial.upper() != "IMPRESS":
             raise KeyError(f"No harmonizer for trial '{trial}'")
 
@@ -34,8 +33,8 @@ class HarmonizationService:
         hd = ImpressHarmonizer(df, trial_id=trial.upper()).process()
 
         if write_wide:
-            self.out.write_wide(hd, ctx=ctx, input_path=input_path, fmt=output_format, output=output_dir)
+            self.out.export_wide(hd, meta=meta, input_path=input_path, formats=formats)
         if write_normalized:
-            self.out.write_normalized_dir(hd, ctx=ctx, input_path=input_path, fmt=output_format, output=output_dir)
+            self.out.export_normalized(hd, meta=meta, input_path=input_path, formats=formats)
 
         return hd

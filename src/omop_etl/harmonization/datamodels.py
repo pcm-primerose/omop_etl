@@ -2048,6 +2048,7 @@ class HarmonizedData:
             patients=filtered_patients,
         )
 
+    # TODO: Implement this:
     # def to_dict(self) -> Dict[str, Any]:
     #     """
     #     Convert entire HarmonizedData to dictionary.

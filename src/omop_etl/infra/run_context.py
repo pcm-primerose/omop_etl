@@ -1,29 +1,31 @@
+# infra/run_context.py
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import uuid
+from typing import Optional
 
 
 @dataclass(frozen=True)
-class RunContext:
-    """Immutable context for a preprocessing run."""
-
+class RunMetadata:
     trial: str
-    timestamp: str
     run_id: str
+    started_at: str
+    user: Optional[str] = None
+    source: Optional[str] = None  # "api", "cli"
 
     @classmethod
-    def create(cls, trial: str) -> "RunContext":
-        """Create a new run context with generated timestamp and ID."""
+    def create(cls, trial: str, *, run_id: Optional[str] = None) -> "RunMetadata":
         return cls(
             trial=trial,
-            timestamp=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
-            run_id=uuid.uuid4().hex[:8],
+            run_id=run_id or uuid.uuid4().hex[:8],
+            started_at=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
         )
 
-    def as_dict(self) -> dict[str, str]:
-        """Convert dict for logging/serialization."""
-        return {"trial": self.trial, "timestamp": self.timestamp, "run_id": self.run_id}
-
-    @property
-    def artifact_dir(self) -> str:
-        return f"{self.trial.lower()}/{self.timestamp}_{self.run_id}"
+    def as_dict(self) -> dict:
+        return {
+            "trial": self.trial,
+            "run_id": self.run_id,
+            "started_at": self.started_at,
+            **({"user": self.user} if self.user else {}),
+            **({"source": self.source} if self.source else {}),
+        }
