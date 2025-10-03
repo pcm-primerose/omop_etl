@@ -1,19 +1,20 @@
-# harmonization/core/serialize.py
 import datetime as dt
 import inspect
 import typing as t
 from functools import lru_cache
 import polars as pl
-from polars.type_aliases import PolarsDataType as PLDType
-
-NoneType = type(None)
-IDS = ["patient_id", "trial_id"]
-IDENTITY_FIELDS = set(IDS)
-COL_SEP = "."
-_LIST_OR_TUPLE = (list, tuple)
+from polars._typing import PolarsDataType as polars_data_type
+from omop_etl.infra.io.types import SerializeTypes
+from omop_etl.infra.utils.typing_utils import unwrap_optional
 
 
-def to_wide(df_nested: pl.DataFrame, prefix_sep: str = COL_SEP) -> pl.DataFrame:
+# TODO: refactor main three branches to separate modules:
+# scalars
+# singletons
+# collections
+
+
+def to_wide(df_nested: pl.DataFrame, prefix_sep: str = SerializeTypes.COL_SEP) -> pl.DataFrame:
     """
     Flatten a nested frame into a single wide frame:
       - one base row per patient (ids + scalars + singleton fields)
@@ -22,32 +23,31 @@ def to_wide(df_nested: pl.DataFrame, prefix_sep: str = COL_SEP) -> pl.DataFrame:
     """
     df = df_nested
 
-    # unnest all singletons in-place, snapshot schema to avoid iterator invalidation
-    for c, dtp in list(df.schema.items()):
+    for collection, dtp in list(df.schema.items()):
         if dtp == pl.Struct:
             before = set(df.columns)
-            df = df.unnest(c)
+            df = df.unnest(collection)
             new_cols = [x for x in df.columns if x not in before]
             if new_cols:
-                df = df.rename({x: f"{c}{prefix_sep}{x}" for x in new_cols})
+                df = df.rename({x: f"{collection}{prefix_sep}{x}" for x in new_cols})
 
-    # base rows: ids + all non-nested fields
     base_cols = [c for c, tp in df.schema.items() if tp not in (pl.Struct,) and not isinstance(tp, pl.List)]
-    base_only = [c for c in base_cols if c not in IDS]
-    base = df.select([*IDS, *base_only]).with_columns(
+    base_only = [c for c in base_cols if c not in SerializeTypes.ID_COLUMNS]
+    base = df.select([*SerializeTypes.ID_COLUMNS, *base_only]).with_columns(
         pl.lit(None, dtype=pl.Int64).alias("row_index"),
         pl.lit("base").alias("row_type"),
     )
-    base = _reorder_wide_columns(base, IDS)
+
+    base = _reorder_wide_columns(df=base, ids=SerializeTypes.ID_COLUMNS)
 
     # collection parts: ids + row_index + fields + row_type with no scalar duplication
     parts: list[pl.DataFrame] = []
-    for c, tp in df.schema.items():
-        if isinstance(tp, pl.List):
-            part = _explode_collection_into(df, c, IDS, sep=prefix_sep)
+    for collection, schema in df.schema.items():
+        if isinstance(schema, pl.List):
+            part = _explode_collection_into(df, collection, SerializeTypes.ID_COLUMNS, sep=prefix_sep)
             if part is not None:
-                part = part.with_columns(pl.lit(c).alias("row_type"))
-                parts.append(_reorder_wide_columns(part, IDS))
+                part = part.with_columns(pl.lit(collection).alias("row_type"))
+                parts.append(_reorder_wide_columns(part, SerializeTypes.ID_COLUMNS))
 
     wide = pl.concat([base, *parts], how="diagonal_relaxed") if parts else base
 
@@ -70,20 +70,22 @@ def to_normalized(df_nested: pl.DataFrame) -> dict[str, pl.DataFrame]:
 
     # patients
     base_cols = [c for c, tp in df_nested.schema.items() if tp not in (pl.Struct,) and not isinstance(tp, pl.List)]
-    out["patients"] = df_nested.select([*IDS, *[c for c in base_cols if c not in IDS]]).sort(pl.col("patient_id"))
+    out["patients"] = df_nested.select([*SerializeTypes.ID_COLUMNS, *[c for c in base_cols if c not in SerializeTypes.ID_COLUMNS]]).sort(
+        pl.col("patient_id"),
+    )
 
     # singletons
     for c, tp in df_nested.schema.items():
-        if tp == pl.Struct:
-            tbl = _unnest_singleton_into(df_nested, c, IDS, sep=COL_SEP)
-            if any(isinstance(dt, pl.List) or dt == pl.Struct for dt in tbl.schema.values()):
-                tbl = tbl.select(IDS)  # defensive fallback
+        if isinstance(tp, pl.Struct):
+            tbl = _unnest_singleton_into(df_nested, c, SerializeTypes.ID_COLUMNS, sep=SerializeTypes.COL_SEP)
+            if any(isinstance(dt, pl.List) or isinstance(dt, pl.Struct) for dt in tbl.schema.values()):
+                tbl = tbl.select(SerializeTypes.ID_COLUMNS)  # defensive fallback
             out[c] = tbl
 
     # collections
     for c, tp in df_nested.schema.items():
         if isinstance(tp, pl.List):
-            tbl = _explode_collection_into(df_nested, c, IDS, sep=COL_SEP)
+            tbl = _explode_collection_into(df_nested, c, SerializeTypes.ID_COLUMNS, sep=SerializeTypes.COL_SEP)
             if tbl is None:
                 continue
             if any(isinstance(dt, pl.List) or dt == pl.Struct for dt in tbl.schema.values()):
@@ -93,9 +95,10 @@ def to_normalized(df_nested: pl.DataFrame) -> dict[str, pl.DataFrame]:
     return out
 
 
-def build_nested_schema(patients: list, patient_cls: type) -> dict[str, PLDType]:
+def build_nested_schema(patients: list, patient_cls: type) -> dict[str, polars_data_type]:
     """Public: class schema & data enrichment (handles dynamic leaves)."""
-    return _enrich_schema_from_data(patients, patient_cls, _patient_class_schema(patient_cls))
+    out = _enrich_schema_from_data(patients, patient_cls, _patient_class_schema(patient_cls))
+    return out
 
 
 def build_nested_df(patients: list, patient_cls: type) -> pl.DataFrame:
@@ -114,7 +117,7 @@ def build_nested_df(patients: list, patient_cls: type) -> pl.DataFrame:
         for name, prop in _public_properties(patient_cls).items():
             val = getattr(p, name, None)
             rt = _property_return_type(patient_cls, name)
-            base = _unwrap_optional(rt) if rt else None
+            base = unwrap_optional(rt) if rt else None
             origin = t.get_origin(base) if base else None
 
             if val is None:
@@ -123,29 +126,20 @@ def build_nested_df(patients: list, patient_cls: type) -> pl.DataFrame:
 
             if origin in (list, tuple, t.Sequence, t.MutableSequence):
                 row[name] = [_export_leaf_object(it) for it in list(val)]
-            elif isinstance(base, type) and isinstance(schema.get(name), pl.Struct):
+            elif isinstance(base, type) and schema.get(name) == pl.Struct:
                 row[name] = _export_leaf_object(val)
             else:
                 row[name] = _to_polars_primitive(val)
 
         rows.append(row)
 
-    return pl.DataFrame(rows, schema=schema, strict=False, infer_schema_length=0)
+    # rows contains all data (scalars + singletons + collections)
+    out = pl.DataFrame(rows, schema=schema, strict=False, infer_schema_length=0)
+    return out
 
 
-# TODO: use generics
-def _unwrap_optional(tp: t.Any) -> t.Any:
-    """Optional[T] -> T: otherwise unchanged."""
-    if t.get_origin(tp) is t.Union:
-        args = [a for a in t.get_args(tp) if a is not NoneType]
-        if len(args) == 1:
-            return args[0]
-    return tp
-
-
-def _py_to_pl(tp: t.Any) -> pl.DataType:
-    """Map Python type to a Polars dtype. Unknowns widen to Utf8."""
-    tp = _unwrap_optional(tp)
+def _py_to_pl(tp: t.Any) -> polars_data_type:
+    tp = unwrap_optional(tp)
     if tp is bool:
         return pl.Boolean
     if tp is int:
@@ -158,15 +152,13 @@ def _py_to_pl(tp: t.Any) -> pl.DataType:
         return pl.Date
     if tp is dt.datetime:
         return pl.Datetime
-    # widen unknowns/enums/objects
     return pl.Utf8
 
 
-def _unify_dtypes(a: pl.DataType, b: pl.DataType) -> pl.DataType:
-    """Join two dtypes into a safe supertype, preferring stable CSV output."""
+def _unify_dtypes(a: polars_data_type, b: polars_data_type) -> polars_data_type:
     if a == b:
         return a
-    nums = {pl.Int64, pl.Float64}
+    nums: set[polars_data_type] = {pl.Int64, pl.Float64}
     if a in nums and b in nums:
         return pl.Float64
     if pl.Utf8 in (a, b):
@@ -175,9 +167,7 @@ def _unify_dtypes(a: pl.DataType, b: pl.DataType) -> pl.DataType:
         return pl.Datetime
     if a == pl.Date and b == pl.Date:
         return pl.Date
-    if a == pl.Boolean and b == pl.Int64:
-        return pl.Int64
-    if b == pl.Boolean and a == pl.Int64:
+    if (a == pl.Boolean and b == pl.Int64) or (b == pl.Boolean and a == pl.Int64):
         return pl.Int64
     return pl.Utf8
 
@@ -224,8 +214,9 @@ def _leaf_field_hints(leaf_cls: type) -> dict[str, t.Any]:
             if rt is not None:
                 hints.setdefault(nm, rt)
     for k in list(hints.keys()):
-        if k in IDENTITY_FIELDS:
+        if k in SerializeTypes.IDENTITY_FIELDS:
             hints.pop(k)
+
     return hints
 
 
@@ -241,7 +232,7 @@ def _to_polars_primitive(v: t.Any) -> t.Any:
     """
     if v is None or isinstance(v, (str, int, float, bool, dt.date, dt.datetime)):
         return v
-    if isinstance(v, _LIST_OR_TUPLE):
+    if isinstance(v, SerializeTypes.LIST_OR_TUPLE):
         return [_to_polars_primitive(x) for x in v]
     if isinstance(v, dict):
         return {k: _to_polars_primitive(x) for k, x in v.items()}
@@ -252,7 +243,7 @@ def _to_polars_primitive(v: t.Any) -> t.Any:
     return str(v)
 
 
-def _export_leaf_object(obj: t.Any, *, exclude: set[str] = IDENTITY_FIELDS) -> dict[str, t.Any]:
+def _export_leaf_object(obj: t.Any, *, exclude: set[str] = SerializeTypes.IDENTITY_FIELDS) -> dict[str, t.Any]:
     """
     Export an object as a dict. Prefer public @properties, if none, fall back
     to __dict__ for dynamic leaves (like C30/EQ5D).
@@ -271,14 +262,14 @@ def _export_leaf_object(obj: t.Any, *, exclude: set[str] = IDENTITY_FIELDS) -> d
     return {}
 
 
-def _patient_class_schema(patient_cls: type) -> dict[str, PLDType]:
+def _patient_class_schema(patient_cls: type) -> dict[str, polars_data_type]:
     """
     Schema from class annotations & property returns:
       - scalars -> primitive dtype
       - Optional[Leaf] -> Struct
       - Sequence[Leaf] -> List[Struct]
     """
-    schema: dict[str, PLDType] = {}
+    schema: dict[str, polars_data_type] = {}
     for name, prop in _public_properties(patient_cls).items():
         rt = _property_return_type(patient_cls, name)
         if rt is None:
@@ -286,14 +277,14 @@ def _patient_class_schema(patient_cls: type) -> dict[str, PLDType]:
             schema[name] = pl.Utf8
             continue
 
-        base = _unwrap_optional(rt)
+        base = unwrap_optional(rt)
         origin = t.get_origin(base)
 
         # collections
         if origin in (list, tuple, t.Sequence, t.MutableSequence):
             args = t.get_args(base)
             if args:
-                elem = _unwrap_optional(args[0])
+                elem = unwrap_optional(args[0])
                 if isinstance(elem, type):
                     schema[name] = pl.List(_leaf_struct_from_class(elem))
             continue
@@ -312,19 +303,18 @@ def _patient_class_schema(patient_cls: type) -> dict[str, PLDType]:
     return schema
 
 
-def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str, PLDType]) -> dict[str, PLDType]:
+def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str, polars_data_type]) -> dict[str, polars_data_type]:
     """
     If any leaf Struct/List(Struct) is empty, derive fields from actual data.
     """
     sch = dict(schema)
 
     for name, prop in _public_properties(patient_cls).items():
-        rt = _property_return_type(patient_cls, name)
-        base = _unwrap_optional(rt) if rt else None
+        return_type = _property_return_type(patient_cls, name)
+        base = unwrap_optional(return_type) if return_type else None
         origin = t.get_origin(base) if base else None
 
-        # singleton leaf with empty struct: learn fields from data
-        if isinstance(base, type) and sch.get(name) == pl.Struct({}):
+        if isinstance(base, type) and sch.get(name) == pl.Struct:
             fields: dict[str, pl.DataType] = {}
             for p in patients:
                 v = getattr(p, name, None)
@@ -334,6 +324,7 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
                 for k, val in d.items():
                     dt = _py_to_pl(type(val)) if val is not None else pl.Null
                     fields[k] = _unify_dtypes(fields.get(k, dt), dt) if k in fields else dt
+
             if fields:
                 sch[name] = pl.Struct({k: (pl.Utf8 if v == pl.Null else v) for k, v in fields.items()})
 
@@ -357,10 +348,11 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
     return sch
 
 
-def _unnest_singleton_into(df: pl.DataFrame, attr: str, ids: list[str], sep: str) -> pl.DataFrame:
+def _unnest_singleton_into(df: pl.DataFrame, attr: str, ids: t.Sequence[str], sep: str) -> pl.DataFrame:
     """Return a frame with only ids + prefixed fields from singleton struct attr."""
-    if attr not in df.columns or df.schema[attr] != pl.Struct:
+    if attr not in df.columns or not df.schema[attr] == pl.Struct:
         return df.select(ids)
+
     sub = df.select([*ids, attr])
     before = set(sub.columns)
     sub2 = sub.unnest(attr)
@@ -371,7 +363,7 @@ def _unnest_singleton_into(df: pl.DataFrame, attr: str, ids: list[str], sep: str
     return sub2.rename(rename).select([*ids, *rename.values()])
 
 
-def _explode_collection_into(df: pl.DataFrame, attr: str, ids: list[str], sep: str) -> pl.DataFrame | None:
+def _explode_collection_into(df: pl.DataFrame, attr: str, ids: t.Sequence[str], sep: str) -> pl.DataFrame | None:
     """
     Return a frame with only ids & per-patient row_index & prefixed fields from list[struct] attr.
     """
@@ -392,7 +384,7 @@ def _explode_collection_into(df: pl.DataFrame, attr: str, ids: list[str], sep: s
     return sub2.rename(rename).select([*ids, "row_index", *rename.values()])
 
 
-def _reorder_wide_columns(df: pl.DataFrame, ids: list[str]) -> pl.DataFrame:
+def _reorder_wide_columns(df: pl.DataFrame, ids: t.Sequence[str]) -> pl.DataFrame:
     """Place ids & row_index & row_type first"""
     front = [*ids, "row_index", "row_type"]
     rest = [c for c in df.columns if c not in front]
@@ -401,15 +393,14 @@ def _reorder_wide_columns(df: pl.DataFrame, ids: list[str]) -> pl.DataFrame:
 
 def _sort_wide(
     wide: pl.DataFrame,
-    ids: list[str] = IDS,
+    ids: t.Sequence[str] = SerializeTypes.ID_COLUMNS,
     collection_order: list[str] | None = None,
 ) -> pl.DataFrame:
-    """Sort by patient, then row_type with base first & then row_index per collection."""
     if collection_order:
         rank = {name: i + 1 for i, name in enumerate(collection_order)}
         wide = (
             wide.with_columns(
-                pl.when(pl.col("row_type") == "base").then(0).otherwise(pl.col("row_type").map_dict(rank, default=len(rank) + 1)).alias("_rt_rank"),
+                pl.when(pl.col("row_type") == "base").then(0).otherwise(pl.col("row_type").replace(rank, default=len(rank) + 1)).alias("_rt_rank"),
             )
             .sort([*ids, "_rt_rank", "row_index"])
             .drop("_rt_rank")

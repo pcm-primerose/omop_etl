@@ -34,6 +34,7 @@ class EcrfConfig:
 @dataclass(frozen=True)
 class PreprocessingRunOptions:
     filter_valid_cohort: bool = False
+    combine_key: str = "SubjectId"
 
 
 OutputFormat = Literal["csv", "tsv", "parquet"]

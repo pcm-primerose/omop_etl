@@ -1,261 +1,111 @@
 import logging
 from pathlib import Path
-from typing import Optional
-import json
+from typing import Dict, Sequence
 import polars as pl
 from logging import getLogger
-from logging.handlers import RotatingFileHandler
-import os
 
-from .models import OutputFormat, RunMetadata, OutputPath
+from logging.handlers import RotatingFileHandler
+from omop_etl.infra.io.types import Layout
+from omop_etl.infra.io.options import WriterOptions
+from omop_etl.infra.io.manifest_builder import build_manifest
+from omop_etl.infra.io.io_core import write_frame, write_manifest, WriterResult
+from omop_etl.infra.io.path_planner import plan_paths, WriterContext
+from omop_etl.infra.io.format_utils import NORMALIZED_FORMATS, expand_formats
 from omop_etl.infra.logging.logging_setup import add_file_handler
 
 log = getLogger(__name__)
 
-# TODO: refactor to use infra/io_core.py
 
+class PreprocessExporter:
+    def __init__(self, base_out: Path, layout: Layout = Layout.TRIAL_RUN):
+        self.base_out = base_out
+        self.layout = layout
+        self._file_handler: RotatingFileHandler | None = None
 
-class OutputManager:
-    """Manages all output operations for the preprocessing pipeline."""
-
-    DEFAULT_BASE_DIR = Path(".data/preprocessing")
-    SUPPORTED_FORMATS = {"csv", "tsv", "parquet"}
-    FORMAT_EXTENSIONS = {"csv": ".csv", "tsv": ".tsv", "parquet": ".parquet"}
-
-    def __init__(
+    def export_wide(
         self,
-        base_dir: Optional[Path] = None,
-        default_format: OutputFormat = "csv",
-        enable_logfile: bool = True,
-    ):
-        self.file_handler: Optional[RotatingFileHandler] = None
-        self.base_dir = base_dir or self.DEFAULT_BASE_DIR
-        self.default_format = default_format
-        self.enable_logfile = enable_logfile
+        df: pl.DataFrame,
+        meta,
+        input_path: Path,
+        formats: Sequence[str],
+        opts: WriterOptions | None = None,
+    ) -> Dict[str, WriterContext]:
+        opts = opts or WriterOptions()
+        fmts = expand_formats(formats, allowed=NORMALIZED_FORMATS)
+        out: Dict[str, WriterContext] = {}
 
-    def resolve_output_path(
-        self,
-        ctx: RunMetadata,
-        output: Optional[Path] = None,
-        fmt: Optional[str] = None,
-        filename_stem: str = "preprocessed",
-    ) -> OutputPath:
-        """
-        Resolve the output path based on provided arguments.
-
-        Args:
-            ctx: Run context with trial, started_at, and run_id
-            output: Optional explicit output path (file or dir)
-            fmt: Optional format override
-            filename_stem: Base name for generated files
-
-        Returns:
-            OutputPath with resolved paths for data and manifest
-        """
-        # explicit file path provided
-        if output and output.suffix:
-            fmt = self._infer_format(output)
-            if not fmt:
-                # use provided format or default if extension unknown
-                fmt = self._normalize_format(fmt)
-                output = output.with_suffix(self.FORMAT_EXTENSIONS[fmt])
-
-            directory = output.parent
-            directory.mkdir(parents=True, exist_ok=True)
-
-            stem = f"data_{output.stem}"
-            manifest_file = directory / f"manifest_{stem}.json"
-            log_file = directory / f"{stem}.log"
-
-            return OutputPath(
-                data_file=output,
-                manifest_file=manifest_file,
-                log_file=log_file,
-                directory=directory,
-                format=fmt,
+        name_template = "{trial}_{run_id}_{started_at}_{mode}"
+        for fmt in fmts:
+            ctx = plan_paths(
+                base_out=self.base_out,
+                module=None,
+                trial=meta.trial,
+                run_id=meta.run_id,
+                stem="preprocessed",
+                fmt=fmt,
+                layout=self.layout,
+                started_at=meta.started_at,
+                include_stem_dir=False,
+                name_template=name_template,
             )
+            ctx.base_dir.mkdir(parents=True, exist_ok=True)
 
-        # dir provided or use default
-        if output and output.is_dir():
-            base = output
-        else:
-            base = self.base_dir
+            self._attach_logfile(ctx, meta, input_path, fmt)
 
-        # create structured dir
-        directory = base / ctx.trial.lower() / f"{ctx.started_at}_{ctx.run_id}"
-        directory.mkdir(parents=True, exist_ok=True)
+            wopts = opts.csv if fmt == "csv" else (opts.tsv if fmt == "tsv" else opts.parquet)
+            result: WriterResult = write_frame(df, ctx.data_path, fmt, wopts)
 
-        # determine format and build paths
-        fmt = self._normalize_format(fmt)
-        data_file = (directory / f"data_{filename_stem}").with_suffix(self.FORMAT_EXTENSIONS[fmt])
-        manifest_file = directory / f"manifest_{filename_stem}.json"
-        log_file = directory / f"{filename_stem}.log"
+            manifest = build_manifest(
+                trial=meta.trial,
+                run_id=meta.run_id,
+                started_at=meta.started_at,
+                input_path=input_path,
+                directory=ctx.base_dir,
+                fmt=fmt,
+                mode="preprocessed",
+                result=result,
+            )
+            write_manifest(manifest, ctx.manifest_path)
 
-        return OutputPath(
-            data_file=data_file,
-            manifest_file=manifest_file,
-            log_file=log_file,
-            directory=directory,
-            format=fmt,
+            log.info(
+                "preprocess.export_wide.done",
+                extra={
+                    "trial": meta.trial,
+                    "run_id": meta.run_id,
+                    "started_at": meta.started_at,
+                    "fmt": fmt,
+                    "rows": df.height,
+                    "cols": df.width,
+                    "data_path": str(ctx.data_path),
+                    "manifest_path": str(ctx.manifest_path),
+                    "log_path": str(ctx.log_path),
+                },
+            )
+            out[fmt] = ctx
+            self._detach_logfile()
+        return out
+
+    def _attach_logfile(self, ctx: WriterContext, meta, input_path: Path, fmt: str) -> None:
+        self._file_handler = add_file_handler(ctx.log_path, json_format=True, level=logging.DEBUG)
+        log.info(
+            "preprocess.export_wide.start",
+            extra={
+                "trial": meta.trial,
+                "run_id": meta.run_id,
+                "started_at": meta.started_at,
+                "fmt": fmt,
+                "input": str(input_path),
+                "output_dir": str(ctx.base_dir),
+                "log_file": str(ctx.log_path),
+                "log_format": "json",
+            },
         )
 
-    @staticmethod
-    def write_dataframe(df: pl.DataFrame, output_path: OutputPath) -> None:
-        log.debug(f"Writing {df.height} rows to {output_path.data_file}")
-
-        if output_path.format == "csv":
-            df.write_csv(
-                output_path.data_file,
-                include_header=True,
-                null_value=None,
-                float_precision=6,
-            )
-        elif output_path.format == "tsv":
-            df.write_csv(
-                output_path.data_file,
-                include_header=True,
-                null_value=None,
-                float_precision=6,
-                separator="\t",
-            )
-        elif output_path.format == "parquet":
-            df.write_parquet(output_path.data_file, compression="zstd", statistics=True)
-        else:
-            raise ValueError(f"Unsupported format: {output_path.format}")
-
-    @staticmethod
-    def write_manifest(
-        output_path: OutputPath,
-        ctx: RunMetadata,
-        df: pl.DataFrame,
-        input_path: Path,
-        log_file_created: bool = True,
-        options: Optional[dict] = None,
-    ) -> None:
-        manifest = {
-            "trial": ctx.trial,
-            "started_at": ctx.started_at,
-            "run_id": ctx.run_id,
-            "input": str(input_path.absolute()),
-            "output": str(output_path.data_file.absolute()),
-            "format": output_path.format,
-            "log_file": str(output_path.log_file.absolute()) if log_file_created else None,
-            "statistics": {
-                "rows": df.height,
-                "columns": df.width,
-            },
-            "schema": {col: str(dtype) for col, dtype in df.schema.items()},
-            "options": options or {},
-        }
-
-        log.debug(f"Writing manifest to {output_path.manifest_file}")
-        output_path.manifest_file.write_text(json.dumps(manifest, indent=2))
-
-    def write(
-        self,
-        df: pl.DataFrame,
-        ctx: RunMetadata,
-        input_path: Path,
-        output: Optional[Path] = None,
-        fmt: Optional[str] = None,
-        options: Optional[dict] = None,
-    ) -> OutputPath:
-        """
-        Complete write operation: dataframe + manifest + setup logging.
-
-        Args:
-            df: DataFrame to write
-            ctx: Run context
-            input_path: Original input path
-            output: Optional output path override
-            fmt: Optional format override
-            options: Optional processing options to record
-
-        Returns:
-            OutputPath with paths to written files
-        """
-        output_path = self.resolve_output_path(ctx, output, fmt)
-        disable_log_file = os.getenv("DISABLE_LOG_FILE", "0") == "1"
-
-        # set up log file if enabled
-        if self.enable_logfile and not disable_log_file:
-            log_file_json = os.getenv("LOG_FILE_JSON")
-            if log_file_json is not None:
-                json_format = log_file_json == "1"
-            else:
-                # fallback to console format setting
-                json_format = os.getenv("LOG_JSON", "0") == "1"
-
-            # add file handler for this run
-            self.file_handler = add_file_handler(output_path.log_file, json_format=json_format, level=logging.DEBUG)
-
-            # log start of output writing with context
-            log.info(
-                "Starting output write",
-                extra={
-                    **ctx.as_dict(),
-                    "input": str(input_path),
-                    "output_dir": str(output_path.directory),
-                    "log_file": str(output_path.log_file),
-                    "log_format": "json" if json_format else "plain",
-                },
-            )
-        else:
-            log.info(
-                "Starting output write (no log file)",
-                extra={
-                    **ctx.as_dict(),
-                    "input": str(input_path),
-                    "output_dir": str(output_path.directory),
-                },
-            )
-
-        try:
-            self.write_dataframe(df, output_path)
-
-            log_file_created = self.enable_logfile and not disable_log_file
-            self.write_manifest(
-                output_path=output_path,
-                ctx=ctx,
-                df=df,
-                input_path=input_path,
-                options=options,
-                log_file_created=log_file_created,
-            )
-
-            log.info(
-                "Output written successfully",
-                extra={
-                    **ctx.as_dict(),
-                    "output": str(output_path.data_file),
-                    "rows": df.height,
-                    "columns": df.width,
-                },
-            )
-
-        except Exception as e:
-            log.error(f"Failed to write output: {e}", extra=ctx.as_dict(), exc_info=True)
-            raise
-
-        return output_path
-
-    def _infer_format(self, path: Path) -> Optional[OutputFormat]:
-        """Infer format from file extension."""
-        suffix = path.suffix.lower().lstrip(".")
-        if suffix == "txt":
-            suffix = "tsv"
-        return suffix if suffix in self.SUPPORTED_FORMATS else None
-
-    def _normalize_format(self, fmt: Optional[str]) -> OutputFormat:
-        """Normalize format string to supported type."""
-        if not fmt:
-            return self.default_format
-
-        normalized = fmt.lower()
-        if normalized == "txt":
-            normalized = "tsv"
-
-        if normalized not in self.SUPPORTED_FORMATS:
-            raise ValueError(f"Unsupported format '{fmt}'. Supported: {', '.join(sorted(self.SUPPORTED_FORMATS))}")
-
-        return normalized  # type: ignore[return-value]
+    def _detach_logfile(self) -> None:
+        if self._file_handler:
+            try:
+                root = logging.getLogger()
+                root.removeHandler(self._file_handler)
+                self._file_handler.close()
+            finally:
+                self._file_handler = None

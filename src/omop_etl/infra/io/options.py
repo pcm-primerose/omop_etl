@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from omop_etl.infra.io.types import ParquetCompression
+
 
 @dataclass(frozen=True)
 class CsvOptions:
@@ -12,7 +14,7 @@ class CsvOptions:
 
 @dataclass(frozen=True)
 class ParquetOptions:
-    compression: str = "zstd"
+    compression: ParquetCompression = "zstd"
     statistics: bool = True
 
 

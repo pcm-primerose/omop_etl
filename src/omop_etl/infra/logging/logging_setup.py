@@ -1,4 +1,3 @@
-# infra/logging_setup.py
 from __future__ import annotations
 import json
 import logging
@@ -103,9 +102,8 @@ class MpLoggingController:
 
 
 def configure(
-    *,
     level: Optional[int | str] = None,
-    json_out: Optional[bool] = None,
+    json_out: Optional[bool] = False,
     log_file: Optional[Path] = None,
 ) -> None:
     """
@@ -163,7 +161,6 @@ def configure(
 
 def add_file_handler(
     path: Path,
-    *,
     max_bytes: int = 10_000_000,
     backup_count: int = 3,
     level: Optional[str | int] = None,
@@ -266,7 +263,7 @@ def start_mp_logging(
     return queue, listener
 
 
-def configure_worker(queue: mp.Queue, *, level: Optional[str | int] = None) -> None:
+def configure_worker(queue: mp.Queue, level: Optional[str | int] = None) -> None:
     """
     Configure logging in a worker process,
     call at the start of each worker process.
@@ -297,7 +294,6 @@ def configure_worker(queue: mp.Queue, *, level: Optional[str | int] = None) -> N
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:
     if name is None:
-        # try to get caller's module name
         import inspect
 
         frame = inspect.currentframe()

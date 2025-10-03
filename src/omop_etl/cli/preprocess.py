@@ -16,6 +16,7 @@ from omop_etl.preprocessing.api import (
 app = typer.Typer(
     add_completion=True,
     pretty_exceptions_enable=False,
+    pretty_exceptions_show_locals=True,
     help="Preprocess eCRF data using source-specific pipelines.",
 )
 
@@ -65,10 +66,6 @@ def _setup_logging(
 
 @app.command("list-sources")
 def list_sources_cmd() -> None:
-    """List all available trial sources."""
-    from omop_etl.preprocessing.core.bootstrap import load_builtin_trials
-
-    load_builtin_trials()
     trials = list_trials()
     if trials:
         typer.echo("Available sources:")
@@ -94,14 +91,6 @@ def run(
         "-s",
         help="Source pipeline to use.",
     ),
-    output: Optional[Path] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help=(
-            "Output path. If it has a known extension (csv/tsv/parquet), it's used as the exact file. If it's a directory, the file will be auto-named. If omitted, writes to /.data/preprocessing/."
-        ),
-    ),
     config: Optional[Path] = typer.Option(
         None,
         "--config",
@@ -110,23 +99,17 @@ def run(
         exists=True,
         readable=True,
     ),
-    key: str = typer.Option(
-        "SubjectId",
-        "--key",
-        "-k",
-        help="Join key used when combining sheets.",
-    ),
     only_cohort: bool = typer.Option(
         False,
         "--only-cohort",
         "-oc",
         help="Only keep subjects in cohorts.",
     ),
-    output_format: str = typer.Option(
-        "csv",
+    output_format: list[str] = typer.Option(
+        ["all"],
         "--output-format",
         "-of",
-        help="Output format: csv | tsv | parquet",
+        help="Repeatable. One of: csv | tsv | parquet | all",
     ),
     base_dir: Optional[Path] = typer.Option(
         None,
@@ -181,20 +164,13 @@ def run(
         # load or create config
         ecrf_config = make_ecrf_config(trial=source, custom_config_path=config)
 
-        if no_log_file:
-            os.environ["DISABLE_LOG_FILE"] = "1"
-        else:
-            os.environ.pop("DISABLE_LOG_FILE", None)
-
         # run preprocessing
         result: PreprocessResult = preprocess_trial(
             trial=source,
             input_path=input_path,
             config=ecrf_config,
             run_options=run_options,
-            output=output,
             fmt=output_format,
-            combine_key=key,
             base_output_dir=base_dir,
         )
 

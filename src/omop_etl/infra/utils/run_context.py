@@ -1,4 +1,3 @@
-# infra/run_context.py
 from dataclasses import dataclass
 from datetime import (
     datetime,
@@ -7,17 +6,19 @@ from datetime import (
 import uuid
 from typing import Optional
 
+from omop_etl.infra.io.types import RunSource
+
 
 @dataclass(frozen=True)
 class RunMetadata:
     trial: str
     run_id: str
     started_at: str
+    source: Optional[RunSource] = None
     user: Optional[str] = None
-    source: Optional[str] = None  # "api", "cli" todo: typify
 
     @classmethod
-    def create(cls, trial: str, *, run_id: Optional[str] = None) -> "RunMetadata":
+    def create(cls, trial: str, run_id: Optional[str] = None) -> "RunMetadata":
         return cls(
             trial=trial,
             run_id=run_id or uuid.uuid4().hex[:8],

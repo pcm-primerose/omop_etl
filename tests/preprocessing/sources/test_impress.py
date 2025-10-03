@@ -2,7 +2,6 @@ import polars as pl
 
 from omop_etl.preprocessing.sources.impress import (
     _filter_valid_cohort,
-    _keep_ecog_v00_or_na,
     _add_trial,
     _prefix_subject,
     _aggregate_no_conflicts,
@@ -60,39 +59,6 @@ class TestCohortFiltering:
         # only A003 should remain
         assert result.height == 1
         assert result["SubjectId"].item() == "A003"
-
-
-class TestEcogFiltering:
-    """Test ECOG filtering logic"""
-
-    def test_keeps_v00_ecog_events(self):
-        df = pl.DataFrame(
-            {
-                "SubjectId": ["A001", "A002"],
-                "ECOG_EventId": ["V00", "V00"],
-                "data": [1, 2],
-            },
-        )
-
-        result = _keep_ecog_v00_or_na(df)
-        assert result.height == 2
-
-    def test_filters_out_other_ecog_events(self):
-        df = pl.DataFrame(
-            {
-                "SubjectId": ["A001", "A002", "A003", "A004"],
-                "ECOG_EventId": ["V00", None, "V01", "V02"],
-                "data": [1, 2, 3, 4],
-            },
-        )
-
-        result = _keep_ecog_v00_or_na(df)
-
-        # only V00 and None should remain
-        assert result.height == 2
-        kept_events = result["ECOG_EventId"].to_list()
-        assert "V01" not in kept_events
-        assert "V02" not in kept_events
 
 
 class TestAddTrial:

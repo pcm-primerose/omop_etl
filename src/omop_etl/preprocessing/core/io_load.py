@@ -10,8 +10,6 @@ from .models import EcrfConfig, SheetData
 
 log = getLogger(__name__)
 
-# todo: if new trials from raw data, extend readers
-
 
 class DataSourceReader(Protocol):
     """Protocol for data source readers."""

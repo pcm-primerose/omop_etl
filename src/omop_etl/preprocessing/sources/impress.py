@@ -1,9 +1,14 @@
-# omop_etl/preprocessing/sources/impress.py
 import polars as pl
-from deprecated import deprecated
-
-# from omop_etl.infra.utils.registry import register_trial_loader
 from ..core.models import EcrfConfig, PreprocessingRunOptions
+
+
+def preprocess_impress(df: pl.DataFrame, ecfg: EcrfConfig, run_opts: PreprocessingRunOptions) -> pl.DataFrame:
+    """
+    Pre-processing pipeline for IMPRESS.
+    """
+    trial = (ecfg.trial or "impress").upper()
+    base = _filter_valid_cohort(df) if run_opts.filter_valid_cohort else df
+    return base.pipe(_add_trial, trial).pipe(_prefix_subject, trial).pipe(_aggregate_no_conflicts).pipe(_reorder_subject_trial_first)
 
 
 def _filter_valid_cohort(df: pl.DataFrame) -> pl.DataFrame:
@@ -14,13 +19,6 @@ def _filter_valid_cohort(df: pl.DataFrame) -> pl.DataFrame:
     valid = name.is_not_null() & (name.str.strip_chars().str.len_chars() > 0) & (name.str.to_uppercase() != "NA")
     any_valid = df.select(pl.col("SubjectId"), valid.alias("v")).group_by("SubjectId").agg(pl.any("v").alias("ok"))
     return df.join(any_valid.filter(pl.col("ok")), on="SubjectId", how="semi")
-
-
-@deprecated()
-# moved all filtering on patient data to harmonizers
-def _keep_ecog_v00_or_na(df: pl.DataFrame) -> pl.DataFrame:
-    pass
-    return df.filter(pl.col("ECOG_EventId").is_null() | (pl.col("ECOG_EventId") == "V00"))
 
 
 def _add_trial(df: pl.DataFrame, name: str) -> pl.DataFrame:
@@ -55,9 +53,3 @@ def _aggregate_no_conflicts(df: pl.DataFrame) -> pl.DataFrame:
 def _reorder_subject_trial_first(df: pl.DataFrame) -> pl.DataFrame:
     cols = [c for c in df.columns if c not in {"SubjectId", "Trial"}]
     return df.select(["SubjectId", "Trial", *cols])
-
-
-def preprocess_impress(df: pl.DataFrame, ecfg: EcrfConfig, run_opts: PreprocessingRunOptions) -> pl.DataFrame:
-    trial = (ecfg.trial or "impress").upper()
-    base = _filter_valid_cohort(df) if run_opts.filter_valid_cohort else df
-    return base.pipe(_add_trial, trial).pipe(_prefix_subject, trial).pipe(_aggregate_no_conflicts).pipe(_reorder_subject_trial_first)

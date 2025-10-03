@@ -1,16 +1,23 @@
-from __future__ import annotations
 from pathlib import Path
-from typing import Optional
-from logging import getLogger
+from typing import Optional, Callable, Sequence, List, cast
+import polars as pl
 
-from .models import EcrfConfig, PreprocessingRunOptions, PreprocessResult
+from .models import (
+    EcrfConfig,
+    PreprocessingRunOptions,
+    PreprocessResult,
+    OutputPath,
+)
 from .io_load import InputResolver
 from .combine import combine
-from .io_export import OutputManager
 from ...infra.utils.run_context import RunMetadata
 from .dispatch import resolve_processor
+from omop_etl.preprocessing.core.io_export import PreprocessExporter
+from omop_etl.infra.io.types import Layout, TabularFormat, NORMALIZED_FORMATS
+from omop_etl.infra.io.options import WriterOptions
+from omop_etl.infra.io.format_utils import expand_formats
 
-log = getLogger(__name__)
+Processor = Callable[[pl.DataFrame, EcrfConfig, PreprocessingRunOptions], pl.DataFrame]
 
 
 class PreprocessingPipeline:
@@ -18,75 +25,63 @@ class PreprocessingPipeline:
         self,
         trial: str,
         ecrf_config: EcrfConfig,
-        output_manager: Optional[OutputManager] = None,
-        processor: Optional[resolve_processor] = None,
+        output_manager: Optional[PreprocessExporter] = None,
+        processor: Optional[Processor] = None,
     ):
         self.trial = trial
         self.ecrf_config = ecrf_config
-        self.output_manager = output_manager or OutputManager()
+        self.exporter = output_manager or PreprocessExporter(base_out=Path(".data"), layout=Layout.TRIAL_RUN)
         self._processor = processor
 
     def run(
         self,
         input_path: Path,
         options: Optional[PreprocessingRunOptions] = None,
-        output: Optional[Path] = None,
-        format: Optional[str] = None,
-        combine_key: str = "SubjectId",
+        formats: Sequence[TabularFormat] | TabularFormat | None = None,
+        combine_key: str = PreprocessingRunOptions.combine_key,
     ) -> PreprocessResult:
-        """
-        Executes preprocessing pipeline.
+        # meta
+        run_meta = RunMetadata.create(self.trial)
 
-        Args:
-            input_path: Input Excel file or CSV dir
-            options: Optional run options (RunOptions)
-            output: Optional output path override
-            format: Optional format override
-            combine_key: Key to join sheets on
+        # resolve processor
+        processor = self._processor or resolve_processor(self.trial)
 
-        Returns:
-            PreprocessResult with output details
-        """
-        # create run context
-        ctx = RunMetadata.create(self.trial)
-
-        # get trial from registry
-        processor = self._get_processor()
-
-        log.info("Pipeline started", extra={**ctx.as_dict(), "input": str(input_path)})
-
-        # load data
+        # load inputs
         resolver = InputResolver()
         ecrf = resolver.resolve(input_path, self.ecrf_config)
         ecrf.trial = self.trial
 
-        # combine sheets
-        df = combine(ecrf, on=combine_key)
+        df_combined = combine(ecrf, on=combine_key)
+        df_out = processor(df_combined, ecrf, options or PreprocessingRunOptions())
 
-        # apply trial-specific processing
-        df = processor(df, ecrf, options or PreprocessingRunOptions())
+        # normalize formats to concrete tabular formats
+        fmts: List[TabularFormat] = cast(
+            List[TabularFormat],
+            expand_formats(formats if formats is not None else "csv", allowed=NORMALIZED_FORMATS, allow_all=True),
+        )
 
-        # write output
-        output_path = self.output_manager.write(
-            df=df,
-            ctx=ctx,
+        ctx_by_fmt = self.exporter.export_wide(
+            df_out,
+            meta=run_meta,
             input_path=input_path,
-            output=output,
-            fmt=format,
-            options=vars(options) if options else None,
+            formats=fmts,
+            opts=WriterOptions(),
         )
 
-        log.info(
-            "Pipeline completed",
-            extra={
-                **ctx.as_dict(),
-                "output": str(output_path.data_file),
-                "rows": df.height,
-                "columns": df.width,
-            },
+        primary_fmt: TabularFormat = fmts[0]
+        ctx = ctx_by_fmt[primary_fmt]
+
+        out_path = OutputPath(
+            data_file=ctx.data_path,
+            manifest_file=ctx.manifest_path,
+            log_file=ctx.log_path,
+            directory=ctx.base_dir,
+            format=primary_fmt,
         )
 
-        return PreprocessResult(output_path=output_path, rows=df.height, columns=df.width, context=ctx)
-
-    def _get_processor(self) -> resolve_processor:
-        return self._processor or resolve_processor(self.trial)
+        return PreprocessResult(
+            output_path=out_path,
+            rows=df_out.height,
+            columns=df_out.width,
+            context=run_meta,
+        )
