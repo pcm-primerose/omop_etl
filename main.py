@@ -6,7 +6,7 @@ from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.api import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure
 from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
-from omop_etl.preprocessing.core.models import PreprocessingRunOptions, PreprocessResult
+from omop_etl.preprocessing.core.models import PreprocessResult
 
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> HarmonizedData:
@@ -16,19 +16,13 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     base_root.mkdir(parents=True, exist_ok=True)
 
     # set up configs & meta
-    run_options = PreprocessingRunOptions(filter_valid_cohort=True, combine_key="SubjectId")
     ecrf_config = make_ecrf_config(trial=trial)
     meta = RunMetadata.create(trial)
 
     # run preprocessing
     preprocessor = PreprocessService(outdir=base_root, layout=Layout.TRIAL_RUN)
     preprocessing_result: PreprocessResult = preprocessor.run(
-        trial=trial,
-        input_path=preprocessing_input,
-        config=ecrf_config,
-        run_options=run_options,
-        formats="csv",
-        meta=meta,
+        trial=trial, input_path=preprocessing_input, config=ecrf_config, formats="csv", meta=meta, combine_key="SubjectId", filter_valid_cohorts=True
     )
 
     # run harmonization
