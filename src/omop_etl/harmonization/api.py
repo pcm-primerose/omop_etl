@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Sequence
 from omop_etl.infra.io.types import Format, Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 from .datamodels import HarmonizedData
@@ -15,10 +15,10 @@ class HarmonizationService:
         self,
         trial: str,
         input_path: Path,
+        meta=RunMetadata,
         formats: Format | Sequence[Format] = "csv",
         write_wide: bool = True,
         write_normalized: bool = True,
-        meta: Optional[RunMetadata] = None,
         # filter_pred: Optional[Callable[[Patient], bool]] = None,  # add later
     ) -> HarmonizedData:
         return run_harmonization(

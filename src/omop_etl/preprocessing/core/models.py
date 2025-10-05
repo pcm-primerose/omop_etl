@@ -33,7 +33,7 @@ class EcrfConfig:
 
 @dataclass(frozen=True)
 class PreprocessingRunOptions:
-    filter_valid_cohort: bool = False
+    filter_valid_cohort: bool = True
     combine_key: str = "SubjectId"
 
 

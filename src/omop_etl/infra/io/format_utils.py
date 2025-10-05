@@ -33,7 +33,7 @@ def _flatten(xs: Iterable) -> list:
 def expand_formats(
     formats: str | Sequence[str] | None,
     allowed: Collection[str] = NORMALIZED_FORMATS,
-    allow_all: bool = True,
+    allow_all: bool = False,
     default: str = "csv",
 ) -> List[Format]:
     if formats is None:

@@ -2,25 +2,13 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Protocol, Sequence, Dict, Optional
+from typing import Sequence, Dict, Optional
 import polars as pl
 from logging import getLogger
 
 from .models import EcrfConfig, SheetData
 
 log = getLogger(__name__)
-
-
-class DataSourceReader(Protocol):
-    """Protocol for data source readers."""
-
-    def can_read(self, path: Path) -> bool:
-        """Check if this reader can handle the given path."""
-        ...
-
-    def load(self, path: Path, ecfg: EcrfConfig) -> EcrfConfig:
-        """Load data from path into the eCRF config."""
-        ...
 
 
 class BaseReader(ABC):
@@ -212,7 +200,7 @@ class CsvDirectoryReader(BaseReader):
 class InputResolver:
     """Resolves and loads input data using appropriate reader."""
 
-    def __init__(self, readers: Optional[Sequence[DataSourceReader]] = None):
+    def __init__(self, readers: Optional[Sequence[BaseReader]] = None):
         self.readers = readers or [ExcelReader(), CsvDirectoryReader()]
 
     def resolve(self, path: Path, ecfg: EcrfConfig) -> EcrfConfig:

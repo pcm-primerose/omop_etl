@@ -25,6 +25,7 @@ class PreprocessingPipeline:
         self,
         trial: str,
         ecrf_config: EcrfConfig,
+        meta: RunMetadata,
         output_manager: Optional[PreprocessExporter] = None,
         processor: Optional[Processor] = None,
     ):
@@ -32,17 +33,14 @@ class PreprocessingPipeline:
         self.ecrf_config = ecrf_config
         self.exporter = output_manager or PreprocessExporter(base_out=Path(".data"), layout=Layout.TRIAL_RUN)
         self._processor = processor
+        self.meta = meta
 
     def run(
         self,
         input_path: Path,
-        options: Optional[PreprocessingRunOptions] = None,
+        run_options: PreprocessingRunOptions,
         formats: Sequence[TabularFormat] | TabularFormat | None = None,
-        combine_key: str = PreprocessingRunOptions.combine_key,
     ) -> PreprocessResult:
-        # meta
-        run_meta = RunMetadata.create(self.trial)
-
         # resolve processor
         processor = self._processor or resolve_processor(self.trial)
 
@@ -51,8 +49,8 @@ class PreprocessingPipeline:
         ecrf = resolver.resolve(input_path, self.ecrf_config)
         ecrf.trial = self.trial
 
-        df_combined = combine(ecrf, on=combine_key)
-        df_out = processor(df_combined, ecrf, options or PreprocessingRunOptions())
+        df_combined = combine(ecrf, on=run_options.combine_key)
+        df_out = processor(df_combined, ecrf, run_options)
 
         # normalize formats to concrete tabular formats
         fmts: List[TabularFormat] = cast(
@@ -62,12 +60,14 @@ class PreprocessingPipeline:
 
         ctx_by_fmt = self.exporter.export_wide(
             df_out,
-            meta=run_meta,
+            meta=self.meta,
             input_path=input_path,
             formats=fmts,
             opts=WriterOptions(),
         )
 
+        # TODO: what's up with this?
+        #   I don't want to do "hidden" inference:
         primary_fmt: TabularFormat = fmts[0]
         ctx = ctx_by_fmt[primary_fmt]
 
@@ -83,5 +83,5 @@ class PreprocessingPipeline:
             output_path=out_path,
             rows=df_out.height,
             columns=df_out.width,
-            context=run_meta,
+            context=self.meta,
         )

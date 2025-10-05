@@ -255,5 +255,36 @@ def main():
     app(standalone_mode=False)
 
 
+def run_preprocessing(
+    input_file: Path,
+    base_root: Path,
+    trial: str = "IMPRESS",
+    output_format: Optional[str] = "csv",
+    only_cohort: Optional[bool] = True,
+    config: Optional[Path] = None,
+) -> PreprocessResult:
+    # build runtime options
+    run_options = PreprocessingRunOptions(filter_valid_cohort=only_cohort)
+
+    # load or create config
+    ecrf_config = make_ecrf_config(trial=trial, custom_config_path=config)
+
+    # run preprocessing
+    result: PreprocessResult = preprocess_trial(
+        trial=trial,
+        input_path=input_file,
+        config=ecrf_config,
+        run_options=run_options,
+        fmt=output_format,
+        base_output_dir=base_root,
+    )
+
+    return result
+
+
 if __name__ == "__main__":
-    main()
+    run_preprocessing(
+        input_file=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150"),
+        trial="IMPRESS",
+        base_root=Path(".data/test_run"),
+    )

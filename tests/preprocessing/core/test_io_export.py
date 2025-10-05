@@ -146,6 +146,7 @@ class TestFormatUtils:
         assert expand_formats("csv") == ["csv"]
         assert set(expand_formats("all")) >= {"csv", "tsv", "parquet"}  # tabular + maybe json depending on allowed
         assert expand_formats(["CSV", "parquet"]) == ["csv", "parquet"]
+        # todo: fix: Expected type 'str | Sequence[str] | None', got 'list[list[str]]' instead
         assert expand_formats([["csv"], ["parquet"]]) == ["csv", "parquet"]
 
     def test_normalize_format(self):
