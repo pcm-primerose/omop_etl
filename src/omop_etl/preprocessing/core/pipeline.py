@@ -59,7 +59,8 @@ class PreprocessingPipeline:
             opts=WriterOptions(),
         )
 
-        # TODO: fix this primary format thing:
+        # TODO: fix primary format later
+        #  (need better upstream organization)
         primary_fmt: TabularFormat = formats[0]
         ctx = ctx_by_fmt[primary_fmt]
 

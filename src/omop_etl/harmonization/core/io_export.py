@@ -3,11 +3,11 @@ from typing import Dict, Sequence
 import logging
 
 from ..datamodels import HarmonizedData
-from omop_etl.infra.io.types import AnyFormatToken, Layout, WIDE_FORMATS, TABULAR_FORMATS, TabularFormat
+from omop_etl.infra.io.types import Layout, WIDE_FORMATS, TABULAR_FORMATS, TabularFormat, WideFormat
 from omop_etl.infra.io.options import WriterOptions
 from omop_etl.infra.io.manifest_builder import build_manifest
-from omop_etl.infra.io.path_planner import plan_paths, WriterContext
 from omop_etl.infra.io.io_core import write_frame, write_frames_dir, write_json, write_manifest
+from omop_etl.infra.io.path_planner import plan_single_file, plan_table_dir, WriterContext
 from omop_etl.infra.logging.scoped import file_logging
 from omop_etl.infra.logging.adapters import with_extra
 
@@ -25,32 +25,26 @@ class HarmonizedExporter:
         hd: HarmonizedData,
         meta,
         input_path: Path,
-        formats: Sequence[AnyFormatToken],
+        formats: Sequence[WideFormat],
         opts: WriterOptions | None = None,
     ) -> Dict[str, WriterContext]:
         out: Dict[str, WriterContext] = {}
         opts = opts or WriterOptions()
-        name_template = "{trial}_{run_id}_{started_at}_{mode}"
 
         for fmt in formats:
             if fmt not in WIDE_FORMATS:
                 raise ValueError(f"Unsupported wide fmt: {fmt}")
 
-            ctx = plan_paths(
+            ctx = plan_single_file(
                 base_out=self.base_out,
+                meta=meta,
                 module=self.module_name,
                 trial=meta.trial,
-                run_id=meta.run_id,
-                stem="harmonized_wide",
+                mode="harmonized_wide",
                 fmt=fmt,
-                layout=self.layout,
-                started_at=meta.started_at,
-                include_stem_dir=True,
-                name_template=name_template,
+                filename_base="{trial}_{run_id}_{started_at}_{mode}",
             )
-            ctx.base_dir.mkdir(parents=True, exist_ok=True)
 
-            # per-format scoped log file attached/detached automatically
             with file_logging(ctx.log_path) as root_logger:
                 run_log = with_extra(
                     root_logger,
@@ -103,7 +97,7 @@ class HarmonizedExporter:
                     },
                 )
 
-            out[fmt] = ctx  # handler already detached here
+            out[fmt] = ctx
 
         return out
 
@@ -121,19 +115,18 @@ class HarmonizedExporter:
 
         for fmt in formats:
             if fmt not in TABULAR_FORMATS:
-                raise ValueError(f"Unsupported fmt:{fmt}. HarmonizedExporter.export_normalized supports: {TABULAR_FORMATS}")
+                raise ValueError(
+                    f"Unsupported fmt:{fmt}. HarmonizedExporter.export_normalized supports: {TABULAR_FORMATS}",
+                )
 
-            ctx = plan_paths(
+            ctx = plan_table_dir(
                 base_out=self.base_out,
+                meta=meta,
                 module=self.module_name,
                 trial=meta.trial,
-                run_id=meta.run_id,
-                stem="harmonized_norm",
+                mode="harmonized_norm",
                 fmt=fmt,
-                layout=self.layout,
-                started_at=meta.started_at,
             )
-            ctx.base_dir.mkdir(parents=True, exist_ok=True)
 
             with file_logging(ctx.log_path) as root_logger:
                 run_log = with_extra(
