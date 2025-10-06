@@ -1,16 +1,14 @@
 import json
-import os
 from pathlib import Path
-from unittest.mock import patch
-
 import polars as pl
 import pytest
 
 from omop_etl.preprocessing.core.io_export import PreprocessExporter
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.infra.io.types import Layout, TabularFormat
-from omop_etl.infra.io.path_planner import plan_paths, WriterContext
+from omop_etl.infra.io.types import TabularFormat, WIDE_FORMATS, TABULAR_FORMATS
 from omop_etl.infra.io.format_utils import expand_formats, normalize_format
+from omop_etl.infra.io.path_planner import plan_table_dir, plan_single_file, WriterContext
+from omop_etl.infra.io.types import Layout
 
 
 @pytest.fixture
@@ -26,7 +24,6 @@ def sample_dataframe() -> pl.DataFrame:
 
 @pytest.fixture
 def run_context() -> RunMetadata:
-    # matches your synthetic IDs used in earlier tests
     return RunMetadata(trial="test_trial", started_at="20231201_143000", run_id="abc123")
 
 
@@ -36,45 +33,26 @@ def exporter(tmp_path: Path) -> PreprocessExporter:
 
 
 class TestPlanPaths:
-    """Plan paths via the new path planner (dir roots, not files)."""
-
-    def test_plan_paths_structured_dir(self, run_context: RunMetadata, tmp_path: Path):
-        ctx: WriterContext = plan_paths(
-            base_out=tmp_path,
-            module="preprocessing",
-            trial=run_context.trial,
-            run_id=run_context.run_id,
-            stem="preprocessed",
-            fmt="csv",
-            layout=Layout.TRIAL_RUN,
-            started_at=run_context.started_at,
-            include_stem_dir=True,
-            name_template=None,
+    def test_plan_table_dir_structured(self, run_context, tmp_path):
+        ctx: WriterContext = plan_table_dir(
+            base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="csv", mode="preprocessed"
         )
 
-        # layout: base/module/trial/run-seg/stem/fmt/*
-        assert ctx.base_dir == (tmp_path / "preprocessing" / "test_trial" / run_context.run_id / "preprocessed" / "csv")
-        assert ctx.data_path.name == "data_preprocessed.csv"
-        assert ctx.manifest_path.name == "manifest_preprocessed.json"
-        assert ctx.log_path.name == "preprocessed.log"
+        seg = f"{run_context.started_at}_{run_context.run_id}"
+        assert ctx.base_dir == (tmp_path / "runs" / seg / "preprocessed" / "test_trial" / "preprocessed" / "csv")
 
-    def test_plan_paths_templated_name(self, run_context: RunMetadata, tmp_path: Path):
-        ctx = plan_paths(
-            base_out=tmp_path,
-            module="preprocessing",
-            trial=run_context.trial,
-            run_id=run_context.run_id,
-            stem="preprocessed",
-            fmt="parquet",
-            layout=Layout.TRIAL_RUN,
-            started_at=run_context.started_at,
-            include_stem_dir=False,
-            name_template="{trial}_{run_id}_{started_at}_{mode}",
-            template_vars=None,
+        prefix = f"{run_context.trial}_{run_context.run_id}_{run_context.started_at}_preprocessed"
+        assert ctx.data_path.name == f"{prefix}.csv"
+        assert ctx.manifest_path.name == "manifest_harmonized_norm.json"
+        assert ctx.log_path.name == "harmonized_norm.log"
+
+    def test_plan_single_file_templated(self, run_context, tmp_path):
+        ctx: WriterContext = plan_single_file(
+            base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="parquet", mode="preprocessed"
         )
-        # layout: base/module/trial/run-seg/fmt/*
-        assert ctx.base_dir == (tmp_path / "preprocessing" / "test_trial" / run_context.run_id / "parquet")
-        # templated names
+
+        seg = f"{run_context.started_at}_{run_context.run_id}"
+        assert ctx.base_dir == (tmp_path / "runs" / seg / "preprocessed" / "test_trial" / "preprocessed" / "parquet")
         prefix = f"{run_context.trial}_{run_context.run_id}_{run_context.started_at}_preprocessed"
         assert ctx.data_path.name == f"{prefix}.parquet"
         assert ctx.manifest_path.name == f"{prefix}_manifest.json"
@@ -82,9 +60,15 @@ class TestPlanPaths:
 
 
 class TestExportWide:
-    """End-to-end write via PreprocessExporter.export_wide (public API)."""
+    """End-to-end write via PreprocessExporter.export_wide."""
 
-    def test_write_csv(self, exporter: PreprocessExporter, run_context: RunMetadata, sample_dataframe: pl.DataFrame, tmp_path: Path):
+    def test_write_csv(
+        self,
+        exporter: PreprocessExporter,
+        run_context: RunMetadata,
+        sample_dataframe: pl.DataFrame,
+        tmp_path: Path,
+    ):
         input_path = tmp_path / "input.csv"
         input_path.write_text("dummy\n")
 
@@ -96,6 +80,7 @@ class TestExportWide:
         )
         ctx = out["csv"]
         assert ctx.data_path.exists()
+
         df_read = pl.read_csv(ctx.data_path)
         assert tuple(df_read.columns) == tuple(sample_dataframe.columns)
         assert df_read.shape == sample_dataframe.shape
@@ -104,11 +89,20 @@ class TestExportWide:
         assert manifest["trial"] == run_context.trial
         assert manifest["started_at"] == run_context.started_at
         assert manifest["run_id"] == run_context.run_id
-        # the manifest builder uses "fmt"
-        assert manifest["fmt"] == "csv"
-        assert "statistics" in manifest and "rows" in manifest["statistics"] and "columns" in manifest["statistics"]
+        assert manifest["format"] == "csv"
+        assert "tables" in manifest and "wide" in manifest["tables"]
+        wide_meta = manifest["tables"]["wide"]
+        assert wide_meta["rows"] == sample_dataframe.height
+        assert wide_meta["cols"] == sample_dataframe.width
+        assert set(wide_meta["schema"].keys()) == set(sample_dataframe.columns)
 
-    def test_write_parquet(self, exporter: PreprocessExporter, run_context: RunMetadata, sample_dataframe: pl.DataFrame, tmp_path: Path):
+    def test_write_parquet(
+        self,
+        exporter: PreprocessExporter,
+        run_context: RunMetadata,
+        sample_dataframe: pl.DataFrame,
+        tmp_path: Path,
+    ):
         input_path = tmp_path / "input.csv"
         input_path.write_text("dummy\n")
 
@@ -123,7 +117,13 @@ class TestExportWide:
         df_read = pl.read_parquet(ctx.data_path)
         assert df_read.shape == sample_dataframe.shape
 
-    def test_write_tsv(self, exporter: PreprocessExporter, run_context: RunMetadata, sample_dataframe: pl.DataFrame, tmp_path: Path):
+    def test_write_tsv(
+        self,
+        exporter: PreprocessExporter,
+        run_context: RunMetadata,
+        sample_dataframe: pl.DataFrame,
+        tmp_path: Path,
+    ):
         input_path = tmp_path / "input.csv"
         input_path.write_text("dummy\n")
 
@@ -140,26 +140,21 @@ class TestExportWide:
 
 
 class TestFormatUtils:
-    """Format inference/normalization uses format_utils now (public helpers)."""
-
     def test_expand_formats(self):
-        assert expand_formats("csv") == ["csv"]
-        assert set(expand_formats("all")) >= {"csv", "tsv", "parquet"}  # tabular + maybe json depending on allowed
-        assert expand_formats(["CSV", "parquet"]) == ["csv", "parquet"]
-        # todo: fix: Expected type 'str | Sequence[str] | None', got 'list[list[str]]' instead
-        assert expand_formats([["csv"], ["parquet"]]) == ["csv", "parquet"]
+        assert expand_formats("csv", allowed=WIDE_FORMATS) == ["csv"]
+        assert set(expand_formats("all", allowed=TABULAR_FORMATS)) == set(TABULAR_FORMATS)
+        assert expand_formats(["CSV", "parquet"], allowed=WIDE_FORMATS) == ["csv", "parquet"]  # type: ignore
+        assert expand_formats([["csv"], ["parquet"]], allowed=TABULAR_FORMATS) == ["csv", "parquet"]  # type: ignore
 
     def test_normalize_format(self):
-        assert normalize_format("CSV") == "csv"
-        assert normalize_format("txt") == "tsv"
-        assert normalize_format(None) == "csv"
+        assert normalize_format("CSV", allowed=WIDE_FORMATS) == "csv"  # type: ignore
+        assert normalize_format("txt", allowed=WIDE_FORMATS) == "tsv"  # type: ignore
+        assert normalize_format("csv", allowed=WIDE_FORMATS) == "csv"
         with pytest.raises(ValueError):
-            normalize_format("xml")
+            normalize_format("xml", allowed=WIDE_FORMATS)  # type: ignore
 
 
 class TestEndToEndDisabledLog:
-    """Replicate the old 'disable log file' flow with env var guard."""
-
     def test_write_with_log_file_disabled(
         self,
         exporter: PreprocessExporter,
@@ -170,22 +165,16 @@ class TestEndToEndDisabledLog:
         input_path = tmp_path / "input.csv"
         input_path.write_text("dummy\n")
 
-        # simulate your old env toggle; exporter respects ctx.log_path regardless,
-        # but your global configure/add_file_handler may check this variable.
-        with patch.dict(os.environ, {"DISABLE_LOG_FILE": "1"}):
-            out = exporter.export_wide(
-                df=sample_dataframe,
-                meta=run_context,
-                input_path=input_path,
-                formats=["csv"],
-            )
+        out = exporter.export_wide(
+            df=sample_dataframe,
+            meta=run_context,
+            input_path=input_path,
+            formats=["csv"],
+        )
         ctx = out["csv"]
-        # manifest should still exist; log might be empty or absent depending on your logger setup.
         assert ctx.manifest_path.exists()
-        # don't assert log file content here; logging is configured at process level.
 
 
-# tests for manifest schema if your manifest_builder includes it
 @pytest.mark.parametrize("fmt", ["csv", "tsv", "parquet"])
 def test_manifest_schema_columns(
     exporter: PreprocessExporter,
@@ -196,9 +185,12 @@ def test_manifest_schema_columns(
 ):
     input_path = tmp_path / "input.csv"
     input_path.write_text("dummy\n")
+
     out = exporter.export_wide(df=sample_dataframe, meta=run_context, input_path=input_path, formats=[fmt])
     ctx = out[fmt]
     manifest = json.loads(ctx.manifest_path.read_text())
-    schema = manifest.get("schema") or {}
-    # If your manifest builder encodes schema mapping
+
+    # schema is per-table in manifest
+    wide = manifest["tables"]["wide"]
+    schema = wide["schema"]
     assert {"SubjectId", "age", "sex"}.issubset(schema.keys())
