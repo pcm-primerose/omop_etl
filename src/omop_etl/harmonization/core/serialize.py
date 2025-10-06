@@ -8,7 +8,7 @@ from omop_etl.infra.io.types import SerializeTypes
 from omop_etl.infra.utils.typing_utils import unwrap_optional
 
 
-# TODO: refactor main three branches to separate modules:
+# TODO: later: refactor main three branches to separate files:
 # scalars
 # singletons
 # collections
@@ -23,6 +23,7 @@ def to_wide(df_nested: pl.DataFrame, prefix_sep: str = SerializeTypes.COL_SEP) -
     """
     df = df_nested
 
+    # unnest singletons
     for collection, dtp in list(df.schema.items()):
         if dtp == pl.Struct:
             before = set(df.columns)
@@ -31,13 +32,24 @@ def to_wide(df_nested: pl.DataFrame, prefix_sep: str = SerializeTypes.COL_SEP) -
             if new_cols:
                 df = df.rename({x: f"{collection}{prefix_sep}{x}" for x in new_cols})
 
+    # base branch: IDs + primitives + flattened singletons
     base_cols = [c for c, tp in df.schema.items() if tp not in (pl.Struct,) and not isinstance(tp, pl.List)]
     base_only = [c for c in base_cols if c not in SerializeTypes.ID_COLUMNS]
-    base = df.select([*SerializeTypes.ID_COLUMNS, *base_only]).with_columns(
+
+    # build base rows
+    base_sel = df.select([*SerializeTypes.ID_COLUMNS, *base_only])
+
+    # filter no-data rows
+    if base_only:
+        nonempty = pl.any_horizontal([pl.col(c).is_not_null() & (pl.col(c).cast(pl.Utf8).str.strip_chars() != "") for c in base_only])
+        base_sel = base_sel.filter(nonempty)
+    else:
+        base_sel = base_sel.head(0)
+
+    base = base_sel.with_columns(
         pl.lit(None, dtype=pl.Int64).alias("row_index"),
         pl.lit("base").alias("row_type"),
     )
-
     base = _reorder_wide_columns(df=base, ids=SerializeTypes.ID_COLUMNS)
 
     # collection parts: ids + row_index + fields + row_type with no scalar duplication
@@ -71,15 +83,20 @@ def to_normalized(df_nested: pl.DataFrame) -> dict[str, pl.DataFrame]:
     # patients
     base_cols = [c for c, tp in df_nested.schema.items() if tp not in (pl.Struct,) and not isinstance(tp, pl.List)]
     out["patients"] = df_nested.select([*SerializeTypes.ID_COLUMNS, *[c for c in base_cols if c not in SerializeTypes.ID_COLUMNS]]).sort(
-        pl.col("patient_id"),
+        pl.col("patient_id")
     )
 
     # singletons
     for c, tp in df_nested.schema.items():
         if isinstance(tp, pl.Struct):
             tbl = _unnest_singleton_into(df_nested, c, SerializeTypes.ID_COLUMNS, sep=SerializeTypes.COL_SEP)
+            # filter no-data rows
+            non_id = [col for col in tbl.columns if col not in SerializeTypes.ID_COLUMNS]
+            if non_id:
+                keep = pl.any_horizontal([pl.col(col).is_not_null() & (pl.col(col).cast(pl.Utf8).str.strip_chars() != "") for col in non_id])
+                tbl = tbl.filter(keep)
             if any(isinstance(dt, pl.List) or isinstance(dt, pl.Struct) for dt in tbl.schema.values()):
-                tbl = tbl.select(SerializeTypes.ID_COLUMNS)  # defensive fallback
+                tbl = tbl.select(SerializeTypes.ID_COLUMNS)
             out[c] = tbl
 
     # collections
