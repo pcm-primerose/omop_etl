@@ -39,8 +39,10 @@ class HarmonizationPipeline:
         write_normalized: bool = True,
     ) -> HarmonizedData:
         df = HarmonizationPipeline._read_input(input_path)
-        harmonizer_cls = self._resolver(self.trial)
-        harmonized_data: HarmonizedData = harmonizer_cls(
+
+        harmonizer = self._resolver(self.trial)
+
+        harmonized_data: HarmonizedData = harmonizer(
             df,
             trial_id=self.trial.upper(),
         ).process()

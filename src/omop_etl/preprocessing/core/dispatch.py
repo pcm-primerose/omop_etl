@@ -11,7 +11,7 @@ _TRIALS: Dict[str, Processor] = {
 }
 
 
-def resolve_processor(trial: str) -> Processor:
+def resolve_preprocessor(trial: str) -> Processor:
     key = trial.lower()
     try:
         return _TRIALS[key]

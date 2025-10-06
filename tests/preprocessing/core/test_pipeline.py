@@ -53,7 +53,7 @@ def test_pipeline_with_real_components(tmp_path, sample_config):
         "impress",
         sample_config,
         mock_output_manager,
-        processor=mock_processor,
+        preprocessor_resolver=mock_processor,
     )
 
     run_opts = PreprocessingRunOptions()

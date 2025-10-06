@@ -1,31 +1,38 @@
-from unittest.mock import patch, Mock
 import polars as pl
-from omop_etl.preprocessing.api import PreprocessService, PreprocessResult
-from omop_etl.preprocessing.core.models import EcrfConfig, SheetConfig
+from pathlib import Path
+from unittest.mock import Mock
+from omop_etl.preprocessing.api import PreprocessService
+from omop_etl.preprocessing.core.models import EcrfConfig, SheetConfig, PreprocessResult
+from omop_etl.infra.utils.run_context import RunMetadata
 
 
-def test_preprocess_trial_with_real_data(tmp_path):
+def test_preprocess_trial_with_real_data(tmp_path: Path):
     input_dir = tmp_path / "input"
     input_dir.mkdir()
+
     (input_dir / "data_subjects.csv").write_text(
         "Header\nSubjectId,Age,Sex\nA001,200,M\nA002,30,F\n",
+        encoding="utf-8",
     )
     (input_dir / "data_visits.csv").write_text(
         "Header\nSubjectId,VisitDate\nA001,2023-01-01\nA002,2023-01-02\n",
+        encoding="utf-8",
     )
     (input_dir / "data_ECOG.csv").write_text(
         "Header\nSubjectId,EventId\nA001,V00\nA002,S01\n",
+        encoding="utf-8",
     )
 
+    # miniconfig
     config = EcrfConfig(
         configs=[
             SheetConfig(key="subjects", usecols=["SubjectId", "Age", "Sex"]),
             SheetConfig(key="visits", usecols=["SubjectId", "VisitDate"]),
             SheetConfig(key="ECOG", usecols=["SubjectId", "EventId"]),
-        ],
+        ]
     )
 
-    # mock processor API resolves to
+    # mock processor
     mock_processor = Mock()
     processed_df = pl.DataFrame(
         {
@@ -35,34 +42,34 @@ def test_preprocess_trial_with_real_data(tmp_path):
             "Sex": ["M", "F"],
             "ECOG_EventId": ["", "V00"],
             "visits_VisitDate": ["2023-01-01", "2023-01-02"],
-        },
+        }
     )
+    # signature: (df_combined, ecrf_config, run_options) to pl.DataFrame
     mock_processor.return_value = processed_df
 
-    # patch the API's imported processor (_resolve_processor)
-    with patch("omop_etl.preprocessing.api._resolve_processor", return_value=mock_processor):
-        with patch.dict("os.environ", {"DISABLE_LOG_FILE": "1"}):
-            # stub OutputManager used by API
-            with patch("omop_etl.preprocessing.api.OutputManager") as mock_out_mgr_cls:
-                mock_out_mgr = Mock()
-                mock_result_path = Mock()
-                mock_result_path.data_file = tmp_path / "output.csv"
-                mock_result_path.manifest_file = tmp_path / "manifest.json"
-                mock_result_path.log_file = tmp_path / "output.log"
-                mock_result_path.directory = tmp_path
-                mock_result_path.format = "csv"
-                mock_out_mgr.write.return_value = mock_result_path
-                mock_out_mgr_cls.return_value = mock_out_mgr
+    meta = RunMetadata.create("impress")
 
-                pps = PreprocessService(outdir=tmp_path)
-                result = pps.run(
-                    trial="impress",
-                    input_path=input_dir,
-                    config=config,
-                )
+    svc = PreprocessService(
+        outdir=tmp_path / "outputs",
+        preprocessor_resolver=lambda _: mock_processor,
+    )
+
+    result: PreprocessResult = svc.run(
+        trial="impress",
+        input_path=input_dir,
+        meta=meta,
+        config=config,
+        formats="csv",
+        filter_valid_cohorts=False,
+    )
 
     assert isinstance(result, PreprocessResult)
-    assert result.output_path == mock_result_path
-    assert result.rows == 2
-    assert result.columns == 6
+    assert result.rows == processed_df.height
+    assert result.columns == processed_df.width
     assert result.context.trial == "impress"
+
+    # check that files are actually written
+    out = result.output_path
+    assert out.data_file.exists()
+    assert out.manifest_file.exists()
+    assert out.log_file.parent.exists()

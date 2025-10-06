@@ -5,7 +5,7 @@ from .core.pipeline import PreprocessingPipeline, PreprocessResult
 from .core.io_export import PreprocessExporter
 from .core.config_loader import load_ecrf_config
 from .core.models import EcrfConfig, PreprocessingRunOptions
-from .core.dispatch import list_trials as _list_trials, resolve_processor
+from .core.dispatch import list_trials as _list_trials
 from omop_etl.infra.io.types import Layout, TabularFormat, AnyFormatToken, TABULAR_FORMATS
 from omop_etl.infra.io.format_utils import expand_formats
 from ..infra.utils.run_context import RunMetadata
@@ -71,12 +71,11 @@ class PreprocessService:
             ecrf_config=cfg,
             meta=meta,
             output_manager=exporter,
-            processor=resolve_processor(trial),
+            preprocessor_resolver=self._resolver,
         )
 
         return pipeline.run(
             input_path=input_path,
             run_options=run_options,
             formats=fmts,
-            resolve=self._resolver or resolve_processor,
         )
