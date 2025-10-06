@@ -40,7 +40,7 @@ class HarmonizedExporter:
                 meta=meta,
                 module=self.module_name,
                 trial=meta.trial,
-                dataset="harmonized_wide",
+                mode="harmonized_wide",
                 fmt=fmt,
                 filename_base="{trial}_{run_id}_{started_at}_{mode}",
             )

@@ -43,12 +43,12 @@ class TestPlanPaths:
 
         prefix = f"{run_context.trial}_{run_context.run_id}_{run_context.started_at}_preprocessed"
         assert ctx.data_path.name == f"{prefix}.csv"
-        assert ctx.manifest_path.name == "manifest_harmonized_norm.json"
-        assert ctx.log_path.name == "harmonized_norm.log"
+        assert ctx.manifest_path.name == f"{prefix}_manifest.json"
+        assert ctx.log_path.name == f"{prefix}.log"
 
     def test_plan_single_file_templated(self, run_context, tmp_path):
         ctx: WriterContext = plan_single_file(
-            base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="parquet", dataset="preprocessed"
+            base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="parquet", mode="preprocessed"
         )
 
         seg = f"{run_context.started_at}_{run_context.run_id}"

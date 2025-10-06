@@ -23,43 +23,29 @@ def run_root(base_out: Path, meta: RunMetadata) -> Path:
     return base_out / "runs" / f"{meta.started_at}_{meta.run_id}"
 
 
-def _module_dir(
-    base_out: Path,
-    meta: RunMetadata,
-    module: str,
-    trial: str,
-) -> Path:
-    return run_root(base_out, meta) / module / trial.lower()
+def _fmt_dir(base_out: Path, meta: RunMetadata, module: str, trial: str, mode: Mode, fmt: str) -> Path:
+    return run_root(base_out, meta) / module / trial.lower() / mode / fmt
 
 
-def _mode_dir(
-    base_out: Path,
-    meta: RunMetadata,
-    module: str,
-    trial: str,
-    mode: Mode,
-) -> Path:
-    return _module_dir(base_out, meta, module, trial) / mode
-
-
-def _fmt_dir(
-    base_out: Path,
-    meta: RunMetadata,
-    module: str,
-    trial: str,
-    mode: Mode,
-    fmt: str,
-) -> Path:
-    return _mode_dir(base_out, meta, module, trial, mode) / fmt
-
-
-def _stamped_base(
+def _fill_stem(
     trial: str,
     meta: RunMetadata,
     mode: Mode,
+    filename_base: str,
+    extra_vars: Optional[Dict[str, str]] = None,
 ) -> str:
-    # e.g. impress_c593d23d_20251006T114400Z_harmonized_wide
-    return f"{trial.lower()}_{meta.run_id}_{meta.started_at}_{('preprocessed' if mode == 'preprocessed' else ('harmonized_' + mode))}"
+    vars_ = {
+        "trial": trial.lower(),
+        "run_id": meta.run_id,
+        "started_at": meta.started_at,
+        "mode": mode,
+    }
+    if extra_vars:
+        vars_.update(extra_vars)
+    try:
+        return filename_base.format(**vars_)
+    except KeyError as e:
+        raise ValueError(f"Missing template key '{e.args[0]}' in filename_base: {filename_base!r}") from e
 
 
 def plan_single_file(
@@ -67,33 +53,17 @@ def plan_single_file(
     meta: RunMetadata,
     module: str,
     trial: str,
-    dataset: str,
+    mode: Mode,
     fmt: WideFormat,
     filename_base: str = "{trial}_{run_id}_{started_at}_{mode}",
     extra_vars: Optional[Dict[str, str]] = None,
 ) -> WriterContext:
-    _run_root = base_out / "runs" / f"{meta.started_at}_{meta.run_id}"
-
-    # normalize & fill template
-    vars_ = {
-        "trial": trial.lower(),
-        "run_id": meta.run_id,
-        "started_at": meta.started_at,
-        "mode": dataset,
-    }
-    if extra_vars:
-        vars_.update(extra_vars)
-    try:
-        stem = filename_base.format(**vars_)
-    except KeyError as e:
-        raise ValueError(f"Missing template key '{e.args[0]}' in filename_base: {filename_base!r}") from e
-
-    # leaf dir: module/trial/mode/fmt/
-    base_dir = _run_root / module / trial.lower() / dataset / fmt
+    base_dir = _fmt_dir(base_out, meta, module, trial, mode, fmt)
     base_dir.mkdir(parents=True, exist_ok=True)
 
-    suffix = ext(fmt)
-    data_path = base_dir / f"{stem}{suffix}"
+    stem = _fill_stem(trial=trial, meta=meta, mode=mode, filename_base=filename_base, extra_vars=extra_vars)
+
+    data_path = base_dir / f"{stem}{ext(fmt)}"
     manifest_path = base_dir / f"{stem}_manifest.json"
     log_path = base_dir / f"{stem}.log"
 
@@ -106,23 +76,30 @@ def plan_single_file(
     )
 
 
-def plan_table_dir(base_out: Path, meta: RunMetadata, module: str, trial: str, mode: Mode, fmt: TabularFormat) -> WriterContext:
-    """
-    Produce a context for directory of tables (harmonized normalized).
-    Directory: <base>/runs/<ts_id>/<module>/<trial>/normalized/<fmt>/
-      - per-table files live in data_dir (short names, e.g. patients.csv)
-      - manifest_harmonized_norm.json
-      - harmonized_norm.log
-    """
+def plan_table_dir(
+    base_out: Path,
+    meta: RunMetadata,
+    module: str,
+    trial: str,
+    mode: Mode,
+    fmt: TabularFormat,
+    filename_base: str = "{trial}_{run_id}_{started_at}_{mode}",
+    extra_vars: Optional[Dict[str, str]] = None,
+) -> WriterContext:
     base_dir = _fmt_dir(base_out, meta, module, trial, mode, fmt)
-    manifest = base_dir / "manifest_harmonized_norm.json"
-    log = base_dir / "harmonized_norm.log"
-    # data_path is not used by callers for multi-table outputs, set to data_dir / sentinel
-    data_path = base_dir / f"{trial.lower()}_{meta.run_id}_{meta.started_at}_{mode}{ext(fmt)}"
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    stem = _fill_stem(trial=trial, meta=meta, mode=mode, filename_base=filename_base, extra_vars=extra_vars)
+
+    # data_path is a sentinel, not used by writers
+    data_path = base_dir / f"{stem}{ext(fmt)}"
+    manifest_path = base_dir / f"{stem}_manifest.json"
+    log_path = base_dir / f"{stem}.log"
+
     return WriterContext(
         base_dir=base_dir,
         data_path=data_path,
         data_dir=base_dir,
-        manifest_path=manifest,
-        log_path=log,
+        manifest_path=manifest_path,
+        log_path=log_path,
     )
