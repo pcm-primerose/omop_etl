@@ -1,11 +1,9 @@
-# harmonization/io_export.py
-from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Sequence
 import logging
 
 from ..datamodels import HarmonizedData
-from omop_etl.infra.io.types import Format, Layout, WIDE_FORMATS, NORMALIZED_FORMATS
+from omop_etl.infra.io.types import AnyFormatToken, Layout, WIDE_FORMATS, TABULAR_FORMATS, TabularFormat
 from omop_etl.infra.io.options import WriterOptions
 from omop_etl.infra.io.manifest_builder import build_manifest
 from omop_etl.infra.io.path_planner import plan_paths, WriterContext
@@ -27,7 +25,7 @@ class HarmonizedExporter:
         hd: HarmonizedData,
         meta,
         input_path: Path,
-        formats: Sequence[Format],
+        formats: Sequence[AnyFormatToken],
         opts: WriterOptions | None = None,
     ) -> Dict[str, WriterContext]:
         out: Dict[str, WriterContext] = {}
@@ -114,7 +112,7 @@ class HarmonizedExporter:
         hd: HarmonizedData,
         meta,
         input_path: Path,
-        formats: Sequence[Format],
+        formats: Sequence[TabularFormat],
         opts: WriterOptions | None = None,
     ) -> Dict[str, WriterContext]:
         out: Dict[str, WriterContext] = {}
@@ -122,8 +120,8 @@ class HarmonizedExporter:
         frames = hd.to_frames_normalized()
 
         for fmt in formats:
-            if fmt not in NORMALIZED_FORMATS:
-                raise ValueError(f"Unsupported fmt:{fmt}. HarmonizedExporter.export_normalized supports {NORMALIZED_FORMATS}")
+            if fmt not in TABULAR_FORMATS:
+                raise ValueError(f"Unsupported fmt:{fmt}. HarmonizedExporter.export_normalized supports: {TABULAR_FORMATS}")
 
             ctx = plan_paths(
                 base_out=self.base_out,

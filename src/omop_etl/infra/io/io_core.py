@@ -1,10 +1,6 @@
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from _typeshed import SupportsWrite
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, cast
+from typing import Dict
 import polars as pl
 import json
 
@@ -14,7 +10,7 @@ from omop_etl.infra.io.options import (
     ParquetOptions,
     CsvOptions,
 )
-from omop_etl.infra.io.types import Format
+from omop_etl.infra.io.types import TABULAR_FORMATS
 
 
 @dataclass(frozen=True)
@@ -34,7 +30,7 @@ class WriterResult:
 def write_frame(
     df: pl.DataFrame,
     path: Path,
-    fmt: Format,
+    fmt: TABULAR_FORMATS,
     opts: CsvOptions | ParquetOptions | None = None,
 ) -> WriterResult:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -68,7 +64,7 @@ def write_frame(
 def write_frames_dir(
     frames: Dict[str, pl.DataFrame],
     dirpath: Path,
-    fmt: Format,
+    fmt: TABULAR_FORMATS,
     opts: CsvOptions | ParquetOptions | None = None,
 ) -> WriterResult:
     dirpath.mkdir(parents=True, exist_ok=True)
@@ -89,7 +85,7 @@ def write_json(obj: dict, path: Path, opts: JsonOptions | None = None) -> Writer
     j = opts or JsonOptions()
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as fp:
-        json.dump(obj, cast(SupportsWrite[str], fp), cls=ISOJSONEncoder, ensure_ascii=j.ensure_ascii, indent=j.indent)
+        json.dump(obj, fp, cls=ISOJSONEncoder, ensure_ascii=j.ensure_ascii, indent=j.indent)  # type: ignore
     return WriterResult(main_file=path, table_files={}, tables={})
 
 

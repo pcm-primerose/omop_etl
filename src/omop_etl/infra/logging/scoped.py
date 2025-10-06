@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Iterator, Optional
 
-from .logging_setup import add_file_handler, remove_file_handler
+from .logging_setup import add_file_handler, _remove_file_handler
 
 
 @contextmanager
@@ -26,4 +26,4 @@ def file_logging(
         yield log
     finally:
         if handler is not None:
-            remove_file_handler(handler)
+            _remove_file_handler(handler)

@@ -1,7 +1,7 @@
 import logging
 from typing import Mapping, Any
 
-_RESERVED = {
+RESERVED = {
     "name",
     "msg",
     "args",
@@ -31,7 +31,7 @@ class ExtraAdapter(logging.LoggerAdapter):
         merged = {**self.extra, **extra}
         # drop reserved keys
         for k in list(merged.keys()):
-            if k in _RESERVED:
+            if k in RESERVED:
                 merged.pop(k)
         kwargs["extra"] = merged
         return msg, kwargs

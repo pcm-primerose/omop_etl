@@ -5,12 +5,12 @@ import polars as pl
 from logging import getLogger
 
 from logging.handlers import RotatingFileHandler
-from omop_etl.infra.io.types import Layout
+from omop_etl.infra.io.types import Layout, WIDE_FORMATS, WideFormat
 from omop_etl.infra.io.options import WriterOptions
 from omop_etl.infra.io.manifest_builder import build_manifest
 from omop_etl.infra.io.io_core import write_frame, write_manifest, WriterResult
 from omop_etl.infra.io.path_planner import plan_paths, WriterContext
-from omop_etl.infra.io.format_utils import NORMALIZED_FORMATS, expand_formats
+from omop_etl.infra.io.format_utils import expand_formats
 from omop_etl.infra.logging.logging_setup import add_file_handler
 
 log = getLogger(__name__)
@@ -27,11 +27,11 @@ class PreprocessExporter:
         df: pl.DataFrame,
         meta,
         input_path: Path,
-        formats: Sequence[str],
+        formats: Sequence[WideFormat],
         opts: WriterOptions | None = None,
     ) -> Dict[str, WriterContext]:
         opts = opts or WriterOptions()
-        fmts = expand_formats(formats, allowed=NORMALIZED_FORMATS)
+        fmts = expand_formats(formats, allowed=WIDE_FORMATS)
         out: Dict[str, WriterContext] = {}
 
         name_template = "{trial}_{run_id}_{started_at}_{mode}"
@@ -45,7 +45,7 @@ class PreprocessExporter:
                 fmt=fmt,
                 layout=self.layout,
                 started_at=meta.started_at,
-                include_stem_dir=False,
+                include_stem_dir=True,
                 name_template=name_template,
             )
             ctx.base_dir.mkdir(parents=True, exist_ok=True)

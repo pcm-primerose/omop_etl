@@ -4,7 +4,7 @@ from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.api import HarmonizationService
-from omop_etl.infra.logging.logging_setup import configure
+from omop_etl.infra.logging.logging_setup import configure_logger
 
 
 def run_harmonization(input_csv: Path, base_root: Path, trial: str = "IMPRESS") -> HarmonizedData:
@@ -30,7 +30,7 @@ def run_harmonization(input_csv: Path, base_root: Path, trial: str = "IMPRESS") 
 
 
 if __name__ == "__main__":
-    configure(level="DEBUG")
+    configure_logger(level="DEBUG")
     impress_150_file = (
         Path(__file__).parents[3] / ".data" / "preprocessing" / "impress" / "d4dbfeaa" / "csv" / "impress_d4dbfeaa_20251003T162634Z_preprocessed.csv"
     )

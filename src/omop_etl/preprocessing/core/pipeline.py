@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Callable, Sequence, List, cast
+from typing import Optional, Callable, Sequence
 import polars as pl
 
 from .models import (
@@ -13,9 +13,8 @@ from .combine import combine
 from ...infra.utils.run_context import RunMetadata
 from .dispatch import resolve_processor
 from omop_etl.preprocessing.core.io_export import PreprocessExporter
-from omop_etl.infra.io.types import Layout, TabularFormat, NORMALIZED_FORMATS
+from omop_etl.infra.io.types import Layout, TabularFormat
 from omop_etl.infra.io.options import WriterOptions
-from omop_etl.infra.io.format_utils import expand_formats
 
 Processor = Callable[[pl.DataFrame, EcrfConfig, PreprocessingRunOptions], pl.DataFrame]
 
@@ -39,7 +38,7 @@ class PreprocessingPipeline:
         self,
         input_path: Path,
         run_options: PreprocessingRunOptions,
-        formats: Sequence[TabularFormat] | TabularFormat | None = None,
+        formats: Sequence[TabularFormat],
     ) -> PreprocessResult:
         # resolve processor
         processor = self._processor or resolve_processor(self.trial)
@@ -52,23 +51,16 @@ class PreprocessingPipeline:
         df_combined = combine(ecrf, on=run_options.combine_key)
         df_out = processor(df_combined, ecrf, run_options)
 
-        # normalize formats to concrete tabular formats
-        fmts: List[TabularFormat] = cast(
-            List[TabularFormat],
-            expand_formats(formats if formats is not None else "csv", allowed=NORMALIZED_FORMATS, allow_all=True),
-        )
-
         ctx_by_fmt = self.exporter.export_wide(
             df_out,
             meta=self.meta,
             input_path=input_path,
-            formats=fmts,
+            formats=formats,
             opts=WriterOptions(),
         )
 
-        # TODO: what's up with this?
-        #   I don't want to do "hidden" inference:
-        primary_fmt: TabularFormat = fmts[0]
+        # TODO: fix this primary format thing:
+        primary_fmt: TabularFormat = formats[0]
         ctx = ctx_by_fmt[primary_fmt]
 
         out_path = OutputPath(

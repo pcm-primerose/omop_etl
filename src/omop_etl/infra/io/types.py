@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Final, Literal, Mapping, TypeAlias
+from typing import Final, Literal, Mapping, TypeAlias, Sequence
 from types import MappingProxyType, NoneType
 
 
@@ -14,25 +14,20 @@ class Layout(StrEnum):
     TRIAL_TIMESTAMP_RUN = "trial_timestamp_run"
 
 
-Format = Literal["csv", "tsv", "parquet", "json", "all"]
 TabularFormat = Literal["csv", "tsv", "parquet"]
+WideFormat = Literal["csv", "tsv", "parquet", "json"]
+AnyFormatToken = Literal["csv", "tsv", "parquet", "json", "all"]
+
 RunSource = Literal["api", "cli"]
 
-WIDE_FORMATS: Final[frozenset[str]] = frozenset({"csv", "tsv", "parquet", "json"})
-NORMALIZED_FORMATS: Final[frozenset[str]] = frozenset({"csv", "tsv", "parquet"})
+TABULAR_FORMATS: Final[tuple[TabularFormat, ...]] = ("csv", "tsv", "parquet")
+WIDE_FORMATS: Final[tuple[WideFormat, ...]] = ("csv", "tsv", "parquet", "json")
 RUN_SOURCES: Final[frozenset[str]] = frozenset({"api", "cli"})
 
-ALIASES: Final[Mapping[str, str]] = MappingProxyType(
-    {
-        "txt": "tsv",
-    },
-)
+ALIASES: Final[Mapping[str, str]] = MappingProxyType({"txt": "tsv"})
 
-FORMATS_BY_MODE: Final[Mapping[OutputMode, frozenset[str]]] = MappingProxyType(
-    {
-        OutputMode.WIDE: WIDE_FORMATS,
-        OutputMode.NORMALIZED: NORMALIZED_FORMATS,
-    },
+FORMATS_BY_MODE: Final[Mapping[OutputMode, Sequence[str]]] = MappingProxyType(
+    {OutputMode.WIDE: WIDE_FORMATS, OutputMode.NORMALIZED: TABULAR_FORMATS},
 )
 
 

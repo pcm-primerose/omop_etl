@@ -4,7 +4,7 @@ from typing import Optional, Dict
 
 from omop_etl.infra.io.format_utils import ext
 from omop_etl.infra.io.path_utils import run_segment
-from omop_etl.infra.io.types import Layout, Format
+from omop_etl.infra.io.types import Layout, WIDE_FORMATS
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ def plan_paths(
     trial: str,
     run_id: str,
     stem: str,
-    fmt: Format,
+    fmt: WIDE_FORMATS,
     layout: Layout,
     started_at: str,
     include_stem_dir: bool = True,

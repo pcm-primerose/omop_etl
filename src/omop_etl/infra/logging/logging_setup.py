@@ -6,13 +6,16 @@ import sys
 import multiprocessing as mp
 import atexit
 from pathlib import Path
+from typing import Optional, Dict, Any, List
+
 from logging.config import dictConfig
 from logging.handlers import (
     QueueHandler,
     QueueListener,
     RotatingFileHandler,
 )
-from typing import Optional, Dict, Any, List
+from omop_etl.infra.logging.adapters import RESERVED
+
 
 # global controller for multiprocessing logging
 _mp_controller: Optional[MpLoggingController] = None
@@ -21,87 +24,7 @@ _mp_controller: Optional[MpLoggingController] = None
 _file_handlers: List[RotatingFileHandler] = []
 
 
-class JsonFormatter(logging.Formatter):
-    """JSON formatter for structured logging."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        """Format log record as JSON."""
-        payload = {
-            "timestamp": self.formatTime(record, self.datefmt),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-        }
-
-        # add extra fields if present
-        if hasattr(record, "trial"):
-            payload["trial"] = record.trial
-        if hasattr(record, "run_id"):
-            payload["run_id"] = record.run_id
-        if hasattr(record, "timestamp"):
-            payload["run_timestamp"] = record.timestamp
-
-        # add any other extra fields
-        for key, value in record.__dict__.items():
-            if key not in (
-                "name",
-                "msg",
-                "args",
-                "created",
-                "filename",
-                "funcName",
-                "levelname",
-                "levelno",
-                "lineno",
-                "module",
-                "msecs",
-                "message",
-                "pathname",
-                "process",
-                "processName",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "exc_info",
-                "exc_text",
-                "stack_info",
-            ):
-                if key not in payload:
-                    payload[key] = value
-
-        # add exception info if present
-        if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
-
-        return json.dumps(payload, ensure_ascii=False)
-
-
-class PlainFormatter(logging.Formatter):
-    """Enhanced plain text formatter."""
-
-    def __init__(self):
-        super().__init__(
-            fmt="%(asctime)s | %(levelname)-4s | %(name)-20s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-
-
-class MpLoggingController:
-    """Controller for multiprocessing logging setup."""
-
-    def __init__(self, queue: mp.Queue, listener: QueueListener):
-        self.queue = queue
-        self.listener = listener
-
-    def stop(self):
-        """Stop the queue listener."""
-        self.listener.stop()
-
-
-def configure(
+def configure_logger(
     level: Optional[int | str] = None,
     json_out: Optional[bool] = False,
     log_file: Optional[Path] = None,
@@ -159,6 +82,77 @@ def configure(
     )
 
 
+def get_logger(name: Optional[str] = None) -> logging.Logger:
+    if name is None:
+        import inspect
+
+        frame = inspect.currentframe()
+        if frame and frame.f_back:
+            name = frame.f_back.f_globals.get("__name__", __name__)
+        else:
+            name = __name__
+
+    return logging.getLogger(name)
+
+
+class JsonFormatter(logging.Formatter):
+    """JSON formatter for structured logging."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format log record as JSON."""
+        payload = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+
+        # add extra fields if present
+        if hasattr(record, "trial"):
+            payload["trial"] = record.trial
+        if hasattr(record, "run_id"):
+            payload["run_id"] = record.run_id
+        if hasattr(record, "timestamp"):
+            payload["run_timestamp"] = record.timestamp
+
+        # add any other extra fields
+        for key, value in record.__dict__.items():
+            if key not in RESERVED:
+                if key not in payload:
+                    payload[key] = value
+
+        # add exception info if present
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+
+        return json.dumps(payload, ensure_ascii=False)
+
+
+class PlainFormatter(logging.Formatter):
+    """Enhanced plain text formatter."""
+
+    def __init__(self):
+        super().__init__(
+            fmt="%(asctime)s | %(levelname)-4s | %(name)-20s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+
+
+class MpLoggingController:
+    """Controller for multiprocessing logging setup."""
+
+    def __init__(self, queue: mp.Queue, listener: QueueListener):
+        self.queue = queue
+        self.listener = listener
+
+    def stop(self):
+        """Stop the queue listener."""
+        self.listener.stop()
+
+
 def add_file_handler(
     path: Path,
     max_bytes: int = 10_000_000,
@@ -209,7 +203,7 @@ def add_file_handler(
     return handler
 
 
-def remove_file_handler(handler: RotatingFileHandler) -> None:
+def _remove_file_handler(handler: RotatingFileHandler) -> None:
     logging.getLogger().removeHandler(handler)
     handler.close()
 
@@ -217,16 +211,16 @@ def remove_file_handler(handler: RotatingFileHandler) -> None:
         _file_handlers.remove(handler)
 
 
-def cleanup_file_handlers() -> None:
+def _cleanup_file_handlers() -> None:
     for handler in _file_handlers[:]:
-        remove_file_handler(handler)
+        _remove_file_handler(handler)
 
 
 # register cleanup on exit
-atexit.register(cleanup_file_handlers)
+atexit.register(_cleanup_file_handlers)
 
 
-def start_mp_logging(
+def _start_mp_logging(
     ctx: Optional[mp.context.BaseContext] = None,
 ) -> tuple[mp.Queue, QueueListener]:
     """
@@ -263,7 +257,7 @@ def start_mp_logging(
     return queue, listener
 
 
-def configure_worker(queue: mp.Queue, level: Optional[str | int] = None) -> None:
+def _configure_worker(queue: mp.Queue, level: Optional[str | int] = None) -> None:
     """
     Configure logging in a worker process,
     call at the start of each worker process.
@@ -290,16 +284,3 @@ def configure_worker(queue: mp.Queue, level: Optional[str | int] = None) -> None
         root.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
 
     logging.getLogger(__name__).debug("Worker logging configured")
-
-
-def get_logger(name: Optional[str] = None) -> logging.Logger:
-    if name is None:
-        import inspect
-
-        frame = inspect.currentframe()
-        if frame and frame.f_back:
-            name = frame.f_back.f_globals.get("__name__", __name__)
-        else:
-            name = __name__
-
-    return logging.getLogger(name)

@@ -1,7 +1,7 @@
-from typing import Collection, Iterable, Sequence, List, Final, Mapping, cast
+from typing import Iterable, Sequence, List, Final, Mapping, cast, TypeVar
 from types import MappingProxyType
 
-from .types import Format, NORMALIZED_FORMATS, ALIASES
+from .types import ALIASES, WIDE_FORMATS, AnyFormatToken
 
 _EXTENSIONS: Final[Mapping[str, str]] = MappingProxyType(
     {
@@ -13,7 +13,7 @@ _EXTENSIONS: Final[Mapping[str, str]] = MappingProxyType(
 )
 
 
-def ext(fmt: Format) -> str:
+def ext(fmt: AnyFormatToken) -> str:
     try:
         return _EXTENSIONS[fmt]
     except KeyError as e:
@@ -30,44 +30,40 @@ def _flatten(xs: Iterable) -> list:
     return out
 
 
+F = TypeVar("F", bound=str)  # element type of `allowed` (TabularFormat or WideFormat)
+
+
 def expand_formats(
-    formats: str | Sequence[str] | None,
-    allowed: Collection[str] = NORMALIZED_FORMATS,
-    allow_all: bool = False,
-    default: str = "csv",
-) -> List[Format]:
-    if formats is None:
-        raw: list[str] = [default]
-    elif isinstance(formats, str):
-        raw = [formats]
-    else:
-        raw = _flatten(formats)
+    formats: AnyFormatToken | Sequence[AnyFormatToken],
+    allowed: Sequence[F],
+) -> List[F]:
+    # normalize to a flat list of strings, services ensures not None
+    raw = [formats] if isinstance(formats, str) else _flatten(formats)
 
-    out: list[str] = []
+    allowed_set = set(allowed)
     seen: set[str] = set()
-    for f in raw:
-        if not isinstance(f, str):
-            raise ValueError(f"Format entries must be strings, got {type(f).__name__}")
-        x = ALIASES.get(f.lower(), f.lower())
-        if allow_all and x == "all":
-            for t in allowed:
-                if t not in seen:
-                    seen.add(t)
-                    out.append(t)
-            continue
-        if x not in allowed:
-            raise ValueError(f"Unsupported format '{f}'. Allowed: {', '.join(sorted(allowed))} or 'all'.")
-        if x not in seen:
-            seen.add(x)
-            out.append(x)
+    requested: list[str] = []
 
-    # narrow to List[Format]
-    return cast(List[Format], out)
+    for tok in raw:
+        t = tok.lower()
+        if t == "all":
+            for f in allowed:
+                if f not in seen:
+                    seen.add(f)
+                    requested.append(f)
+            continue
+        t = ALIASES.get(t, t)  # map aliases
+        if t not in allowed_set:
+            raise ValueError(f"Unsupported format: {tok}. Allowed: {', '.join(allowed)} or 'all'.")
+        if t not in seen:
+            seen.add(t)
+            requested.append(t)
+
+    return cast(List[F], requested)
 
 
 def normalize_format(
-    fmt: str | None,
-    default: str = "csv",
-    allowed: Collection[str] = NORMALIZED_FORMATS,
-) -> Format:
-    return expand_formats(fmt, allowed=allowed, allow_all=False, default=default)[0]
+    fmt: AnyFormatToken | None,
+    allowed: Sequence[AnyFormatToken] = WIDE_FORMATS,
+) -> AnyFormatToken:
+    return expand_formats(fmt, allowed=allowed)[0]
