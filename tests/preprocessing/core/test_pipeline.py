@@ -8,6 +8,7 @@ from omop_etl.preprocessing.core.models import (
     SheetConfig,
     PreprocessResult,
     OutputPath,
+    PreprocessingRunOptions,
 )
 
 
@@ -49,12 +50,15 @@ def test_pipeline_with_real_components(tmp_path, sample_config):
     mock_output_manager.write.return_value = mock_output_path
 
     pipeline = PreprocessingPipeline(
-        "test_trial",
+        "impress",
         sample_config,
         mock_output_manager,
         processor=mock_processor,
     )
-    result = pipeline.run(input_dir)
+
+    run_opts = PreprocessingRunOptions()
+
+    result = pipeline.run(input_dir, run_options=run_opts, formats=["csv"])
 
     assert isinstance(result, PreprocessResult)
     assert result.rows == 2

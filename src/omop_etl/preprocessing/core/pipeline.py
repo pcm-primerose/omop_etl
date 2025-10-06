@@ -39,9 +39,10 @@ class PreprocessingPipeline:
         input_path: Path,
         run_options: PreprocessingRunOptions,
         formats: Sequence[TabularFormat],
+        resolve: Callable[[str], type] = resolve_processor,
     ) -> PreprocessResult:
         # resolve processor
-        processor = self._processor or resolve_processor(self.trial)
+        processor = resolve(self.trial)
 
         # load inputs
         resolver = InputResolver()

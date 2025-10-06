@@ -1,62 +1,45 @@
 from pathlib import Path
-from typing import Any, Dict
 import json
 import polars as pl
 import pytest
 
 from omop_etl.harmonization.api import HarmonizationService
-from omop_etl.harmonization.core.pipeline import _read_input
+from omop_etl.harmonization.core.pipeline import HarmonizationPipeline
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 
 
+@pytest.fixture
+def custom_config_file():
+    config_data = {
+        "coh": ["SubjectId", "COHORTNAME"],
+    }
+    return config_data
+
+
 class _FakeHD:
-    """
-    Minimal HarmonizedData double:
-    - to_dataframe_wide(): a tiny DF with mixed types
-    - to_frames_normalized(): two small tables
-    - to_dict(): tiny JSON-able object (for wide/json)
-    """
-
-    def __init__(self) -> None:
-        self.patients = [{"patient_id": "P1"}, {"patient_id": "P2"}]
+    def __init__(self):
+        self.patients = [{"patient_id": "P1"}]
 
     @staticmethod
-    def to_dataframe_wide() -> pl.DataFrame:
-        return pl.DataFrame(
-            {
-                "patient_id": ["P1", "P2"],
-                "trial_id": ["IMPRESS", "IMPRESS"],
-                "best_overall_response.code": [2, None],
-                "best_overall_response.date": [pl.date(2020, 1, 1), None],
-                "best_overall_response.response": ["PR", None],
-            }
-        )
+    def to_dataframe_wide():
+        return pl.DataFrame({"patient_id": ["P1"], "trial_id": ["IMPRESS"]})
 
     @staticmethod
-    def to_frames_normalized() -> Dict[str, pl.DataFrame]:
-        return {
-            "patients": pl.DataFrame({"patient_id": ["P1", "P2"], "trial_id": ["IMPRESS", "IMPRESS"]}),
-            "best_overall_response": pl.DataFrame(
-                {
-                    "patient_id": ["P1"],
-                    "best_overall_response.code": [2],
-                    "best_overall_response.response": ["PR"],
-                }
-            ),
-        }
+    def to_frames_normalized():
+        return {"patients": pl.DataFrame({"patient_id": ["P1"], "trial_id": ["IMPRESS"]})}
 
     @staticmethod
-    def to_dict() -> Dict[str, Any]:
-        return {"trial_id": "IMPRESS", "n": 2}
+    def to_dict():
+        return {"trial_id": "IMPRESS", "n": 1}
 
 
 class _FakeHarmonizer:
-    def __init__(self, df: pl.DataFrame, trial_id: str) -> None:
-        self.df = df
-        self.trial_id = trial_id
+    def __init__(self, df: pl.DataFrame, trial_id: str):
+        pass
 
-    def process(self) -> _FakeHD:
+    @staticmethod
+    def process():
         return _FakeHD()
 
 
@@ -69,12 +52,12 @@ def test__read_input_routes_by_suffix(tmp_path: Path):
     pl.DataFrame({"a": [2]}).write_csv(tsv, separator="\t")
     pl.DataFrame({"a": [3]}).write_parquet(pq)
 
-    assert _read_input(csv)["a"].to_list() == [1]
-    assert _read_input(tsv)["a"].to_list() == [2]
-    assert _read_input(pq)["a"].to_list() == [3]
+    assert HarmonizationPipeline._read_input(csv)["a"].to_list() == [1]
+    assert HarmonizationPipeline._read_input(tsv)["a"].to_list() == [2]
+    assert HarmonizationPipeline._read_input(pq)["a"].to_list() == [3]
 
     with pytest.raises(ValueError):
-        _read_input(tmp_path / "x.xlsx")
+        HarmonizationPipeline._read_input(tmp_path / "x.xlsx")
 
 
 @pytest.fixture
@@ -98,7 +81,11 @@ def _patch_resolver(monkeypatch):
 
 def test_service_wide_csv(tmp_path: Path, run_meta: RunMetadata, monkeypatch):
     _patch_resolver(monkeypatch)
-    svc = HarmonizationService(outdir=tmp_path, layout=Layout.TRIAL_RUN)
+    svc = HarmonizationService(
+        outdir=tmp_path,
+        layout=Layout.TRIAL_RUN,
+        harmonizer_resolver=lambda _: _FakeHarmonizer,
+    )
     inp = _make_input_csv(tmp_path)
 
     hd = svc.run(
@@ -123,7 +110,11 @@ def test_service_wide_csv(tmp_path: Path, run_meta: RunMetadata, monkeypatch):
 @pytest.mark.parametrize("fmt", ["csv", "tsv", "parquet"])
 def test_service_normalized_tabular(tmp_path: Path, run_meta: RunMetadata, fmt: str, monkeypatch):
     _patch_resolver(monkeypatch)
-    svc = HarmonizationService(outdir=tmp_path, layout=Layout.TRIAL_RUN)
+    svc = HarmonizationService(
+        outdir=tmp_path,
+        layout=Layout.TRIAL_RUN,
+        harmonizer_resolver=lambda _: _FakeHarmonizer,
+    )
     inp = _make_input_csv(tmp_path)
 
     svc.run(
@@ -145,7 +136,11 @@ def test_service_normalized_tabular(tmp_path: Path, run_meta: RunMetadata, fmt: 
 
 def test_service_both_modes_multiple_formats(tmp_path: Path, run_meta: RunMetadata, monkeypatch):
     _patch_resolver(monkeypatch)
-    svc = HarmonizationService(outdir=tmp_path, layout=Layout.TRIAL_RUN)
+    svc = HarmonizationService(
+        outdir=tmp_path,
+        layout=Layout.TRIAL_RUN,
+        harmonizer_resolver=lambda _: _FakeHarmonizer,
+    )
     inp = _make_input_csv(tmp_path)
 
     svc.run(

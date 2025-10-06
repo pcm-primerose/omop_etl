@@ -1,6 +1,6 @@
 from unittest.mock import patch, Mock
 import polars as pl
-from omop_etl.preprocessing.api import preprocess_trial, PreprocessResult
+from omop_etl.preprocessing.api import PreprocessService, PreprocessResult
 from omop_etl.preprocessing.core.models import EcrfConfig, SheetConfig
 
 
@@ -54,11 +54,11 @@ def test_preprocess_trial_with_real_data(tmp_path):
                 mock_out_mgr.write.return_value = mock_result_path
                 mock_out_mgr_cls.return_value = mock_out_mgr
 
-                result = preprocess_trial(
+                pps = PreprocessService(outdir=tmp_path)
+                result = pps.run(
                     trial="impress",
                     input_path=input_dir,
                     config=config,
-                    base_output_dir=tmp_path,
                 )
 
     assert isinstance(result, PreprocessResult)

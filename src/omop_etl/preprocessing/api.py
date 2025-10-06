@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List, Sequence
+from typing import Optional, List, Sequence, Callable
 
 from .core.pipeline import PreprocessingPipeline, PreprocessResult
 from .core.io_export import PreprocessExporter
@@ -30,9 +30,15 @@ def make_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> E
 
 
 class PreprocessService:
-    def __init__(self, outdir: Path, layout: Layout = Layout.TRIAL_RUN):
+    def __init__(
+        self,
+        outdir: Path,
+        layout: Layout = Layout.TRIAL_RUN,
+        preprocessor_resolver: Optional[Callable[[str], type]] = None,
+    ):
         self.outdir = outdir
         self.layout = layout
+        self._resolver = preprocessor_resolver
 
     def run(
         self,
@@ -72,4 +78,5 @@ class PreprocessService:
             input_path=input_path,
             run_options=run_options,
             formats=fmts,
+            resolve=self._resolver or resolve_processor,
         )
