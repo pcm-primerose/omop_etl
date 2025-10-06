@@ -17,7 +17,7 @@ def ext(fmt: AnyFormatToken) -> str:
     try:
         return _EXTENSIONS[fmt]
     except KeyError as e:
-        raise ValueError(f"Unknown format '{fmt}'. Allowed: {', '.join(_EXTENSIONS)}") from e
+        raise ValueError(f"Unknown format: {fmt}. Allowed: {', '.join(_EXTENSIONS)}") from e
 
 
 def _flatten(xs: Iterable) -> list:
