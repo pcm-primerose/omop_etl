@@ -67,7 +67,7 @@ def plan_single_file(
     meta: RunMetadata,
     module: str,
     trial: str,
-    mode: str,
+    dataset: str,
     fmt: WideFormat,
     filename_base: str = "{trial}_{run_id}_{started_at}_{mode}",
     extra_vars: Optional[Dict[str, str]] = None,
@@ -79,7 +79,7 @@ def plan_single_file(
         "trial": trial.lower(),
         "run_id": meta.run_id,
         "started_at": meta.started_at,
-        "mode": mode,
+        "mode": dataset,
     }
     if extra_vars:
         vars_.update(extra_vars)
@@ -89,7 +89,7 @@ def plan_single_file(
         raise ValueError(f"Missing template key '{e.args[0]}' in filename_base: {filename_base!r}") from e
 
     # leaf dir: module/trial/mode/fmt/
-    base_dir = _run_root / module / trial.lower() / mode / fmt
+    base_dir = _run_root / module / trial.lower() / dataset / fmt
     base_dir.mkdir(parents=True, exist_ok=True)
 
     suffix = ext(fmt)

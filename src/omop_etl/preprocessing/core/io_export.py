@@ -52,7 +52,7 @@ class PreprocessExporter:
                 meta=meta,
                 module="preprocessed",
                 trial=meta.trial,
-                mode="preprocessed",
+                dataset="preprocessed",
                 fmt=fmt,
                 filename_base="{trial}_{run_id}_{started_at}_{mode}",
             )

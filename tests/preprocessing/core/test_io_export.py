@@ -48,7 +48,7 @@ class TestPlanPaths:
 
     def test_plan_single_file_templated(self, run_context, tmp_path):
         ctx: WriterContext = plan_single_file(
-            base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="parquet", mode="preprocessed"
+            base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="parquet", dataset="preprocessed"
         )
 
         seg = f"{run_context.started_at}_{run_context.run_id}"
