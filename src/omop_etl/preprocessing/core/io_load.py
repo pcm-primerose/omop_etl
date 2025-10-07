@@ -96,7 +96,7 @@ class ExcelReader(BaseReader):
 
     def can_read(self, path: Path) -> bool:
         """Check if path is a readable Excel file."""
-        return path.exists() and path.is_file() and path.suffix.lower() in self.SUPPORTED_EXTENSIONS
+        return path.exists() and path.is_file() and path.suffix.casefold() in self.SUPPORTED_EXTENSIONS
 
     def load(self, path: Path, ecfg: EcrfConfig) -> EcrfConfig:
         """
@@ -180,13 +180,13 @@ class CsvDirectoryReader(BaseReader):
             if not file_path.is_file():
                 continue
 
-            if file_path.suffix.lower() != ".csv":
+            if file_path.suffix.casefold() != ".csv":
                 continue
 
             # extract key from filename, use part after last underscore
             # if no underscore use whole stem
             stem_parts = file_path.stem.split("_")
-            key = stem_parts[-1].lower()
+            key = stem_parts[-1].casefold()
 
             if key in index:
                 log.warning(f"Duplicate key '{key}' found: {index[key]} and {file_path}")
