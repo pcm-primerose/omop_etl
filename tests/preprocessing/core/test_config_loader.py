@@ -72,6 +72,14 @@ def test_trial_name_case_insensitive():
             assert result == config_data
 
 
+def test_trial_name_mixed_case_matches():
+    with tempfile.TemporaryDirectory() as d:
+        Path(d, "TeSt_TrIaL.json5").write_text(json.dumps({"x": ["1"]}))
+        with patch("omop_etl.preprocessing.core.config_loader._BASE", Path(d)):
+            assert load_ecrf_config("test_trial") == {"x": ["1"]}
+            assert load_ecrf_config("TEST_TRIAL") == {"x": ["1"]}
+
+
 def test_load_packaged_config_not_found():
     config_data = {"test": ["col1", "col2"]}
 
