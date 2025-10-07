@@ -152,7 +152,7 @@ class CsvDirectoryReader(BaseReader):
         loaded_sheets = []
 
         for source_config in ecfg.configs:
-            key_lower = source_config.key.lower()
+            key_lower = source_config.key.casefold()
 
             if key_lower not in file_index:
                 raise FileNotFoundError(f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}")
