@@ -8,10 +8,6 @@ from omop_etl.infra.logging.logging_setup import configure_logger
 
 
 def run_harmonization(input_csv: Path, base_root: Path, trial: str = "IMPRESS") -> HarmonizedData:
-    """
-    End-to-end test of the harmonization module on a single CSV.
-    Returns a dict with paths and quick stats.
-    """
     base_root.mkdir(parents=True, exist_ok=True)
 
     svc = HarmonizationService(outdir=base_root, layout=Layout.TRIAL_RUN)
