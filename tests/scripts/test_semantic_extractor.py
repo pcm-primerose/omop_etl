@@ -44,3 +44,41 @@ def test_dict_to_counts():
         }
     )
     assert out.equals(expected, null_equal=True)
+
+
+def test_sheet_key_casing():
+    df = pl.DataFrame(
+        {"SubjectId": [1], "X": ["a"]},
+    )
+    cfg = EcrfConfig(configs=[], data=[SheetData(key="coh", data=df)])
+    d = frames_to_dict(cfg)
+    assert "COH_X" in d
+
+
+def test_nulls_are_dropped_from_counts():
+    df = pl.DataFrame(
+        {
+            "SubjectId": [1, 2, 3],
+            "X": ["a", None, "a"],
+        },
+    )
+    cfg = EcrfConfig(configs=[], data=[SheetData(key="COH", data=df)])
+    out = dict_to_counts(frames_to_dict(cfg))
+    assert out.filter(pl.col("source_term").is_null()).is_empty()
+    assert out.filter(pl.col("source_term") == "a")["frequency"].item() == 2
+
+
+def test_filter_unique_effect():
+    df = pl.DataFrame(
+        {
+            "SubjectId": [1, 1, 2],
+            "X": ["a", "a", "a"],
+        },
+    )
+    cfg = EcrfConfig(configs=[], data=[SheetData(key="COH", data=df)])
+    print(f"cfg: {cfg}")
+    d = frames_to_dict(cfg)
+    out = dict_to_counts(d)
+    print(f"out: {out}")
+    # drop duplicate rows
+    assert out.select(pl.col("frequency")).item() == 2, "uniqueness per row (not raw data or value-unique)"
