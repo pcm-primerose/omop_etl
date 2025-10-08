@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
-from typing import Sequence, Optional, Mapping, Dict, List
+from typing import Sequence, Optional, Mapping, Dict
 import polars as pl
 from polars import any_horizontal
 
@@ -332,19 +332,19 @@ def get_config() -> dict:
 # [ ] add cli, run on tsd
 
 
-def _drop_subject_id(data: pl.DataFrame, col: str) -> pl.DataFrame:
-    return data.drop(col)
+def _drop_subject_id(data: pl.Series, col: str) -> pl.DataFrame:
+    return data.filter(any_horizontal().is_not_null())
 
 
-def _drop_nulls(data: pl.DataFrame) -> pl.DataFrame:
+def _drop_nulls(data: pl.Series) -> pl.Series:
     return data.filter(any_horizontal(pl.col("*").is_not_null()))
 
 
-def _get_unique(data: pl.DataFrame) -> pl.DataFrame:
+def _get_unique(data: pl.Series) -> pl.Series:
     return data.unique()
 
 
-def filter_df(data: pl.DataFrame, drop_col: str) -> pl.DataFrame:
+def filter_df(data: pl.DataFrame, drop_col: str) -> pl.Series:
     """
     Apply filtering functions: get_unique, drop nulls and drop SubjectId col
     """
@@ -353,6 +353,10 @@ def filter_df(data: pl.DataFrame, drop_col: str) -> pl.DataFrame:
     data = _drop_subject_id(data, col=drop_col)
 
     return data
+
+
+def df_from_series():
+    pass
 
 
 def run(
@@ -368,17 +372,29 @@ def run(
     resolver = InputResolver()
     resolver.resolve(path=input_path, ecfg=config)
 
-    col_with_unique_data: List[pl.Series] = list(pl.Series())
-
-    # want to have df_out:
-    #   source_col = column name in filtered df
-    #   source_term = all terms in all filtered df
-
+    # todo: extraxt
+    cols: Dict[str, pl.Series] = {}
     for sheet in config.data:
-        filtered = filter_df(sheet.data, drop_col="SubjectId")
-        col_with_unique_data.append(filtered.to_series())
+        for rows in sheet.data:
+            cols[rows.name] = rows
 
-    print(f"series: {col_with_unique_data}")
+    # print(f"series: {cols}")
+
+    sub_parts = [
+        s.value_counts().rename({s.name: "source_term", "count": "frequency"}).with_columns(pl.lit(s.name).alias("source_col")) for s in cols.values()
+    ]
+
+    # todo: extract
+    combined = (
+        pl.concat(sub_parts, how="vertical_relaxed")
+        .select("source_col", "source_term", "frequency")
+        .sort(["source_col", "frequency"], descending=[False, True])
+    )
+
+    # ... and call filters, then done
+
+    with pl.Config(tbl_cols=-1, tbl_rows=-1):
+        print(f"output df:\n{combined}")
 
 
 if __name__ == "__main__":
