@@ -1,4 +1,5 @@
 import re
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from logging import getLogger
@@ -123,7 +124,9 @@ class BaseReader(ABC):
                 continue
 
             # check if all non-null values are integer strings
-            is_int_col = df.select((pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()).item()
+            is_int_col = df.select(
+                (pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()
+            ).item()
 
             if is_int_col:
                 int_columns.append(col_name)
@@ -202,7 +205,9 @@ class CsvDirectoryReader(BaseReader):
             key_lower = source_config.key.casefold()
 
             if key_lower not in file_index:
-                raise FileNotFoundError(f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}")
+                raise FileNotFoundError(
+                    f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}"
+                )
 
             csv_path = file_index[key_lower]
             log.debug(f"Reading CSV file: {csv_path}")
@@ -314,91 +319,75 @@ def get_config() -> dict:
     }
 
 
-# TODO:
-# [x] make config of non-sensitive cols
-# [x] use readers
-# [x] combiner
-# [x] datmodels, readers
-# [x] after combining: drop sensitive data
-# [ ] restructure filtered data to output format
-#       - genererate uid per unique term
-# [ ] write to output dir
-# [ ] works locally
-# [ ] write test
-#   [ ] assert no subject id
-#   [ ] assert no cols with all nulls
-#   [ ] assert merging works as intended
-#   [ ] assert values are uniquue
-# [ ] add cli, run on tsd
+def _drop_subject_id(data: pl.DataFrame, drop: str) -> pl.DataFrame:
+    return data.drop(drop)
 
 
-def _drop_subject_id(data: pl.Series, col: str) -> pl.DataFrame:
-    return data.filter(any_horizontal().is_not_null())
-
-
-def _drop_nulls(data: pl.Series) -> pl.Series:
+def _drop_nulls(data: pl.DataFrame) -> pl.DataFrame:
     return data.filter(any_horizontal(pl.col("*").is_not_null()))
 
 
-def _get_unique(data: pl.Series) -> pl.Series:
+def _get_unique(data: pl.DataFrame) -> pl.DataFrame:
     return data.unique()
 
 
-def filter_df(data: pl.DataFrame, drop_col: str) -> pl.Series:
+def filter_df(data: pl.DataFrame, drop: str) -> pl.DataFrame:
     """
     Apply filtering functions: get_unique, drop nulls and drop SubjectId col
     """
     data = _get_unique(data)
     data = _drop_nulls(data)
-    data = _drop_subject_id(data, col=drop_col)
+    data = _drop_subject_id(data, drop=drop)
 
     return data
 
 
-def df_from_series():
-    pass
-
-
-def run(
-    input_path: Path,
-    output_path: Path,
-    drop_sensitive_data: bool = True,
-    # trial, otuput filename
-):
-    # make config
-    config = EcrfConfig.from_mapping(get_config())
-
-    # resolve input
-    resolver = InputResolver()
-    resolver.resolve(path=input_path, ecfg=config)
-
-    # todo: extraxt
-    cols: Dict[str, pl.Series] = {}
+def frames_to_dict(config: EcrfConfig) -> dict[str, pl.Series]:
+    out: dict[str, pl.Series] = {}
     for sheet in config.data:
-        for rows in sheet.data:
-            cols[rows.name] = rows
+        df = filter_df(sheet.data, drop="SubjectId")
+        for s in df.get_columns():
+            key = f"{sheet.key}_{s.name}"
+            out[key] = s
+    return out
 
-    # print(f"series: {cols}")
 
-    sub_parts = [
-        s.value_counts().rename({s.name: "source_term", "count": "frequency"}).with_columns(pl.lit(s.name).alias("source_col")) for s in cols.values()
-    ]
+def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
+    parts = []
+    for key, s in d.items():
+        vc = (
+            s.drop_nulls()
+            .value_counts()
+            .rename({s.name: "source_term", "count": "frequency"})
+            .with_columns(pl.lit(key).alias("source_col"))
+            .select("source_col", "source_term", "frequency")
+        )
+        parts.append(vc)
 
-    # todo: extract
-    combined = (
-        pl.concat(sub_parts, how="vertical_relaxed")
-        .select("source_col", "source_term", "frequency")
-        .sort(["source_col", "frequency"], descending=[False, True])
-    )
+    return pl.concat(parts, how="vertical_relaxed")
 
-    # ... and call filters, then done
 
+def run(input_path: Path, output_dir: Path, trial: str = "impress"):
+    start_time = time.time()
+    config = EcrfConfig.from_mapping(get_config())
+    InputResolver().resolve(path=input_path, ecfg=config)
+
+    series_by_key = frames_to_dict(config)
+    output_df = dict_to_counts(series_by_key).sort(["source_col", "frequency"], descending=[False, True])
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    outfile = output_dir / f"semantic_terms_{trial}_{start_time}.csv"
+    output_df.write_csv(outfile)
     with pl.Config(tbl_cols=-1, tbl_rows=-1):
-        print(f"output df:\n{combined}")
+        print(output_df)
+
+    # todo: [ ] write tests
+    # todo: [ ] pass CI
+    # todo: [ ] run on VM
 
 
 if __name__ == "__main__":
     run(
         input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150"),
-        output_path=Path("/Users/gabriebs/projects/omop_etl/.data/semantic_input"),
+        output_dir=Path("/Users/gabriebs/projects/omop_etl/.data/semantic_input"),
     )

@@ -56,7 +56,9 @@ class PolarsParsers:
     def int_to_bool(x: StrOrExprOrScalar, true_int: int = 1, false_int: int = 0) -> pl.Expr:
         expr = PolarsParsers._as_expr(x)
         e = expr.cast(pl.Int64, strict=False)
-        return pl.when(e.is_null()).then(None).when(e == true_int).then(True).when(e == false_int).then(False).otherwise(None).cast(pl.Boolean)
+        return (
+            pl.when(e.is_null()).then(None).when(e == true_int).then(True).when(e == false_int).then(False).otherwise(None).cast(pl.Boolean)
+        )
 
     @staticmethod
     def to_optional_date(x: StrOrExprOrScalar, default_day: int = 15, default_month: int = 7) -> pl.Expr:

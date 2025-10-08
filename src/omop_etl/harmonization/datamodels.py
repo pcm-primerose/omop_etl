@@ -37,7 +37,9 @@ class TumorType:
 
     @icd10_description.setter
     def icd10_description(self, value: Optional[str]) -> None:
-        self._icd10_description = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.icd10_description.fset.__name__)
+        self._icd10_description = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.icd10_description.fset.__name__
+        )
         self.updated_fields.add(self.__class__.icd10_description.fset.__name__)
 
     @property
@@ -55,7 +57,9 @@ class TumorType:
 
     @main_tumor_type_code.setter
     def main_tumor_type_code(self, value: Optional[int]) -> None:
-        self._main_tumor_type_code = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.main_tumor_type_code.fset.__name__)
+        self._main_tumor_type_code = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.main_tumor_type_code.fset.__name__
+        )
         self.updated_fields.add(self.__class__.main_tumor_type_code.fset.__name__)
 
     @property
@@ -64,7 +68,9 @@ class TumorType:
 
     @cohort_tumor_type.setter
     def cohort_tumor_type(self, value: Optional[str]) -> None:
-        self._cohort_tumor_type = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.cohort_tumor_type.fset.__name__)
+        self._cohort_tumor_type = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.cohort_tumor_type.fset.__name__
+        )
         self.updated_fields.add(self.__class__.cohort_tumor_type.fset.__name__)
 
     @property
@@ -73,7 +79,9 @@ class TumorType:
 
     @other_tumor_type.setter
     def other_tumor_type(self, value: Optional[str]) -> None:
-        self._other_tumor_type = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.other_tumor_type.fset.__name__)
+        self._other_tumor_type = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.other_tumor_type.fset.__name__
+        )
         self.updated_fields.add(self.__class__.other_tumor_type.fset.__name__)
 
     def __repr__(self) -> str:
@@ -166,7 +174,9 @@ class Biomarkers:
 
     @gene_and_mutation.setter
     def gene_and_mutation(self, value: Optional[str]) -> None:
-        self._gene_and_mutation = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.gene_and_mutation.fset.__name__)
+        self._gene_and_mutation = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.gene_and_mutation.fset.__name__
+        )
         self.updated_fields.add(self.__class__.gene_and_mutation.fset.__name__)
 
     @property
@@ -187,7 +197,9 @@ class Biomarkers:
 
     @cohort_target_name.setter
     def cohort_target_name(self, value: Optional[str]) -> None:
-        self._cohort_target_name = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.cohort_target_name.fset.__name__)
+        self._cohort_target_name = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.cohort_target_name.fset.__name__
+        )
         self.updated_fields.add(self.__class__.cohort_target_name.fset.__name__)
 
     @property
@@ -232,7 +244,9 @@ class FollowUp:
 
     @lost_to_followup.setter
     def lost_to_followup(self, value: Optional[bool]) -> None:
-        self._lost_to_followup = StrictValidators.validate_optional_bool(value=value, field_name=self.__class__.lost_to_followup.fset.__name__)
+        self._lost_to_followup = StrictValidators.validate_optional_bool(
+            value=value, field_name=self.__class__.lost_to_followup.fset.__name__
+        )
         self.updated_fields.add(self.__class__.lost_to_followup.fset.__name__)
 
     @property
@@ -248,7 +262,9 @@ class FollowUp:
         self.updated_fields.add(self.__class__.date_lost_to_followup.fset.__name__)
 
     def __str__(self):
-        return f"{self.__class__.__name__}(lost_to_followup={self.lost_to_followup!r}, date_lost_to_followup={self.date_lost_to_followup!r})"
+        return (
+            f"{self.__class__.__name__}(lost_to_followup={self.lost_to_followup!r}, date_lost_to_followup={self.date_lost_to_followup!r})"
+        )
 
 
 class EcogBaseline:
@@ -316,7 +332,9 @@ class TumorAssessmentBaseline:
 
     @assessment_type.setter
     def assessment_type(self, value: Optional[str]) -> None:
-        self._asssessment_type = StrictValidators.validate_optional_str(value=value, field_name=self.__class__.assessment_type.fset.__name__)
+        self._asssessment_type = StrictValidators.validate_optional_str(
+            value=value, field_name=self.__class__.assessment_type.fset.__name__
+        )
         self.updated_fields.add(self.__class__.assessment_type.fset.__name__)
 
     @property
@@ -325,7 +343,9 @@ class TumorAssessmentBaseline:
 
     @assessment_date.setter
     def assessment_date(self, value: Optional[dt.date]) -> None:
-        self._assessment_date = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.assessment_date.fset.__name__)
+        self._assessment_date = StrictValidators.validate_optional_date(
+            value=value, field_name=self.__class__.assessment_date.fset.__name__
+        )
         self.updated_fields.add(self.__class__.assessment_date.fset.__name__)
 
     @property
@@ -334,7 +354,9 @@ class TumorAssessmentBaseline:
 
     @target_lesion_size.setter
     def target_lesion_size(self, value: Optional[int]) -> None:
-        self._target_lesion_size = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.target_lesion_size.fset.__name__)
+        self._target_lesion_size = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.target_lesion_size.fset.__name__
+        )
         self.updated_fields.add(self.__class__.target_lesion_size.fset.__name__)
 
     @property
@@ -343,7 +365,9 @@ class TumorAssessmentBaseline:
 
     @target_lesion_nadir.setter
     def target_lesion_nadir(self, value: Optional[int]) -> None:
-        self._target_lesion_nadir = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.target_lesion_nadir.fset.__name__)
+        self._target_lesion_nadir = StrictValidators.validate_optional_int(
+            value=value, field_name=self.__class__.target_lesion_nadir.fset.__name__
+        )
         self.updated_fields.add(self.__class__.target_lesion_nadir.fset.__name__)
 
     @property
@@ -1749,7 +1773,9 @@ class Patient:
     @tumor_assessment_baseline.setter
     def tumor_assessment_baseline(self, value: Optional[TumorAssessmentBaseline] | None) -> None:
         if value is not None and not isinstance(value, TumorAssessmentBaseline):
-            raise ValueError(f"Tumor assessment baseline must be {TumorAssessmentBaseline.__name__} or None, got {value} with type{type(value)}")
+            raise ValueError(
+                f"Tumor assessment baseline must be {TumorAssessmentBaseline.__name__} or None, got {value} with type{type(value)}"
+            )
 
         if value is not None:
             value._patient_id = self._patient_id

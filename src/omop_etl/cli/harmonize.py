@@ -28,6 +28,12 @@ def run_harmonization(input_csv: Path, base_root: Path, trial: str = "IMPRESS") 
 if __name__ == "__main__":
     configure_logger(level="DEBUG")
     impress_150_file = (
-        Path(__file__).parents[3] / ".data" / "preprocessing" / "impress" / "d4dbfeaa" / "csv" / "impress_d4dbfeaa_20251003T162634Z_preprocessed.csv"
+        Path(__file__).parents[3]
+        / ".data"
+        / "preprocessing"
+        / "impress"
+        / "d4dbfeaa"
+        / "csv"
+        / "impress_d4dbfeaa_20251003T162634Z_preprocessed.csv"
     )
     run_harmonization(input_csv=Path(impress_150_file), trial="IMPRESS", base_root=Path(".data"))

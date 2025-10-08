@@ -76,7 +76,9 @@ class BaseReader(ABC):
                 continue
 
             # check if all non-null values are integer strings
-            is_int_col = df.select((pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()).item()
+            is_int_col = df.select(
+                (pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()
+            ).item()
 
             if is_int_col:
                 int_columns.append(col_name)
@@ -155,7 +157,9 @@ class CsvDirectoryReader(BaseReader):
             key_lower = source_config.key.casefold()
 
             if key_lower not in file_index:
-                raise FileNotFoundError(f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}")
+                raise FileNotFoundError(
+                    f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}"
+                )
 
             csv_path = file_index[key_lower]
             log.debug(f"Reading CSV file: {csv_path}")

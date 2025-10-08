@@ -87,7 +87,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             self.patient_data[pid].cohort_name = cohort_name
 
     def _process_gender(self) -> None:
-        gender_data = (self.data.lazy().select(["SubjectId", "DM_SEX"])).filter(PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).is_not_null())
+        gender_data = (self.data.lazy().select(["SubjectId", "DM_SEX"])).filter(
+            PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).is_not_null()
+        )
         gender_data = gender_data.with_columns(
             processed_sex=(
                 pl.when(PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).str.to_lowercase().is_in(["m", "male"]))
@@ -252,11 +254,15 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             # choose first non-null slot only if no collision
             .with_columns(
-                primary_drug=pl.when(~pl.col("primary_collision")).then(pl.coalesce([pl.col("p1"), pl.col("p2"), pl.col("p3")])).otherwise(None),
+                primary_drug=pl.when(~pl.col("primary_collision"))
+                .then(pl.coalesce([pl.col("p1"), pl.col("p2"), pl.col("p3")]))
+                .otherwise(None),
                 primary_drug_code=pl.when(~pl.col("primary_collision"))
                 .then(pl.coalesce([pl.col("p1cd"), pl.col("p2cd"), pl.col("p3cd")]))
                 .otherwise(None),
-                secondary_drug=pl.when(~pl.col("secondary_collision")).then(pl.coalesce([pl.col("s1"), pl.col("s2"), pl.col("s3")])).otherwise(None),
+                secondary_drug=pl.when(~pl.col("secondary_collision"))
+                .then(pl.coalesce([pl.col("s1"), pl.col("s2"), pl.col("s3")]))
+                .otherwise(None),
                 secondary_drug_code=pl.when(~pl.col("secondary_collision"))
                 .then(pl.coalesce([pl.col("s1cd"), pl.col("s2cd"), pl.col("s3cd")]))
                 .otherwise(None),
@@ -896,7 +902,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             has_iv = row_has_any(iv_cols)
 
             return frame.with_columns(
-                pl.when(has_oral).then(pl.lit("oral")).when(has_iv).then(pl.lit("IV")).otherwise(pl.lit(None, dtype=pl.Utf8)).alias("treatment_type"),
+                pl.when(has_oral)
+                .then(pl.lit("oral"))
+                .when(has_iv)
+                .then(pl.lit("IV"))
+                .otherwise(pl.lit(None, dtype=pl.Utf8))
+                .alias("treatment_type"),
             )
 
         def add_iv_cycle_stop_dates(frame: pl.DataFrame) -> pl.DataFrame:
@@ -914,7 +925,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 )
                 .with_columns(
                     # calculate end date where next_start exists
-                    iv_cycle_end=pl.when(pl.col("next_start").is_not_null()).then(pl.col("next_start") - pl.duration(days=1)).otherwise(None),
+                    iv_cycle_end=pl.when(pl.col("next_start").is_not_null())
+                    .then(pl.col("next_start") - pl.duration(days=1))
+                    .otherwise(None),
                 )
                 .drop(["start", "next_start"])
             )
@@ -924,7 +937,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             """
             Coalesces IV and oral cycle end dates.
             """
-            coalesced = frame.with_columns(oral_cycle_end=PolarsParsers.to_optional_date("TR_TROSTPDT").alias("oral_cycle_end")).with_columns(
+            coalesced = frame.with_columns(
+                oral_cycle_end=PolarsParsers.to_optional_date("TR_TROSTPDT").alias("oral_cycle_end")
+            ).with_columns(
                 # conflict = both present
                 end_date_conflict=(pl.col("oral_cycle_end").is_not_null() & pl.col("iv_cycle_end").is_not_null()),
                 # mutually exclusive coalesced result; None if both or neither
@@ -942,7 +957,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 recieved_treatment_this_cycle=PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRCYNCD")),
                 was_total_dose_delivered=PolarsParsers.to_optional_bool(pl.col("TR_TRIVDELYN1")),
                 was_dose_administered_to_spec=PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRO_YNCD")),
-                was_tablet_taken_to_prescription_in_previous_cycle=PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TROTAKECD")),
+                was_tablet_taken_to_prescription_in_previous_cycle=PolarsParsers.int_to_bool(
+                    true_int=1, false_int=0, x=pl.col("TR_TROTAKECD")
+                ),
             ).filter(pl.col("TR_TRNAME").is_not_null())
 
             return filtered_data
@@ -1143,7 +1160,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             end_date_frame = (
                 frame.with_columns(death_date=PolarsParsers.to_optional_date(pl.col("FU_FUPDEDAT")))
                 .with_columns(
-                    end_date=pl.when(pl.col("end_date").is_null() & pl.col("was_serious").fill_null(False) & pl.col("death_date").is_not_null())
+                    end_date=pl.when(
+                        pl.col("end_date").is_null() & pl.col("was_serious").fill_null(False) & pl.col("death_date").is_not_null()
+                    )
                     .then(pl.col("death_date"))
                     .otherwise(pl.col("end_date")),
                 )
@@ -1321,7 +1340,11 @@ class ImpressHarmonizer(BaseHarmonizer):
         ).unique()
 
         # anchor join on subjects
-        joined = subjects_with_any.join(ta, on="SubjectId", how="left").join(ntl, on="SubjectId", how="left").join(tl, on="SubjectId", how="left")
+        joined = (
+            subjects_with_any.join(ta, on="SubjectId", how="left")
+            .join(ntl, on="SubjectId", how="left")
+            .join(tl, on="SubjectId", how="left")
+        )
 
         def build_tumor_assessment_baseline(pid: str, row) -> TumorAssessmentBaseline:
             tab = TumorAssessmentBaseline(pid)
