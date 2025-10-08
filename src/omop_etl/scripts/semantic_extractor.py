@@ -1,3 +1,4 @@
+import argparse
 import re
 import time
 from abc import ABC, abstractmethod
@@ -349,7 +350,11 @@ def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
     return pl.concat(parts, how="vertical_relaxed")
 
 
-def run(input_path: Path, output_dir: Path, trial: str = "impress"):
+def run(
+    input_path: Path,
+    output_dir: Path,
+    trial: str = "impress",
+):
     start_time = time.time()
     config = EcrfConfig.from_mapping(get_config())
     InputResolver().resolve(path=input_path, ecfg=config)
@@ -360,17 +365,45 @@ def run(input_path: Path, output_dir: Path, trial: str = "impress"):
     output_dir.mkdir(parents=True, exist_ok=True)
     outfile = output_dir / f"semantic_terms_{trial}_{start_time}.csv"
     output_df.write_csv(outfile)
-    with pl.Config(tbl_cols=-1, tbl_rows=-1):
-        print(output_df)
-
-    # todo: [ ] write tests
-    # todo: [ ] pass CI
-    # todo: [ ] make CLI
-    # todo: [ ] run on VM
 
 
-if __name__ == "__main__":
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="semantic-extractor", description="Compute term frequencies per sheet/column from eCRF extracts.")
+    parser.add_argument(
+        "-i", "--input-path", type=Path, required=True, help="Input directory or file to resolve (as expected by InputResolver)."
+    )
+    parser.add_argument("-o", "--output-dir", type=Path, required=True, help="Directory to write CSV output into.")
+    parser.add_argument("-t", "--trial", default="impress", help="Trial name used in output filename. Default: %(default)s")
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    _args = parser.parse_args(argv)
+
+    if not _args.input_path.exists():
+        parser.error(f"--input-path not found: {_args.input_path}")
+
+    run(
+        input_path=_args.input_path,
+        output_dir=_args.output_dir,
+        trial=_args.trial,
+    )
+    return 0
+
+
+def run_ide():
     run(
         input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150"),
         output_dir=Path("/Users/gabriebs/projects/omop_etl/.data/semantic_input"),
     )
+
+
+# todo: [x] write tests
+# todo: [x] make CLI
+# todo: [ ] pass CI
+# todo: [ ] run on VM
+
+if __name__ == "__main__":
+    raise SystemExit(main())
