@@ -36,28 +36,6 @@ class EcrfConfig:
         return cls([SheetConfig(key=k.upper(), usecols=v) for k, v in m.items()])
 
 
-def combine(ecfg: EcrfConfig, on: str = "SubjectId") -> pl.DataFrame:
-    if not ecfg.data:
-        raise ValueError("No eCRF config data loaded")
-
-    frames: list[pl.DataFrame] = []
-    for sheet_data in ecfg.data:
-        df = sheet_data.data
-        if on not in df.columns:
-            raise ValueError(f"'{on}' not in sheet {sheet_data.key}")
-
-        # normalize key dtype across sheets to avoid concat type errors
-        df = df.with_columns(pl.col(on).cast(pl.Utf8))
-
-        # prefix everything except the key
-        mapping = {c: f"{sheet_data.key}_{c}" for c in df.columns if c != on}
-        frames.append(df.rename(mapping))
-
-    # union-of-columns vertical concat, fill missing with nulls
-    out = pl.concat(frames, how="diagonal", rechunk=True).sort(on, nulls_last=True)
-    return out
-
-
 class BaseReader(ABC):
     """Base class for data readers with common functionality."""
 
@@ -280,10 +258,11 @@ def get_config() -> dict:
 
     If columns do not add semantic information over the synthetic data, they are dropped (can be mapped locally),
     or if a column itself is mapped instead of it's values (handled in structural mapping).
-    Examples:
+    Examples of what's not included:
         - Pure numerical measurments & observations (e.g. age, target tumor size, number of lesions)
         - Identifiers (e.g. SubjectId)
         - Questionnaires (e.g. QLQ-C30, EQ5D)
+        - (most) Drop-down lists (samplespace is available in synthetic data)
     """
     return {
         "coh": [
@@ -311,7 +290,10 @@ def get_config() -> dict:
             "SubjectId",
             "CMTRT",
         ],
-        "ae": ["SubjectId", "AECTCAET"],
+        "ae": [
+            "SubjectId",
+            "AECTCAET",
+        ],
         "mh": [
             "SubjectId",
             "MHTERM",
@@ -346,9 +328,9 @@ def frames_to_dict(config: EcrfConfig) -> dict[str, pl.Series]:
     out: dict[str, pl.Series] = {}
     for sheet in config.data:
         df = filter_df(sheet.data, drop="SubjectId")
+        sheet_key = (sheet.key or "").upper()
         for s in df.get_columns():
-            key = f"{sheet.key}_{s.name}"
-            out[key] = s
+            out[f"{sheet_key}_{s.name}"] = s
     return out
 
 
@@ -361,9 +343,9 @@ def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
             .rename({s.name: "source_term", "count": "frequency"})
             .with_columns(pl.lit(key).alias("source_col"))
             .select("source_col", "source_term", "frequency")
+            .with_columns(pl.col("frequency").cast(pl.Int64))
         )
         parts.append(vc)
-
     return pl.concat(parts, how="vertical_relaxed")
 
 
@@ -383,6 +365,7 @@ def run(input_path: Path, output_dir: Path, trial: str = "impress"):
 
     # todo: [ ] write tests
     # todo: [ ] pass CI
+    # todo: [ ] make CLI
     # todo: [ ] run on VM
 
 
