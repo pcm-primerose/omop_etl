@@ -133,7 +133,9 @@ def test_export_wide_other_formats(
 
 
 @pytest.mark.parametrize("fmt", ["csv", "tsv", "parquet"])
-def test_export_normalized(fmt: TabularFormat, exporter: HarmonizedExporter, run_context: RunMetadata, fake_hd: FakeHarmonizedData, tmp_path: Path):
+def test_export_normalized(
+    fmt: TabularFormat, exporter: HarmonizedExporter, run_context: RunMetadata, fake_hd: FakeHarmonizedData, tmp_path: Path
+):
     input_path = tmp_path / "input.csv"
     input_path.write_text("dummy\n")
 

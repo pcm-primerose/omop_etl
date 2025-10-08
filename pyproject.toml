@@ -36,7 +36,7 @@ packages = ["src/omop_etl"]
 package-data = { "omop_etl" = ["resources/*.json"] }
 
 [tool.ruff]
-line-length = 150
+line-length = 140
 target-version = "py310"
 fix = true
 

@@ -43,7 +43,9 @@ def test_plan_single_file_layout_and_names(tmp_path: Path, meta: RunMetadata, fm
     assert ctx.data_dir == expect_dir
 
     stem = f"impress_{meta.run_id}_{meta.started_at}_{mode}"
-    assert ctx.data_path.name == f"{stem}.{('tsv' if fmt == 'tsv' else 'csv' if fmt == 'csv' else 'parquet' if fmt == 'parquet' else 'json')}"
+    assert (
+        ctx.data_path.name == f"{stem}.{('tsv' if fmt == 'tsv' else 'csv' if fmt == 'csv' else 'parquet' if fmt == 'parquet' else 'json')}"
+    )
     assert ctx.manifest_path.name == f"{stem}_manifest.json"
     assert ctx.log_path.name == f"{stem}.log"
 

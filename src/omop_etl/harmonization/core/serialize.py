@@ -93,7 +93,9 @@ def to_normalized(df_nested: pl.DataFrame) -> dict[str, pl.DataFrame]:
             # filter no-data rows
             non_id = [col for col in tbl.columns if col not in SerializeTypes.ID_COLUMNS]
             if non_id:
-                keep = pl.any_horizontal([pl.col(col).is_not_null() & (pl.col(col).cast(pl.Utf8).str.strip_chars() != "") for col in non_id])
+                keep = pl.any_horizontal(
+                    [pl.col(col).is_not_null() & (pl.col(col).cast(pl.Utf8).str.strip_chars() != "") for col in non_id]
+                )
                 tbl = tbl.filter(keep)
             if any(isinstance(dt, pl.List) or isinstance(dt, pl.Struct) for dt in tbl.schema.values()):
                 tbl = tbl.select(SerializeTypes.ID_COLUMNS)
@@ -417,7 +419,10 @@ def _sort_wide(
         rank = {name: i + 1 for i, name in enumerate(collection_order)}
         wide = (
             wide.with_columns(
-                pl.when(pl.col("row_type") == "base").then(0).otherwise(pl.col("row_type").replace(rank, default=len(rank) + 1)).alias("_rt_rank"),
+                pl.when(pl.col("row_type") == "base")
+                .then(0)
+                .otherwise(pl.col("row_type").replace(rank, default=len(rank) + 1))
+                .alias("_rt_rank"),
             )
             .sort([*ids, "_rt_rank", "row_index"])
             .drop("_rt_rank")

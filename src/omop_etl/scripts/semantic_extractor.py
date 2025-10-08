@@ -1,13 +1,40 @@
+import argparse
 import re
+import time
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Sequence, Dict, Optional
-import polars as pl
+from dataclasses import dataclass
 from logging import getLogger
-
-from .models import EcrfConfig, SheetData
+from pathlib import Path
+from typing import Sequence, Optional, Mapping, Dict
+import polars as pl
+from polars import any_horizontal
 
 log = getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SheetConfig:
+    key: str
+    usecols: Sequence[str]
+
+
+@dataclass
+class SheetData:
+    key: str
+    data: pl.DataFrame
+    input_path: Optional[Path] = None
+
+
+@dataclass
+class EcrfConfig:
+    configs: list[SheetConfig]
+    data: list[SheetData] | None = None
+    trial: str | None = None
+    source_type: str | None = None
+
+    @classmethod
+    def from_mapping(cls, m: Mapping[str, list[str]]) -> "EcrfConfig":
+        return cls([SheetConfig(key=k.upper(), usecols=v) for k, v in m.items()])
 
 
 class BaseReader(ABC):
@@ -224,3 +251,159 @@ class InputResolver:
                 supported.append(reader.__class__.__name__)
 
         raise ValueError(f"Unsupported input type: {path}. Supported: {', '.join(supported)} or directory of CSVs")
+
+
+def get_config() -> dict:
+    """
+    Returns config with only columns in need of semantic mapping.
+
+    If columns do not add semantic information over the synthetic data, they are dropped (can be mapped locally),
+    or if a column itself is mapped instead of it's values (handled in structural mapping).
+    Examples of what's not included:
+        - Pure numerical measurments & observations (e.g. age, target tumor size, number of lesions)
+        - Identifiers (e.g. SubjectId)
+        - Questionnaires (e.g. QLQ-C30, EQ5D)
+        - (most) Drop-down lists (samplespace is available in synthetic data)
+    """
+    return {
+        "coh": [
+            "SubjectId",
+            "ICD10COD",
+            "ICD10DES",
+            "COHTTYPE",
+            "COHTTYPE__2",
+            "COHTT",
+            "COHTTOSP",
+            "GENMUT1",
+            "COHCTN",
+            "COHTMN",
+        ],
+        "ct": [
+            "SubjectId",
+            "CTTYPE",
+            "CTTYPESP",
+        ],
+        "tr": [
+            "SubjectId",
+            "TRNAME",
+        ],
+        "cm": [
+            "SubjectId",
+            "CMTRT",
+        ],
+        "ae": [
+            "SubjectId",
+            "AECTCAET",
+        ],
+        "mh": [
+            "SubjectId",
+            "MHTERM",
+        ],
+    }
+
+
+def _drop_subject_id(data: pl.DataFrame, drop: str) -> pl.DataFrame:
+    return data.drop(drop)
+
+
+def _drop_nulls(data: pl.DataFrame) -> pl.DataFrame:
+    return data.filter(any_horizontal(pl.col("*").is_not_null()))
+
+
+def _get_unique(data: pl.DataFrame) -> pl.DataFrame:
+    return data.unique()
+
+
+def filter_df(data: pl.DataFrame, drop: str) -> pl.DataFrame:
+    """
+    Apply filtering functions: get_unique, drop nulls and drop SubjectId col
+    """
+    data = _get_unique(data)
+    data = _drop_nulls(data)
+    data = _drop_subject_id(data, drop=drop)
+
+    return data
+
+
+def frames_to_dict(config: EcrfConfig) -> dict[str, pl.Series]:
+    out: dict[str, pl.Series] = {}
+    for sheet in config.data:
+        df = filter_df(sheet.data, drop="SubjectId")
+        sheet_key = (sheet.key or "").upper()
+        for s in df.get_columns():
+            out[f"{sheet_key}_{s.name}"] = s
+    return out
+
+
+def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
+    parts = []
+    for key, s in d.items():
+        vc = (
+            s.drop_nulls()
+            .value_counts()
+            .rename({s.name: "source_term", "count": "frequency"})
+            .with_columns(pl.lit(key).alias("source_col"))
+            .select("source_col", "source_term", "frequency")
+            .with_columns(pl.col("frequency").cast(pl.Int64))
+        )
+        parts.append(vc)
+    return pl.concat(parts, how="vertical_relaxed")
+
+
+def run(
+    input_path: Path,
+    output_dir: Path,
+    trial: str = "impress",
+):
+    start_time = time.time()
+    config = EcrfConfig.from_mapping(get_config())
+    InputResolver().resolve(path=input_path, ecfg=config)
+
+    series_by_key = frames_to_dict(config)
+    output_df = dict_to_counts(series_by_key).sort(["source_col", "frequency"], descending=[False, True])
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    outfile = output_dir / f"semantic_terms_{trial}_{start_time}.csv"
+    output_df.write_csv(outfile)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="semantic-extractor", description="Compute term frequencies per sheet/column from eCRF extracts.")
+    parser.add_argument(
+        "-i", "--input-path", type=Path, required=True, help="Input directory or file to resolve (as expected by InputResolver)."
+    )
+    parser.add_argument("-o", "--output-dir", type=Path, required=True, help="Directory to write CSV output into.")
+    parser.add_argument("-t", "--trial", default="impress", help="Trial name used in output filename. Default: %(default)s")
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    _args = parser.parse_args(argv)
+
+    if not _args.input_path.exists():
+        parser.error(f"--input-path not found: {_args.input_path}")
+
+    run(
+        input_path=_args.input_path,
+        output_dir=_args.output_dir,
+        trial=_args.trial,
+    )
+    return 0
+
+
+def run_ide():
+    run(
+        input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150"),
+        output_dir=Path("/Users/gabriebs/projects/omop_etl/.data/semantic_input"),
+    )
+
+
+# todo: [x] write tests
+# todo: [x] make CLI
+# todo: [ ] pass CI
+# todo: [ ] run on VM
+
+if __name__ == "__main__":
+    raise SystemExit(main())
