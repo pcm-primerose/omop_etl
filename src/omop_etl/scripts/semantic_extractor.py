@@ -4,12 +4,16 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from logging import getLogger
+import logging
 from pathlib import Path
 from typing import Sequence, Optional, Mapping, Dict, Literal
 import polars as pl
 
-log = getLogger(__name__)
+from omop_etl.infra.logging.logging_setup import get_logger
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
+
+log = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -595,6 +599,7 @@ def get_config(all_data: bool = False) -> Dict[str, list[str]]:
     }
 
     if not all_data:
+        log.info("Running extraction on semantic data only.")
         return semantic_vars
 
     else:
@@ -701,11 +706,13 @@ def run(
     outfile = output_dir / f"semantic_terms_{trial}_{start_time}.csv"
     output_df.write_csv(outfile)
 
+    log.info(f"Completed semantic extraction, wrote data to: {outfile}")
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="semantic-extractor",
-        description="Extracts semantic columns from eCRF from confuigs, with frequencies & deterministic UUID5 per term.",
+        description="Extracts semantic columns from eCRF from configs, with frequencies & deterministic UUID5 per source term.",
     )
     parser.add_argument(
         "-i",
@@ -755,9 +762,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def run_ide():
     run(
-        input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150"),
+        input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150/"),
         output_dir=Path("/Users/gabriebs/projects/omop_etl/.data/semantic_input"),
-        # all_data=True
     )
 
 
