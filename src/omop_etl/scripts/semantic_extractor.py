@@ -1,15 +1,19 @@
 import argparse
 import re
 import time
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from logging import getLogger
+import logging
 from pathlib import Path
-from typing import Sequence, Optional, Mapping, Dict
+from typing import Sequence, Optional, Mapping, Dict, Literal
 import polars as pl
-from polars import any_horizontal
 
-log = getLogger(__name__)
+from omop_etl.infra.logging.logging_setup import get_logger
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
+
+log = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -253,7 +257,7 @@ class InputResolver:
         raise ValueError(f"Unsupported input type: {path}. Supported: {', '.join(supported)} or directory of CSVs")
 
 
-def get_config() -> dict:
+def get_config(all_data: bool = False) -> Dict[str, list[str]]:
     """
     Returns config with only columns in need of semantic mapping.
 
@@ -264,8 +268,12 @@ def get_config() -> dict:
         - Identifiers (e.g. SubjectId)
         - Questionnaires (e.g. QLQ-C30, EQ5D)
         - (most) Drop-down lists (samplespace is available in synthetic data)
+
+    If `all_data` is True, returns all variables to build config from (meaning all non-semantic data as well).
+    Note:
+        - This will contain sensitive data & non-semantic data, cannot be exported as is.
     """
-    return {
+    semantic_vars: Dict[str, list[str]] = {
         "coh": [
             "SubjectId",
             "ICD10COD",
@@ -301,13 +309,312 @@ def get_config() -> dict:
         ],
     }
 
+    all_vars: Dict[str, list[str]] = {
+        "coh": [
+            "SubjectId",
+            "COHORTNAME",
+            "EventDate",
+            "ICD10COD",
+            "ICD10DES",
+            "COHTTYPE",
+            "COHTTYPECD",
+            "COHTTYPE__2",
+            "COHTTYPE__2CD",
+            "COHTT",
+            "COHTTOSP",
+            "COHALLO1",
+            "COHALLO1CD",
+            "COHALLO1__2",
+            "COHALLO1__2CD",
+            "COHALLO1__3",
+            "COHALLO1__3CD",
+            "COHALLO2",
+            "COHALLO2CD",
+            "COHALLO2__2",
+            "COHALLO2__2CD",
+            "COHALLO2__3",
+            "COHALLO2__3CD",
+            "GENMUT1",
+            "GENMUT1CD",
+            "COHCTN",
+            "COHTMN",
+        ],
+        "ecog": [
+            "SubjectId",
+            "EventId",
+            "ECOGS",
+            "ECOGSCD",
+            "ECOGDAT",
+        ],
+        "dm": [
+            "SubjectId",
+            "DMAGE",
+            "BRTHDAT",
+            "SEX",
+            "SEXCD",
+        ],
+        "ct": [
+            "SubjectId",
+            "CTTYPE",
+            "CTTYPECD",
+            "CTSTDAT",
+            "CTENDAT",
+            "CTSPID",
+            "CTTYPESP",
+        ],
+        "eot": [
+            "SubjectId",
+            "EventDate",
+            "EOTDAT",
+            "EOTPROGDTC",
+            "EOTREOT",
+            "EOTREOTCD",
+        ],
+        "tr": [
+            "SubjectId",
+            "TRNAME",
+            "TRIVDS1",
+            "TRIVU1",
+            "TRIVDELYN1",
+            "TRDSDEL1",
+            "TRC1_DT",
+            "TRO_YN",
+            "TRO_YNCD",
+            "TRODSTOT",
+            "TRODSU",
+            "TRODSUCD",
+            "TRO_STDT",
+            "TROSTPDT",
+            "TROTAKE",
+            "TROTAKECD",
+            "TROTABNO",
+            "TROSPE",
+            "TROREA",
+            "TROREACD",
+            "TROOTH",
+            "TRODSUOT",
+            "TRTNO",
+            "TRCNO1",
+            "TRCYN",
+            "TRCYNCD",
+        ],
+        "eos": [
+            "SubjectId",
+            "DEATHDTC",
+        ],
+        "cm": [
+            "SubjectId",
+            "CMTRT",
+            "CMMHYN",
+            "CMMHYNCD",
+            "CMSTDAT",
+            "CMONGO",
+            "CMONGOCD",
+            "CMENDAT",
+            "CMAEYN",
+            "CMAENO",
+            "CMSPID",
+        ],
+        "ae": [
+            "SubjectId",
+            "AETOXGRECD",
+            "AECTCAET",
+            "AESTDAT",
+            "AEENDAT",
+            "AEOUT",
+            "AEOUTCD",
+            "AESPID",
+            "AESERCD",
+            "SAESTDAT",
+            "AETRT1",
+            "AEREL1",
+            "AEREL1CD",
+            "AETRT2",
+            "AEREL2",
+            "AEREL2CD",
+            "SAEREL1",
+            "SAEREL1CD",
+            "SAEREL2",
+            "SAEREL2CD",
+            "AETRTMM1",
+            "AETRTMM2",
+            "SAEEXP1",
+            "SAEEXP1CD",
+            "SAEEXP2",
+            "SAEEXP2CD",
+        ],
+        "fu": [
+            "SubjectId",
+            "FUPALDAT",
+            "FUPDEDAT",
+            "FUPSSTCD",
+            "FUPSST",
+        ],
+        "vi": [
+            "SubjectId",
+            "EventDate",
+            "EventId",
+            "VITUMA",
+            "VITUMACD",
+            "VITUMA__2",
+            "VITUMA__2CD",
+        ],
+        "ra": [
+            "SubjectId",
+            "EventId",
+            "EventDate",
+            "RARECBAS",
+            "RARECNAD",
+            "RABASECH",
+            "RARECCH",
+            "RANLBASE",
+            "RANLBASECD",
+            "RATIMRES",
+            "RATIMRESCD",
+            "RAiMOD",
+            "RAiMODCD",
+            "RAPROGDT",
+            "RAiUNPDT",
+            "RAASSESS1",
+            "RAASSESS2",
+        ],
+        "rnrsp": [
+            "SubjectId",
+            "EventDate",
+            "TERNCFB",
+            "TERNCFN",
+            "TERNTBAS",
+            "RNRSPNL",
+            "EventId",
+            "TERNAD",
+            "RNRSPNLCD",
+            "RNRSPCL",
+            "RNRSPCLCD",
+        ],
+        "rcnt": [
+            "SubjectId",
+            "EventDate",
+            "EventId",
+            "RCNTNOB",
+        ],
+        "rntmnt": [
+            "SubjectId",
+            "EventDate",
+            "EventId",
+            "RNTMNTNOB",
+            "RNTMNTNO",
+        ],
+        "mh": [
+            "SubjectId",
+            "MHSPID",
+            "MHTERM",
+            "MHSTDAT",
+            "MHENDAT",
+            "MHONGO",
+            "MHONGOCD",
+        ],
+        "eq5d": [
+            "SubjectId",
+            "EventName",
+            "EventDate",
+            "EQ5DDAT",
+            "EQ5DVAS",
+            "EQ5D1",
+            "EQ5D1CD",
+            "EQ5D2",
+            "EQ5D2CD",
+            "EQ5D3",
+            "EQ5D3CD",
+            "EQ5D4",
+            "EQ5D4CD",
+            "EQ5D5",
+            "EQ5D5CD",
+        ],
+        "c30": [
+            "SubjectId",
+            "EventName",
+            "EventDate",
+            "C30DAT",
+            "C30_Q1",
+            "C30_Q1CD",
+            "C30_Q2",
+            "C30_Q2CD",
+            "C30_Q3",
+            "C30_Q3CD",
+            "C30_Q4",
+            "C30_Q4CD",
+            "C30_Q5",
+            "C30_Q5CD",
+            "C30_Q6",
+            "C30_Q6CD",
+            "C30_Q7",
+            "C30_Q7CD",
+            "C30_Q8",
+            "C30_Q8CD",
+            "C30_Q9",
+            "C30_Q9CD",
+            "C30_Q10",
+            "C30_Q10CD",
+            "C30_Q11",
+            "C30_Q11CD",
+            "C30_Q12",
+            "C30_Q12CD",
+            "C30_Q13",
+            "C30_Q13CD",
+            "C30_Q14",
+            "C30_Q14CD",
+            "C30_Q15",
+            "C30_Q15CD",
+            "C30_Q16",
+            "C30_Q16CD",
+            "C30_Q17",
+            "C30_Q17CD",
+            "C30_Q18",
+            "C30_Q18CD",
+            "C30_Q19",
+            "C30_Q19CD",
+            "C30_Q20",
+            "C30_Q20CD",
+            "C30_Q21",
+            "C30_Q21CD",
+            "C30_Q22",
+            "C30_Q22CD",
+            "C30_Q23",
+            "C30_Q23CD",
+            "C30_Q24",
+            "C30_Q24CD",
+            "C30_Q25",
+            "C30_Q25CD",
+            "C30_Q26",
+            "C30_Q26CD",
+            "C30_Q27",
+            "C30_Q27CD",
+            "C30_Q28",
+            "C30_Q28CD",
+            "C30_Q29",
+            "C30_Q29CD",
+            "C30_Q30",
+            "C30_Q30CD",
+        ],
+    }
+
+    if not all_data:
+        log.info("Running extraction on semantic data only.")
+        return semantic_vars
+
+    else:
+        log.warning(
+            "Running extraction on all data from all_vars in get_config(): *Cannot* be exported, will contain mostly non-semantic data!"
+        )
+        return all_vars
+
 
 def _drop_subject_id(data: pl.DataFrame, drop: str) -> pl.DataFrame:
     return data.drop(drop)
 
 
 def _drop_nulls(data: pl.DataFrame) -> pl.DataFrame:
-    return data.filter(any_horizontal(pl.col("*").is_not_null()))
+    return data.filter(pl.any_horizontal(pl.col("*").is_not_null()))
 
 
 def _get_unique(data: pl.DataFrame) -> pl.DataFrame:
@@ -350,30 +657,89 @@ def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
     return pl.concat(parts, how="vertical_relaxed")
 
 
+Scope = Literal["per_scope", "global"]
+
+
+def add_term_id(data: pl.DataFrame, id_scope: Scope = "per_scope") -> pl.DataFrame:
+    """
+    Adds uuid5 per unique term scoped to sheet or globally as new column in dataframe.
+    """
+
+    term = pl.col("source_term").cast(pl.Utf8)
+    _namespace = "5c630d6e-a4f6-11f0-aeff-325096b39f47"
+
+    if id_scope == "global":
+        namespace = uuid.UUID(_namespace)
+        output = data.with_columns(
+            term.map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8).alias("term_id")
+        ).select("term_id", "source_col", "source_term", "frequency")
+        return output
+
+    if id_scope == "per_scope":
+        namespace = uuid.UUID(_namespace)
+        output = data.with_columns(
+            (pl.col("source_col").cast(pl.Utf8) + ":" + term)
+            .map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8)
+            .alias("term_id")
+        ).select("term_id", "source_col", "source_term", "frequency")
+        return output
+
+    else:
+        raise ValueError(f"id_scope not valid: `{id_scope}`. Needs to be: `{Scope}`")
+
+
 def run(
     input_path: Path,
     output_dir: Path,
     trial: str = "impress",
+    all_data: Optional[bool] = False,
 ):
     start_time = time.time()
-    config = EcrfConfig.from_mapping(get_config())
+    config = EcrfConfig.from_mapping(get_config(all_data=all_data))
     InputResolver().resolve(path=input_path, ecfg=config)
 
     series_by_key = frames_to_dict(config)
-    output_df = dict_to_counts(series_by_key).sort(["source_col", "frequency"], descending=[False, True])
+    combined_df = dict_to_counts(series_by_key).sort(["source_col", "frequency"], descending=[False, True])
+    output_df = add_term_id(combined_df)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     outfile = output_dir / f"semantic_terms_{trial}_{start_time}.csv"
     output_df.write_csv(outfile)
 
+    log.info(f"Completed semantic extraction, wrote data to: {outfile}")
+
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="semantic-extractor", description="Compute term frequencies per sheet/column from eCRF extracts.")
-    parser.add_argument(
-        "-i", "--input-path", type=Path, required=True, help="Input directory or file to resolve (as expected by InputResolver)."
+    parser = argparse.ArgumentParser(
+        prog="semantic-extractor",
+        description="Extracts semantic columns from eCRF from configs, with frequencies & deterministic UUID5 per source term.",
     )
-    parser.add_argument("-o", "--output-dir", type=Path, required=True, help="Directory to write CSV output into.")
-    parser.add_argument("-t", "--trial", default="impress", help="Trial name used in output filename. Default: %(default)s")
+    parser.add_argument(
+        "-i",
+        "--input-path",
+        type=Path,
+        required=True,
+        help="Input directory or file to resolve (as expected by InputResolver).",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="Directory to write CSV output into.",
+    )
+    parser.add_argument(
+        "-t",
+        "--trial",
+        default="impress",
+        help="Trial name used in output filename. Default: %(default)s",
+    )
+    parser.add_argument(
+        "--all-data",
+        action="store_false",
+        default=True,
+        help="If provided, run with entire eCRF config: not limited to non-sensitive or semantic data.",
+    )
 
     return parser
 
@@ -389,21 +755,18 @@ def main(argv: list[str] | None = None) -> int:
         input_path=_args.input_path,
         output_dir=_args.output_dir,
         trial=_args.trial,
+        all_data=_args.all_data,
     )
     return 0
 
 
 def run_ide():
     run(
-        input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150"),
+        input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150/"),
         output_dir=Path("/Users/gabriebs/projects/omop_etl/.data/semantic_input"),
     )
 
 
-# todo: [x] write tests
-# todo: [x] make CLI
-# todo: [ ] pass CI
-# todo: [ ] run on VM
-
 if __name__ == "__main__":
-    raise SystemExit(main())
+    run_ide()
+    # raise SystemExit(main())
