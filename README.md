@@ -1,5 +1,8 @@
 # OMOP ETL 
 
+Note:
+Update README file 091025
+
 This project contains all code related to the pre-processing and ETL pipeline 
 for getting data from eCRF systems to harmonized PRIME-ROSE variables and finally to the OMOP CDM.
 
