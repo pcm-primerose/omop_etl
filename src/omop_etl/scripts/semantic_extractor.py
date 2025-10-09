@@ -1,13 +1,13 @@
 import argparse
 import re
 import time
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
-from typing import Sequence, Optional, Mapping, Dict
+from typing import Sequence, Optional, Mapping, Dict, Literal
 import polars as pl
-from polars import any_horizontal
 
 log = getLogger(__name__)
 
@@ -307,7 +307,7 @@ def _drop_subject_id(data: pl.DataFrame, drop: str) -> pl.DataFrame:
 
 
 def _drop_nulls(data: pl.DataFrame) -> pl.DataFrame:
-    return data.filter(any_horizontal(pl.col("*").is_not_null()))
+    return data.filter(pl.any_horizontal(pl.col("*").is_not_null()))
 
 
 def _get_unique(data: pl.DataFrame) -> pl.DataFrame:
@@ -350,6 +350,44 @@ def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
     return pl.concat(parts, how="vertical_relaxed")
 
 
+Scope = Literal["per_scope", "global"]
+
+# TODO:
+#   [ ] make uuid 5 deterministic:
+#       - make template uuid string
+#       - concatenate term str + tempalte
+#       - hash this and take first 128 bytes
+#       - should be unique for all input strings, but deterministic: cool
+
+
+def add_term_id(data: pl.DataFrame, id_scope: Scope = "per_scope") -> pl.DataFrame:
+    """
+    Adds uuid5 per unique term scoped to sheet or globally as new column in dataframe.
+    """
+
+    term = pl.col("source_term").cast(pl.Utf8)
+    _namespace = "5c630d6e-a4f6-11f0-aeff-325096b39f47"
+
+    if id_scope == "global":
+        namespace = uuid.UUID(_namespace)
+        output = data.with_columns(
+            term.map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8).alias("term_id")
+        ).select("term_id", "source_col", "source_term", "frequency")
+        return output
+
+    if id_scope == "per_scope":
+        namespace = uuid.UUID(_namespace)
+        output = data.with_columns(
+            (pl.col("source_col").cast(pl.Utf8) + ":" + term)
+            .map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8)
+            .alias("term_id")
+        ).select("term_id", "source_col", "source_term", "frequency")
+        return output
+
+    else:
+        raise ValueError(f"id_scope not valid: `{id_scope}`. Needs to be: `{Scope}`")
+
+
 def run(
     input_path: Path,
     output_dir: Path,
@@ -360,7 +398,8 @@ def run(
     InputResolver().resolve(path=input_path, ecfg=config)
 
     series_by_key = frames_to_dict(config)
-    output_df = dict_to_counts(series_by_key).sort(["source_col", "frequency"], descending=[False, True])
+    combined_df = dict_to_counts(series_by_key).sort(["source_col", "frequency"], descending=[False, True])
+    output_df = add_term_id(combined_df)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     outfile = output_dir / f"semantic_terms_{trial}_{start_time}.csv"
@@ -400,10 +439,6 @@ def run_ide():
     )
 
 
-# todo: [x] write tests
-# todo: [x] make CLI
-# todo: [ ] pass CI
-# todo: [ ] run on VM
-
 if __name__ == "__main__":
-    raise SystemExit(main())
+    run_ide()
+    # raise SystemExit(main())

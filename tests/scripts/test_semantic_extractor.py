@@ -76,9 +76,7 @@ def test_filter_unique_effect():
         },
     )
     cfg = EcrfConfig(configs=[], data=[SheetData(key="COH", data=df)])
-    print(f"cfg: {cfg}")
     d = frames_to_dict(cfg)
     out = dict_to_counts(d)
-    print(f"out: {out}")
     # drop duplicate rows
     assert out.select(pl.col("frequency")).item() == 2, "uniqueness per row (not raw data or value-unique)"
