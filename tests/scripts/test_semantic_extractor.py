@@ -1,5 +1,6 @@
 import polars as pl
 
+from omop_etl.scripts.semantic_extractor import add_term_id
 from src.omop_etl.scripts.semantic_extractor import (
     frames_to_dict,
     dict_to_counts,
@@ -80,3 +81,35 @@ def test_filter_unique_effect():
     out = dict_to_counts(d)
     # drop duplicate rows
     assert out.select(pl.col("frequency")).item() == 2, "uniqueness per row (not raw data or value-unique)"
+
+
+def test_uuid_is_unique_scoped_to_source():
+    df_1 = pl.DataFrame({"source_col": ["A", "A", "A"], "source_term": ["a", "a", "b"], "frequency": [2, 2, 1]})
+
+    df_2 = pl.DataFrame({"source_col": ["C", "C", "D"], "source_term": ["a", "a", "s"], "frequency": [2, 2, 1]})
+
+    out_1 = add_term_id(df_1, id_scope="per_scope")
+    ids_1 = out_1.select(pl.col("term_id")).to_series()
+    assert ids_1[0] == ids_1[1]
+    assert ids_1[0] != ids_1[2]
+
+    out_2 = add_term_id(df_2, id_scope="per_scope")
+    ids_2 = out_2.select(pl.col("term_id")).to_series()
+    assert ids_2[0] != ids_1[0]
+    assert ids_2[0] != ids_2[2]
+
+
+def test_uuid_is_unique_global():
+    df_1 = pl.DataFrame({"source_col": ["A", "A", "A"], "source_term": ["a", "a", "b"], "frequency": [2, 2, 1]})
+
+    df_2 = pl.DataFrame({"source_col": ["C", "C", "D"], "source_term": ["a", "a", "s"], "frequency": [2, 2, 1]})
+
+    out_1 = add_term_id(df_1, id_scope="global")
+    ids_1 = out_1.select(pl.col("term_id")).to_series()
+    assert ids_1[0] == ids_1[1]
+    assert ids_1[0] != ids_1[2]
+
+    out_2 = add_term_id(df_2, id_scope="global")
+    ids_2 = out_2.select(pl.col("term_id")).to_series()
+    assert ids_2[0] == ids_1[0]
+    assert ids_2[0] != ids_2[2]
