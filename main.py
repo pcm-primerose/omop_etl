@@ -46,14 +46,6 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
 
 if __name__ == "__main__":
-    import uuid
-
-    def generate_deterministic_uuid_v5(name_string, namespace_uuid):
-        """
-        Generates a deterministic UUID v5 from a given string and namespace UUID.
-        """
-        return uuid.uuid5(namespace_uuid, name_string)
-
     configure_logger(level="DEBUG")
     impress_150_file = Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150")
     run_pipeline(preprocessing_input=impress_150_file, trial="IMPRESS", base_root=Path(".data/test_run"))

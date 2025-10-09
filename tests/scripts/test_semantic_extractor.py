@@ -84,9 +84,21 @@ def test_filter_unique_effect():
 
 
 def test_uuid_is_unique_scoped_to_source():
-    df_1 = pl.DataFrame({"source_col": ["A", "A", "A"], "source_term": ["a", "a", "b"], "frequency": [2, 2, 1]})
+    df_1 = pl.DataFrame(
+        {
+            "source_col": ["A", "A", "A"],
+            "source_term": ["a", "a", "b"],
+            "frequency": [2, 2, 1],
+        }
+    )
 
-    df_2 = pl.DataFrame({"source_col": ["C", "C", "D"], "source_term": ["a", "a", "s"], "frequency": [2, 2, 1]})
+    df_2 = pl.DataFrame(
+        {
+            "source_col": ["C", "C", "D"],
+            "source_term": ["a", "a", "s"],
+            "frequency": [2, 2, 1],
+        }
+    )
 
     out_1 = add_term_id(df_1, id_scope="per_scope")
     ids_1 = out_1.select(pl.col("term_id")).to_series()
@@ -100,9 +112,21 @@ def test_uuid_is_unique_scoped_to_source():
 
 
 def test_uuid_is_unique_global():
-    df_1 = pl.DataFrame({"source_col": ["A", "A", "A"], "source_term": ["a", "a", "b"], "frequency": [2, 2, 1]})
+    df_1 = pl.DataFrame(
+        {
+            "source_col": ["A", "A", "A"],
+            "source_term": ["a", "a", "b"],
+            "frequency": [2, 2, 1],
+        }
+    )
 
-    df_2 = pl.DataFrame({"source_col": ["C", "C", "D"], "source_term": ["a", "a", "s"], "frequency": [2, 2, 1]})
+    df_2 = pl.DataFrame(
+        {
+            "source_col": ["C", "C", "D"],
+            "source_term": ["a", "a", "s"],
+            "frequency": [2, 2, 1],
+        }
+    )
 
     out_1 = add_term_id(df_1, id_scope="global")
     ids_1 = out_1.select(pl.col("term_id")).to_series()
