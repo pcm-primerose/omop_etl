@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Sequence, Optional, Mapping, Dict, Literal
 import polars as pl
 
+from omop_etl.config import DATA_ROOT, IMPRESS_150
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
 log = logging.getLogger()
 
@@ -759,8 +761,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def run_ide():
     run(
-        input_path=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150/"),
-        output_dir=Path("/Users/gabriebs/projects/omop_etl/.data/semantic_input"),
+        input_path=IMPRESS_150,
+        output_dir=DATA_ROOT / "semantic_extractor",
     )
 
 
