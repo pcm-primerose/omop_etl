@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from omop_etl.config import IMPRESS_150, DATA_ROOT
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -47,5 +48,8 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
 if __name__ == "__main__":
     configure_logger(level="DEBUG")
-    impress_150_file = Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150")
-    run_pipeline(preprocessing_input=impress_150_file, trial="IMPRESS", base_root=Path(".data/test_run"))
+    run_pipeline(
+        preprocessing_input=IMPRESS_150,
+        trial="IMPRESS",
+        base_root=DATA_ROOT,
+    )
