@@ -9,11 +9,8 @@ from pathlib import Path
 from typing import Sequence, Optional, Mapping, Dict, Literal
 import polars as pl
 
-from omop_etl.infra.logging.logging_setup import get_logger
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
-
-log = get_logger(__name__)
+log = logging.getLogger()
 
 
 @dataclass(frozen=True)
@@ -768,5 +765,5 @@ def run_ide():
 
 
 if __name__ == "__main__":
-    run_ide()
-    # raise SystemExit(main())
+    # run_ide()
+    raise SystemExit(main())

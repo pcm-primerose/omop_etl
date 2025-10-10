@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional, Literal
 
+from omop_etl.config import IMPRESS_150, DATA_ROOT
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.preprocessing.api import (
@@ -42,8 +43,4 @@ def run_preprocessing(
 
 
 if __name__ == "__main__":
-    run_preprocessing(
-        preprocessing_input=Path("/Users/gabriebs/projects/omop_etl/.data/synthetic/impress_150"),
-        trial="IMPRESS",
-        base_root=Path(".data/test_run"),
-    )
+    run_preprocessing(preprocessing_input=IMPRESS_150, trial="IMPRESS", base_root=DATA_ROOT, output_format="csv")
