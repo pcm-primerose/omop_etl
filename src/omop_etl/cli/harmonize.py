@@ -2,6 +2,8 @@ from pathlib import Path
 
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.infra.io.types import Layout
+from omop_etl.config import DATA_ROOT, LOG_LEVEL
+from omop_etl.infra.utils.find_latest_run import find_latest_run_output
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.api import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
@@ -26,14 +28,17 @@ def run_harmonization(input_csv: Path, base_root: Path, trial: str = "IMPRESS") 
 
 
 if __name__ == "__main__":
-    configure_logger(level="DEBUG")
-    impress_150_file = (
-        Path(__file__).parents[3]
-        / ".data"
-        / "preprocessing"
-        / "impress"
-        / "d4dbfeaa"
-        / "csv"
-        / "impress_d4dbfeaa_20251003T162634Z_preprocessed.csv"
+    configure_logger(level=LOG_LEVEL)
+
+    input_file = find_latest_run_output(
+        trial="impress",
+        fmt="csv",
+        module="preprocessed",
     )
-    run_harmonization(input_csv=Path(impress_150_file), trial="IMPRESS", base_root=Path(".data"))
+
+    print(f"input file: {input_file}")
+
+    if not input_file:
+        raise FileNotFoundError("No preprocessing output found. Run preprocess.py first.")
+
+    run_harmonization(input_csv=input_file, trial="IMPRESS", base_root=DATA_ROOT)
