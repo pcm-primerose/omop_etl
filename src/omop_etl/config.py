@@ -13,4 +13,5 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # base synthetic input
 IMPRESS_150 = SYNTHETIC_DATA / "impress_150"
+IMPRESS_NON_V600 = SYNTHETIC_DATA / "nonv600_cohorts"
 IMPRESS_1K = SYNTHETIC_DATA / "impress_1k"

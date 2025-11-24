@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Sequence, Optional, Mapping, Dict, Literal
 import polars as pl
 
-from omop_etl.config import DATA_ROOT, IMPRESS_150
+from omop_etl.config import DATA_ROOT, IMPRESS_NON_V600
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
 log = logging.getLogger()
@@ -208,7 +208,7 @@ class CsvDirectoryReader(BaseReader):
 
     @staticmethod
     def _index_csv_files(directory: Path) -> Dict[str, Path]:
-        index = {}
+        index = {}  # type: ignore
 
         for file_path in directory.iterdir():
             if not file_path.is_file():
@@ -241,6 +241,7 @@ class InputResolver:
         Resolve input path and load data using correct reader.
         """
         for reader in self.readers:
+            print(f"reader can read: {reader.can_read(path)}")
             if reader.can_read(path):
                 log.debug(f"Using {reader.__class__.__name__} for {path}")
                 return reader.load(path, ecfg)
@@ -253,7 +254,7 @@ class InputResolver:
             else:
                 supported.append(reader.__class__.__name__)
 
-        raise ValueError(f"Unsupported input type: {path}. Supported: {', '.join(supported)} or directory of CSVs")
+        raise ValueError(f"Unsupported input type: {type(path)}. Supported: {', '.join(supported)} or directory of CSVs")
 
 
 def get_config(all_data: bool = False) -> Dict[str, list[str]]:
@@ -628,12 +629,28 @@ def filter_df(data: pl.DataFrame, drop: str) -> pl.DataFrame:
     data = _drop_nulls(data)
     data = _drop_subject_id(data, drop=drop)
 
+    print(f"dataframe here: {data.head()}")
+
     return data
+
+
+# todo: need to implement filtering on some col meeting some condition,
+#   e.g. remove all data (rows) for SubjectId that have cohort name == "X"
+#   across all dataframes
+#   and need to make this general, like, it can filter on not ..
+#   filter for non-v600 cohort (cohort name (COHCTN) contains `BRAF Non-V600`), sometimes it lacks space: `BRAF Non-V600sometext`
+def filter_on_row(condition: pl.Expr, data: pl.DataFrame) -> pl.Series:
+    """
+    Takes dataframe to filter on condition, emits SubjectId to remove from data.
+    """
+    subjects_to_drop = data.filter(pl.any_horizontal(condition).is_not_null()).select(pl.col("SubjectId")).to_series().to_list()
+    print(f"to drop: {subjects_to_drop}")
+    return subjects_to_drop
 
 
 def frames_to_dict(config: EcrfConfig) -> dict[str, pl.Series]:
     out: dict[str, pl.Series] = {}
-    for sheet in config.data:
+    for sheet in config.data:  # type: ignore
         df = filter_df(sheet.data, drop="SubjectId")
         sheet_key = (sheet.key or "").upper()
         for s in df.get_columns():
@@ -692,9 +709,9 @@ def run(
     output_dir: Path,
     trial: str = "impress",
     all_data: Optional[bool] = False,
-):
+) -> None:
     start_time = time.time()
-    config = EcrfConfig.from_mapping(get_config(all_data=all_data))
+    config = EcrfConfig.from_mapping(get_config(all_data=all_data))  # type: ignore
     InputResolver().resolve(path=input_path, ecfg=config)
 
     series_by_key = frames_to_dict(config)
@@ -759,13 +776,13 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def run_ide():
+def run_ide() -> None:
     run(
-        input_path=IMPRESS_150,
-        output_dir=DATA_ROOT / "semantic_extractor",
+        input_path=IMPRESS_NON_V600,
+        output_dir=DATA_ROOT / "semantic_extractor_synthetic",
     )
 
 
 if __name__ == "__main__":
-    # run_ide()
+    run_ide()
     raise SystemExit(main())
