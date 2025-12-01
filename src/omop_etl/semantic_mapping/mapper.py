@@ -52,7 +52,7 @@ class QueryResult:
     result: str
     frequency: int
     omop_concept_id: str
-    omop_concept_code: int
+    omop_concept_code: str
     omop_class: str
     omop_validity: str
     omop_domain: str
@@ -94,7 +94,7 @@ class Lookup:
                         QueryResult(
                             patient_id=query.patient_id,
                             query=query.query,
-                            result=row["source_term"],
+                            result=row["omop_name"],
                             frequency=row["frequency"],
                             omop_concept_id=row["omop_concept_id"],
                             omop_concept_code=row["omop_concept_code"],
