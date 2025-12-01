@@ -76,16 +76,35 @@ class Lookup:
         #   - can just use patient id to get patient, for collection leaves can use the index field to map
         #   this is not needed obv for singletons and scalars
 
-        # 1. create queries from harmonized data
+        # create queries from harmonized data
         queries: List[Query] = []
         for patient in self.harmonized_data.patients:
             # 1.1 grab data we want to query with
             # and check that we don't have None
             # and normalize query
+            # todo: make mapping of leaf classes to query from
+            #   instead of hardcoding this
+
+            # todo: but on the other hand, probs need to post-processes specific classes,
+            #   e.g., want one representative tumor concept in the OMOP CDM, even though there are several matches..
+            #   or can populate several entries per patient, perhaps just do that to begin with,
+            #   exact matching can't score similarity anyways, so would need some onotlogy-aware ranking to get most specific tumor types
             if patient.tumor_type.main_tumor_type is not None:
                 queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.main_tumor_type.lower().strip()))
 
-        # 2. query semantic data
+            if patient.tumor_type.cohort_tumor_type is not None:
+                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.cohort_tumor_type.lower().strip()))
+
+            if patient.tumor_type.other_tumor_type is not None:
+                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.other_tumor_type.lower().strip()))
+
+            if patient.tumor_type.icd10_code is not None:
+                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.icd10_code.lower().strip()))
+
+            if patient.tumor_type.icd10_description is not None:
+                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.icd10_description.lower().strip()))
+
+        # query semantic data
         query_results: List[QueryResult] = []
         for query in queries:
             for row in self.semantic_data:
@@ -106,12 +125,12 @@ class Lookup:
                         )
                     )
 
-        # 3. return some struct that maps to harmonized data
+        # return some struct that maps to harmonized data
         print(f"query results: {query_results}")
+        return query_results
 
-        pass
 
-
+# implement later
 class SemanticPipeline:
     def __init__(self, semantic_data: Path, harmonized_data: HarmonizedData):
         pass

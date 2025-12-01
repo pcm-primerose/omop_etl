@@ -1,8 +1,38 @@
-# from dataclasses import dataclass
 # import sqlalchemy as sa
-# from typing import List, Dict
-# import logging
 
+
+# 1. build local dev omop cdm w. postgresql
+# 2. figure out minimal seetup requires (i.e. non-optional tables)
+# 3. then probably (?) model entire schema
+# 4. just start with setting up a minimal cdm with Person, Observation_period and Cdm_source tables
+# 5. and use local podman with ETL docker image and psql docker image, test loading locally
+
+# todo: set up minimal local cdm with podman
+
+# Person:
+#    required fields:
+#       - person_id, gender_concept_id, year_of_birth (try and leave these as None, if not set to 0: race_concept_id, ethicity_concept_id)
+#    also need to convert from str patient id to int person_id deterministically,
+#    mayeb do this early in pipeline? in any case, need same data to generate same id, so we can update db instance
+#    without creating entirely new cdm? also think about if there should be some provenance
+
+# Observation_period:
+#   required fields:
+#       - observation_period_id, person_id, observation_period_start_date, observation_period_end_date, pediod_type_concept_id
+#   - need to generate observation period id int for each observation period (what exactly does that mean? start of study to end, or each treatment, or what?)
+#   - each observation entry needs start and end date
+#   - provenance for what type of observation period, I guess e.g. treatment cycles, concomitant medications? what qualifies as an observational period
+#     see: https://athena.ohdsi.org/search-terms/terms?domain=Type+Concept&standardConcept=Standard&page=1&pageSize=15&query=
+#     so all are just ECR and we take inclusion date or start of treatment, to death or last treatment (?)
+
+# Cdm_soure:
+#   required fields:
+#       - cdm_source_name, csm_source_abbreviation, cdm_holder, source_release_date, cdm_release_date, cdm_version_concept_id, vocabulary_version
+#   self-explanatory
+
+# so usually people load all of Athena into the CDM, which populates the Vocabulary tables, and can then be used to query
+# that nice i guess bc then we dont need to a-priori match evertytong but on the other hand it's bad for TSD,
+# each time we do anything I'd need to -
 
 # def process_age(data):
 #     # do the actual sql logic for merging, harmonization etc
