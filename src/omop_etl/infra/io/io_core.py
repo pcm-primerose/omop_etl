@@ -10,7 +10,7 @@ from omop_etl.infra.io.options import (
     ParquetOptions,
     CsvOptions,
 )
-from omop_etl.infra.io.types import TABULAR_FORMATS
+from omop_etl.infra.io.types import TABULAR_FORMATS, POLARS_DTYPE_TO_NAME
 
 
 @dataclass(frozen=True)
@@ -34,29 +34,28 @@ def write_frame(
     opts: CsvOptions | ParquetOptions | None = None,
 ) -> WriterResult:
     path.parent.mkdir(parents=True, exist_ok=True)
+    schema_map = _schema_to_manifest(df.schema)
 
     if fmt in ("csv", "tsv"):
         if not isinstance(opts, CsvOptions):
             opts = CsvOptions(separator="\t" if fmt == "tsv" else ",")
-        c = opts
+
         df.write_csv(
             path,
-            include_header=c.include_header,
-            null_value=c.null_value,
-            float_precision=c.float_precision,
-            separator=c.separator,
+            include_header=opts.include_header,
+            null_value=opts.null_value,
+            float_precision=opts.float_precision,
+            separator=opts.separator,
         )
 
     elif fmt == "parquet":
         if not isinstance(opts, ParquetOptions):
             opts = ParquetOptions()
-        p = opts
-        df.write_parquet(path, compression=p.compression, statistics=p.statistics)
+        df.write_parquet(path, compression=opts.compression, statistics=opts.statistics)
 
     else:
         raise ValueError(f"Unsupported tabular fmt: {fmt}")
 
-    schema_map = {col: str(dtype_) for col, dtype_ in df.schema.items()}
     meta = TableMeta(df.height, df.width, schema_map)
     return WriterResult(main_file=path, table_files={}, tables={"wide": meta})
 
@@ -72,11 +71,14 @@ def write_frames_dir(
     for name, df in frames.items():
         if df.height == 0:
             continue
+
         ext = ".tsv" if fmt == "tsv" else (".csv" if fmt == "csv" else ".parquet")
-        p = dirpath / f"{name}{ext}"
-        write_frame(df, p, fmt, opts)
-        files[name] = p
+        path = dirpath / f"{name}{ext}"
+        write_frame(df, path, fmt, opts)
+
+        files[name] = path
         metas[name] = TableMeta(df.height, df.width, {c: str(t) for c, t in df.schema.items()})
+
     main = files.get("patients") or next(iter(files.values()))
     return WriterResult(main_file=main, table_files=files, tables=metas)
 
@@ -92,3 +94,15 @@ def write_json(obj: dict, path: Path, opts: JsonOptions | None = None) -> Writer
 def write_manifest(doc: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+
+
+def _schema_to_manifest(schema: pl.Schema) -> dict[str, str]:
+    """Converts pl.Schema to json-serialized mapping"""
+    out: dict[str, str] = {}
+    for col, dtype in schema.items():
+        try:
+            out[col] = POLARS_DTYPE_TO_NAME[dtype]
+        except KeyError:
+            raise ValueError(f"Unsupported drype {dtype} for column {col}, add to POALRS_DTYPE_TO_NAME and NAME_TO_POLARS_DTYPE")
+
+    return out

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Sequence, Callable, Optional
 import polars as pl
@@ -5,9 +6,11 @@ import polars as pl
 from ..datamodels import HarmonizedData
 from ..core.dispatch import resolve_harmonizer
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.infra.io.types import Layout, WideFormat, TabularFormat
+from omop_etl.infra.io.types import Layout, WideFormat, TabularFormat, NAME_TO_POLARS_DTYPE
 from ..core.io_export import HarmonizedExporter
+from logging import getLogger
 
+log = getLogger(__name__)
 
 HarmonizerResolver = Callable[[str], type]
 
@@ -38,7 +41,8 @@ class HarmonizationPipeline:
         write_wide: bool = True,
         write_normalized: bool = True,
     ) -> HarmonizedData:
-        df = HarmonizationPipeline._read_input(input_path)
+        schema = HarmonizationPipeline._get_preprocessed_schema(input_path)
+        df = HarmonizationPipeline._read_input(input_path, schema)
 
         harmonizer = self._resolver(self.trial)
 
@@ -65,13 +69,55 @@ class HarmonizationPipeline:
 
         return harmonized_data
 
+    # todo: if failing in infer schema fallback, try again with infer_schema=False
     @staticmethod
-    def _read_input(path: Path) -> pl.DataFrame:
+    def _read_input(path: Path, schema: pl.Schema | None) -> pl.DataFrame:
         suf = path.suffix.lower()
+        print(f"schema is: {schema}")
         if suf == ".parquet":
-            return pl.read_parquet(path)
+            if schema is None:
+                return pl.read_parquet(path, infer_schema_length=None)
+            if schema is not None:
+                return pl.read_parquet(path, schema=schema)
         if suf == ".csv":
-            return pl.read_csv(path)
+            if schema is None:
+                return pl.read_csv(path, infer_schema_length=None)
+            if schema is not None:
+                return pl.read_csv(path, schema=schema)
         if suf == ".tsv":
-            return pl.read_csv(path, separator="\t")
+            if schema is None:
+                return pl.read_csv(path, separator="\t", infer_schema_length=None)
+            if schema is not None:
+                return pl.read_csv(path, separator="\t", schema=schema)
         raise ValueError(f"Unsupported input file type: {suf} for harmonization.")
+
+    @staticmethod
+    def _get_preprocessed_schema(path: Path) -> pl.Schema | None:
+        manifest_file = list(path.parent.glob(pattern="*_manifest*.json"))
+        if len(manifest_file) != 1:
+            log.warning(f"Could not find manifest file in pre-processing input dir {path.parent}.Will infer schema from entire dataset")
+            return None
+
+        # todo: add log for failed reading
+        # todo: add fallback to no schema in _read_input (if schema is None, infer schema)
+        #   or just infer over entire dataset, seems lossy with to json and back
+        with open(str(manifest_file[0]), "r") as f:
+            loaded = json.load(f)
+            schema = loaded["tables"]["wide"]["schema"]
+
+        return _schema_from_manifest(schema)
+
+
+def _schema_from_manifest(manifest_schema: dict[str, str]) -> pl.Schema:
+    """
+    Convert {column_name: type_name} from JSON to pl.Schema.
+    """
+    out: dict[str, pl.DataType] = {}
+    for col, type_name in manifest_schema.items():
+        try:
+            out[col] = NAME_TO_POLARS_DTYPE[type_name]
+        except KeyError:
+            raise ValueError(
+                f"Unknown dtype name {type_name} for column {col} in manifest. Add it to NAME_TO_POLARS_DTYPE/POLARS_DTYPE_TO_NAME."
+            )
+    return pl.Schema(out)
