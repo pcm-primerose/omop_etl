@@ -69,11 +69,10 @@ class HarmonizationPipeline:
 
         return harmonized_data
 
-    # todo: if failing in infer schema fallback, try again with infer_schema=False
     @staticmethod
     def _read_input(path: Path, schema: pl.Schema | None) -> pl.DataFrame:
         suf = path.suffix.lower()
-        print(f"schema is: {schema}")
+
         if suf == ".parquet":
             if schema is None:
                 return pl.read_parquet(path, infer_schema_length=None)
@@ -95,12 +94,9 @@ class HarmonizationPipeline:
     def _get_preprocessed_schema(path: Path) -> pl.Schema | None:
         manifest_file = list(path.parent.glob(pattern="*_manifest*.json"))
         if len(manifest_file) != 1:
-            log.warning(f"Could not find manifest file in pre-processing input dir {path.parent}.Will infer schema from entire dataset")
+            log.warning(f"Could not find manifest file in pre-processing input dir {path.parent}. Will infer schema from entire dataset.")
             return None
 
-        # todo: add log for failed reading
-        # todo: add fallback to no schema in _read_input (if schema is None, infer schema)
-        #   or just infer over entire dataset, seems lossy with to json and back
         with open(str(manifest_file[0]), "r") as f:
             loaded = json.load(f)
             schema = loaded["tables"]["wide"]["schema"]
