@@ -1,4 +1,5 @@
 import csv
+from collections import defaultdict
 from pathlib import Path
 from typing import List
 import polars as pl
@@ -22,10 +23,22 @@ from src.omop_etl.harmonization.datamodels import HarmonizedData
 # [ ] log missing results from lookup, use these to run retrieval pipeline
 
 
+def index_semantic_data(rows: List[dict]) -> dict[str, List[dict]]:
+    idx: dict[str, List[dict]] = defaultdict(list)  # allows one-to-many
+
+    for row in rows:
+        key = row["source_term"].lower().strip()
+        idx[key].append(row)
+
+    return idx
+
+
 class LoadSemanticFile:
     def __init__(self, path: Path):
         self.path = path
 
+    # fixme: used dataclass or typed dict instead of csv reader, it just returns strings)
+    # fixme: index on source term
     def as_dict(self) -> List[dict]:
         data = []
         with open(self.path, "r", newline="") as file:
@@ -37,7 +50,14 @@ class LoadSemanticFile:
     def as_lazyframe(self):
         return pl.scan_csv(self.path, infer_schema=0)
 
+    def index(self):
+        return index_semantic_data(self.as_dict())
 
+
+# todo: what about collection storing mapped and null results
+#   and each component stores source class, index, patient id etc
+#   can then be easily expanded for diff pipeline components
+#   and mapped back to original harmonized data instances
 @dataclass(frozen=True, slots=True)
 class Query:
     patient_id: str
@@ -45,6 +65,7 @@ class Query:
     leaf_index: int | None = None
 
 
+# fixme: leaf idx, separate null-result
 @dataclass(frozen=True, slots=True)
 class QueryResult:
     patient_id: str
@@ -79,7 +100,7 @@ class Lookup:
         # create queries from harmonized data
         queries: List[Query] = []
         for patient in self.harmonized_data.patients:
-            # 1.1 grab data we want to query with
+            # grab data we want to query with
             # and check that we don't have None
             # and normalize query
             # todo: make mapping of leaf classes to query from
@@ -89,6 +110,11 @@ class Lookup:
             #   e.g., want one representative tumor concept in the OMOP CDM, even though there are several matches..
             #   or can populate several entries per patient, perhaps just do that to begin with,
             #   exact matching can't score similarity anyways, so would need some onotlogy-aware ranking to get most specific tumor types
+
+            # todo: maybe pass patient.tumor_type instead,
+            #   a method then structures the queries,
+            #   then repeat this pattern for all classes to query (configure this?)
+            #   then run queries in one go, but then need to map back to the input class that provided the queries
             if patient.tumor_type.main_tumor_type is not None:
                 queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.main_tumor_type.lower().strip()))
 
