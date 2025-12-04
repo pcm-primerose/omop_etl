@@ -1,59 +1,63 @@
-from omop_etl.semantic_mapping.models import FieldConfig, OmopDomain, QueryTarget
+from omop_etl.semantic_mapping.models import (
+    FieldConfig,
+    OmopDomain,
+    QueryTarget,
+)
 
 
 DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     # adverse events
     FieldConfig(
         name="adverse_event.term",
-        field_path=("adverse_event", "term"),
+        field_path=("adverse_events", "term"),
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
         tags={"adverse_event", "term"},
     ),
     # concomitant medications
     FieldConfig(
-        name="concomitant_medication.medication_name",
-        field_path=("concomitant_medication", "medication_name"),
+        name="concomitant_medications.medication_name",
+        field_path=("concomitant_medications", "medication_name"),
         target=QueryTarget(domains={OmopDomain.DRUG}),
         tags={"concomitant_medication", "medication", "drug"},
     ),
     # previous treatments
     FieldConfig(
         name="previous_treatments.treatment",
-        field_path=("previous_treatment", "treatment"),
-        target=QueryTarget(domains={OmopDomain.PROCEDURES}),
+        field_path=("previous_treatments", "treatment"),
+        target=QueryTarget(domains={OmopDomain.PROCEDURE}),
         tags={"previous_treatments", "term"},
     ),
     FieldConfig(
         name="previous_treatments.additional_treatment",
-        field_path=("previous_treatment", "additional_treatment"),
-        target=QueryTarget(domains={OmopDomain.PROCEDURES}),
+        field_path=("previous_treatments", "additional_treatment"),
+        target=QueryTarget(domains={OmopDomain.PROCEDURE}),
         tags={"previous_treatments", "additional_term"},
     ),
     # medical history
     FieldConfig(
-        name="biomarkers.gene_and_mutation",
-        field_path=("medical_history", "term"),
+        name="medical_history.term",
+        field_path=("medical_histories", "term"),
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
         tags={"medical_history", "term"},
     ),
     # biomarkers
     FieldConfig(
         name="biomarkers.gene_and_mutation",
-        field_path=("biomarkers", "gene_and_mutation"),
+        field_path=("biomarker", "gene_and_mutation"),
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
         tags={"biomarker", "gene and mutation"},
     ),
     FieldConfig(
-        name="biomarkers.gene_and_mutation",
-        field_path=("biomarkers", "gene_and_mutation"),
+        name="biomarkers.cohort_target_name",
+        field_path=("biomarker", "cohort_target_name"),
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
-        tags={"biomarkergene and mutation"},
+        tags={"biomarker", "cohort target name"},
     ),
     FieldConfig(
-        name="biomarkers.gene_and_mutation",
-        field_path=("biomarkers", "gene_and_mutation"),
+        name="biomarkers.cohort_target_mutation",
+        field_path=("biomarker", "cohort_target_mutation"),
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
-        tags={"biomarkergene and mutation"},
+        tags={"biomarker", "cohort target mutation"},
     ),
     # study drugs
     FieldConfig(
@@ -95,7 +99,7 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     ),
     FieldConfig(
         name="tumor.icd10_description",
-        field_path=("tumor_type", "icd10_code"),
+        field_path=("tumor_type", "icd10_description"),
         target=QueryTarget(domains={OmopDomain.CONDITION}),
         tags={"tumor", "icd10_description"},
     ),

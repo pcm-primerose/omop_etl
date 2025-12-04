@@ -72,8 +72,6 @@ class SemanticLookupPipeline:
 
         return configs
 
-        return configs
-
     @staticmethod
     def _build_queries(
         harmonized_data: HarmonizedData,

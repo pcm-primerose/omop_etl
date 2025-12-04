@@ -40,7 +40,7 @@ class OmopDomain(str, Enum):
     CONDITION = "Condition"
     DRUG = "Drug"
     MEASUREMENTS = "Measurement"
-    PROCEDURES = "Procedures"
+    PROCEDURE = "Procedure"
     OBSERVATIONS = "Observations"
     DEVICE = "Device"
 
