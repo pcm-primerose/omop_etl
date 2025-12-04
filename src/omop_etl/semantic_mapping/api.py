@@ -24,10 +24,13 @@ class SemanticService:
 
         batch = pipeline.run_lookup(harmonized_data=self.harmonized_data)
 
-        for q in batch.missing:
-            print("NO MATCH:", q.patient_id, q.field_path, q.raw_value)
+        for sample in batch.matches:
+            print(f"FP: {sample.query.field_path}")
 
-        for qr in batch.matches:
-            print(f"MATCH: {qr.query.patient_id, qr.query.field_path, qr.query.raw_value} --- {qr.results}")
+        # for q in batch.missing:
+        #     print("NO MATCH:", q.patient_id, q.field_path, q.raw_value)
+        #
+        # for qr in batch.matches:
+        #     print(f"MATCH: {qr.query.patient_id, qr.query.field_path, qr.query.raw_value} --- {qr.results}")
 
         return batch

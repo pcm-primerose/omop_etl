@@ -7,7 +7,7 @@ from typing import (
 
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.semantic_mapping.loader import LoadSemantics
-from omop_etl.semantic_mapping.query_extractor import extract_queries
+from omop_etl.semantic_mapping.query_extractor import extract_queries, validate_field_paths
 from omop_etl.semantic_mapping.semantic_config import DEFAULT_FIELD_CONFIGS
 from omop_etl.semantic_mapping.semantic_index import DictSemanticIndex
 from omop_etl.semantic_mapping.models import (
@@ -33,6 +33,7 @@ class SemanticLookupPipeline:
         if field_configs is not None:
             base = self._merge_field_configs(base, field_configs)
         self._field_configs: list[FieldConfig] = base
+        self._validated = False
 
     def run_lookup(
         self,
@@ -47,6 +48,12 @@ class SemanticLookupPipeline:
             required_domains=required_domains,
             required_tags=required_tags,
         )
+
+        # validate FieldConfig against Patient
+        if not self._validated and harmonized_data.patients:
+            validate_field_paths(harmonized_data.patients[:10], configs)
+            self._validated = True
+
         all_queries = self._build_queries(harmonized_data=harmonized_data, configs=configs)
         return self._index.lookup_exact(queries=all_queries)
 
