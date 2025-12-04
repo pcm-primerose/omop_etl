@@ -1,10 +1,11 @@
 import csv
+import hashlib
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
-from typing import List, Tuple, Sequence, Any
-import polars as pl
+from typing import List, Tuple, Sequence, Any, Set
 from dataclasses import dataclass
+
 
 from src.omop_etl.harmonization.datamodels import HarmonizedData, Patient
 
@@ -12,25 +13,27 @@ from src.omop_etl.harmonization.datamodels import HarmonizedData, Patient
 # todo
 # [x] load semantic mapped data
 # [x] just make it really dumb and working first
-# [ ] return typed struct from json instead of using CsvReader (returns string for all fields)
-# [ ] use composition in query results to store collection of rows matching a given query?
-# [ ] make inverted index to get O(1) lookup
-# [ ] make generic reflection from config to construct queries (config built in pipeline etc)
-# [ ] make richer metadata in query result: struct contains leaf index if collection, field name, class name (or instance id?), etc
-# [ ] also need to return null-results, probably in separate struct, since these will propegate to hybrid search pipeline
-# [ ] make helper properties: missing, matched in results
-# [ ] make config layer to match on all possible fields in CsvRow with typed values
-# [ ] keep one central list of possible
-# [ ] query id is not deterministic/idempotent (should have same id for class.field and query term?)
-# [ ] write better docstrings
+# [x] return typed struct from json instead of using CsvReader (returns string for all fields)
+# [x] use composition in query results to store collection of rows matching a given query?
+# [x] make inverted index to get O(1) lookup
+# [x] make generic reflection from config to construct queries (config built in pipeline etc)
+# [x] make richer metadata in query result: struct contains leaf index if collection, field name, class name (or instance id?), etc
+# [x] also need to return null-results, probably in separate struct, since these will propegate to hybrid search pipeline
+# [x] make helper properties: missing, matched in results
+# [x] make config layer to match on all possible fields in CsvRow with typed values
+# [ ] query id is not deterministic/idempotent (should have same id for class.field and query term?),
+#     in other words, a given query term should have the same ID across runs if possible
+# [ ] write docstrings
+# [ ] create enums of literals for everything so fields are autocompleted in FieldConfigs (maybe)
+#     and cast evertything to frozenset so i don't have to spec that in config
+# [ ] create pipeline layer, setting up the field configs, indexing, running the queries, returning results
 
-# [ ] separate models from types etc, think about how to make it nice for extension later
-# [ ] return some mapped queries, do something with them in mail (e.g filter)
 
 # todo later
+# [ ] extract to separate files later; types, datamodels, etc, think about how to make it nice for extension later
 # [ ] figure out how to abstract in query: just make it work first then add the wrapper/abstraction layer
 # [ ] create polars backend for indexing and querying entire Athena database: OOM, lazy, vectorized
-# [ ] either extend models or create new ones in separate retrieval modules (lexical, veector etc) passed to rerankers
+# [ ] either extend models or create new ones in separate retrieval modules (lexical, vector etc) passed to rerankers
 #     - but need to finish basic impl & set up evals first
 # [ ] BM25 & vector search needs to yield struct similar to SemanticRow
 
@@ -45,7 +48,7 @@ class SemanticRow:
     omop_concept_code: str
     omop_name: str
     omop_class: str
-    omop_concept: str
+    omop_concept: str  # todo: rename in source
     omop_validity: str
     omop_domain: str
     omop_vocab: str
@@ -74,6 +77,7 @@ class LoadSemantics:
 
     def as_rows(self) -> list[SemanticRow]:
         rows: list[SemanticRow] = []
+        print(f"path in LoadSemantics: {self.path}")
         with open(self.path, "r", newline="") as f:
             for row in csv.DictReader(f):
                 rows.append(SemanticRow.from_csv_row(row))
@@ -82,7 +86,6 @@ class LoadSemantics:
     def as_indexed(self) -> dict[str, list[SemanticRow]]:
         return self._index(self.as_rows())
 
-    @NotImplemented
     def as_lazyframe(self):
         raise NotImplementedError
 
@@ -98,7 +101,7 @@ class LoadSemantics:
 class OmopDomain(str, Enum):
     CONDITION = "Condition"
     DRUG = "Drug"
-    MEASUREMENTS = "Measurements"
+    MEASUREMENTS = "Measurement"
     PROCEDURES = "Procedures"
     OBSERVATIONS = "Observations"
     DEVICE = "Device"
@@ -106,11 +109,25 @@ class OmopDomain(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class QueryTarget:
-    """OMOP target fields to query"""
-
     domains: frozenset[OmopDomain] | None = None
     vocabs: frozenset[str] | None = None
     concept_classes: frozenset[str] | None = None
+    standard_flags: frozenset[str] | None = None
+    validity: frozenset[str] | None = None
+
+    def __post_init__(self) -> None:
+        def _fs(x):
+            if x is None:
+                return None
+            if isinstance(x, frozenset):
+                return x
+            return frozenset(x)
+
+        object.__setattr__(self, "domains", _fs(self.domains))
+        object.__setattr__(self, "vocabs", _fs(self.vocabs))
+        object.__setattr__(self, "concept_classes", _fs(self.concept_classes))
+        object.__setattr__(self, "standard_flags", _fs(self.standard_flags))
+        object.__setattr__(self, "validity", _fs(self.validity))
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +144,7 @@ class FieldConfig:
 @dataclass(frozen=True, slots=True)
 class Query:
     patient_id: str
-    id: int
+    id: str
     query: str
     field_path: tuple[str, ...]
     raw_value: str
@@ -135,9 +152,8 @@ class Query:
     target: None | QueryTarget = None
 
 
-def extract_queries(patient: Patient, configs: List[FieldConfig]) -> None | List[Query]:
+def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]:
     queries: List[Query] = []
-    query_id = 0
 
     for cfg in configs:
         head, *tail = cfg.field_path
@@ -146,10 +162,16 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> None | List
             continue
 
         # collections
-        if isinstance(attr, (list, tuple, set, dict)):
+        if isinstance(attr, (list, tuple, set)):
             for idx, item in enumerate(attr):
-                val = _get_nested_attr(item, tail) if tail else attr
+                val = _get_nested_attr(item, tail) if tail else item
                 if isinstance(val, str) and val:
+                    query_id = _make_query_id(
+                        patient_id=patient.patient_id,
+                        field_path=cfg.field_path,
+                        leaf_index=idx,
+                        raw_value=val,
+                    )
                     queries.append(
                         Query(
                             id=query_id,
@@ -161,27 +183,30 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> None | List
                             raw_value=val,
                         )
                     )
-                    query_id += 1
             continue
 
         # singletons & scalars
         val = _get_nested_attr(attr, tail) if tail else attr
-        if isinstance(attr, str) and val:
-            if isinstance(val, str) and val:
-                queries.append(
-                    Query(
-                        id=query_id,
-                        patient_id=patient.patient_id,
-                        query=val.lower().strip(),
-                        field_path=cfg.field_path,
-                        leaf_index=None,
-                        target=cfg.target,
-                        raw_value=val,
-                    )
+        if isinstance(val, str) and val:
+            query_id = _make_query_id(
+                patient_id=patient.patient_id,
+                field_path=cfg.field_path,
+                leaf_index=None,
+                raw_value=val,
+            )
+            queries.append(
+                Query(
+                    id=query_id,
+                    patient_id=patient.patient_id,
+                    query=val.lower().strip(),
+                    field_path=cfg.field_path,
+                    leaf_index=None,
+                    target=cfg.target,
+                    raw_value=val,
                 )
-                query_id += 1
+            )
 
-        return queries
+    return queries
 
 
 def _get_nested_attr(obj: object, path: Sequence[str]) -> Any:
@@ -193,8 +218,25 @@ def _get_nested_attr(obj: object, path: Sequence[str]) -> Any:
     for name in path:
         if current is None:
             return None
-        current = getattr(obj, name, None)
+        current = getattr(current, name, None)
     return current
+
+
+def _make_query_id(
+    patient_id: str,
+    field_path: tuple[str, ...],
+    leaf_index: int | None,
+    raw_value: str,
+) -> str:
+    key = "|".join(
+        [
+            patient_id,
+            ".".join(field_path),
+            "" if leaf_index is None else str(leaf_index),
+            raw_value.strip().lower(),
+        ]
+    )
+    return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,7 +248,7 @@ class QueryResult:
 
 @dataclass(frozen=True, slots=True)
 class BatchQueryResult:
-    results: Tuple[QueryResult]
+    results: Tuple[QueryResult, ...]
 
     @property
     def matches(self) -> tuple[QueryResult, ...]:
@@ -219,123 +261,154 @@ class BatchQueryResult:
         return tuple(m.query for m in self.results if not m.results)
 
 
-def lookup_exact(self, queries: list[Query]) -> BatchQueryResult:
-    matches: tuple[QueryResult] = tuple()
-    missing: tuple[Query] = tuple()
+# todo: when expanding to athena, make multi-index
+# and construct with this before running query, for now doesn't matter
+class DictSemanticIndex:
+    def __init__(self, indexed_corpus: dict[str, List[SemanticRow]]):
+        self.indexed_corpus = indexed_corpus
 
-    for q in queries:
-        candidates = self._idx.get(q.query)
-        if not candidates:
-            missing.append(q)
-            continue
+    def lookup_exact(self, queries: list[Query]) -> BatchQueryResult:
+        results: list[QueryResult] = []
 
-        for row in candidates:
-            matches.append(
+        for q in queries:
+            candidates = self.indexed_corpus.get(q.query, [])
+            candidates = self._filter_by_target(candidates, q.target)
+
+            results.append(
                 QueryResult(
-                    query_id=q.query_id,
-                    result=row["omop_name"],
-                    frequency=int(row["frequency"]),
-                    omop_concept_id=row["omop_concept_id"],
-                    omop_concept_code=row["omop_concept_code"],
-                    omop_class=row["omop_class"],
-                    omop_validity=row["omop_validity"],
-                    omop_domain=row["omop_domain"],
-                    omop_vocab=row["omop_vocab"],
-                    omop_concept=row["omop_concept"],
+                    patient_id=q.patient_id,
+                    query=q,
+                    results=list(candidates),
                 )
             )
 
-    return BatchQueryResult(results=matches)
+        return BatchQueryResult(results=tuple(results))
+
+    @staticmethod
+    def _filter_by_target(candidates: list[SemanticRow], target: QueryTarget | None) -> list[SemanticRow]:
+        if target is None:
+            return candidates
+
+        doms = target.domains
+        vocabs = target.vocabs
+        classes = target.concept_classes
+        validity = target.validity
+        standard = target.standard_flags
+
+        filtered: list[SemanticRow] = []
+        for row in candidates:
+            if doms is not None and OmopDomain(row.omop_domain) not in doms:
+                continue
+            if vocabs is not None and row.omop_vocab not in vocabs:
+                continue
+            if classes is not None and row.omop_class not in classes:
+                continue
+            if standard is not None and row.omop_concept not in standard:
+                continue
+            if validity is not None and row.omop_validity not in validity:
+                continue
+            filtered.append(row)
+
+        return filtered
 
 
-class Lookup:
-    def __init__(self, semantic_data: List[dict] | pl.LazyFrame, harmonized_data: HarmonizedData):
-        self.semantic_data = semantic_data
+# todo: this is messy fix later
+# - shouldn't mix abstractions
+# - shouldn't call query on indexed corpus, other way around
+
+
+class SemanticLookupPipeline:
+    def __init__(self, semantics_path: Path, field_configs: Sequence[FieldConfig]):
+        self.semantics_path = semantics_path
+        self.field_configs = field_configs
+        loader = LoadSemantics(semantics_path)
+        self._index = DictSemanticIndex(indexed_corpus=loader.as_indexed())
+
+    def run_lookup(
+        self,
+        harmonized_data: HarmonizedData,
+        enable_names: Set[str] | None = None,
+        required_domains: Set[OmopDomain] | None = None,
+        required_tags: Set[str] | None = None,
+    ) -> BatchQueryResult:
+        corpus = self._load_corpus()
+        index = DictSemanticIndex(indexed_corpus=corpus)
+        configs = self._build_configs(
+            enable_names=enable_names,
+            required_domains=required_domains,
+            required_tags=required_tags,
+        )
+
+        all_queries: list[Query] = self._build_queries(harmonized_data=harmonized_data, configs=configs)
+
+        results: BatchQueryResult = index.lookup_exact(queries=all_queries)
+        return results
+
+    def _load_corpus(self) -> dict[str, List[SemanticRow]]:
+        loader = LoadSemantics(self.semantics_path)
+        return loader.as_indexed()
+
+    def _build_configs(
+        self,
+        enable_names: Set[str] | None = None,
+        required_domains: Set[OmopDomain] | None = None,
+        required_tags: Set[str] | None = None,
+    ) -> list[FieldConfig]:
+        configs = list(self.field_configs)
+
+        if enable_names is not None:
+            configs = [c for c in configs if c.name in enable_names]
+
+        if required_domains is not None:
+            configs = [c for c in configs if c.target and c.target.domains is not None and c.target.domains & required_domains]
+
+        if required_tags is not None:
+            configs = [c for c in configs if c.tags & required_tags]
+
+        return configs
+
+    @staticmethod
+    def _build_queries(configs: list[FieldConfig], harmonized_data: HarmonizedData) -> list[Query]:
+        all_queries: list[Query] = []
+        for patient in harmonized_data.patients:
+            all_queries.extend(extract_queries(patient=patient, configs=configs))
+        return all_queries
+
+
+class SemanticService:
+    def __init__(self, semantic_path: Path, harmonized_data: HarmonizedData, output_path: Path | None = None):
+        self.semantic_path = semantic_path
         self.harmonized_data = harmonized_data
+        self.output_path = output_path
 
-    def exact_match(self):
-        # 1. need to create a query for appropriate fields
-        # 2. how to store fields that are in need of semantic mapping in a nice way?
-        #   - either do a mapping and extract just what's in the mapping from Patient class,
-        #   - ooor,
-        # 3. run query on semantic mapped data
-        # 4. return some struct that can be mapped back to instances and fields in HarmonizedData.patients
-        #   - can just use patient id to get patient, for collection leaves can use the index field to map
-        #   this is not needed obv for singletons and scalars
-
-        # create queries from harmonized data
-        queries: List[Query] = []
-        for patient in self.harmonized_data.patients:
-            # grab data we want to query with
-            # and check that we don't have None
-            # and normalize query
-            # todo: make mapping of leaf classes to query from
-            #   instead of hardcoding this
-
-            # todo: but on the other hand, probs need to post-processes specific classes,
-            #   e.g., want one representative tumor concept in the OMOP CDM, even though there are several matches..
-            #   or can populate several entries per patient, perhaps just do that to begin with,
-            #   exact matching can't score similarity anyways, so would need some onotlogy-aware ranking to get most specific tumor types
-
-            # todo: maybe pass patient.tumor_type instead,
-            #   a method then structures the queries,
-            #   then repeat this pattern for all classes to query (configure this?)
-            #   then run queries in one go, but then need to map back to the input class that provided the queries
-            if patient.tumor_type.main_tumor_type is not None:
-                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.main_tumor_type.lower().strip()))
-
-            if patient.tumor_type.cohort_tumor_type is not None:
-                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.cohort_tumor_type.lower().strip()))
-
-            if patient.tumor_type.other_tumor_type is not None:
-                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.other_tumor_type.lower().strip()))
-
-            if patient.tumor_type.icd10_code is not None:
-                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.icd10_code.lower().strip()))
-
-            if patient.tumor_type.icd10_description is not None:
-                queries.append(Query(patient_id=patient.patient_id, query=patient.tumor_type.icd10_description.lower().strip()))
-
-        # query semantic data
-        query_results: List[QueryResult] = []
-        for query in queries:
-            for row in self.semantic_data:
-                if query.query == row["source_term"].lower():
-                    query_results.append(
-                        QueryResult(
-                            patient_id=query.patient_id,
-                            query=query.query,
-                            result=row["omop_name"],
-                            frequency=row["frequency"],
-                            omop_concept_id=row["omop_concept_id"],
-                            omop_concept_code=row["omop_concept_code"],
-                            omop_class=row["omop_class"],
-                            omop_validity=row["omop_validity"],
-                            omop_domain=row["omop_domain"],
-                            omop_vocab=row["omop_vocab"],
-                            omop_concept=row["omop_concept"],
-                        )
-                    )
-
-        # return some struct that maps to harmonized data
-        print(f"query results: {query_results}")
-        return query_results
-
-
-# todo: implement in pipeline later
-class ConstructQueries:
-    def __init__(self, harmonized_data: HarmonizedData):
-        pass
-
-    pass
-
-
-# todo: implement on trial level later
-class SemanticPipeline:
-    def __init__(self, semantic_data: Path, harmonized_data: HarmonizedData):
-        pass
-
+    # todo: create all configs and store somewhere
     def run(self):
-        pass
+        field_configs = [
+            FieldConfig(
+                name="tumor.main",
+                field_path=("tumor_type", "main_tumor_type"),
+                target=QueryTarget(domains={OmopDomain.CONDITION}),  # fixme: union type not working
+                tags=frozenset({"tumor"}),
+            ),
+            FieldConfig(
+                name="ae.term",
+                field_path=("adverse_events", "term"),
+                target=QueryTarget(domains={OmopDomain.CONDITION}),  # fixme: union type not working
+                tags=frozenset({"ae"}),
+            ),
+        ]
 
-    pass
+        pipeline = SemanticLookupPipeline(
+            semantics_path=Path(self.semantic_path),
+            field_configs=field_configs,
+        )
+
+        batch = pipeline.run_lookup(harmonized_data=self.harmonized_data)
+
+        for q in batch.missing:
+            print("NO MATCH:", q.patient_id, q.field_path, q.raw_value)
+
+        for qr in batch.matches:
+            print(f"MATCH: {qr.query.patient_id, qr.query.field_path, qr.query.raw_value} --- {qr.results}")
+
+        return batch
