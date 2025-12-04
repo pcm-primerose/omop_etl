@@ -43,7 +43,7 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     # biomarkers
     FieldConfig(
         name="biomarkers.gene_and_mutation",
-        field_path=("biomarker", "not_existing"),
+        field_path=("biomarker", "gene_and_mutation"),
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
         tags={"biomarker", "gene and mutation"},
     ),

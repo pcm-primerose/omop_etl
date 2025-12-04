@@ -58,8 +58,11 @@ if __name__ == "__main__":
     )  # .filter(predicate=lambda p: p.cohort_name.lower() in ["braf non-v600", "braf non-v600activating"])
 
     # testing semantic mapping
-    semantic_file = Path(__file__).parent / ".data" / "semantic_mapping" / "mapped" / "braf_non-v600_mapped.csv"
-    semantic_service = SemanticService(harmonized_data=harmonized_data)  # , semantic_path=None)
+    # if semantic file not provided, load from resources:
+    # semantic_file = Path(__file__).parent / ".data" / "semantic_mapping" / "mapped" / "braf_non-v600_mapped.csv"
+    semantic_service = SemanticService(harmonized_data=harmonized_data)
     semantic_mapped: BatchQueryResult = semantic_service.run()
+
+    print(f"semantic mapped: {semantic_mapped.matches}")
 
     # pass this to structural mapper ...
