@@ -28,7 +28,7 @@ class SemanticLookupPipeline:
         loader = LoadSemantics(semantics_path)
         self._index = DictSemanticIndex(indexed_corpus=loader.as_indexed())
 
-        # merge defaults and overrides
+        # merge defaults and overrides with provided config by name
         base = list(DEFAULT_FIELD_CONFIGS)
         if field_configs is not None:
             base = self._merge_field_configs(base, field_configs)
@@ -63,10 +63,14 @@ class SemanticLookupPipeline:
             configs = [c for c in configs if c.name in enable_names]
 
         if required_domains is not None:
-            configs = [c for c in configs if c.target and c.target.domains is not None and c.target.domains & required_domains]
+            configs = [
+                c for c in configs if c.target and c.target.domains is not None and any(dom in required_domains for dom in c.target.domains)
+            ]
 
         if required_tags is not None:
-            configs = [c for c in configs if c.tags & required_tags]
+            configs = [c for c in configs if any(tag in required_tags for tag in c.tags)]
+
+        return configs
 
         return configs
 
