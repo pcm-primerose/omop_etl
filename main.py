@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     # testing semantic mapping
     semantic_file = Path(__file__).parent / ".data" / "semantic_mapping" / "mapped" / "braf_non-v600_mapped.csv"
-    semantic_service = SemanticService(harmonized_data=harmonized_data, semantic_path=semantic_file)
+    semantic_service = SemanticService(harmonized_data=harmonized_data)  # , semantic_path=None)
     semantic_mapped: BatchQueryResult = semantic_service.run()
 
     # pass this to structural mapper ...

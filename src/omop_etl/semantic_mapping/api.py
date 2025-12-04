@@ -1,13 +1,7 @@
 from pathlib import Path
 
 from omop_etl.harmonization.datamodels import HarmonizedData
-from omop_etl.semantic_mapping.models import FieldConfig, QueryTarget, OmopDomain
 from omop_etl.semantic_mapping.pipeline import SemanticLookupPipeline
-
-
-# todo b4 mvp done
-# [ ] add semantic mapping file to resources, load from env, override if provided
-# [ ] create default config set, override by name if provided
 
 # todo later
 # [ ] add semantic file to env, load from env if avail
@@ -19,33 +13,14 @@ from omop_etl.semantic_mapping.pipeline import SemanticLookupPipeline
 
 
 class SemanticService:
-    def __init__(self, semantic_path: Path, harmonized_data: HarmonizedData, output_path: Path | None = None):
+    def __init__(self, harmonized_data: HarmonizedData, semantic_path: Path | None = None, output_path: Path | None = None):
         self.semantic_path = semantic_path
         self.harmonized_data = harmonized_data
         self.output_path = output_path
 
-    # todo: create all configs
     def run(self):
-        field_configs = [
-            FieldConfig(
-                name="tumor.main",
-                field_path=("tumor_type", "main_tumor_type"),
-                target=QueryTarget([OmopDomain.CONDITION, OmopDomain.OBSERVATIONS]),
-                tags="tumor",
-            ),
-            FieldConfig(
-                name="ae.term",
-                field_path=("adverse_events", "term"),
-                target=QueryTarget(domains=[OmopDomain.CONDITION]),
-                tags="adverse_events",
-            ),
-            # FieldConfig(name=""),
-        ]
-
-        pipeline = SemanticLookupPipeline(
-            semantics_path=Path(self.semantic_path),
-            field_configs=field_configs,
-        )
+        # pass field configs to override by name
+        pipeline = SemanticLookupPipeline(semantics_path=self.semantic_path)
 
         batch = pipeline.run_lookup(harmonized_data=self.harmonized_data)
 
