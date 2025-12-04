@@ -1,22 +1,15 @@
-# todo:
-# 1. take in harmonized data and semantic mapped data
-# 2. build athena
-# 3. connect to db and query with polars or sql
-# 4. do i model the cdm and hardcode fields --> tables/fields in the CDM?
-#   - need to figure out what's best to do here, set up simple example
-#   - and think of how this'll fit in with a deployed app
-#   - so need a separarate container with Athena/OMOP CDM
-#     or, package with Athena CDM and do internal queries here,
-#     and then build all data in the ETL, do single load pass to DB container ... ?
-#   - so yeah: should set up network in ETL? or at least, definately, connect to DB container
-#     just mimic the TSD setup exactly with separate db container and etl container
-#     but running the containers is outside of source, so just dep inject connection or how?
-#     etl container is the ETL code itself so that can be ignored,
-#     so we can just pass db conn as dep injection
-
+# todo notes:
 # 1. take in harmonized and mapped data
-# 2. build athena CDM to DB container (or package with vocab and query this?)
+# 2. build athena CDM to DB container (or package with repo containing this vocab as csv files, and query this?)
 # 3. make db connection code (takes container from podman network)
 # 4. structurally map (modelling the CDM tables?)
 # 5. connect to db container, load all data in correct order
 
+# also need preparation stage:
+#   - should either load OMOP CDM in database container with Athena vocab or package with csv files of Athena
+#   - data needs to be mapped to concepts not in semantic mapping file (query athena or store in semantic mapper)
+#       - or no, since these concepts are fields of my datamodel, they are invariant, and map to the same concept regardless of data in the field
+#   - need to determinstically create UID ints for ID fields for tables
+# then need loader stage:
+#   - what prepared data (semantically mapped or not) goes to what excat omop tables/fields
+#   - load preparaed data into postgres container by port, in correct order

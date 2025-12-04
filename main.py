@@ -8,7 +8,8 @@ from omop_etl.harmonization.api import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
-from omop_etl.semantic_mapping.mapper import SemanticService, BatchQueryResult
+from omop_etl.semantic_mapping.api import SemanticService
+from omop_etl.semantic_mapping.models import BatchQueryResult
 
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> HarmonizedData:
