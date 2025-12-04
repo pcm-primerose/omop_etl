@@ -3,35 +3,18 @@ import hashlib
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
-from typing import List, Tuple, Sequence, Any, Set
-from dataclasses import dataclass
-
+from typing import List, Tuple, Sequence, Any, Set, Collection
+from dataclasses import dataclass, field
 
 from src.omop_etl.harmonization.datamodels import HarmonizedData, Patient
 
-
-# todo
-# [x] load semantic mapped data
-# [x] just make it really dumb and working first
-# [x] return typed struct from json instead of using CsvReader (returns string for all fields)
-# [x] use composition in query results to store collection of rows matching a given query?
-# [x] make inverted index to get O(1) lookup
-# [x] make generic reflection from config to construct queries (config built in pipeline etc)
-# [x] make richer metadata in query result: struct contains leaf index if collection, field name, class name (or instance id?), etc
-# [x] also need to return null-results, probably in separate struct, since these will propegate to hybrid search pipeline
-# [x] make helper properties: missing, matched in results
-# [x] make config layer to match on all possible fields in CsvRow with typed values
-# [ ] query id is not deterministic/idempotent (should have same id for class.field and query term?),
-#     in other words, a given query term should have the same ID across runs if possible
-# [ ] write docstrings
-# [ ] create enums of literals for everything so fields are autocompleted in FieldConfigs (maybe)
-#     and cast evertything to frozenset so i don't have to spec that in config
-# [ ] create pipeline layer, setting up the field configs, indexing, running the queries, returning results
-
+# todo last things
+# [ ] add semantic mapping file to env (and package in resources?)
+# [ ] create all default configs, if none provided, run with those
 
 # todo later
+# [ ] add semantic file to env, load from env if avail
 # [ ] extract to separate files later; types, datamodels, etc, think about how to make it nice for extension later
-# [ ] figure out how to abstract in query: just make it work first then add the wrapper/abstraction layer
 # [ ] create polars backend for indexing and querying entire Athena database: OOM, lazy, vectorized
 # [ ] either extend models or create new ones in separate retrieval modules (lexical, vector etc) passed to rerankers
 #     - but need to finish basic impl & set up evals first
@@ -109,11 +92,11 @@ class OmopDomain(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class QueryTarget:
-    domains: frozenset[OmopDomain] | None = None
-    vocabs: frozenset[str] | None = None
-    concept_classes: frozenset[str] | None = None
-    standard_flags: frozenset[str] | None = None
-    validity: frozenset[str] | None = None
+    domains: Collection[OmopDomain] | None = None
+    vocabs: Collection[str] | None = None
+    concept_classes: Collection[str] | None = None
+    standard_flags: Collection[str] | None = None
+    validity: Collection[str] | None = None
 
     def __post_init__(self) -> None:
         def _fs(x):
@@ -137,8 +120,12 @@ class FieldConfig:
     # note: overkill for already mapped data, but reuse for lexical/vector search
     name: str
     field_path: tuple[str, ...]
+    tags: Collection[str] = field(default_factory=frozenset)
     target: QueryTarget | None = None
-    tags: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.tags, frozenset):
+            object.__setattr__(self, "tags", frozenset(self.tags))
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +137,13 @@ class Query:
     raw_value: str
     leaf_index: None | int = None
     target: None | QueryTarget = None
+
+
+@dataclass(frozen=True, slots=True)
+class QueryResult:
+    patient_id: str
+    query: Query
+    results: List[SemanticRow]
 
 
 def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]:
@@ -240,13 +234,6 @@ def _make_query_id(
 
 
 @dataclass(frozen=True, slots=True)
-class QueryResult:
-    patient_id: str
-    query: Query
-    results: List[SemanticRow]
-
-
-@dataclass(frozen=True, slots=True)
 class BatchQueryResult:
     results: Tuple[QueryResult, ...]
 
@@ -310,11 +297,6 @@ class DictSemanticIndex:
             filtered.append(row)
 
         return filtered
-
-
-# todo: this is messy fix later
-# - shouldn't mix abstractions
-# - shouldn't call query on indexed corpus, other way around
 
 
 class SemanticLookupPipeline:
@@ -381,21 +363,22 @@ class SemanticService:
         self.harmonized_data = harmonized_data
         self.output_path = output_path
 
-    # todo: create all configs and store somewhere
+    # todo: create all configs
     def run(self):
         field_configs = [
             FieldConfig(
                 name="tumor.main",
                 field_path=("tumor_type", "main_tumor_type"),
-                target=QueryTarget(domains={OmopDomain.CONDITION}),  # fixme: union type not working
-                tags=frozenset({"tumor"}),
+                target=QueryTarget([OmopDomain.CONDITION, OmopDomain.OBSERVATIONS]),
+                tags="tumor",
             ),
             FieldConfig(
                 name="ae.term",
                 field_path=("adverse_events", "term"),
-                target=QueryTarget(domains={OmopDomain.CONDITION}),  # fixme: union type not working
-                tags=frozenset({"ae"}),
+                target=QueryTarget(domains=[OmopDomain.CONDITION]),
+                tags="adverse_events",
             ),
+            FieldConfig(name=""),
         ]
 
         pipeline = SemanticLookupPipeline(

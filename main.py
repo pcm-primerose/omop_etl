@@ -8,7 +8,7 @@ from omop_etl.harmonization.api import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
-from omop_etl.semantic_mapping.mapper import SemanticService
+from omop_etl.semantic_mapping.mapper import SemanticService, BatchQueryResult
 
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> HarmonizedData:
@@ -59,4 +59,6 @@ if __name__ == "__main__":
     # testing semantic mapping
     semantic_file = Path(__file__).parent / ".data" / "semantic_mapping" / "mapped" / "braf_non-v600_mapped.csv"
     semantic_service = SemanticService(harmonized_data=harmonized_data, semantic_path=semantic_file)
-    semantic_service.run()
+    semantic_mapped: BatchQueryResult = semantic_service.run()
+
+    # pass this to structural mapper ...
