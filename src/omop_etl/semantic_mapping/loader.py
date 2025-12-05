@@ -1,6 +1,6 @@
 import csv
 from collections import defaultdict
-from importlib.abc import Traversable
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from logging import getLogger
 
