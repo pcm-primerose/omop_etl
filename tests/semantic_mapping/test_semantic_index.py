@@ -23,7 +23,7 @@ def semantic_data() -> pl.DataFrame:
             "omop_class": ["abc", "cde", "efg"],
             "omop_concept": ["S", "S", "S"],
             "omop_validity": ["Valid", "Valid", "Valid"],
-            "omop_domain": ["condition", "condition", "condition"],
+            "omop_domain": ["condition", "CONDITION", "Condition"],
             "omop_vocab": ["a", "b", "c"],
         }
     )
@@ -67,9 +67,7 @@ def queries() -> List[Query]:
 #   [x] do I invoke classes correctly? might be missing some setup
 #   [x] i don't lowercase queries and corpus
 #       - need to lowercase in matching, but not in config/corpus
-#   [ ] "any results" prints thrice
-#       - becasue each time i call the propery it
-#   [ ] need to fix lowercasing of enum (should lowercase at runtime)
+#   [x] new problem: all domains etc should be lowercased when loading a config, corpus etc
 
 # bug is default config loading, or rather test not matching the domains
 # or no, this is all "conditions" so as long as the config is made correctly should be fine?
@@ -102,7 +100,7 @@ def test_semantic_index(semantic_file, queries):
     assert match.patient_id == "A"
     for match in results.matches:
         for results in match.results:
-            assert results.omop_name == "Acute Myeloid Leukemia"
+            assert results.omop_name == "acute myeloid leukemia"
         assert match.query.query == "aml"
 
     missing = [m for m in results.missing][0]

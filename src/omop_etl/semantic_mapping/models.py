@@ -21,18 +21,18 @@ class SemanticRow:
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> "SemanticRow":
         return cls(
-            term_id=row["term_id"],
-            source_col=row["source_col"],
-            source_term=row["source_term"],
+            term_id=row["term_id"].lower().strip(),
+            source_col=row["source_col"].lower().strip(),
+            source_term=row["source_term"].lower().strip(),
             frequency=int(row["frequency"]),
-            omop_concept_id=row["omop_concept_id"],
-            omop_concept_code=row["omop_concept_code"],
-            omop_name=row["omop_name"],
-            omop_class=row["omop_class"],
-            omop_concept=row["omop_concept"],
-            omop_validity=row["omop_validity"],
-            omop_domain=row["omop_domain"],
-            omop_vocab=row["omop_vocab"],
+            omop_concept_id=row["omop_concept_id"].lower().strip(),
+            omop_concept_code=row["omop_concept_code"].lower().strip(),
+            omop_name=row["omop_name"].lower().strip(),
+            omop_class=row["omop_class"].lower().strip(),
+            omop_concept=row["omop_concept"].lower().strip(),
+            omop_validity=row["omop_validity"].lower().strip(),
+            omop_domain=row["omop_domain"].lower().strip(),
+            omop_vocab=row["omop_vocab"].lower().strip(),
         )
 
 

@@ -3,6 +3,7 @@ from collections import defaultdict
 from importlib.resources.abc import Traversable
 from pathlib import Path
 from logging import getLogger
+from typing import List
 
 from omop_etl.semantic_mapping.models import SemanticRow
 from importlib.resources import files as pkg_files
@@ -17,7 +18,6 @@ class LoadSemantics:
 
     def as_rows(self) -> list[SemanticRow]:
         rows: list[SemanticRow] = []
-        print(f"path in LoadSemantics: {self.path}")
         with open(self.path, "r", newline="") as f:
             for row in csv.DictReader(f):
                 rows.append(SemanticRow.from_csv_row(row))
@@ -30,7 +30,7 @@ class LoadSemantics:
         raise NotImplementedError
 
     @staticmethod
-    def _index(rows: list[SemanticRow]) -> dict[str, list[SemanticRow]]:
+    def _index(rows: List[SemanticRow]) -> dict[str, List[SemanticRow]]:
         idx: dict[str, list[SemanticRow]] = defaultdict(list)
         for row in rows:
             key = row.source_term.lower().strip()
