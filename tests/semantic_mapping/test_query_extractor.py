@@ -18,9 +18,11 @@ def test_query_extractor(patients, configs):
     assert patient_1_tumor_query.query == "tumor_1"
     assert patient_1_tumor_query.patient_id == "1"
     assert patient_1_tumor_query.field_path == ("tumor_type", "main_tumor_type")
+    assert patient_1_tumor_query.id == "fbf4cbe6fb9df353"
 
     # assert MedicalHistories collection produces correct query
     patient_2_medical_history_query = queries[3]
     assert patient_2_medical_history_query.query == "medical_history_2"
     assert patient_2_medical_history_query.patient_id == "2"
     assert patient_2_medical_history_query.field_path == ("medical_histories", "term")
+    assert patient_2_medical_history_query.id == "4734158dcbb58615"
