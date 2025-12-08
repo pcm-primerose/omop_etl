@@ -5,7 +5,12 @@ from dataclasses import field, dataclass
 import datetime as dt
 from logging import getLogger
 
-from omop_etl.harmonization.core.serialize import to_normalized, build_nested_df, to_wide, _export_leaf_object
+from omop_etl.harmonization.core.serialize import (
+    to_normalized,
+    build_nested_df,
+    to_wide,
+    _export_leaf_object,
+)
 from omop_etl.harmonization.core.validators import StrictValidators
 
 log = getLogger(__name__)

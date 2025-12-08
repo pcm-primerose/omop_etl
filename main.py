@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from omop_etl.config import IMPRESS_150, DATA_ROOT
+from omop_etl.config import DATA_ROOT, IMPRESS_NON_V600
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -8,6 +8,8 @@ from omop_etl.harmonization.api import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
+from omop_etl.semantic_mapping.api import SemanticService
+from omop_etl.semantic_mapping.models import BatchQueryResult
 
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> HarmonizedData:
@@ -48,8 +50,19 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
 if __name__ == "__main__":
     configure_logger(level="DEBUG")
-    run_pipeline(
-        preprocessing_input=IMPRESS_150,
+
+    harmonized_data = run_pipeline(
+        preprocessing_input=IMPRESS_NON_V600,
         trial="IMPRESS",
         base_root=DATA_ROOT,
-    )
+    )  # .filter(predicate=lambda p: p.cohort_name.lower() in ["braf non-v600", "braf non-v600activating"])
+
+    # testing semantic mapping
+    # if semantic file not provided, load from resources:
+    # semantic_file = Path(__file__).parent / ".data" / "semantic_mapping" / "mapped" / "braf_non-v600_mapped.csv"
+    semantic_service = SemanticService(harmonized_data=harmonized_data)
+    semantic_mapped: BatchQueryResult = semantic_service.run()
+
+    print(f"semantic mapped: {semantic_mapped.matches}")
+
+    # pass this to structural mapper ...

@@ -99,6 +99,8 @@
     "SubjectId",
     "DEATHDTC"
   ],
+  // todo: add dose & dose unit to map MIN drugs to singular concept?
+  // currently just mapped to ingredients as dose is lacking
   "cm": [
     "SubjectId",
     "CMTRT",

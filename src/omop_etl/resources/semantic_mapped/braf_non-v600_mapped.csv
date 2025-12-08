@@ -1,0 +1,262 @@
+term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_name,omop_class,omop_concept,omop_validity,omop_domain,omop_vocab
+a40acda4-5ce3-58e9-ace6-82861740d18a,AE_AECTCAET,Fever,3,437663,386661006,Fever,Clinical Finding,Standard,Valid,Condition,SNOMED
+fbd67699-0581-5e17-8403-f7eb290b9124,AE_AECTCAET,Pancreatitis,1,4192640,75694006,Pancreatitis,Disorder,Standard,Valid,Condition,SNOMED
+cba0153e-317a-5a35-9ad4-efcec032533a,AE_AECTCAET,Dyspnea,1,312437,267036007,Dyspnea,Clinical Finding,Standard,Valid,Condition,SNOMED
+df0f888c-b5f5-50ba-a9cc-4cf055450f36,AE_AECTCAET,Mucositis oral,1,4260546,450005,Ulcerative stomatitis,Disorder,Standard,Valid,Condition,SNOMED
+60161453-050b-56f1-90c9-50cf0335af10,AE_AECTCAET,Tooth infection,1,4322737,427898007,Infection of tooth,Disorder,Standard,Valid,Condition,SNOMED
+406708a2-1547-5f74-b161-e4bff788f3a8,AE_AECTCAET,Urinary tract infection,1,81902,68566005,Urinary tract infectious disease,Disorder,Standard,Valid,Condition,SNOMED
+b9967c78-8458-58cb-9c2b-84a156826e06,AE_AECTCAET,"Infections and infestations - Other, specify",1,432250,40733004,Infectious disease,Disorder,Standard,Valid,Condition,SNOMED
+fb2490e9-7fbe-5041-b29c-2948d916894d,AE_AECTCAET,Pleural effusion,1,254061,60046008,Pleural effusion,Disorder,Standard,Valid,Condition,SNOMED
+fc2cc4b5-e164-5f6f-9c67-6ce2d02e48d0,AE_AECTCAET,Platelet count decreased,1,4190644,415116008,Platelet count below reference range,Clinical Finding,Standard,Valid,Measurement,SNOMED
+6022044f-76b7-5f7f-81f8-c02e7c307057,AE_AECTCAET,Diarrhea,1,196523,62315008,Diarrhea,Clinical Finding,Standard,Valid,Condition,SNOMED
+8c8865f3-6d5d-5a25-9616-35a848007695,AE_AECTCAET,Flu like symptoms,1,4319159,95891005,Influenza-like illness,Clinical Finding,Standard,Valid,Condition,SNOMED
+58fa206a-b49b-5faa-9cc3-ee2dbe1006c4,AE_AECTCAET,Superior vena cava syndrome,1,4272799,63363004,Superior vena cava syndrome,Disorder,Standard,Valid,Condition,SNOMED
+9c923530-fa12-5c1d-95f6-2b2f457d354f,AE_AECTCAET,Gastrointestinal disorders,1,4201745,53619000,Disorder of digestive system,Disorder,Standard,Valid,Condition,SNOMED
+aed670b3-0f96-5448-99c8-eeca33269ed0,AE_AECTCAET,Aspartate aminotransferase increased,1,4042568,166669000,Aspartate aminotransferase serum level above reference range,Clinical Finding,Standard,Valid,Measurement,SNOMED
+ce2acc9f-81f7-5302-a751-dd1db1b64bce,AE_AECTCAET,Abdominal infection,1,4028062,128070006,Infectious disease of abdomen,Disorder,Standard,Valid,Condition,SNOMED
+d555b785-d4a8-5279-bd24-c8d1fb4d443d,AE_AECTCAET,Pancreatic duct obstruction,1,4342874,235973002,Pancreatic duct obstruction,Standard,Standard,Valid,Condition,SNOMED
+dc8b7be5-527a-5ef4-b621-b0c7c52f3a74,AE_AECTCAET,Visceral arterial ischemia,1,43020435,153821000119103,Visceral ischemia,Disorder,Standard,Valid,Condition,SNOMED
+decde6b4-1ee2-5bef-90da-e3022ff5ffa2,AE_AECTCAET,Serum amylase increased,1,4077377,275739007,Serum amylase above reference range,Clinical Finding,Standard,Valid,Measurement,SNOMED
+6fbe678d-073e-5b91-a199-7272a70f5dbf,AE_AECTCAET,Musculoskeletal and connective tissue disorder,1,4208786,312225001,Musculoskeletal and connective tissue disorder,Disorder,Standard,Valid,Condition,SNOMED
+90b1c5e2-768b-59cd-87c5-5367d7aa0664,AE_AECTCAET,Neutrophil count decreased,1,320073,165517008,Neutropenia,Clinical Finding,Standard,Valid,Condition,SNOMED
+d78140be-6561-5ca4-906d-e8d063794949,CM_CMTRT,Prednisolon,5,1550557,8638,prednisolone,Ingredient,Standard,Valid,Drug,RxNorm
+f6007e83-11ef-5e37-aa2b-21392328555e,CM_CMTRT,Somac,5,948078,40790,pantoprazole,Ingredient,Standard,Valid,Drug,RxNorm
+0fec3765-5bf9-50bc-86cd-1e49a1a2391f,CM_CMTRT,Paracetamol,4,1125315,161,acetaminophen,Ingredient,Standard,Valid,Drug,RxNorm
+04c41063-60ff-5739-8a9d-ac6755e75ff4,CM_CMTRT,Eliquis,4,43013024,1364430,apixaban,Ingredient,Standard,Valid,Drug,RxNorm
+8b352f53-a3db-5996-bf7c-ad184222ea06,CM_CMTRT,Afipran,4,906780,6915,metoclopramide,Ingredient,Standard,Valid,Drug,RxNorm
+c4d31ab3-d078-5861-bc81-943e89f1cecb,CM_CMTRT,Bactrim,4,1705674,10829,trimethoprim,Ingredient,Standard,Valid,Drug,RxNorm
+c4d31ab3-d078-5861-bc81-943e89f1cecb,CM_CMTRT,Bactrim,4,1836430,10180,sulfamethoxazole,Ingredient,Standard,Valid,Drug,RxNorm
+37d3324b-7b9e-5616-954c-5fb35498a83f,CM_CMTRT,Paracet,3,1125315,161,acetaminophen,Ingredient,Standard,Valid,Drug,RxNorm
+1296ebf4-b15f-518d-88a3-b4fa16d6768b,CM_CMTRT,Morfin,3,1110410,7052,morphine,Ingredient,Standard,Valid,Drug,RxNorm
+24abef17-99c0-5f89-ab6e-0056c1a599f9,CM_CMTRT,OxyNorm,3,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+79a18efc-381c-55c2-b13c-a0ad1223766e,CM_CMTRT,Simvastatin,3,1539403,36567,simvastatin,Ingredient,Standard,Valid,Drug,RxNorm
+fb3d27bf-8a8c-5233-8def-08a88981c967,CM_CMTRT,Movicol,3,986417,221147,polyethylene glycol 3350,Ingredient,Standard,Valid,Drug,RxNorm Extension
+fb3d27bf-8a8c-5233-8def-08a88981c967,CM_CMTRT,Movicol,3,19049105,8591,potassium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+fb3d27bf-8a8c-5233-8def-08a88981c967,CM_CMTRT,Movicol,3,939506,36676,sodium bicarbonate,Ingredient,Standard,Valid,Drug,RxNorm Extension
+fb3d27bf-8a8c-5233-8def-08a88981c967,CM_CMTRT,Movicol,3,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+d5d56948-098d-5d25-8458-a457ded65905,CM_CMTRT,Oxynorm,3,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+7209c037-1916-57d3-8a95-edff21326aac,CM_CMTRT,Ondansetron,2,1000560,26225,ondansetron,Ingredient,Standard,Valid,Drug,RxNorm
+b7407e0a-d505-5493-9ffb-e88d414d939a,CM_CMTRT,Calcigran Forte,2,19009405,11253,vitamin D,Ingredient,Standard,Valid,Drug,RxNorm
+b7407e0a-d505-5493-9ffb-e88d414d939a,CM_CMTRT,Calcigran Forte,2,19035704,1897,calcium carbonate,Ingredient,Standard,Valid,Drug,RxNorm
+4e2d3e26-c590-5e2c-a774-1d373352f5a0,CM_CMTRT,Zopiklone,2,19044883,40001,zopiclone,Ingredient,Standard,Valid,Drug,RxNorm
+c9f88fcd-3260-55e0-9748-c81f2f1f176c,CM_CMTRT,Dexametason,2,1518254,3264,dexamethasone,Ingredient,Standard,Valid,Drug,RxNorm
+82f03c1c-a375-5a71-b44e-3d66acda1e54,CM_CMTRT,Laxoberal,2,45775584,1546458,picosulfurate,Ingredient,Standard,Valid,Drug,RxNorm
+1701cd75-0257-5a6b-ba5b-34f3ae9b1166,CM_CMTRT,Flagyl,2,1707164,6922,metronidazole,Ingredient,Standard,Valid,Drug,RxNorm
+882e5087-f809-5e0d-ab82-37f48e7b8b91,CM_CMTRT,OxyContin,2,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+1f44319b-cec7-50a5-8bd7-1ff4d8a14844,CM_CMTRT,Sobril,2,724816,7781,oxazepam,Ingredient,Standard,Valid,Drug,RxNorm
+1c3fca7c-1285-5684-a151-ba3e80bc233e,CM_CMTRT,Panodil,2,1125315,161,acetaminophen,Ingredient,Standard,Valid,Drug,RxNorm
+c3479e58-3316-5ace-95a2-1dd980484721,CM_CMTRT,Fragmin,2,1301065,67109,dalteparin,Ingredient,Standard,Valid,Drug,RxNorm
+f1f0afe8-2506-5bf1-bdc9-4c5d161de31f,CM_CMTRT,Creon,2,926487,7880,pancreatin,Ingredient,Standard,Valid,Drug,RxNorm
+40d45fb3-6813-5fb7-b701-baae13f624ea,CM_CMTRT,Pantoprazol,2,948078,40790,pantoprazole,Ingredient,Standard,Valid,Drug,RxNorm
+75209aa5-9bcf-58a9-bce6-1a3eb6cbbebd,CM_CMTRT,Trajenta,1,40239216,1100699,linagliptin,Ingredient,Standard,Valid,Drug,RxNorm
+004df169-9b93-5c85-9094-081c10bafbe9,CM_CMTRT,Burinex,1,932745,1808,bumetanide,Ingredient,Standard,Valid,Drug,RxNorm
+425f2100-bd71-58d1-aa54-b413a387b8c4,CM_CMTRT,Stilnoct,1,744740,39993,zolpidem,Ingredient,Standard,Valid,Drug,Rxnorm
+4ccdb8cb-840e-53a4-b0e2-24fb66c7d5d4,CM_CMTRT,Questran,1,19095309,2447,cholestyramine resin,Ingredient,Standard,Valid,Drug,RxNorm
+659309f0-41cf-588e-8c0f-a82819354524,CM_CMTRT,Vival,1,723013,3322,diazepam,Ingredient,Standard,Valid,Drug,RxNorm
+af7804f7-bad8-5782-9254-f25b81b5686c,CM_CMTRT,dexametason,1,1518254,3264,dexamethasone,Ingredient,Standard,Valid,Drug,RxNorm
+e2e96161-5465-5d50-af26-89625cbe8a7d,CM_CMTRT,Ventoline,1,1154343,435,albuterol,Ingredient,Standard,Valid,Drug,RxNorm
+92d1bc02-0813-5ec1-b4fa-6687529a1c2d,CM_CMTRT,Midazolam,1,708298,6960,midazolam,Ingredient,Standard,Valid,Drug,RxNorm
+92d1bc02-0813-5ec1-b4fa-6687529a1c2d,CM_CMTRT,Midazolam,1,708298,6960,midazolam,Ingredient,Standard,Valid,Drug,RxNorm
+7226fbaa-b2b8-5588-bd33-5c851a398a66,CM_CMTRT,Duphalac mix,1,987245,6218,lactulose,Ingredient,Standard,Valid,Drug,RxNorm
+759c723f-81d8-5e16-aa0e-ab03bd573cb0,CM_CMTRT,Eliquis (Apiksaban),1,43013024,1364430,apixaban,Ingredient,Standard,Valid,Drug,RxNorm
+cadd6d34-74df-5bba-a196-0fa84f241171,CM_CMTRT,Valoid,1,909358,2977,cyclizine,Ingredient,Standard,Valid,Drug,RxNorm
+a3b8c8af-09c4-50dd-87f1-2ba6e57a4267,CM_CMTRT,Piperacillin/tazobaktam,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
+a3b8c8af-09c4-50dd-87f1-2ba6e57a4267,CM_CMTRT,Piperacillin/tazobaktam,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
+a3664cfc-a0d1-55cc-90f3-6126cc4423f7,CM_CMTRT,Somac enterotab,1,948078,40790,pantoprazole,Ingredient,Standard,Valid,Drug,RxNorm
+eacb84e2-e96b-5c0b-83fe-ecfb3b416bdb,CM_CMTRT,Pfizer vaccine,1,37003432,2468231,"SARS-CoV-2 (COVID-19) vaccine, mRNA spike protein",Ingredient,Standard,Valid,Drug,RxNorm
+a1cc36b6-8393-56ca-ae3c-ca0d242ae04d,CM_CMTRT,Enoksaparin,1,1301025,67108,enoxaparin,Ingredient,Standard,Valid,Drug,RxNorm
+9e796844-2095-5c90-8411-ae42aba81154,CM_CMTRT,Laxoberal /Natriumpikosulfat,1,45775584,1546458,picosulfurate,Ingredient,Standard,Valid,Drug,RxNorm
+3165cfcc-1df2-576a-81a3-3ba3c7ed8c5d,CM_CMTRT,Voltaren,1,1124300,3355,diclofenac,Ingredient,Standard,Valid,Drug,RxNorm
+a4a7a38b-54af-513c-ba13-a3395daa255d,CM_CMTRT,Dolcontin,1,1110410,7052,morphine,Ingredient,Standard,Valid,Drug,RxNorm
+8d71830e-45e7-5c71-93cb-c2998e718895,CM_CMTRT,NaCl 9 mg/ml ,1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm
+c3cad7d8-7a6d-5ecb-b347-a13864b05454,CM_CMTRT,Movicol (Makrogul),1,986417,221147,polyethylene glycol 3350,Ingredient,Standard,Valid,Drug,RxNorm Extension
+c3cad7d8-7a6d-5ecb-b347-a13864b05454,CM_CMTRT,Movicol (Makrogul),1,19049105,8591,potassium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+c3cad7d8-7a6d-5ecb-b347-a13864b05454,CM_CMTRT,Movicol (Makrogul),1,939506,36676,sodium bicarbonate,Ingredient,Standard,Valid,Drug,RxNorm Extension
+c3cad7d8-7a6d-5ecb-b347-a13864b05454,CM_CMTRT,Movicol (Makrogul),1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+fdd1eb2a-8cd7-543e-962e-99ebbadba2e7,CM_CMTRT,Alimemazin,1,19005570,10825,trimeprazine,Ingredient,Standard,Valid,Drug,RxNorm
+e32806e3-548c-510e-9736-bb6e524871ae,CM_CMTRT,Metoprolol,1,1307046,6918,metoprolol,Ingredient,Standard,Valid,Drug,RxNorm
+e613b346-2b11-59fd-b134-ebd1f691ad9a,CM_CMTRT,Augmentin,1,1713332,723,amoxicillin,Ingredient,Standard,Valid,Drug,RxNorm
+e613b346-2b11-59fd-b134-ebd1f691ad9a,CM_CMTRT,Augmentin,1,1759842,48203,clavulanate,Ingredient,Standard,Valid,Drug,RxNorm
+540b42e2-f17a-5129-b6fe-7668e8ed2347,CM_CMTRT,Oxycodone,1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+a0fd69c3-5bd2-5753-bb88-a3bd3521bb3a,CM_CMTRT,Zopiclone,1,19044883,40001,zopiclone,Ingredient,Standard,Valid,Drug,RxNorm
+86a13444-30c5-5394-b1c5-a3f393f4a2d8,CM_CMTRT,Lactulose,1,987245,6218,lactulose,Ingredient,Standard,Valid,Drug,RxNorm
+2db5d894-8dd2-5836-90e9-3dba1dcdf279,CM_CMTRT,Haldol,1,766529,5093,haloperidol,Ingredient,Standard,Valid,Drug,RxNorm
+00aa3843-77da-5cef-a64b-fabd2fe4763b,CM_CMTRT,Oxy Contin,1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+95680b85-2908-5e0f-a202-f1feb9b26276,CM_CMTRT,Imodium,1,991876,6468,loperamide,Ingredient,Standard,Valid,Drug,RxNorm
+2d8dbfd5-aab5-565d-b1a7-3e3398a31112,CM_CMTRT,Doxylin,1,1738521,3640,doxycycline,Ingredient,Standard,Valid,Drug,RxNorm
+8a2826c6-df74-507b-8d3c-2e10f9f1ecfe,CM_CMTRT,Nexium,1,904453,283742,esomeprazole,Ingredient,Standard,Valid,Drug,RxNorm
+dcbf6202-9328-59b2-b396-171e3473dd12,CM_CMTRT,Acetylcystein 200mg/ml,1,1139042,197,acetylcysteine,Ingredient,Standard,Valid,Drug,RxNorm
+8d4bf745-3e2f-52ed-be49-898cd76bf7d9,CM_CMTRT,Canoderm kr5%,1,906914,11002,urea,Ingredient,Standard,Valid,Drug,RxNorm
+8e7a6e3b-3ea3-53e6-a9b3-9e1900c5a575,CM_CMTRT,Paralgin Forte,1,1201620,2670,codeine,Ingredient,Standard,Valid,Drug,RxNorm
+8e7a6e3b-3ea3-53e6-a9b3-9e1900c5a575,CM_CMTRT,Paralgin Forte,1,1125315,161,acetaminophen,Ingredient,Standard,Valid,Drug,RxNorm
+9ca768e6-6b2e-55d1-bd45-a11131e1b596,CM_CMTRT,Duphalac,1,987245,6218,lactulose,Ingredient,Standard,Valid,Drug,RxNorm
+c03e9ea2-f8cd-53c0-aa6a-8d06977d3e39,CM_CMTRT,Vival (Diazepam),1,723013,3322,diazepam,Ingredient,Standard,Valid,Drug,RxNorm
+ba48e399-789f-5477-ba71-b6d205e56be0,CM_CMTRT,Kaleorid,1,19049105,8591,potassium chloride,Ingredient,Standard,Valid,Drug,RxNorm
+2bd8983f-7ad1-56f2-a972-d8337fcc53ec,CM_CMTRT,Metformin,1,1503297,6809,metformin,Ingredient,Standard,Valid,Drug,RxNorm
+0476630b-addd-53e7-9fb3-2db62ee88ab2,CM_CMTRT,Sobril ,1,724816,7781,oxazepam,Ingredient,Standard,Valid,Drug,RxNorm
+a517fb39-e302-5107-a903-2d6199584dbb,CM_CMTRT,Oxycodon,1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+313c5962-12dd-562e-906a-920ec67ead8d,CM_CMTRT,Glykopyrron,1,45775571,1546438,glycopyrronium,Ingredient,Standard,Valid,Drug,RxNorm
+925a4e12-d61a-504f-b033-b5d862974732,CM_CMTRT,Oksykodon/Metoklopramid/Midazolam/Nacl,1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+925a4e12-d61a-504f-b033-b5d862974732,CM_CMTRT,Oksykodon/Metoklopramid/Midazolam/Nacl,1,906780,6915,metoclopramide,Ingredient,Standard,Valid,Drug,RxNorm
+925a4e12-d61a-504f-b033-b5d862974732,CM_CMTRT,Oksykodon/Metoklopramid/Midazolam/Nacl,1,708298,6960,midazolam,Ingredient,Standard,Valid,Drug,RxNorm
+925a4e12-d61a-504f-b033-b5d862974732,CM_CMTRT,Oksykodon/Metoklopramid/Midazolam/Nacl,1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm
+fa0a363b-5593-5634-b95b-8da15c113802,CM_CMTRT,OxyContin ( Oxycodone),1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+6081a0cc-238d-5a96-ba6b-95fb8a9b9bd0,CM_CMTRT,"Morfin 40 mg/ml, Metoklopramid 5 mg/ml, Midazolam 5 mg/ml, Natriumklorid 9 mg/ml",1,1110410,7052,morphine,Ingredient,Standard,Valid,Drug,RxNorm
+6081a0cc-238d-5a96-ba6b-95fb8a9b9bd0,CM_CMTRT,"Morfin 40 mg/ml, Metoklopramid 5 mg/ml, Midazolam 5 mg/ml, Natriumklorid 9 mg/ml",1,906780,6915,metoclopramide,Ingredient,Standard,Valid,Drug,RxNorm
+6081a0cc-238d-5a96-ba6b-95fb8a9b9bd0,CM_CMTRT,"Morfin 40 mg/ml, Metoklopramid 5 mg/ml, Midazolam 5 mg/ml, Natriumklorid 9 mg/ml",1,708298,6960,midazolam,Ingredient,Standard,Valid,Drug,RxNorm
+6081a0cc-238d-5a96-ba6b-95fb8a9b9bd0,CM_CMTRT,"Morfin 40 mg/ml, Metoklopramid 5 mg/ml, Midazolam 5 mg/ml, Natriumklorid 9 mg/ml",1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm
+7b7749a7-0dff-5e19-9c2f-5b84d5b85df1,CM_CMTRT,Klexane,1,1301025,67108,enoxaparin,Ingredient,Standard,Valid,Drug,RxNorm
+a6f1dde3-657f-5936-93f4-b040cd86459f,CM_CMTRT,Dicloxacillin Alternova,1,1724666,3356,dicloxacillin,Ingredient,Standard,Valid,Drug,RxNorm
+2b7e362a-d5db-5aad-919f-93d11f56c232,CM_CMTRT,Hydrokortison 1%,1,975125,5492,hydrocortisone,Ingredient,Standard,Valid,Drug,RxNorm
+ca69fb06-f7a7-5cc9-9bc8-bef0a46397d4,CM_CMTRT,Influenza vaccine,1,40213158,88,"influenza virus vaccine, unspecified formulation",Vaccine Group,Standard,Valid,Drug,CVX
+0ccc8c14-1eb8-5f0f-996c-f5b1ff4160ab,CM_CMTRT,Diflucan,1,1754994,4450,fluconazole,Ingredient,Standard,Valid,Drug,RxNorm
+e9974b24-2959-5ee7-b253-9b2fbc192609,CM_CMTRT,Ondansetron,1,1000560,26225,ondansetron,Ingredient,Standard,Valid,Drug,RxNorm
+b293e3a6-d734-5c33-8859-d7ac56b2d1e9,CM_CMTRT,Laktulose,1,987245,6218,lactulose,Ingredient,Standard,Valid,Drug,RxNorm
+11828640-9bd5-53b2-b5c6-ca193e25ca83,CM_CMTRT,Tazocin,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
+11828640-9bd5-53b2-b5c6-ca193e25ca83,CM_CMTRT,Tazocin,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
+7cfbef96-ec63-5b67-9818-09b907c90701,CM_CMTRT,Haloperidol ,1,766529,5093,haloperidol,Ingredient,Standard,Valid,Drug,RxNorm
+34c931e5-a68b-5ef4-b85f-b8e24b87b6fe,CM_CMTRT,Immodium,1,991876,6468,loperamide,Ingredient,Standard,Valid,Drug,RxNorm
+4054c352-c7c5-5205-8210-2a2828485ff0,CM_CMTRT,Relvar Ellipta,1,1149380,41126,fluticasone,Ingredient,Standard,Valid,Drug,RxNorm
+4054c352-c7c5-5205-8210-2a2828485ff0,CM_CMTRT,Relvar Ellipta,1,43532539,1424884,vilanterol,Ingredient,Standard,Valid,Drug,RxNorm
+07cdd3cc-8c3f-5cbc-9951-37609352ebe4,CM_CMTRT,Diazepam 5 mg/ml,1,723013,3322,diazepam,Ingredient,Standard,Valid,Drug,RxNorm
+978b5da0-8f8b-57b9-aee2-5405319677f5,CM_CMTRT,Dexamethason,1,1518254,3264,dexamethasone,Ingredient,Standard,Valid,Drug,RxNorm
+d89ddcbc-58b6-5df9-b077-f15b0fa01596,CM_CMTRT,Laxoberl,1,45775584,1546458,picosulfurate,Ingredient,Standard,Valid,Drug,RxNorm
+0b775102-f2e7-5747-b838-8a00ee74e3c6,CM_CMTRT,Creon 25000,1,926487,7880,pancreatin,Ingredient,Standard,Valid,Drug,RxNorm
+ab49c71e-e7a2-5914-9a1e-83f841dd6dd6,CM_CMTRT,Targiniq Depot,1,1114220,7242,naloxone,Ingredient,Standard,Valid,Drug,RxNorm
+ab49c71e-e7a2-5914-9a1e-83f841dd6dd6,CM_CMTRT,Targiniq Depot,1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+0ccd6512-f2f2-575a-be75-a7578d62ddfe,CM_CMTRT,Marzine,1,909358,2977,cyclizine,Ingredient,Standard,Valid,Drug,RxNorm
+4e05b18b-091d-51f3-8587-f3d6cc850510,CM_CMTRT,Haloperidol smertepumpe,1,766529,5093,haloperidol,Ingredient,Standard,Valid,Drug,RxNorm
+51405902-024d-5ed7-b57d-acb74950c535,CM_CMTRT,Afipran /Metoklopramid,1,906780,6915,metoclopramide,Ingredient,Standard,Valid,Drug,RxNorm
+415ed198-b3b3-5d35-810f-be8a19d2d530,CM_CMTRT,Natriumclorid,1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+e4e9d6cd-f661-52d9-800c-c203be5ed935,CM_CMTRT,Tacozin,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
+e4e9d6cd-f661-52d9-800c-c203be5ed935,CM_CMTRT,Tacozin,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
+fda2f8a2-344e-5023-a96e-fa6c883f8f24,CM_CMTRT,Folsyre,1,19111620,4511,folic acid,Ingredient,Standard,Valid,Drug,RxNorm
+6e202f51-e111-5806-aea1-ca0ecb0f302c,CM_CMTRT,Oxycontin,1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+6380196c-f988-5d48-9f34-c7c313b45de9,CM_CMTRT,Letrozole,1,1315946,72965,letrozole,Ingredient,Standard,Valid,Drug,RxNorm
+0471e792-a97d-5a01-991b-9a35d5be539a,CM_CMTRT,Paxlovid,1,702530,2587892,nirmatrelvir,Ingredient,Standard,Valid,Drug,RxNorm
+24122422-1d33-519a-8b6a-772912df0a64,CM_CMTRT,Targiniq(Oksykodon/nalokson),1,1114220,7242,naloxone,Ingredient,Standard,Valid,Drug,RxNorm
+24122422-1d33-519a-8b6a-772912df0a64,CM_CMTRT,Targiniq(Oksykodon/nalokson),1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+aa12b98c-57e5-5469-9138-35dcc4740611,CM_CMTRT,Klyx,1,941258,82003,docusate,Ingredient,Standard,Valid,Drug,RxNorm
+aa12b98c-57e5-5469-9138-35dcc4740611,CM_CMTRT,Klyx,1,970011,9945,sorbitol,Ingredient,Standard,Valid,Drug,RxNorm
+73a86d56-78b8-5284-ac19-ed87d92c72b2,CM_CMTRT,Mycostatin,1,922570,7597,nystatin,Ingredient,Standard,Valid,Drug,RxNorm
+440c80f4-3cc0-5285-94d8-61bff1db73ec,CM_CMTRT,Albyl-E,1,1112807,1191,aspirin,Ingredient,Standard,Valid,Drug,RxNorm
+bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam ,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
+bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam ,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
+549659be-5a1e-57b0-a046-a9c68800f2bc,CM_CMTRT,Lyrica,1,734354,187832,pregabalin,Ingredient,Standard,Valid,Drug,RxNorm
+29ae70b2-cc39-542e-8ac8-70cdf4a3214f,CM_CMTRT,Apocillin,1,1729720,7984,penicillin V,Ingredient,Standard,Valid,Drug,RxNorm
+564a0647-a182-581e-af33-470fd43a221a,CM_CMTRT,Ringer-Acetat,1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+564a0647-a182-581e-af33-470fd43a221a,CM_CMTRT,Ringer-Acetat,1,19049105,8591,potassium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+564a0647-a182-581e-af33-470fd43a221a,CM_CMTRT,Ringer-Acetat,1,19036781,1901,calcium chloride,Ingredient,Standard,Valid,Drug,RxNorm
+564a0647-a182-581e-af33-470fd43a221a,CM_CMTRT,Ringer-Acetat,1,19092849,6579,magnesium chloride,Ingredient,Standard,Valid,Drug,RxNorm
+564a0647-a182-581e-af33-470fd43a221a,CM_CMTRT,Ringer-Acetat,1,19076414,54987,potassium acetate,Ingredient,Standard,Valid,Drug,RxNorm
+5e0dad86-c8ff-5ef4-aff9-5a701ac6221b,CM_CMTRT,Microlax,1,46274970,1593446,potassium lauryl phosphate,Precise Ingredient,Non-standard,Valid,Drug,RxNorm
+a0eac543-43bf-540a-a8ab-1e8b64c08dd2,CM_CMTRT,Metoklopramid,1,906780,6915,metoclopramide,Ingredient,Standard,Valid,Drug,RxNorm
+54a22865-5022-55d2-bf05-46f1abbc676b,CM_CMTRT,Selo-Zok,1,1307046,6918,metoprolol,Ingredient,Standard,Valid,Drug,RxNorm
+7043b7e0-e17c-54b1-9aaa-dcb9fab0e2cf,CM_CMTRT,Neurontin/gabapentin,1,797399,25480,gabapentin,Ingredient,Standard,Valid,Drug,RxNorm
+7011b3e3-fd7d-590a-b2b2-6336ae87e5b0,CM_CMTRT,Oxynorm (Oxycodone),1,1124957,7804,oxycodone,Ingredient,Standard,Valid,Drug,RxNorm
+7e12c383-f01b-5d16-b6ac-f9f0dcfde206,CM_CMTRT,Remerom,1,725131,15996,mirtazapine,Ingredient,Standard,Valid,Drug,RxNorm
+a3ad6b00-c6c5-5896-9d9a-b7cb3b94c94a,CM_CMTRT,Zyprexa,1,785788,61381,olanzapine,Ingredient,Standard,Valid,Drug,RxNorm
+fc2f0e5a-b5aa-5475-87b6-5730fd72be9d,CM_CMTRT,Loperamid,1,991876,6468,loperamide,Ingredient,Standard,Valid,Drug,RxNorm
+1bb10a2a-e9f9-5aea-8b20-dc078b1267c3,CM_CMTRT,Metoprolol depot,1,1307046,6918,metoprolol,Ingredient,Standard,Valid,Drug,RxNorm
+f63e632e-09b1-5d03-9728-f44e066b8793,CM_CMTRT,Levaxin,1,1501700,10582,levothyroxine,Ingredient,Standard,Valid,Drug,RxNorm
+b4f6e64d-0f37-59f3-9e0c-737c2af51dff,CM_CMTRT,Afipran (Metoklopramid),1,906780,6915,metoclopramide,Ingredient,Standard,Valid,Drug,RxNorm
+280fa743-a3a8-599f-b295-8135ba3e60a8,CM_CMTRT,Amlodipin,1,1332418,17767,amlodipine,Ingredient,Standard,Valid,Drug,RxNorm
+63ad4631-15d8-5f27-bd8d-5ecfa9360b6e,CM_CMTRT,Laksoberal,1,45775584,1546458,picosulfurate,Ingredient,Standard,Valid,Drug,RxNorm
+72737235-1c16-5efd-b85e-9ad0198c2d46,CM_CMTRT,Klexane/Enoksaparin,1,45775584,1546458,picosulfurate,Ingredient,Standard,Valid,Drug,RxNorm
+c0d469b8-2d83-5ef8-a060-3cb5b0f2eef2,CM_CMTRT,Ibuprofen,1,1177480,5640,ibuprofen,Ingredient,Standard,Valid,Drug,RxNorm
+98cea1ff-2517-56c3-af61-bb37270630e4,CM_CMTRT,Kaliumklorid,1,19049105,8591,potassium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
+4000804f-b2bb-52b8-859e-8747b20d8124,CM_CMTRT,Fiasp (Insulin),1,1567198,51428,"insulin aspart, human",Ingredient,Standard,Valid,Drug,RxNorm
+fc4de2f6-c822-542e-8392-53cf03842961,CM_CMTRT,Cimetidin,1,997276,2541,cimetidine,Ingredient,Standard,Valid,Drug,RxNorm
+9261aa9a-b652-5d50-b109-b5c92b058ae2,COH_COHCTN,BRAF Non-V600 activating mutations,12,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
+a683d456-51bb-52f1-8dcb-b88cfe79add6,COH_COHCTN,BRAF Non-V600activating mutations,1,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
+8d9cba99-2d8f-5254-8226-cc57d315adc7,COH_COHTMN,BRAF Non-V600 activating mutations,13,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
+16634bc9-9c93-5cd8-b149-34d0894a2e4b,COH_COHTT,Pancreatic cancer,3,4180793,363418001,Malignant tumor of pancreas,Disorder,Standard,Valid,Condition,SNOMED
+88b3fa87-2b35-5bee-adf1-39ed0e10c828,COH_COHTT,Cholangiocarcinoma,3,4208660,312104005,Cholangiocarcinoma of biliary tract,Disorder,Standard,Valid,Condition,SNOMED
+d00c7df5-1845-5ef2-b7c0-e3193c3f18d8,COH_COHTT,NSCLC,2,4115276,254637007,Non-small cell lung cancer,Disorder,Standard,Valid,Condition,SNOMED
+f018b88d-fcc9-580b-8870-b7684aa65601,COH_COHTT,Bladder cancer,2,4113110,255108000,Carcinoma of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
+c029a73a-f0e3-5bd8-83d3-2697af942cfc,COH_COHTT,NEC,1,4102373,253000007,Neuroendocrine carcinoma,Disorder,Standard,Valid,Condition,SNOMED
+666a7ef6-e58e-5a90-b399-676c28038ae7,COH_COHTT,Clear cell odontogenic carcinoma,1,42511925,9341/3-C41.0,Clear cell odontogenic carcinoma of bones of skull and face and associated joints,ICDO Condition,Standard,Valid,Condition,ICDO3
+82827b49-85a1-5d19-9c5c-eb82d887d6d9,COH_COHTT,Salivary gland cancer,1,4116235,255072001,Malignant tumor of salivary gland,Disorder,Standard,Valid,Condition,SNOMED
+56726952-24f4-5153-919e-e2b2e8cf331a,COH_COHTTYPE,Pancreatic Cancer,3,4180793,363418001,Malignant tumor of pancreas,Disorder,Standard,Valid,Condition,SNOMED
+2a01b642-92f3-50b7-a605-fc35283e1ac7,COH_COHTTYPE,Cholangiocarcinoma,2,4208660,312104005,Cholangiocarcinoma of biliary tract,Disorder,Standard,Valid,Condition,SNOMED
+dae331bb-eac3-5d2c-8a45-00667b6c41f7,COH_COHTTYPE,Lung Cancer: Non-Small Cell,2,4115276,254637007,Non-small cell lung cancer,Disorder,Standard,Valid,Condition,SNOMED
+38f62bd2-8ddb-57af-ad6e-7fc2cb42f604,COH_COHTTYPE,Transitional Cell Cancer of the Renal Pelvis and Ureter,1,44501785,8120/3-C68.9,"Transitional cell carcinoma, NOS, of urinary system, NOS",ICDO Condition,Standard,Valid,Condition,ICDO3
+60acbfb7-16bf-53ff-86a3-b9fe72dc7fe7,COH_COHTTYPE,Neuroendocrine carcinoma (NEC),1,4102373,253000007,Neuroendocrine carcinoma,Disorder,Standard,Valid,Condition,SNOMED
+9830f9d0-f9b2-59fd-8a7b-a641c18c4b4c,COH_COHTTYPE,Bladder Cancer,1,4113110,255108000,Carcinoma of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
+4b0915cb-3c4a-5c4a-8f86-549c876f2dcc,COH_COHTTYPE__2,Cholangiocarcinoma,1,4208660,312104005,Cholangiocarcinoma of biliary tract,Disorder,Standard,Valid,Condition,SNOMED
+89edbc49-94c9-5c05-a756-0d2621e428be,COH_COHTTYPE__2,Odontogenic Carcinoma,1,42511925,9341/3-C41.0,Clear cell odontogenic carcinoma of bones of skull and face and associated joints,ICDO Condition,Standard,Valid,Condition,ICDO3
+d3fff833-a4ab-56d4-ae0f-76b2a7fea1cb,COH_COHTTYPE__2,Salivary Gland Cancer,1,4116235,255072001,Malignant tumor of salivary gland,Disorder,Standard,Valid,Condition,SNOMED
+4bf9b6d6-5f7e-5c8e-b424-16b4885158df,COH_GENMUT1,BRAF activating mutations,11,13,3039156,53844-7,"BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test",Standard,Valid,Measurement,LOINC
+2e020752-c463-5744-9859-8dd3e864d528,COH_GENMUT1,Other,2,4205432,55446002,Genetic mutation,Clinical Finding,Standard,Valid,Condition,SNOMED
+87fd97de-059f-5f6b-a757-4405dd148549,COH_ICD10COD,C22.1,3,4001664,109842005,Intrahepatic bile duct carcinoma,Disorder,Standard,Valid,Condition,SNOMED
+b36cf15c-8eef-5b61-8ca7-8a8eefaeaab6,COH_ICD10COD,C34.9,2,4311499,93986008,Primary malignant neoplasm of respiratory tract,Disorder,Standard,Valid,Condition,SNOMED
+e1fd68a5-855f-58ba-af0c-0ee4f984a83f,COH_ICD10COD,C25.9,2,199754,372003004,Primary malignant neoplasm of pancreas,Disorder,Standard,Valid,Condition,SNOMED
+651d2aa2-3e45-5f2f-a3fd-57c1edae6d1b,COH_ICD10COD,C41.1,1,379756,93886007,Primary malignant neoplasm of mandible,Disorder,Standard,Valid,Condition,SNOMED
+374f1c62-f67e-5f8e-be80-8791b59a63bb,COH_ICD10COD,C68,1,176349,94125001,Primary malignant neoplasm of urinary system,Disorder,Standard,Valid,Condition,SNOMED
+4ff9708b-d295-561f-8e77-cf3d3c0392c2,COH_ICD10COD,C18.9,1,197500,93761005,Primary malignant neoplasm of colon,Disorder,Standard,Valid,Condition,SNOMED
+ae2ad189-9296-576c-bf0a-73c0f11b19a7,COH_ICD10COD,C67.9,1,196360,93689003,Primary malignant neoplasm of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
+c648926d-0e47-5fea-b4d0-eea1441d1cf9,COH_ICD10COD,C08.9,1,4247836,93883004,Primary malignant neoplasm of major salivary gland,Disorder,Standard,Valid,Condition,SNOMED
+f7e6733c-ef22-5cda-9ebb-970639619b51,COH_ICD10COD,C25,1,199754,372003004,Primary malignant neoplasm of pancreas,Disorder,Standard,Valid,Condition,SNOMED
+b151f0a0-123f-5c98-bf78-b5cbb58073ab,COH_ICD10DES,Intrahepatic bile duct carcinoma,3,4001664,109842005,Intrahepatic bile duct carcinoma,Disorder,Standard,Valid,Condition,SNOMED
+ba26fec0-dbab-5612-b737-b59938a10160,COH_ICD10DES,NSCLC,1,4115276,254637007,Non-small cell lung cancer,Disorder,Standard,Valid,Condition,SNOMED
+1d0ecb6a-3e20-5fbb-9e96-cb93be415a58,COH_ICD10DES,Malignant neoplasm of pancreas,1,199754,372003004,Primary malignant neoplasm of pancreas,Disorder,Standard,Valid,Condition,SNOMED
+92167e0a-7a04-5030-9695-fd51f31fd69d,COH_ICD10DES,"Malignant neoplasm of major salivary gland, unspecified",1,4247836,93883004,Primary malignant neoplasm of major salivary gland,Disorder,Standard,Valid,Condition,SNOMED
+2b30f454-3ccf-53c2-8a1a-59a37557ad1e,COH_ICD10DES,Malignant neoplasm og lung,1,443388,363358000,Malignant neoplasm of lung,Disorder,Standard,Valid,Condition,SNOMED
+cead6e82-896b-58ae-b445-7d007a7272ac,COH_ICD10DES,Malignant neoplasm of mandible,1,40490993,448668007,Malignant neoplasm of mandible,Disorder,Standard,Valid,Condition,SNOMED
+afc05665-c0bb-5a45-b5d5-eb571fea1e08,COH_ICD10DES,Urothelial carcinoma,1,4113111,255109008,Transitional cell carcinoma of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
+20a25052-61c5-5998-9400-0af98a5bcd12,COH_ICD10DES,"Malignant neoplasm of colon, unspecified",1,1197500,93761005,Primary malignant neoplasm of colon,Disorder,Standard,Valid,Condition,SNOMED
+fed6b606-3528-5ec8-a75b-4cefb4d9d2de,COH_ICD10DES,Bladder cancer,1,4113110,255108000,Carcinoma of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
+9f28939d-5fe7-5aa9-ac6f-5f32377200a4,COH_ICD10DES,Pancreatic cancer,1,4180793,363418001,Malignant tumor of pancreas,Disorder,Standard,Valid,Condition,SNOMED
+1cbddf14-d8dd-597f-a509-ea513aa9d27a,COH_ICD10DES,Pancreatic adenocarcinoma,1,37311469,792907004,Pancreatic ductal adenocarcinoma,Disorder,Standard,Valid,Condition,SNOMED
+4aaf98e6-11b8-5a22-822a-97b05e272a8c,CT_CTTYPE,Chemotherapy,11,4273629,367336001,Chemotherapy,Procedure,Standard,Valid,Procedure,SNOMED
+0719e67b-a299-5c56-813e-ff1414526bce,CT_CTTYPE,Other,5,4322976,71388002,Procedure,Procedure,Standard,Valid,Procedure,SNOMED
+f814dc09-5a17-5631-9611-d59b01f525c2,CT_CTTYPE,Radiotherapy,4,1242725,1287742003,Radiotherapy,Procedure,Standard,Valid,Procedure,SNOMED
+9f0cecc5-b41b-5f43-b2a8-6444f9d7d73c,CT_CTTYPE,Surgery,3,4301351,387713003,Surgical procedure,Procedure,Standard,Valid,Procedure,SNOMED
+7713909c-a13c-5ac9-a89b-02ec8766ded8,CT_CTTYPE,Immunotherapy,2,4295112,76334006,Immunological therapy,Procedure,Standard,Valid,Procedure,SNOMED
+1ccca17f-de9d-54c4-95cb-7fa7e9be2ef7,CT_CTTYPESP,high-dose treatment with autologous stem cell support (HMAS),1,37152106,1172516002,High-dose chemotherapy with stem cell transplant,Procedure,Standard,Valid,Procedure,SNOMED
+3a58b4d7-1df9-5df2-8025-06da623e8135,CT_CTTYPESP,"Endocrine therapy, Letrozole",1,4061650,169413002,Hormone therapy,Procedure,Standard,Valid,Procedure,SNOMED
+0e6715a0-8a38-5a0a-9ffe-28ab0f1925fd,CT_CTTYPESP,Hormone antagonist,1,4146933,309722008,Injection of hormone antagonist,Procedure,Standard,Valid,Procedure,SNOMED
+9c9e6060-1701-5a08-83b0-160a3745d591,CT_CTTYPESP,Chemotherapy/Immunotherapy,1,4273629,367336001,Chemotherapy,Procedure,Standard,Valid,Procedure,SNOMED
+9c9e6060-1701-5a08-83b0-160a3745d591,CT_CTTYPESP,Chemotherapy/Immunotherapy,1,4295112,76334006,Immunological therapy,Procedure,Standard,Valid,Procedure,SNOMED
+0a08c4c6-0521-5abf-b9eb-54cae99c8cf3,CT_CTTYPESP,Zometa,1,1524674,77655,zoledronic acid,Ingredient,Standard,Valid,Drug,RxNorm
+0ac253b0-884f-5572-80b2-6ad1f199639b,MH_MHTERM,Hypertension,2,316866,38341003,Hypertensive disorder,Disorder,Standard,Valid,Condition,SNOMED
+69a3af13-598d-528d-9f85-80f069b160bd,MH_MHTERM,Pulmonary embolism,2,440417,59282003,Pulmonary embolism,Disorder,Standard,Valid,Condition,SNOMED
+efe23aa0-cdde-5691-8686-1d0358a4208c,MH_MHTERM,Lung cancer,2,443388,363358000,Malignant neoplasm of lung,Disorder,Standard,Valid,Condition,SNOMED
+5c14b1fb-1bec-5d90-9f1b-50fa39f030c5,MH_MHTERM,Heart attack (STEMI),1,4296653,401303003,Acute ST segment elevation myocardial infarction,Disorder,Standard,Valid,Condition,SNOMED
+363530e7-d463-5015-9093-ee09052f3b35,MH_MHTERM,Acute lymphocytic leukemia (ALL),1,134305,91857003,Acute lymphoid leukemia,Disorder,Standard,Valid,Condition,SNOMED
+66b49f79-e9f6-5bed-8082-dcc095c839d7,MH_MHTERM,Hypercolesterolemi,1,4029305,13644009,Hypercholesterolemia,Disorder,Standard,Valid,Condition,SNOMED
+60a6468d-467f-55ba-9563-7b19ce9aa2eb,MH_MHTERM,"PleurX, pleural tube left side",1,4141919,264957007,Insertion of pleural tube drain,Procedure,Standard,Valid,Procedure,SNOMED
+bc040c60-a78c-57fe-b4cd-d953acaa7b51,MH_MHTERM,Endoskopisk partiell humeroskapulær synovektomi,1,4140852,265204005,Partial synovectomy of joint,Procedure,Standard,Valid,Procedure,SNOMED
+54bdf511-aa7b-552d-9f50-c603df47170d,MH_MHTERM,Akromegalia,1,4253197,74107003,Acromegaly,Disorder,Standard,Valid,Condition,SNOMED
+580590f2-3729-57ca-8c4d-87b6fbe0ab0e,MH_MHTERM,Pneumonia,1,255848,233604007,Pneumonia,Disorder,Standard,Valid,Condition,SNOMED
+51d8c06b-aaa5-5084-8a75-feb8c29ebcf8,MH_MHTERM,Neuropatic pain,1,4090564,247398009,Neuropathic pain,Clinical Finding,Standard,Valid,Condition,SNOMED
+67c300ab-3ebe-5493-9cad-39c4c4c63f95,MH_MHTERM,Radiofrequency ablation due to tachyarytmia,1,604322,879916008,Radiofrequency ablation,Procedure,Standard,Valid,Procedure,SNOMED
+077c4640-14dd-50f6-bf4b-3060a769592a,MH_MHTERM,Constipation,1,75860,14760008,Constipation,Clinical Finding,Standard,Valid,Condition,SNOMED
+86f0d6b9-993d-5ea4-b02a-98db07a66a5f,MH_MHTERM,Sleep difficulties,1,4115402,301345002,Difficulty sleeping,Clinical Finding,Standard,Valid,Observation,SNOMED
+664f73fa-b15b-5e0f-a024-342445d85540,MH_MHTERM,Helicobacter pylori,1,36717498,721730009,Infection caused by Helicobacter pylori,Disorder,Standard,Valid,Condition,SNOMED
+8bbe2551-b53b-5e70-8e7b-13be77c3e924,MH_MHTERM,Emboli,1,4185607,414086009,Embolism,Disorder,Standard,Valid,Condition,SNOMED
+a76a14d7-8a91-5ae9-8db6-2d0d4c3b4513,MH_MHTERM,Atrial fibirlation,1,313217,49436004,Atrial fibrillation,Disorder,Standard,Valid,Condition,SNOMED
+8d6970f0-1cfa-52d1-a51d-bcabaad9c74d,MH_MHTERM,Inguinal hernia,1,4288544,396232000,Inguinal hernia,Disorder,Standard,Valid,Condition,SNOMED
+230f21ab-f0a7-5a87-b035-4286a9fd20c7,MH_MHTERM,Diabetes,1,201820,73211009,Diabetes mellitus,Disorder,Standard,Valid,Condition,SNOMED
+50e4f0f7-22f2-5dfb-9acd-53ff754878de,MH_MHTERM,Hiatus hernia,1,4224004,84089009,Hiatal hernia,Disorder,Standard,Valid,Condition,SNOMED
+79822b3b-3ef6-55df-9fbd-ae24b561001c,MH_MHTERM,Psoriasis,1,140168,9014002,Psoriasis,Disorder,Standard,Valid,Condition,SNOMED
+20663753-3ecb-5abc-9f33-3ba11c305c3a,MH_MHTERM,Fibromyalgia,1,40405599,203082005,Fibromyalgia,Disorder,Standard,Valid,Condition,SNOMED
+b7d0606e-ab83-546b-964e-6aa72a90a970,MH_MHTERM,Rash,1,37110753,725119006,Generalized rash,Disorder,Standard,Valid,Condition,SNOMED
+16ac50b4-de72-58ba-a1e9-51a475f74da0,MH_MHTERM,Diabetes mellitus,1,201820,73211009,Diabetes mellitus,Disorder,Standard,Valid,Condition,SNOMED
+99c06adb-708c-51d5-88db-3bc10bc7f0ac,MH_MHTERM,Osteoporose,1,80502,64859006,Osteoporosis,Disorder,Standard,Valid,Condition,SNOMED
+b3af2528-c374-5024-9c47-39dbe9a94b0e,MH_MHTERM,Nausea,1,31967,422587007,Nausea,Clinical Finding,Standard,Valid,Condition,SNOMED
+f8f5b328-a9e5-5140-ac4b-73e359f3fd74,MH_MHTERM,Toxic nodular goiter,1,134619,57777000,Toxic nodular goiter,Disorder,Standard,Valid,Condition,SNOMED
+93964617-2f22-5aa7-b2b8-b7dbeec82ad7,MH_MHTERM,Cancer pain,1,4329041,22253000,Pain,Clinical Finding,Standard,Valid,Condition,SNOMED
+66280b02-20e4-5cd0-9da2-73f701ca406d,MH_MHTERM,Lumbar prolapse,1,4068482,202708005,Prolapsed lumbar intervertebral disc,Disorder,Standard,Valid,Condition,SNOMED
+fb30ae75-2962-515b-a06e-ee72e0ad8107,MH_MHTERM,stroke (brain infarct),1,381316,230690007,Cerebrovascular accident,Disorder,Standard,Valid,Condition,SNOMED
+f7445f4a-8d1f-5620-b567-9074b2ac88a1,MH_MHTERM,"ca pancreas,opr",1,4105909,29630005,Operation on pancreas,Procedure,Standard,Valid,Procedure,SNOMED
+9bf221e4-e43e-5963-a0e5-95ef57cd3510,MH_MHTERM,Multiple myeloma,1,437233,109989006,Multiple myeloma,Disorder,Standard,Valid,Condition,SNOMED
+ac7326d9-1870-5705-aaf1-4650ae372865,MH_MHTERM,"ca mamma, opr",1,4194253,392090004,Operation on breast,Procedure,Standard,Valid,Procedure,SNOMED
+c07275fa-b739-5a0a-beff-aa4ee431242a,MH_MHTERM,chronic marginal periodontitis,1,098062,252283005,Marginal periodontitis,Disorder,Standard,Valid,Condition,SNOMED
+0a9e9fa3-9504-5e53-b400-975cb753ed27,MH_MHTERM,Thyroid cyst,1,138113,72325004,Cyst of thyroid,Disorder,Standard,Valid,Condition,SNOMED
+efaf1bd0-8bc1-5f1a-9e12-8e454e97da95,MH_MHTERM,Esophagitis,1,30753,16761005,Esophagitis,Disorder,Standard,Valid,Condition,SNOMED
+e2df0b9b-4acf-516f-81bf-93728a8bcbec,MH_MHTERM,Toxic gastroenteritis and colitis,1,197596,71583005,Toxic gastroenteritis,Disorder,Standard,Valid,Condition,SNOMED
+071905c4-24a2-5991-ac79-b960f7226030,TR_TRNAME,Mekinist (Trametinib),13,43532497,1425099,trametinib,Ingredient,Standard,Valid,Drug,RxNorm
+bf4fb12f-07d3-57c6-b40c-b0cb7363ce3c,TR_TRNAME,Tafinlar (Dabrafenib),13,43532299,1424911,dabrafenib,Ingredient,Standard,Valid,Drug,RxNorm
+need-to-re-run,DM_DMSEX,male,1,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
+need-to-re-run,DM_DMSEX,female,1,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender

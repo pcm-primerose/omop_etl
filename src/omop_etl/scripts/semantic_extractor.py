@@ -3,13 +3,13 @@ import re
 import time
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import logging
 from pathlib import Path
 from typing import Sequence, Optional, Mapping, Dict, Literal
 import polars as pl
 
-from omop_etl.config import DATA_ROOT, IMPRESS_150
+from omop_etl.config import DATA_ROOT, IMPRESS_NON_V600
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
 log = logging.getLogger()
@@ -38,6 +38,10 @@ class EcrfConfig:
     @classmethod
     def from_mapping(cls, m: Mapping[str, list[str]]) -> "EcrfConfig":
         return cls([SheetConfig(key=k.upper(), usecols=v) for k, v in m.items()])
+
+    def __iter__(self):  # type: ignore
+        for field in fields(self):
+            yield getattr(self, field.name)
 
 
 class BaseReader(ABC):
@@ -208,7 +212,7 @@ class CsvDirectoryReader(BaseReader):
 
     @staticmethod
     def _index_csv_files(directory: Path) -> Dict[str, Path]:
-        index = {}
+        index = {}  # type: ignore
 
         for file_path in directory.iterdir():
             if not file_path.is_file():
@@ -253,7 +257,7 @@ class InputResolver:
             else:
                 supported.append(reader.__class__.__name__)
 
-        raise ValueError(f"Unsupported input type: {path}. Supported: {', '.join(supported)} or directory of CSVs")
+        raise ValueError(f"Unsupported input type: {type(path)}. Supported: {', '.join(supported)} or directory of CSVs")
 
 
 def get_config(all_data: bool = False) -> Dict[str, list[str]]:
@@ -631,14 +635,50 @@ def filter_df(data: pl.DataFrame, drop: str) -> pl.DataFrame:
     return data
 
 
-def frames_to_dict(config: EcrfConfig) -> dict[str, pl.Series]:
+def get_only_nonv600_cohort(frame: pl.DataFrame) -> pl.Series:
+    """Get only SubjectIds from BRAF non-V600 cohort"""
+    filtered = frame.with_columns(cohort_col=pl.col("COHTMN").str.strip_chars().str.to_lowercase()).filter(
+        pl.col("cohort_col").str.contains_any(["braf non-v600", "braf non-v600activating"])
+    )
+    with pl.Config(tbl_cols=-1):
+        print(f"cohorts: {filtered}")
+
+    return filtered.to_series()
+
+
+def frames_to_dict(config: EcrfConfig, braf_non_v600_only: Optional[bool] = None) -> dict[str, pl.Series]:
     out: dict[str, pl.Series] = {}
-    for sheet in config.data:
-        df = filter_df(sheet.data, drop="SubjectId")
-        sheet_key = (sheet.key or "").upper()
-        for s in df.get_columns():
-            out[f"{sheet_key}_{s.name}"] = s
-    return out
+
+    if braf_non_v600_only:
+        coh_sheet = next(
+            s.data
+            for s, k in zip(config.data, config.configs)  # type: ignore
+            if k.key.lower() == "coh"
+        )
+
+        # only subject ids that belong to the BRAF non-V600 cohort
+        cohort_subject_ids = get_only_nonv600_cohort(coh_sheet).to_list()
+
+        print(f"num subjects in non-V600 cohort: {len(cohort_subject_ids)}")
+
+        for sheet in config.data:  # type: ignore
+            df = sheet.data
+            df = df.filter(pl.col("SubjectId").is_in(cohort_subject_ids))
+            df = filter_df(df, drop="SubjectId")
+
+            sheet_key = (sheet.key or "").upper()
+            for s in df.get_columns():
+                out[f"{sheet_key}_{s.name}"] = s
+
+        return out
+
+    else:
+        for sheet in config.data:  # type: ignore
+            df = filter_df(sheet.data, drop="SubjectId")
+            sheet_key = (sheet.key or "").upper()
+            for s in df.get_columns():
+                out[f"{sheet_key}_{s.name}"] = s
+        return out
 
 
 def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
@@ -653,6 +693,7 @@ def dict_to_counts(d: dict[str, pl.Series]) -> pl.DataFrame:
             .with_columns(pl.col("frequency").cast(pl.Int64))
         )
         parts.append(vc)
+
     return pl.concat(parts, how="vertical_relaxed")
 
 
@@ -688,16 +729,13 @@ def add_term_id(data: pl.DataFrame, id_scope: Scope = "per_scope") -> pl.DataFra
 
 
 def run(
-    input_path: Path,
-    output_dir: Path,
-    trial: str = "impress",
-    all_data: Optional[bool] = False,
-):
+    input_path: Path, output_dir: Path, trial: str = "impress", all_data: Optional[bool] = False, braf_non_v600_only: Optional[bool] = False
+) -> None:
     start_time = time.time()
-    config = EcrfConfig.from_mapping(get_config(all_data=all_data))
+    config = EcrfConfig.from_mapping(get_config(all_data=all_data))  # type: ignore
     InputResolver().resolve(path=input_path, ecfg=config)
 
-    series_by_key = frames_to_dict(config)
+    series_by_key = frames_to_dict(config, braf_non_v600_only=braf_non_v600_only)
     combined_df = dict_to_counts(series_by_key).sort(["source_col", "frequency"], descending=[False, True])
     output_df = add_term_id(combined_df)
 
@@ -733,11 +771,19 @@ def build_parser() -> argparse.ArgumentParser:
         default="impress",
         help="Trial name used in output filename. Default: %(default)s",
     )
+    (
+        parser.add_argument(
+            "--all-data",
+            action="store_true",
+            default=False,
+            help="If provided, run with entire eCRF config: not limited to non-sensitive or semantic data.",
+        ),
+    )
     parser.add_argument(
-        "--all-data",
-        action="store_false",
-        default=True,
-        help="If provided, run with entire eCRF config: not limited to non-sensitive or semantic data.",
+        "--braf-non-v600-only",
+        action="store_true",
+        default=False,
+        help="If provided, only keep patients from BRAF non-v600 cohort",
     )
 
     return parser
@@ -755,15 +801,13 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=_args.output_dir,
         trial=_args.trial,
         all_data=_args.all_data,
+        braf_non_v600_only=_args.braf_non_v600_only,
     )
     return 0
 
 
-def run_ide():
-    run(
-        input_path=IMPRESS_150,
-        output_dir=DATA_ROOT / "semantic_extractor",
-    )
+def run_ide() -> None:
+    run(input_path=IMPRESS_NON_V600, output_dir=DATA_ROOT / "semantic_extractor_synthetic", braf_non_v600_only=True)
 
 
 if __name__ == "__main__":
