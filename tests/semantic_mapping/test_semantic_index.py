@@ -43,7 +43,7 @@ def queries() -> List[Query]:
         Query(
             patient_id="A",
             id="abc",
-            query="AML",
+            query="aml",
             field_path=("tumor_type", "main_tumor_type"),
             raw_value="AML",
             leaf_index=None,
@@ -62,16 +62,39 @@ def queries() -> List[Query]:
     return queries
 
 
+# todo: fix:
+#   [x] are fixtures correct?
+#   [x] do I invoke classes correctly? might be missing some setup
+#   [x] i don't lowercase queries and corpus
+#       - need to lowercase in matching, but not in config/corpus
+#   [ ] "any results" prints thrice
+#       - becasue each time i call the propery it
+#   [ ] need to fix lowercasing of enum (should lowercase at runtime)
+
+# bug is default config loading, or rather test not matching the domains
+# or no, this is all "conditions" so as long as the config is made correctly should be fine?
+# verify config in test is correct
+# well something is wrong with the setup as it works at runtime with synthetic data
+#
+
+
 def test_semantic_index(semantic_file, queries):
     loader = LoadSemantics(semantic_file)
     rows = loader.as_rows()
+    print(f"is this indexed correctly? {loader.as_indexed()}")
     index = DictSemanticIndex(indexed_corpus=loader.as_indexed())
 
-    print(f"loader in test: {loader, rows, index}")
+    print(f"loader in test: {loader} \n")
+    print(f"rows in test: {rows} \n")
+    print(f"index in test: {index} \n")
+    print(f"queries in test: {queries} \n")
 
     # assert that first query has mapped concept for AML
     results = index.lookup_exact(queries=queries)
     print(f"results in test: {results}")
+    print(f"len results in test: {len(results.matches)}")
+    # todo: result fields not populated, just empty result lists even though
+    #   rows contains matching target to AML query
     assert len(results.matches) == 1
     assert len(results.missing) == 1
 
@@ -80,7 +103,7 @@ def test_semantic_index(semantic_file, queries):
     for match in results.matches:
         for results in match.results:
             assert results.omop_name == "Acute Myeloid Leukemia"
-        assert match.query.query == "AML"
+        assert match.query.query == "aml"
 
     missing = [m for m in results.missing][0]
     assert missing.patient_id == "B"

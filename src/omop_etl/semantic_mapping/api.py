@@ -1,6 +1,8 @@
 from pathlib import Path
+from typing import Sequence
 
 from omop_etl.harmonization.datamodels import HarmonizedData
+from omop_etl.semantic_mapping.models import FieldConfig
 from omop_etl.semantic_mapping.pipeline import SemanticLookupPipeline
 
 # todo later
@@ -9,12 +11,22 @@ from omop_etl.semantic_mapping.pipeline import SemanticLookupPipeline
 #     - but need to finish basic impl & set up evals first
 # [ ] BM25 & vector search needs to yield struct similar to SemanticRow
 
+# todo soon
+# [ ] expose all args/params here and make it configurable (e.g. configs)
+
 
 class SemanticService:
-    def __init__(self, harmonized_data: HarmonizedData, semantic_path: Path | None = None, output_path: Path | None = None):
+    def __init__(
+        self,
+        harmonized_data: HarmonizedData,
+        semantic_path: Path | None = None,
+        output_path: Path | None = None,
+        configs: Sequence[FieldConfig] | None = None,
+    ):
         self.semantic_path = semantic_path
         self.harmonized_data = harmonized_data
         self.output_path = output_path
+        self.configs = configs
 
     def run(self):
         # pass field configs to override by name

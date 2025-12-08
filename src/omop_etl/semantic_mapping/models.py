@@ -37,12 +37,12 @@ class SemanticRow:
 
 
 class OmopDomain(str, Enum):
-    CONDITION = "Condition"
-    DRUG = "Drug"
-    MEASUREMENTS = "Measurement"
-    PROCEDURE = "Procedure"
-    OBSERVATIONS = "Observations"
-    DEVICE = "Device"
+    CONDITION = "condition"
+    DRUG = "drug"
+    MEASUREMENTS = "measurement"
+    PROCEDURE = "procedure"
+    OBSERVATIONS = "observations"
+    DEVICE = "device"
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,7 +108,8 @@ class BatchQueryResult:
     @property
     def matches(self) -> tuple[QueryResult, ...]:
         """Returns results for matched queries"""
-        return tuple(m for m in self.results if m.results)
+        results = tuple(m for m in self.results if m.results)
+        return results
 
     @property
     def missing(self) -> tuple[Query, ...]:

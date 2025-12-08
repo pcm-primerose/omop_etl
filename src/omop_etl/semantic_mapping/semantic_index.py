@@ -20,7 +20,8 @@ class DictSemanticIndex:
         results: list[QueryResult] = []
 
         for q in queries:
-            candidates = self.indexed_corpus.get(q.query, [])
+            query = q.query.lower().strip()
+            candidates = self.indexed_corpus.get(query, [])
             candidates = self._filter_by_target(candidates, q.target)
 
             results.append(
