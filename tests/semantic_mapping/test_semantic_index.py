@@ -4,14 +4,7 @@ from src.omop_etl.semantic_mapping.loader import LoadSemantics
 
 def test_semantic_index(semantic_file, queries):
     loader = LoadSemantics(semantic_file)
-    rows = loader.as_rows()
-    print(f"is this indexed correctly? {loader.as_indexed()}")
     index = DictSemanticIndex(indexed_corpus=loader.as_indexed())
-
-    print(f"loader in test: {loader} \n")
-    print(f"rows in test: {rows} \n")
-    print(f"index in test: {index} \n")
-    print(f"queries in test: {queries} \n")
 
     # assert that first query has mapped concept for AML
     results = index.lookup_exact(queries=queries)
