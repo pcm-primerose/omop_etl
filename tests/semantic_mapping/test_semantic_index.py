@@ -69,12 +69,6 @@ def queries() -> List[Query]:
 #       - need to lowercase in matching, but not in config/corpus
 #   [x] new problem: all domains etc should be lowercased when loading a config, corpus etc
 
-# bug is default config loading, or rather test not matching the domains
-# or no, this is all "conditions" so as long as the config is made correctly should be fine?
-# verify config in test is correct
-# well something is wrong with the setup as it works at runtime with synthetic data
-#
-
 
 def test_semantic_index(semantic_file, queries):
     loader = LoadSemantics(semantic_file)
@@ -89,20 +83,17 @@ def test_semantic_index(semantic_file, queries):
 
     # assert that first query has mapped concept for AML
     results = index.lookup_exact(queries=queries)
-    print(f"results in test: {results}")
-    print(f"len results in test: {len(results.matches)}")
-    # todo: result fields not populated, just empty result lists even though
-    #   rows contains matching target to AML query
     assert len(results.matches) == 1
     assert len(results.missing) == 1
-
+    missing = [m for m in results.missing][0]
     match = [m for m in results.matches][0]
+
     assert match.patient_id == "A"
     for match in results.matches:
         for results in match.results:
             assert results.omop_name == "acute myeloid leukemia"
         assert match.query.query == "aml"
 
-    missing = [m for m in results.missing][0]
+    # missing = [m for m in results.missing][0]
     assert missing.patient_id == "B"
     assert missing.query == "missing in semantic data"
