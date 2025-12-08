@@ -70,12 +70,12 @@ class HarmonizationPipeline:
         return harmonized_data
 
     @staticmethod
-    def _read_input(path: Path, schema: pl.Schema | None) -> pl.DataFrame:
+    def _read_input(path: Path, schema: pl.Schema | None = None) -> pl.DataFrame:
         suf = path.suffix.lower()
 
         if suf == ".parquet":
             if schema is None:
-                return pl.read_parquet(path, infer_schema_length=None)
+                return pl.read_parquet(path)
             if schema is not None:
                 return pl.read_parquet(path, schema=schema)
         if suf == ".csv":
