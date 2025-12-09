@@ -1,0 +1,17 @@
+value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept,omop_standard_flag,omop_domain,omop_vocab
+lost_to_followup,True,4163894,399307001,Lost to follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
+sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
+sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
+sex_code,0,
+sex_code,1,
+ecog,"0 - Fully active, able to carry on all pre-disease performance without restriction",36309661,LA9622-7,"Fully active, able to carry on all pre-disease performance without restriction",Answer,Standard,Valid,Meas Value,LOINC
+ecog,"1 - Restricted in physically strenous activity but ambulatory and able to carry out work of light and sedantary nature, e.g., light house work, office work",36310827,LA9623-5,"Restricted in physically strenuous activity but ambulatory and able to carry out work of a light or sedentary nature, e.g., light house work, office work",Answer,Standard,Valid,Meas Value,LOINC
+ecog,2 - Ambulatory and capable of all self-care but unable to carry out any work activities. Up and about more than 50% of waking hours,36309245,LA9624-3,Ambulatory and capable of all selfcare but unable to carry out any work activities. Up and about more than 50% of waking hours,Answer,Standard,Valid,Meas Value,LOINC
+ecog,"3 - Capable of only limited self-care, confined to bed or chair for more than 50% of waking hours",36308652,LA9625-0,"Capable of only limited selfcare, confined to bed or chair more than 50% of waking hours",Answer,Standard,Valid,Meas Value,LOINC
+ecog,4 - Completely disabled. Cannot carry out any self-care. Totally confined to bed or chair,36308589,LA9626-8,Completely disabled. Cannot carry on any selfcare. Totally confined to bed or chair,Answer,Standard,Valid,Meas Value,LOINC
+ecog,5 - Dead,45880868,LA9627-6,Dead,Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,1,36309661,LA9622-7,"Fully active, able to carry on all pre-disease performance without restriction",Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,2,36310827,LA9623-5,"Restricted in physically strenuous activity but ambulatory and able to carry out work of a light or sedentary nature, e.g., light house work, office work",Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,3,36309245,LA9624-3,Ambulatory and capable of all selfcare but unable to carry out any work activities. Up and about more than 50% of waking hours,Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,4,36308589,LA9626-8,Completely disabled. Cannot carry on any selfcare. Totally confined to bed or chair,Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,5,45880868,LA9627-6,Dead,Answer,Standard,Valid,Meas Value,LOINC
