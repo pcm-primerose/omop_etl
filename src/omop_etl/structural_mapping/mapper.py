@@ -36,6 +36,9 @@ from omop_etl.harmonization.datamodels import HarmonizedData, Patient
 #   [ ] mapper takes Patient, does semantic + structural mapping, returns table row structs
 #   [ ] loader takes tavble rows and loads to DB container
 
+# [ ] need to handle non-mapped fields like non-target lesion size, nadir size, nadir size at baseline, etc
+#     put these in measurement and make them queryable by source field name (handle in row creation)
+
 
 @dataclass
 class StructuralField:

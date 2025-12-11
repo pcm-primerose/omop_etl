@@ -1212,6 +1212,7 @@ class ConcomitantMedication:
         )
 
 
+# todo: move to types
 class RelatedStatus(str, Enum):
     """Used in AdverseEvent"""
 

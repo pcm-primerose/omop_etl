@@ -15,3 +15,62 @@ ecog_code,2,36310827,LA9623-5,"Restricted in physically strenuous activity but a
 ecog_code,3,36309245,LA9624-3,Ambulatory and capable of all selfcare but unable to carry out any work activities. Up and about more than 50% of waking hours,Answer,Standard,Valid,Meas Value,LOINC
 ecog_code,4,36308589,LA9626-8,Completely disabled. Cannot carry on any selfcare. Totally confined to bed or chair,Answer,Standard,Valid,Meas Value,LOINC
 ecog_code,5,45880868,LA9627-6,Dead,Answer,Standard,Valid,Meas Value,LOINC
+tumor_assessment_baseline,iRecist 1.1,734318,iRECIST,iRECIST finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier
+tumor_assessment_baseline,RECIST 1.1,734317,RECIST,RECIST finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier
+tumor_assessment_baseline,RANO (for Glioblastoma),734345,RANO,RANO finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier
+response_recist,Stable Disease (SD),1634680,1.1_RECIST-SD,RECIST 1.1: stable disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_recist,Progressive Disease (PD),1633597,1.1_RECIST-PD,RECIST 1.1: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_recist,Complete Response (CR),1634772,1.1_RECIST-CR,RECIST 1.1: complete response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_recist,Partial Response (PR),1633368,1.1_RECIST-PR,RECIST 1.1: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_irecist,iComplete Response (CR),1633954,iRECIST-CR,iRECIST: complete response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_irecist,iPartial Response (PR),1635284,iRECIST-PR,iRECIST: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_irecist,iStable disease,1635887,iRECIST-SD,iRECIST: stable disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_irecist,iConfirmed progressive disease,1633423,iRECIST-PD,iRECIST: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_irecist,iUnconfirmed progressive disease,1633423,iRECIST-PD,iRECIST: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_rano,Complete Response (CR),1634853,RANO-CR,RANO: complete response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_rano,Partial Response (PR),1634574,RANO-PR,RANO: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_rano,Stable Disease (SD),1633447,RANO-SD,RANO: stable disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_rano,Progressive Disease (PD),1634653,RANO-PD,RANO: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+medical_history,Current/active,9181,55561003,Active,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+medical_history,Past,37109701,723506003,Resolved,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+medical_history,Present/dormant,9173,73425007,Inactive,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+medical_history_code,1,37109701,723506003,Resolved,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+medical_history_code,2,9173,73425007,Inactive,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+medical_history_code,3,9181,55561003,Active,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+treatment_cycle,IV,4171047,47625008,Intravenous,Qualifier Value,Standard,Valid,Route,SNOMED
+treatment_cycle,Oral,4132161,26643006,Oral,Qualifier Value,Standard,Valid,Route,SNOMED
+treatment_cycle_recieved,False,37016846,712985002,Chemotherapy not done,Context-dependent,Standard,Valid,Observation,SNOMED
+unit,"mg (milligram)",8576,mg,milligram,Unit,Standard,Valid,Unit,UCUM
+unit,"ug (microgram)",9655,ug,microgram,Unit,Standard,Valid,Unit,UCUM
+unit,"mL (milliliter)",8587,mL,milliliter,Unit,Standard,Valid,Unit,UCUM
+adverse_event_code,1,763790,446411000124101,Common terminology criteria for adverse events grade 1,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_code,2,765927,446421000124109,Common terminology criteria for adverse events grade 2,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_code,3,763791,446431000124107,Common terminology criteria for adverse events grade 3,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_code,4,765765,446441000124102,Common terminology criteria for adverse events grade 4,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_code,5,765766,446451000124100,Common terminology criteria for adverse events grade 5,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_outcome,Recovering/resolving,1074213,1336140009,Recovering from adverse event,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_outcome,Not recovered/not resolved,1074284,1339036001,Persistent adverse event without recovery,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_outcome,Recovered/resolved,1447896,1352007006,Complete recovery from adverse event,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_outcome,Recovered/resolved with sequelae,1074130,1335890004,Recovered from adverse event with sequelae,Clinical Finding,Standard,Valid,Observation,SNOMED
+adverse_event_outcome,Fatal,4236718,405535005,Adverse incident resulting in death,Clinical Finding,Standard,Valid,Observation,SNOMED
+c30_answer,Not at all,45883172,LA6568-5,Not at all,Answer,Standard,Valid,Meas Value,LOINC
+c30_answer,A little,45876949,LA13940-4,A little,Answer,Standard,Valid,Meas Value,LOINC
+c30_answer,Quite a bit,45884456,LA13902-4,Quite a bit,Answer,Standard,Valid,Meas Value,LOINC
+c30_answer,Very much,45885256,LA13914-9,Very much,Answer,Standard,Valid,Meas Value,LOINC
+c30_answer_code,1,45883172,LA6568-5,Not at all,Answer,Standard,Valid,Meas Value,LOINC
+c30_answer_code,2,45876949,LA13940-4,A little,Answer,Standard,Valid,Meas Value,LOINC
+c30_answer_code,3,45884456,LA13902-4,Quite a bit,Answer,Standard,Valid,Meas Value,LOINC
+c30_answer_code,4,45885256,LA13914-9,Very much,Answer,Standard,Valid,Meas Value,LOINC
+c30_global_answer_code,1,45878558,LA9615-1,Very poor,Answer,Standard,Valid,Meas Value,LOINC
+c30_global_answer_code,2,1094227,LA34475-6,2,Answer,Standard,Valid,Meas Value,LOINC
+c30_global_answer_code,3,45878305,LA6114-8,3,Answer,Standard,Valid,Meas Value,LOINC
+c30_global_answer_code,4,45878304,LA6115-5,4,Answer,Standard,Valid,Meas Value,LOINC
+c30_global_answer_code,5,45878730,LA10137-0,5,Answer,Standard,Valid,Meas Value,LOINC
+c30_global_answer_code,6,45878254,LA10138-8,6,Answer,Standard,Valid,Meas Value,LOINC
+c30_global_answer_code,7,45881924,LA9206-9,Excellent,Answer,Standard,Valid,Meas Value,LOINC
+eq5d_q1_answer_code,1,742346,OMOP5181556,EuroQol five dimension five level mobility score: 1 (I have no problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer_code,2,742347,OMOP5181557,EuroQol five dimension five level mobility score: 2 (I have slight problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer_code,3,742348,OMOP5181558,EuroQol five dimension five level mobility score: 3 (I have moderate problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer_code,4,
+eq5d_q1_answer_code,5,
+eq5d_q2_answer_code,

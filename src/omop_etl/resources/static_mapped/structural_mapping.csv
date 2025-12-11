@@ -1,0 +1,36 @@
+# structural mapping of value sets or fields whose row-level concept is not data-dependent
+value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept,omop_standard_flag,omop_domain,omop_vocab
+ecog,36305384,89247-1,ECOG Performance Status score,Clinical Observation,Standard,Valid,Measurement,LOINC
+tumor_assessment_baseline,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED
+tumor_assessment_baseline,4085855,246206008,Number of lesions,Observable Entity,Standard,Valid,Observation,SNOMED
+c30_q1,701340,OMOP5117524,"EORTC Quality of Life Questionnaire: Do you have any trouble doing strenuous activities, like carrying a heavy shopping bag or a suitcase?",Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q2,701341,OMOP5117525,EORTC Quality of Life Questionnaire: Do you have any trouble taking a long walk?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q3,701342,OMOP5117526,EORTC Quality of Life Questionnaire: Do you have any trouble taking a short walk outside of the house?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q4,701343,OMOP5117527,EORTC Quality of Life Questionnaire: Do you need to stay in bed or a chair during the day?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q5,701344,OMOP5117528,"EORTC Quality of Life Questionnaire: Do you need help with eating, dressing, washing yourself or using the toilet?",Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q6,701345,OMOP5117529,EORTC Quality of Life Questionnaire: Were you limited in doing either your work or other daily activities during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q7,701346,OMOP5117530,EORTC Quality of Life Questionnaire: Were you limited in pursuing your hobbies or other leisure time activities during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q8,701347,OMOP5117531,EORTC Quality of Life Questionnaire: Were you short of breath during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q9,701348,OMOP5117532,EORTC Quality of Life Questionnaire: Have you had pain during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q10,701349,OMOP5117533,EORTC Quality of Life Questionnaire: Did you need to rest during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q11,701350,OMOP5117534,EORTC Quality of Life Questionnaire: Have you had trouble sleeping during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q12,701332,OMOP5117535,EORTC Quality of Life Questionnaire: Have you felt weak?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q13,701351,OMOP5117536,EORTC Quality of Life Questionnaire: Have you lacked appetite during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q14,701352,OMOP5117537,EORTC Quality of Life Questionnaire: Have you felt nauseated during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q15,701353,OMOP5117538,EORTC Quality of Life Questionnaire: Have you vomited during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q16,701354,OMOP5117539,EORTC Quality of Life Questionnaire: Have you been constipated during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q17,701355,OMOP5117540,EORTC Quality of Life Questionnaire: Have you had diarrhea during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q18,701356,OMOP5117541,EORTC Quality of Life Questionnaire: Were you tired during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q19,701357,OMOP5117542,EORTC Quality of Life Questionnaire: Did pain interfere with your daily activities during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q20,701358,OMOP5117543,"EORTC Quality of Life Questionnaire: Have you had difficulty in concentrating on things, like reading a newspaper or watching television during the past week?",Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q21,701359,OMOP5117544,EORTC Quality of Life Questionnaire: Did you feel tense during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q22,701360,OMOP5117545,EORTC Quality of Life Questionnaire: Did you worry during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q23,701361,OMOP5117546,EORTC Quality of Life Questionnaire: Did you feel irritable during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q24,701362,OMOP5117547,EORTC Quality of Life Questionnaire: Did you feel depressed during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q25,701363,OMOP5117548,EORTC Quality of Life Questionnaire: Have you had difficulty remembering things during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q26,701364,OMOP5117549,EORTC Quality of Life Questionnaire: Has your physical condition or medical treatment interfered with your family life during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q27,701365,OMOP5117550,EORTC Quality of Life Questionnaire: Has your physical condition or medical treatment interfered with your social activities during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q28,701366,OMOP5117551,EORTC Quality of Life Questionnaire: Has your physical condition or medical treatment caused you financial difficulties during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q29,701367,OMOP5117552,EORTC Quality of Life Questionnaire: How would you rate your overall health during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+c30_q30,701368,OMOP5117553,EORTC Quality of Life Questionnaire: How would you rate your overall quality of life during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+

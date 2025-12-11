@@ -1,2 +1,0 @@
-value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept,omop_standard_flag,omop_domain,omop_vocab
-ecog,36303470,89262-0,ECOG Performance Status [Interpretation],Clinical Observation,Standard,Valid,Observation,LOINC
