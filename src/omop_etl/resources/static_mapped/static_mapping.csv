@@ -2,8 +2,8 @@ value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_c
 lost_to_followup,True,4163894,399307001,Lost to follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
 sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
-sex_code,0,
-sex_code,1,
+sex_code,1,M,MALE,Gender,Standard,Valid,Gender,Gender
+sex_code,2,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 ecog,"0 - Fully active, able to carry on all pre-disease performance without restriction",36309661,LA9622-7,"Fully active, able to carry on all pre-disease performance without restriction",Answer,Standard,Valid,Meas Value,LOINC
 ecog,"1 - Restricted in physically strenous activity but ambulatory and able to carry out work of light and sedantary nature, e.g., light house work, office work",36310827,LA9623-5,"Restricted in physically strenuous activity but ambulatory and able to carry out work of a light or sedentary nature, e.g., light house work, office work",Answer,Standard,Valid,Meas Value,LOINC
 ecog,2 - Ambulatory and capable of all self-care but unable to carry out any work activities. Up and about more than 50% of waking hours,36309245,LA9624-3,Ambulatory and capable of all selfcare but unable to carry out any work activities. Up and about more than 50% of waking hours,Answer,Standard,Valid,Meas Value,LOINC
@@ -71,6 +71,50 @@ c30_global_answer_code,7,45881924,LA9206-9,Excellent,Answer,Standard,Valid,Meas 
 eq5d_q1_answer_code,1,742346,OMOP5181556,EuroQol five dimension five level mobility score: 1 (I have no problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
 eq5d_q1_answer_code,2,742347,OMOP5181557,EuroQol five dimension five level mobility score: 2 (I have slight problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
 eq5d_q1_answer_code,3,742348,OMOP5181558,EuroQol five dimension five level mobility score: 3 (I have moderate problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
-eq5d_q1_answer_code,4,
-eq5d_q1_answer_code,5,
-eq5d_q2_answer_code,
+eq5d_q1_answer_code,4,742349,OMOP5181559,EuroQol five dimension five level mobility score: 4 (I have severe problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer_code,5,742350,OMOP5181560,EuroQol five dimension five level mobility score: 5 (I am unable to walk about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer,I have no problems in walking about,742346,OMOP5181556,EuroQol five dimension five level mobility score: 1 (I have no problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer,I have slight problems in walking about,742347,OMOP5181557,EuroQol five dimension five level mobility score: 2 (I have slight problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer,I have moderate problems in walking about,742348,OMOP5181558,EuroQol five dimension five level mobility score: 3 (I have moderate problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer,I have severe problems in walking about,742349,OMOP5181559,EuroQol five dimension five level mobility score: 4 (I have severe problems in walking about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q1_answer,I am unable to walk about,742350,OMOP5181560,EuroQol five dimension five level mobility score: 5 (I am unable to walk about),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer,I have no problems washing or dressing myself,742351,OMOP5181561,EuroQol five dimension five level self-care score: 1 (I have no problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer,I have slight problems washing or dressing myself,742352,OMOP5181562,EuroQol five dimension five level self-care score: 2 (I have slight problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer,I have moderate problems washing or dressing myself,742353,OMOP5181563,EuroQol five dimension five level self-care score: 3 (I have moderate problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer,I have severe problems washing or dressing myself,742354,OMOP5181564,EuroQol five dimension five level self-care score: 4 (I have severe problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer,I am unable to wash or dress myself,742355,OMOP5181565,EuroQol five dimension five level self-care score: 5 (I am unable to wash or dress myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer_code,1,742351,OMOP5181561,EuroQol five dimension five level self-care score: 1 (I have no problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer_code,2,742352,OMOP5181562,EuroQol five dimension five level self-care score: 2 (I have slight problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer_code,3,742353,OMOP5181563,EuroQol five dimension five level self-care score: 3 (I have moderate problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer_code,4,742354,OMOP5181564,EuroQol five dimension five level self-care score: 4 (I have severe problems washing or dressing myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q2_answer_code,5,742355,OMOP5181565,EuroQol five dimension five level self-care score: 5 (I am unable to wash or dress myself),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer,I have no problems doing my usual activities,742356,OMOP5181566,EuroQol five dimension five level usual activities score: 1 (I have no problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer,I have slight problems doing my usual activities,742357,OMOP5181567,EuroQol five dimension five level usual activities score: 2 (I have slight problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer,I have moderate problems doing my usual activities,742358,OMOP5181568,EuroQol five dimension five level usual activities score: 3 (I have moderate problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer,I have severe problems doing my usual activities,742359,OMOP5181569,EuroQol five dimension five level usual activities score: 4 (I have severe problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer,I am unable to do my usual activities,742360,OMOP5181570,EuroQol five dimension five level usual activities score: 5 (I am unable to do my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer_code,1,742356,OMOP5181566,EuroQol five dimension five level usual activities score: 1 (I have no problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer_code,2,742357,OMOP5181567,EuroQol five dimension five level usual activities score: 2 (I have slight problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer_code,3,742358,OMOP5181568,EuroQol five dimension five level usual activities score: 3 (I have moderate problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer_code,4,742359,OMOP5181569,EuroQol five dimension five level usual activities score: 4 (I have severe problems doing my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q3_answer_code,5,742360,OMOP5181570,EuroQol five dimension five level usual activities score: 5 (I am unable to do my usual activities),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer,I have no pain or discomfort,742361,OMOP5181571,EuroQol five dimension five level pain discomfort score: 1 (I have no pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer,I have slight pain or discomfort,742362,OMOP5181572,EuroQol five dimension five level pain discomfort score: 2 (I have slight pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer,I have moderate pain or discomfort,742363,OMOP5181573,EuroQol five dimension five level pain discomfort score: 3 (I have moderate pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer,I have severe pain or discomfort,742364,OMOP5181574,EuroQol five dimension five level pain discomfort score: 4 (I have severe pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer,I have extreme pain or discomfort,742365,OMOP5181575,EuroQol five dimension five level pain discomfort score: 5 (I have extreme pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer_code,1,742361,OMOP5181571,EuroQol five dimension five level pain discomfort score: 1 (I have no pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer_code,2,742362,OMOP5181572,EuroQol five dimension five level pain discomfort score: 2 (I have slight pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer_code,3,742363,OMOP5181573,EuroQol five dimension five level pain discomfort score: 3 (I have moderate pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer_code,4,742364,OMOP5181574,EuroQol five dimension five level pain discomfort score: 4 (I have severe pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q4_answer_code,5,742365,OMOP5181575,EuroQol five dimension five level pain discomfort score: 5 (I have extreme pain or discomfort),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer,I am not anxious or depressed,742366,OMOP5181576,EuroQol five dimension five level anxiety depression score: 1 (I am not anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer,I am slightly anxious or depressed,742367,OMOP5181577,EuroQol five dimension five level anxiety depression score: 2 (I am slightly anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer,I am moderately anxious or depressed,742368,OMOP5181578,EuroQol five dimension five level anxiety depression score: 3 (I am moderately anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer,I am severely anxious or depressed,742369,OMOP5181579,EuroQol five dimension five level anxiety depression score: 4 (I am severely anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer,I am extremely anxious or depressed,742370,OMOP5181580,EuroQol five dimension five level anxiety depression score: 5 (I am extremely anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer_code,1,742366,OMOP5181576,EuroQol five dimension five level anxiety depression score: 1 (I am not anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer_code,2,742367,OMOP5181577,EuroQol five dimension five level anxiety depression score: 2 (I am slightly anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer_code,3,742368,OMOP5181578,EuroQol five dimension five level anxiety depression score: 3 (I am moderately anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer_code,4,742369,OMOP5181579,EuroQol five dimension five level anxiety depression score: 4 (I am severely anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eq5d_q5_answer_code,5,742370,OMOP5181580,EuroQol five dimension five level anxiety depression score: 5 (I am extremely anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension

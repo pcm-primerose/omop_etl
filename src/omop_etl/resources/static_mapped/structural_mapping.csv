@@ -33,4 +33,5 @@ c30_q27,701365,OMOP5117550,EORTC Quality of Life Questionnaire: Has your physica
 c30_q28,701366,OMOP5117551,EORTC Quality of Life Questionnaire: Has your physical condition or medical treatment caused you financial difficulties during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
 c30_q29,701367,OMOP5117552,EORTC Quality of Life Questionnaire: How would you rate your overall health during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
 c30_q30,701368,OMOP5117553,EORTC Quality of Life Questionnaire: How would you rate your overall quality of life during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
+eq5d_qol_score,,
 
