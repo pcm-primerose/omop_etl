@@ -118,3 +118,17 @@ eq5d_q5_answer_code,2,742367,OMOP5181577,EuroQol five dimension five level anxie
 eq5d_q5_answer_code,3,742368,OMOP5181578,EuroQol five dimension five level anxiety depression score: 3 (I am moderately anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
 eq5d_q5_answer_code,4,742369,OMOP5181579,EuroQol five dimension five level anxiety depression score: 4 (I am severely anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
 eq5d_q5_answer_code,5,742370,OMOP5181580,EuroQol five dimension five level anxiety depression score: 5 (I am extremely anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
+eot_reason,Disease progression,1617595,97509-4,Cancer disease progression,Clinical Observation,Standard,Valid,Observation,LOINC
+eot_reason,Normal completion according to cohort-specific manual,45884335,LA4511-7,Treatment Completed,Answer,Standard,Valid,Meas Value,LOINC
+eot_reason,Other,35821954,100418-5,Other reason,Answer,Standard,Valid,Observation,UK Biobank
+eot_reason,Adverse event/Toxicity,441207,62014003,Adverse reaction to drug,Disorder,Standard,Valid,Observation,SNOMED
+eot_reason,Symptomatic deterioration,4111347,285384003,General health deterioration,Clinical Finding,Standard,Valid,Observation,SNOMED
+eot_reason,Patient refusal,45773084,703427001,Refusal of treatment by patient against dental advice,Context-dependent,Standard,Valid,Observation,SNOMED
+eot_reason,Withdrawn by PI,44810920,871401000000109,Withdrawn from research study,Clinical Finding,Standard,Valid,Observation,SNOMED
+eot_reason,2,Disease progression,1617595,97509-4,Cancer disease progression,Clinical Observation,Standard,Valid,Observation,LOINC
+eot_reason,7,Normal completion according to cohort-specific manual,45884335,LA4511-7,Treatment Completed,Answer,Standard,Valid,Meas Value,LOINC
+eot_reason,88,Other,35821954,100418-5,Other reason,Answer,Standard,Valid,Observation,UK Biobank
+eot_reason,1,Adverse event/Toxicity,441207,62014003,Adverse reaction to drug,Disorder,Standard,Valid,Observation,SNOMED
+eot_reason,6,Symptomatic deterioration,4111347,285384003,General health deterioration,Clinical Finding,Standard,Valid,Observation,SNOMED
+eot_reason,3,Patient refusal,45773084,703427001,Refusal of treatment by patient against dental advice,Context-dependent,Standard,Valid,Observation,SNOMED
+eot_reason,5,Withdrawn by PI,44810920,871401000000109,Withdrawn from research study,Clinical Finding,Standard,Valid,Observation,SNOMED
