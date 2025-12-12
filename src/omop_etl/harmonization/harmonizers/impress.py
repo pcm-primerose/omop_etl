@@ -38,6 +38,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_cohort_name()
         self._process_gender()
         self._process_age()
+        self._process_date_of_birth()
         self._process_tumor_type()
         self._process_study_drugs()
         self._process_biomarkers()
@@ -104,6 +105,19 @@ class ImpressHarmonizer(BaseHarmonizer):
             pid = row["SubjectId"]
             sex = row["processed_sex"]
             self.patient_data[pid].sex = sex
+
+    def _process_date_of_birth(self) -> None:
+        """Process date of birth and update patient objects"""
+        birth_data = (
+            self.data.group_by("SubjectId")
+            .agg(pl.col("DM_BRTHDAT").drop_nulls().first().alias("birth_date"))
+            .with_columns(birth_date=(PolarsParsers.to_optional_date(pl.col("birth_date"))))
+        )
+
+        for row in birth_data.iter_rows(named=True):
+            pid = row["SubjectId"]
+            birth_date = row["birth_date"]
+            self.patient_data[pid].date_of_birth = birth_date
 
     def _process_age(self) -> None:
         """Process and calculate age at treatment start and update patient object"""
