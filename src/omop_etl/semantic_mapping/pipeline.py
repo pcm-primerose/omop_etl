@@ -9,7 +9,7 @@ from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.semantic_mapping.loader import LoadSemantics
 from omop_etl.semantic_mapping.query_extractor import extract_queries, validate_field_paths
 from omop_etl.semantic_mapping.semantic_config import DEFAULT_FIELD_CONFIGS
-from omop_etl.semantic_mapping.semantic_index import DictSemanticIndex
+from omop_etl.semantic_mapping.semantic_index import SemanticIndex
 from omop_etl.semantic_mapping.models import (
     OmopDomain,
     BatchQueryResult,
@@ -26,7 +26,7 @@ class SemanticLookupPipeline:
     ):
         # resolve semantic path (default in resources if not given)
         loader = LoadSemantics(semantics_path)
-        self._index = DictSemanticIndex(indexed_corpus=loader.as_indexed())
+        self._index = SemanticIndex(indexed_corpus=loader.as_indexed())
 
         # merge defaults and overrides with provided config by name
         base = list(DEFAULT_FIELD_CONFIGS)

@@ -6,6 +6,8 @@ from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.api import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
+from omop_etl.omop.build import BuildOmopRows
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.api import SemanticService
@@ -63,6 +65,18 @@ if __name__ == "__main__":
     semantic_service = SemanticService(harmonized_data=harmonized_data)
     semantic_mapped: BatchQueryResult = semantic_service.run()
 
-    print(f"semantic mapped: {semantic_mapped.matches}")
+    # add to dev .env later
+    static_csv = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped" / "static_mapping.csv"
+    structral_csv = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped" / "structural_mapping.csv"
 
-    # pass this to structural mapper ...
+    builder = BuildOmopRows(
+        harmonized_data=harmonized_data,
+        static_mapping_path=static_csv,
+        semantic_batch=semantic_mapped,
+        structural_mapping_path=structral_csv,
+    )
+
+    tables: OmopTables = builder.build_all_rows()
+    print(f"Person table: {tables.cdm_source}")
+
+    # todo: pass to DB setup/loader (final)

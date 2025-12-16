@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Sequence
 
 from omop_etl.harmonization.datamodels import HarmonizedData
-from omop_etl.semantic_mapping.models import FieldConfig
+from omop_etl.semantic_mapping.models import FieldConfig, BatchQueryResult
 from omop_etl.semantic_mapping.pipeline import SemanticLookupPipeline
 
 # todo later
@@ -28,7 +28,7 @@ class SemanticService:
         self.output_path = output_path
         self.configs = configs
 
-    def run(self):
+    def run(self) -> BatchQueryResult:
         # pass field configs to override by name
         pipeline = SemanticLookupPipeline(semantics_path=self.semantic_path)
         batch = pipeline.run_lookup(harmonized_data=self.harmonized_data)

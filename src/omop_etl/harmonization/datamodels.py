@@ -1212,6 +1212,7 @@ class ConcomitantMedication:
         )
 
 
+# todo: move to types
 class RelatedStatus(str, Enum):
     """Used in AdverseEvent"""
 
@@ -1493,6 +1494,7 @@ class Patient:
         self._trial_id = trial_id
         self._cohort_name: Optional[str] = None
         self._age: Optional[int] = None
+        self._date_of_birth: Optional[dt.date] = None
         self._sex: Optional[str] = None
         self._evaluable_for_efficacy_analysis: Optional[bool] = None
         self._treatment_start_date: Optional[dt.date] = None
@@ -1561,6 +1563,15 @@ class Patient:
     def age(self, value: Optional[int | None]) -> None:
         self._age = StrictValidators.validate_optional_int(value=value, field_name=self.__class__.age.fset.__name__)
         self.updated_fields.add(self.__class__.age.fset.__name__)
+
+    @property
+    def date_of_birth(self) -> Optional[dt.date]:
+        return self._date_of_birth
+
+    @date_of_birth.setter
+    def date_of_birth(self, value: Optional[dt.date | None]) -> None:
+        self._date_of_birth = StrictValidators.validate_optional_date(value=value, field_name=self.__class__.date_of_birth.fset.__name__)
+        self.updated_fields.add(self.__class__.date_of_birth.fset.__name__)
 
     @property
     def sex(self) -> Optional[str]:
