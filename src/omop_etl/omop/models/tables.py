@@ -1,7 +1,7 @@
 from dataclasses import dataclass, asdict
 from typing import List
 
-from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow
+from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow, CdmSourceRow
 
 
 @dataclass(frozen=True, slots=True)
@@ -10,6 +10,7 @@ class OmopTables:
 
     person: List[PersonRow]
     observation_period: List[ObservationPeriodRow]
+    cdm_source: CdmSourceRow
 
     meta: None | dict = None
 

@@ -14,18 +14,13 @@ class ObservationPeriodBuilder:
 
         treatment_end = patient.treatment_end_date
         observation_type = self._concepts.row_concepts_for_value_set("ecrf")
-        # todo: donn't like candidates and tuple unpacking in impl
-        #   but have to do this since ill query by shared indices in the structural mapping file
-        #   and I can't name each one, so "need" to unpack tuples or look over instances
-        #   which is ugly but ok for now
-        print(f"observation type: {observation_type}")
 
         return ObservationPeriodRow(
-            observation_period_id=person_id,  # fixme
+            observation_period_id=person_id,  # fixme (do this in the orchestrator class)
             person_id=person_id,
             observation_start_date=treatment_start,
             observation_end_date=treatment_end,
-            period_type_concept_id=observation_type[0].concept_id,
+            period_type_concept_id=observation_type.concept_id,
         )
 
     def _generate_observation_period_id(

@@ -32,8 +32,9 @@ class ObservationPeriodRow:
     period_type_concept_id: int
 
 
+# todo: make singleton
 @dataclass(frozen=True, slots=True)
-class CdmSource:
+class CdmSourceRow:
     cdm_source_name: str
     cdm_source_abbreviation: str
     cdm_holder: str

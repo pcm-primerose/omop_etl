@@ -6,6 +6,7 @@ from omop_etl.mapping.semantic_loader import SemanticResultIndex
 from omop_etl.mapping.static_loader import StaticMapLoader
 from omop_etl.mapping.concept_service import ConceptMappingService
 from omop_etl.mapping.structural_loader import StructuralMapLoader
+from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.models.tables import OmopTables
 
@@ -46,19 +47,25 @@ class BuildOmopRows:
 
         self._person_builder = PersonRowBuilder(self._concepts)
         self._observation_period_builder = ObservationPeriodBuilder(self._concepts)
+        self._cdm_source_builder = CdmSourceBuilder(self._concepts)
         # self._measurement_builder = ...
 
     def build_all_rows(self) -> OmopTables:
         pid_map = self._generate_person_ids()
         person_rows: list[PersonRow] = []
         observation_period_rows: list[ObservationPeriodRow] = []
+        cdm_source = self._cdm_source_builder.build_cdm_source()
 
         for p in self._hd.patients:
             pid = pid_map[p.patient_id]
             person_rows.append(self._person_builder.build(patient=p, person_id=pid))
             observation_period_rows.append(self._observation_period_builder.build(patient=p, person_id=pid))
 
-        return OmopTables(person=person_rows, observation_period=observation_period_rows)
+        return OmopTables(
+            person=person_rows,
+            observation_period=observation_period_rows,
+            cdm_source=cdm_source,
+        )
 
     def _generate_person_ids(self) -> dict[str, int]:
         # todo: make sha1-hex instead of sorting

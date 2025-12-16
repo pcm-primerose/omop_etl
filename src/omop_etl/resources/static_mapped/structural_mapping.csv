@@ -34,4 +34,5 @@ c30_q29,701367,OMOP5117552,EORTC Quality of Life Questionnaire: How would you ra
 c30_q30,701368,OMOP5117553,EORTC Quality of Life Questionnaire: How would you rate your overall quality of life during the past week?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
 eq5d_qol_score,42537274,736535009,EuroQol visual analogue score,Observable Entity,Standard,Valid,Measurement,SNOMED
 ecrf,32809,OMOP4976882,Case Report Form,Type Concept,Standard,Valid,Type Concept,Type Concept
-
+cdm,705800,CDM v5.4.2,OMOP CDM Version 5.4.2,CDM,Standard,Valid,Metadata,CDM
+vocab,1146958,CDM14,vocabulary.vocabulary_version,Field,Standard,Valid,Metadata,CDM

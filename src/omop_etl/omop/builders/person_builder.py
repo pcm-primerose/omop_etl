@@ -22,7 +22,6 @@ class PersonRowBuilder:
         gender_concept_id = mapped.concept_id if mapped else 0
 
         dob = patient.date_of_birth
-        print(f"dob here: {dob}")
         # if dob is None:
         # raise ValueError(f"Missing date_of_birth for patient {patient.patient_id}")
         # mb not raise but log warning instead
