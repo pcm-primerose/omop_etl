@@ -18,7 +18,7 @@ class ObservationPeriodBuilder:
         #   but have to do this since ill query by shared indices in the structural mapping file
         #   and I can't name each one, so "need" to unpack tuples or look over instances
         #   which is ugly but ok for now
-        print(f"observation type: {observation_type[0]}")
+        print(f"observation type: {observation_type}")
 
         return ObservationPeriodRow(
             observation_period_id=person_id,  # fixme
