@@ -15,7 +15,7 @@ class MappedConcept:
 class StaticConcept:
     value_set: str
     local_value: str
-    concept_id: int
+    concept_id: str
     concept_code: str
     concept_name: str
     concept_class: str
@@ -29,7 +29,7 @@ class StaticConcept:
         return cls(
             value_set=row["value_set"],
             local_value=row["local_value"],
-            concept_id=int(row["omop_concept_id"]),
+            concept_id=row["omop_concept_id"],
             concept_code=row["omop_concept_code"],
             concept_name=row["omop_concept_name"],
             concept_class=row["omop_class"],
@@ -43,7 +43,7 @@ class StaticConcept:
 @dataclass(frozen=True, slots=True)
 class StructuralConcept:
     value_set: str
-    concept_id: int
+    concept_id: str
     concept_code: str
     concept_name: str
     domain_id: str
@@ -57,7 +57,7 @@ class StructuralConcept:
     def from_csv_row(cls, row: dict[str, str]) -> "StructuralConcept":
         return cls(
             value_set=row["value_set"],
-            concept_id=int(row["omop_concept_id"]),
+            concept_id=row["omop_concept_id"],
             concept_code=row["omop_concept_code"],
             concept_name=row["omop_concept_name"],
             concept_class=row["omop_class"],

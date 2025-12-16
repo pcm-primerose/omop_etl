@@ -1,7 +1,9 @@
-value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept,omop_standard_flag,omop_domain,omop_vocab
+value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept_category,omop_valid_flag,omop_domain,omop_vocab
 lost_to_followup,True,4163894,399307001,Lost to follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
 sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
+sex,female,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
+sex,male,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
 sex_code,1,M,MALE,Gender,Standard,Valid,Gender,Gender
 sex_code,2,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 ecog,"0 - Fully active, able to carry on all pre-disease performance without restriction",36309661,LA9622-7,"Fully active, able to carry on all pre-disease performance without restriction",Answer,Standard,Valid,Meas Value,LOINC

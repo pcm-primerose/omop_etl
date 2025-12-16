@@ -1,4 +1,3 @@
-# structural mapping of value sets or fields whose row-level concept is not data-dependent
 value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept_category,omop_valid_flag,omop_domain,omop_vocab
 ecog,36305384,89247-1,ECOG Performance Status score,Clinical Observation,Standard,Valid,Measurement,LOINC
 tumor_assessment_baseline,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED

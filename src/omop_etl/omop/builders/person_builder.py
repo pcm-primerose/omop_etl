@@ -20,15 +20,16 @@ class PersonRowBuilder:
         gender_concept_id = mapped.concept_id if mapped else 0
 
         dob = patient.date_of_birth
-        if dob is None:
-            raise ValueError(f"Missing date_of_birth for patient {patient.patient_id}")
+        # if dob is None:
+        # raise ValueError(f"Missing date_of_birth for patient {patient.patient_id}")
+        # mb not raise but log warning instead
 
         return PersonRow(
             person_id=person_id,
             gender_concept_id=gender_concept_id,
-            year_of_birth=dob.year,
-            month_of_birth=dob.month,
-            day_of_birth=dob.day,
+            year_of_birth=dob.year if dob is not None else None,
+            month_of_birth=dob.month if dob is not None else None,
+            day_of_birth=dob.day if dob is not None else None,
             birth_datetime=None,
             race_concept_id=0,
             ethnicity_concept_id=0,

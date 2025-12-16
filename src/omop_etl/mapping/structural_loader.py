@@ -5,8 +5,8 @@ from omop_etl.mapping.models import StructuralConcept
 
 
 class StructuralMapLoader:
-    def __init__(self):
-        self.path = Path
+    def __init__(self, path: Path):
+        self.path = path
 
     def as_rows(self) -> list[StructuralConcept]:
         rows: list[StructuralConcept] = []
