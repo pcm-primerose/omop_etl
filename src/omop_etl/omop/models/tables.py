@@ -1,7 +1,7 @@
 from dataclasses import dataclass, asdict
 from typing import List
 
-from omop_etl.omop.models.person import PersonRow
+from omop_etl.omop.models.rows import PersonRow
 
 
 @dataclass(frozen=True, slots=True)

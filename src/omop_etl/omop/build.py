@@ -13,13 +13,6 @@ from omop_etl.omop.models.person import PersonRow
 from omop_etl.semantic_mapping.models import BatchQueryResult
 
 
-# todo: this shouldn't call the semantic pipeline, but recieve
-#   the semantic mapped data instead I think, bc this will be called in Main
-#   and this is the "build OMOP tables" entrypoint
-#   and semantic mapping pipeline is upstream of this
-#   - so basically we just pass HarmonizedData and the SemanticService
-
-
 class BuildOmopRows:
     def __init__(
         self,
