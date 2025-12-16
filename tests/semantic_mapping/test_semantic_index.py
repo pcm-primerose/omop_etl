@@ -1,10 +1,10 @@
-from src.omop_etl.semantic_mapping.semantic_index import DictSemanticIndex
+from src.omop_etl.semantic_mapping.semantic_index import SemanticIndex
 from src.omop_etl.semantic_mapping.loader import LoadSemantics
 
 
 def test_semantic_index(semantic_file, queries):
     loader = LoadSemantics(semantic_file)
-    index = DictSemanticIndex(indexed_corpus=loader.as_indexed())
+    index = SemanticIndex(indexed_corpus=loader.as_indexed())
 
     # assert that first query has mapped concept for AML
     results = index.lookup_exact(queries=queries)

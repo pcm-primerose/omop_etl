@@ -12,7 +12,7 @@ from omop_etl.semantic_mapping.models import (
 
 # todo: when expanding to athena, make multi-index
 #   and construct with this before running query, for now doesn't matter
-class DictSemanticIndex:
+class SemanticIndex:
     def __init__(self, indexed_corpus: dict[str, List[SemanticRow]]):
         self.indexed_corpus = indexed_corpus
 
