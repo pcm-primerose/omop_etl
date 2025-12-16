@@ -8,5 +8,6 @@
 
 # todo:
 #   probably need to crate stateless functions that recieve connections, rows etc to populate?
+#   [ ] make plan for setup, choose between psqpl and sqlalchemy (etc), what to do first, ...
 
 
