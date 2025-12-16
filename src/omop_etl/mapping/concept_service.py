@@ -41,18 +41,18 @@ class ConceptMappingService:
         )
 
     # structural
-    def row_concepts_for_value_set(self, value_set: str) -> tuple[MappedConcept, ...]:
-        rows = self._structural_index.get(value_set, ())
-        return tuple(
-            MappedConcept(
-                concept_id=r.concept_id,
-                concept_code=r.concept_code,
-                concept_name=r.concept_name,
-                domain_id=r.domain_id,
-                vocabulary_id=r.vocabulary_id,
-                standard_flag=r.valid_flag,
-            )
-            for r in rows
+    def row_concepts_for_value_set(self, value_set: str) -> MappedConcept | None:
+        rows: StructuralConcept = self._structural_index.get(value_set, ())
+        if rows is None:
+            return None
+
+        return MappedConcept(
+            concept_id=rows.concept_id,
+            concept_code=rows.concept_code,
+            concept_name=rows.concept_name,
+            domain_id=rows.domain_id,
+            vocabulary_id=rows.vocabulary_id,
+            standard_flag=rows.valid_flag,
         )
 
     # semantic

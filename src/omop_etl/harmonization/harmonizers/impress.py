@@ -1811,6 +1811,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Note: Docs mention progression date and EventDate as well,
         but all patients in EOT source has EOTDAT,
         EventDate is date recorded (so it's wrong) and progression date is tracked in TumorAssessment class.
+        fixme: EOT + Other sources of EOTs are in treatment_end_date method, so this shold probablky be removed
         """
         filtered = (
             self.data.select("SubjectId", "EOT_EOTDAT")

@@ -6,10 +6,11 @@ from omop_etl.mapping.semantic_loader import SemanticResultIndex
 from omop_etl.mapping.static_loader import StaticMapLoader
 from omop_etl.mapping.concept_service import ConceptMappingService
 from omop_etl.mapping.structural_loader import StructuralMapLoader
+from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.models.tables import OmopTables
 
 from omop_etl.omop.builders.person_builder import PersonRowBuilder
-from omop_etl.omop.models.person import PersonRow
+from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow
 from omop_etl.semantic_mapping.models import BatchQueryResult
 
 
@@ -41,18 +42,23 @@ class BuildOmopRows:
             semantic_index=semantic_index,
         )
 
+        # todo: make this functional
+
         self._person_builder = PersonRowBuilder(self._concepts)
+        self._observation_period_builder = ObservationPeriodBuilder(self._concepts)
         # self._measurement_builder = ...
 
     def build_all_rows(self) -> OmopTables:
         pid_map = self._generate_person_ids()
         person_rows: list[PersonRow] = []
+        observation_period_rows: list[ObservationPeriodRow] = []
 
         for p in self._hd.patients:
             pid = pid_map[p.patient_id]
             person_rows.append(self._person_builder.build(patient=p, person_id=pid))
+            observation_period_rows.append(self._observation_period_builder.build(patient=p, person_id=pid))
 
-        return OmopTables(person=person_rows)
+        return OmopTables(person=person_rows, observation_period=observation_period_rows)
 
     def _generate_person_ids(self) -> dict[str, int]:
         # todo: make sha1-hex instead of sorting

@@ -1,9 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, astuple
 
 
 @dataclass(frozen=True, slots=True)
 class MappedConcept:
-    concept_id: int
+    concept_id: int | str
     concept_code: str
     concept_name: str
     domain_id: str
@@ -66,3 +66,6 @@ class StructuralConcept:
             domain_id=row["omop_domain"],
             vocabulary_id=row["omop_vocab"],
         )
+
+    def __iter__(self):
+        return iter(astuple(self))

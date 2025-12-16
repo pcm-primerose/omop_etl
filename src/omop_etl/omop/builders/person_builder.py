@@ -7,6 +7,8 @@ class PersonRowBuilder:
     def __init__(self, concept_service: ConceptMappingService):
         self._concepts = concept_service
 
+        # todo: need to map 32809	OMOP4976882	Case Report Form	Type Concept	Standard	Valid	Type Concept	Type Concept
+
     def build(self, patient: Patient, person_id: int) -> PersonRow:
         sex_raw = patient.sex
 
@@ -20,6 +22,7 @@ class PersonRowBuilder:
         gender_concept_id = mapped.concept_id if mapped else 0
 
         dob = patient.date_of_birth
+        print(f"dob here: {dob}")
         # if dob is None:
         # raise ValueError(f"Missing date_of_birth for patient {patient.patient_id}")
         # mb not raise but log warning instead
