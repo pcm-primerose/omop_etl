@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import datetime as dt
 
 # todo: maybe just use pydantic instead? would be nice with field validators for length etc
+#   - yes
 
 
 @dataclass(frozen=True, slots=True)

@@ -77,6 +77,6 @@ if __name__ == "__main__":
     )
 
     tables: OmopTables = builder.build_all_rows()
-    print(f"Person table: {tables.cdm_source}")
+    print(f"Tables: {tables}")
 
     # todo: pass to DB setup/loader (final)

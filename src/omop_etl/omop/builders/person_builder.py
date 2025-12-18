@@ -7,8 +7,6 @@ class PersonRowBuilder:
     def __init__(self, concept_service: ConceptMappingService):
         self._concepts = concept_service
 
-        # todo: need to map 32809	OMOP4976882	Case Report Form	Type Concept	Standard	Valid	Type Concept	Type Concept
-
     def build(self, patient: Patient, person_id: int) -> PersonRow:
         sex_raw = patient.sex
 
@@ -29,7 +27,7 @@ class PersonRowBuilder:
         return PersonRow(
             person_id=person_id,
             gender_concept_id=gender_concept_id,
-            year_of_birth=dob.year if dob is not None else None,
+            year_of_birth=dob.year,
             month_of_birth=dob.month if dob is not None else None,
             day_of_birth=dob.day if dob is not None else None,
             birth_datetime=None,
