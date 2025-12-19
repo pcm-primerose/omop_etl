@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import List
 
 from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow, CdmSourceRow
@@ -14,7 +14,7 @@ class OmopTables:
 
     meta: None | dict = None
 
-    def __getitem__(self, item) -> "OmopTables":
-        if item in asdict(self):
-            return item
-        raise KeyError(f"Key: {item} not in {OmopTables.__name__}")
+    def __getitem__(self, item: str):
+        if hasattr(self, item):
+            return getattr(self, item)
+        raise KeyError(...)
