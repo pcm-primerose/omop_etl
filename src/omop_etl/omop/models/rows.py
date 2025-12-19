@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 import datetime as dt
 
-# todo: maybe just use pydantic instead? would be nice with field validators for length etc
-#   - yes
+# todo: switch to pydantic and match psql schemas
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,8 +27,8 @@ class PersonRow:
 class ObservationPeriodRow:
     observation_period_id: int
     person_id: int
-    observation_start_date: dt.date
-    observation_end_date: dt.date
+    observation_period_start_date: dt.date
+    observation_period_end_date: dt.date
     period_type_concept_id: int
 
 

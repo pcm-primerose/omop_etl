@@ -1,5 +1,4 @@
 from pathlib import Path
-from itertools import count
 
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.mapping.semantic_loader import SemanticResultIndex
@@ -8,8 +7,8 @@ from omop_etl.mapping.concept_service import ConceptMappingService
 from omop_etl.mapping.structural_loader import StructuralMapLoader
 from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
+from omop_etl.omop.id_generator import sha1_bigint
 from omop_etl.omop.models.tables import OmopTables
-
 from omop_etl.omop.builders.person_builder import PersonRowBuilder
 from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow
 from omop_etl.semantic_mapping.models import BatchQueryResult
@@ -44,11 +43,9 @@ class BuildOmopRows:
         )
 
         # todo: make this functional
-
         self._person_builder = PersonRowBuilder(self._concepts)
         self._observation_period_builder = ObservationPeriodBuilder(self._concepts)
         self._cdm_source_builder = CdmSourceBuilder(self._concepts)
-        # self._measurement_builder = ...
 
     def build_all_rows(self) -> OmopTables:
         pid_map = self._generate_person_ids()
@@ -58,8 +55,17 @@ class BuildOmopRows:
 
         for p in self._hd.patients:
             pid = pid_map[p.patient_id]
-            person_rows.append(self._person_builder.build(patient=p, person_id=pid))
-            observation_period_rows.append(self._observation_period_builder.build(patient=p, person_id=pid))
+            # fixme: make this better later, each builder should be responsible for
+            #   returning valid data
+            person = self._person_builder.build(patient=p, person_id=pid)
+            if person is None:
+                continue
+            person_rows.append(person)
+
+            op = self._observation_period_builder.build(patient=p, person_id=pid)
+            if op is None:
+                continue
+            observation_period_rows.append(op)
 
         return OmopTables(
             person=person_rows,
@@ -68,9 +74,4 @@ class BuildOmopRows:
         )
 
     def _generate_person_ids(self) -> dict[str, int]:
-        # todo: make sha1-hex instead of sorting
-        mapping: dict[str, int] = {}
-        gen = count(start=1)
-        for p in sorted(self._hd.patients, key=lambda x: x.patient_id):
-            mapping[p.patient_id] = next(gen)
-        return mapping
+        return {p.patient_id: sha1_bigint("person", p.patient_id) for p in self._hd.patients}

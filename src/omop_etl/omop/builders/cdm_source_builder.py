@@ -1,29 +1,9 @@
 import datetime as dt
-from dataclasses import dataclass
 
 from omop_etl.omop.models.rows import CdmSourceRow
 from omop_etl.mapping.concept_service import ConceptMappingService
 
-
-@dataclass(frozen=True, slots=True)
-class CdmSource:
-    cdm_source_name: str
-    cdm_source_abbreviation: str
-    cdm_holder: str
-    source_description: None | str
-    source_documentation_reference: None | str
-    cdm_etl_reference: None | str
-    source_release_date: dt.date
-    cdm_release_date: dt.date
-    cdm_version: None | str
-    cdm_version_concept_id: int  # max len 10
-    vocabulary_version: str  # max len 20
-
-
-# todo: load from run config or something later
-#   rn this is not configurable and just static metadata
-#   need to automatically get cdm version, etc
-#   and unsure what to do with some dates etc
+# todo: clean this up, make configurable
 
 
 class CdmSourceBuilder:
@@ -32,7 +12,7 @@ class CdmSourceBuilder:
 
     def build_cdm_source(self):
         cdm_version_concept = self._concepts.row_concepts_for_value_set("cdm").concept_id
-        cdm_vocabulary_version = self._concepts.row_concepts_for_value_set("vocab").concept_id
+        cdm_vocabulary_version = str(self._concepts.row_concepts_for_value_set("vocab").concept_id)
 
         return CdmSourceRow(
             cdm_source_name="test ETL",
