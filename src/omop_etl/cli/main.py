@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
 
     load.add_argument("--dsn", default=None)
     load.add_argument("--truncate", action="store_true")
-    load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping (may require internet)")
+    load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping")
     load.add_argument("--log-level", default="INFO")
     load.set_defaults(func=cmd_load)
 
