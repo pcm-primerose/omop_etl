@@ -13,4 +13,5 @@ __pycache__
 todo.todo
 activate
 mock.py
-idea
+idea.complexipy_cache/
+profile.json

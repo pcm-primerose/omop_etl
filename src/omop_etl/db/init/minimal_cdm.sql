@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS observation_period (
   CONSTRAINT xpk_observation_period PRIMARY KEY (observation_period_id)
 );
 
-
 CREATE TABLE IF NOT EXISTS cdm_source (
   cdm_source_name               varchar(255) NOT NULL,
   cdm_source_abbreviation       varchar(25)  NOT NULL,

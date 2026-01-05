@@ -4,9 +4,9 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 from logging import getLogger
 from typing import List
-
-from omop_etl.semantic_mapping.models import SemanticRow
 from importlib.resources import files as pkg_files
+
+from omop_etl.semantic_mapping.core.models import SemanticRow
 
 _BASE_SEMANTIC_MAPPED = pkg_files("omop_etl.resources.semantic_mapped")
 log = getLogger(__name__)

@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 
-from omop_etl.mapping.models import StaticConcept
+from omop_etl.concept_mapping.models import StaticConcept
 
 
 class StaticMapLoader:

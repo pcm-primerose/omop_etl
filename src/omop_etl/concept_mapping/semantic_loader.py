@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple, Optional, Dict
 
-from omop_etl.semantic_mapping.models import QueryResult, BatchQueryResult
+from omop_etl.semantic_mapping.core.models import QueryResult, BatchQueryResult
 
 
 @dataclass(frozen=True, slots=True)

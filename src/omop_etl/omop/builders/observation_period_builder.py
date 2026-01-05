@@ -1,7 +1,7 @@
 from omop_etl.harmonization.datamodels import Patient
 from omop_etl.omop.id_generator import sha1_bigint
 from omop_etl.omop.models.rows import ObservationPeriodRow
-from omop_etl.mapping.concept_service import ConceptMappingService
+from omop_etl.concept_mapping.concept_service import ConceptMappingService
 
 
 class ObservationPeriodBuilder:

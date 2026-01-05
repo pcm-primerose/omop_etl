@@ -1,5 +1,5 @@
-from src.omop_etl.semantic_mapping.semantic_index import SemanticIndex
-from src.omop_etl.semantic_mapping.loader import LoadSemantics
+from omop_etl.semantic_mapping.core.semantic_index import SemanticIndex
+from omop_etl.semantic_mapping.core.loader import LoadSemantics
 
 
 def test_semantic_index(semantic_file, queries):

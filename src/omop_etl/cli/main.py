@@ -45,11 +45,17 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str) -> Harm
     )
     return harmonized_result
 
+    # todo: move rest of services to here, re-use run context
 
-def _build_tables(harmonized: HarmonizedData, *, static_mapping: Path, structural_mapping: Path, with_semantic: bool) -> OmopTables:
+
+# todo: always use semantic & static (remove args basically)
+def _build_tables(
+    harmonized: HarmonizedData, meta: RunMetadata, *, static_mapping: Path, structural_mapping: Path, with_semantic: bool
+) -> OmopTables:
     semantic_batch: BatchQueryResult | None = None
     if with_semantic:
-        semantic_batch = SemanticService(harmonized_data=harmonized).run()
+        result = SemanticService().run(harmonized_data=harmonized, meta=meta)
+        semantic_batch = result.batch_result
 
     builder = BuildOmopRows(
         harmonized_data=harmonized,
@@ -69,8 +75,10 @@ def cmd_load(args: argparse.Namespace) -> int:
         trial=args.trial,
     )
 
+    # todo: don't create new run context
     tables = _build_tables(
         harmonized,
+        meta=RunMetadata.create(args.trial),
         static_mapping=args.static_mapping,
         structural_mapping=args.structural_mapping,
         with_semantic=args.with_semantic,
@@ -100,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
 
     load.add_argument("--dsn", default=None)
     load.add_argument("--truncate", action="store_true")
-    load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping (may require internet)")
+    load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping")
     load.add_argument("--log-level", default="INFO")
     load.set_defaults(func=cmd_load)
 

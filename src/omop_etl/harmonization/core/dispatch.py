@@ -13,7 +13,7 @@ def resolve_harmonizer(trial: str) -> type[BaseHarmonizer]:
     try:
         return _TRIALS[key]
     except KeyError:
-        raise KeyError(f"No harmonizer for trial: {trial}. Suppoerted trials: {', '.join(sorted(_TRIALS)) or '(none)'}")
+        raise KeyError(f"No harmonizer for trial: {trial}. Supported trials: {', '.join(sorted(_TRIALS)) or '(none)'}")
 
 
 def list_trials() -> list[str]:

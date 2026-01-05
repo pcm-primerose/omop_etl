@@ -1,7 +1,7 @@
 from typing import List
 
-from omop_etl.semantic_mapping.models import Query
-from omop_etl.semantic_mapping.query_extractor import extract_queries
+from omop_etl.semantic_mapping.core.models import Query
+from omop_etl.semantic_mapping.core.query_extractor import extract_queries
 
 
 def test_query_extractor(patients, configs):
