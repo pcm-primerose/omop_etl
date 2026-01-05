@@ -24,7 +24,7 @@ class SemanticService:
         trial: str,
         harmonized_data: HarmonizedData,
         meta: RunMetadata,
-        formats: AnyFormatToken = "all",
+        formats: AnyFormatToken = "csv",
         input_path: Path | None = None,
         write_output: bool | None = True,
         semantic_path: Path | None = None,

@@ -6,7 +6,7 @@ from omop_etl.infra.io.format_utils import ext
 from omop_etl.infra.io.types import TabularFormat, WideFormat
 from omop_etl.infra.utils.run_context import RunMetadata
 
-Mode = Literal["preprocessed", "wide", "normalized", "harmonized_norm", "harmonized_wide", "semantic_mapped"]
+Mode = Literal["preprocessed", "wide", "normalized", "harmonized_norm", "harmonized_wide", "semantic_mapped", "concept_lookup"]
 
 
 @dataclass(frozen=True)

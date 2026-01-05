@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from omop_etl.concept_mapping.api import ConceptLookupService
 from omop_etl.harmonization.datamodels import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -11,6 +12,11 @@ from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.api import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
+
+# default resource paths
+RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"
+DEFAULT_STATIC_CSV = RESOURCES_DIR / "static_mapping.csv"
+DEFAULT_STRUCTURAL_CSV = RESOURCES_DIR / "structural_mapping.csv"
 
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> SemanticMappingResult:
@@ -56,20 +62,26 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         write_output=True,
     )
 
-    # todo: move other services here once complete:
-
-    # add to dev .env later
-    static_csv = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped" / "static_mapping.csv"
-    structral_csv = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped" / "structural_mapping.csv"
-
-    builder = BuildOmopRows(
-        harmonized_data=harmonized_result,
-        static_mapping_path=static_csv,
+    # concept lookup service - loads static/structural mappings, tracks lookups
+    concept_service = ConceptLookupService.from_paths(
+        static_path=DEFAULT_STATIC_CSV,
+        structural_path=DEFAULT_STRUCTURAL_CSV,
         semantic_batch=semantic_result.batch_result,
-        structural_mapping_path=structral_csv,
+        meta=_meta,
+        outdir=base_root,
+        layout=Layout.TRIAL_TIMESTAMP_RUN,
     )
 
+    # build OMOP rows using the concept service
+    builder = BuildOmopRows(
+        harmonized_data=harmonized_result,
+        concepts=concept_service,
+    )
     tables: OmopTables = builder.build_all_rows()
+
+    # export concept lookup tracking (missed lookups, coverage stats)
+    concept_service.export(formats="csv")
+
     print(f"Tables: {tables}")
 
     return semantic_result

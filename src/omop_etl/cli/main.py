@@ -11,7 +11,7 @@ from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.api import SemanticService
-from omop_etl.semantic_mapping.models import BatchQueryResult
+from omop_etl.semantic_mapping.core.models import BatchQueryResult
 
 from omop_etl.omop.build import BuildOmopRows
 from omop_etl.omop.models.tables import OmopTables
