@@ -1,14 +1,12 @@
 import datetime as dt
 
 from omop_etl.omop.models.rows import CdmSourceRow
-from omop_etl.concept_mapping.concept_service import ConceptMappingService
-
-# todo: clean this up, make configurable
+from omop_etl.concept_mapping.api import ConceptLookupService
 
 
 class CdmSourceBuilder:
-    def __init__(self, concept_service: ConceptMappingService):
-        self._concepts = concept_service
+    def __init__(self, concepts: ConceptLookupService):
+        self._concepts = concepts
 
     def build_cdm_source(self):
         cdm_version_concept = self._concepts.row_concepts_for_value_set("cdm").concept_id

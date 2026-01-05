@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 
-from omop_etl.concept_mapping.models import StructuralConcept
+from omop_etl.concept_mapping.core.models import StructuralConcept
 
 
 class StructuralMapLoader:

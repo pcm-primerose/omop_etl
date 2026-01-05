@@ -1,12 +1,12 @@
 from omop_etl.harmonization.datamodels import Patient
 from omop_etl.omop.id_generator import sha1_bigint
 from omop_etl.omop.models.rows import ObservationPeriodRow
-from omop_etl.concept_mapping.concept_service import ConceptMappingService
+from omop_etl.concept_mapping.api import ConceptLookupService
 
 
 class ObservationPeriodBuilder:
-    def __init__(self, concept_service: ConceptMappingService):
-        self._concepts = concept_service
+    def __init__(self, concepts: ConceptLookupService):
+        self._concepts = concepts
 
     def build(self, patient: Patient, person_id: int) -> ObservationPeriodRow | None:
         treatment_start = patient.treatment_start_date

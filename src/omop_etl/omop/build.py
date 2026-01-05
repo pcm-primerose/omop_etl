@@ -1,48 +1,22 @@
-from pathlib import Path
-
 from omop_etl.harmonization.datamodels import HarmonizedData
-from omop_etl.concept_mapping.semantic_loader import SemanticResultIndex
-from omop_etl.concept_mapping.static_loader import StaticMapLoader
-from omop_etl.concept_mapping.concept_service import ConceptMappingService
-from omop_etl.concept_mapping.structural_loader import StructuralMapLoader
+from omop_etl.concept_mapping.api import ConceptLookupService
 from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.id_generator import sha1_bigint
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.omop.builders.person_builder import PersonRowBuilder
 from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow
-from omop_etl.semantic_mapping.core.models import BatchQueryResult
 
 
 class BuildOmopRows:
     def __init__(
         self,
         harmonized_data: HarmonizedData,
-        static_mapping_path: Path,
-        semantic_batch: BatchQueryResult | None = None,
-        structural_mapping_path: Path | None = None,
+        concepts: ConceptLookupService,
     ):
         self._hd = harmonized_data
+        self._concepts = concepts
 
-        # static index
-        static_index = StaticMapLoader(static_mapping_path).as_index()
-
-        # structural index
-        if structural_mapping_path is not None:
-            structural_index = StructuralMapLoader(structural_mapping_path).as_index()
-        else:
-            structural_index = {}
-
-        # semantic results index
-        semantic_index = SemanticResultIndex.from_batch(semantic_batch) if semantic_batch is not None else None
-
-        self._concepts = ConceptMappingService(
-            static_index=static_index,
-            structural_index=structural_index,
-            semantic_index=semantic_index,
-        )
-
-        # todo: make this functional
         self._person_builder = PersonRowBuilder(self._concepts)
         self._observation_period_builder = ObservationPeriodBuilder(self._concepts)
         self._cdm_source_builder = CdmSourceBuilder(self._concepts)
