@@ -1,10 +1,10 @@
 from pathlib import Path
 
 from omop_etl.harmonization.datamodels import HarmonizedData
-from omop_etl.mapping.semantic_loader import SemanticResultIndex
-from omop_etl.mapping.static_loader import StaticMapLoader
-from omop_etl.mapping.concept_service import ConceptMappingService
-from omop_etl.mapping.structural_loader import StructuralMapLoader
+from omop_etl.concept_mapping.semantic_loader import SemanticResultIndex
+from omop_etl.concept_mapping.static_loader import StaticMapLoader
+from omop_etl.concept_mapping.concept_service import ConceptMappingService
+from omop_etl.concept_mapping.structural_loader import StructuralMapLoader
 from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.id_generator import sha1_bigint

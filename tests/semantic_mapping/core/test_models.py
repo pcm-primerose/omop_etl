@@ -213,7 +213,7 @@ class TestCoverageByFieldPath:
         assert diagnoses_stats["matched"] == 1
         assert diagnoses_stats["missing"] == 1
         assert diagnoses_stats["total"] == 2
-        assert diagnoses_stats["coverage_pct"] == 50.0
+        assert diagnoses_stats["coverage_fraction"] == 0.50
 
     def test_coverage_by_field_path_medications(self, batch_result):
         coverage = batch_result.coverage_by_field_path()
@@ -222,7 +222,7 @@ class TestCoverageByFieldPath:
         assert meds_stats["matched"] == 1
         assert meds_stats["missing"] == 1
         assert meds_stats["total"] == 2
-        assert meds_stats["coverage_pct"] == 50.0
+        assert meds_stats["coverage_fraction"] == 0.50
 
     def test_coverage_full_match(self):
         query = Query(
@@ -249,7 +249,7 @@ class TestCoverageByFieldPath:
         batch = BatchQueryResult(results=(QueryResult(patient_id="P1", query=query, results=[semantic_row]),))
 
         coverage = batch.coverage_by_field_path()
-        assert coverage["field"]["coverage_pct"] == 100.0
+        assert coverage["field"]["coverage_fraction"] == 1.0
 
     def test_coverage_no_matches(self):
         query = Query(
@@ -262,7 +262,7 @@ class TestCoverageByFieldPath:
         batch = BatchQueryResult(results=(QueryResult(patient_id="P1", query=query, results=[]),))
 
         coverage = batch.coverage_by_field_path()
-        assert coverage["field"]["coverage_pct"] == 0.0
+        assert coverage["field"]["coverage_fraction"] == 0.0
 
 
 class TestSemanticRow:

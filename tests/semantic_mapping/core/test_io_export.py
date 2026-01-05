@@ -319,7 +319,7 @@ class TestManifest:
         assert field_stats["matched"] == 1
         assert field_stats["missing"] == 1
         assert field_stats["total"] == 2
-        assert field_stats["coverage_pct"] == 50.0
+        assert field_stats["coverage_fraction"] == 0.50
 
 
 class TestExportDirectoryStructure:

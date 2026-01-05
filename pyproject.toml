@@ -27,6 +27,7 @@ dev = [
   "types-deprecated>=1.2.15.20250304",
   "ty>=0.0.1a28",
   "complexipy>=5.1.0",
+  "scalene>=2.0.1",
 ]
 
 [build-system]
