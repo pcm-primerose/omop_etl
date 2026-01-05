@@ -83,7 +83,7 @@ def write_frames_dir(
     return WriterResult(main_file=main, table_files=files, tables=metas)
 
 
-def write_json(obj: dict, path: Path, opts: JsonOptions | None = None) -> WriterResult:
+def write_json(obj: dict | list, path: Path, opts: JsonOptions | None = None) -> WriterResult:
     j = opts or JsonOptions()
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as fp:

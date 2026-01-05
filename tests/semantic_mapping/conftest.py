@@ -10,7 +10,7 @@ from omop_etl.harmonization.datamodels import (
     Patient,
 )
 
-from omop_etl.semantic_mapping.models import (
+from omop_etl.semantic_mapping.core.models import (
     Query,
     OmopDomain,
     QueryTarget,

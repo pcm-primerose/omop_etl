@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence, List, Final, Mapping, cast, TypeVar, Optional
+from typing import Iterable, Sequence, List, Final, Mapping, TypeVar, Optional
 from types import MappingProxyType
 
 from .types import ALIASES, WIDE_FORMATS, AnyFormatToken
@@ -59,7 +59,7 @@ def expand_formats(
             seen.add(t)
             requested.append(t)
 
-    return cast(List[F], requested)
+    return requested
 
 
 def normalize_format(

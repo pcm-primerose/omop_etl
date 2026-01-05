@@ -1,4 +1,4 @@
-from omop_etl.semantic_mapping.models import (
+from omop_etl.semantic_mapping.core.models import (
     FieldConfig,
     OmopDomain,
     QueryTarget,

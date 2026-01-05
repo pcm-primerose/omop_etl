@@ -11,7 +11,7 @@ from omop_etl.omop.id_generator import sha1_bigint
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.omop.builders.person_builder import PersonRowBuilder
 from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow
-from omop_etl.semantic_mapping.models import BatchQueryResult
+from omop_etl.semantic_mapping.core.models import BatchQueryResult
 
 
 class BuildOmopRows:

@@ -6,13 +6,16 @@ from typing import (
 )
 
 from omop_etl.harmonization.datamodels import HarmonizedData
-from omop_etl.semantic_mapping.loader import LoadSemantics
-from omop_etl.semantic_mapping.query_extractor import extract_queries, validate_field_paths
-from omop_etl.semantic_mapping.semantic_config import DEFAULT_FIELD_CONFIGS
-from omop_etl.semantic_mapping.semantic_index import SemanticIndex
-from omop_etl.semantic_mapping.models import (
+from omop_etl.infra.io.types import WideFormat, Layout
+from omop_etl.infra.utils.run_context import RunMetadata
+from omop_etl.semantic_mapping.core.io_export import SemanticExporter
+from omop_etl.semantic_mapping.core.models import SemanticMappingResult
+from omop_etl.semantic_mapping.core.loader import LoadSemantics
+from omop_etl.semantic_mapping.core.query_extractor import extract_queries, validate_field_paths
+from omop_etl.semantic_mapping.core.semantic_config import DEFAULT_FIELD_CONFIGS
+from omop_etl.semantic_mapping.core.semantic_index import SemanticIndex
+from omop_etl.semantic_mapping.core.models import (
     OmopDomain,
-    BatchQueryResult,
     Query,
     FieldConfig,
 )
@@ -21,9 +24,15 @@ from omop_etl.semantic_mapping.models import (
 class SemanticLookupPipeline:
     def __init__(
         self,
+        trial: str,
+        meta: RunMetadata,
         semantics_path: Path | None = None,
+        layout: Layout = Layout.TRIAL_RUN,
         field_configs: Sequence[FieldConfig] | None = None,
+        exporter: SemanticExporter | None = None,
+        outdir: Path | None = None,
     ):
+        self.meta = meta
         # resolve semantic path (default in resources if not given)
         loader = LoadSemantics(semantics_path)
         self._index = SemanticIndex(indexed_corpus=loader.as_indexed())
@@ -34,14 +43,22 @@ class SemanticLookupPipeline:
             base = self._merge_field_configs(base, field_configs)
         self._field_configs: list[FieldConfig] = base
         self._validated = False
+        self.exporter = exporter or SemanticExporter(
+            base_out=(outdir if outdir is not None else Path(".data")),
+            layout=layout,
+        )
+        self.trial = trial
 
-    def run_lookup(
+    def run(
         self,
         harmonized_data: HarmonizedData,
         enable_names: Set[str] | None = None,
         required_domains: Set[OmopDomain] | None = None,
         required_tags: Set[str] | None = None,
-    ) -> BatchQueryResult:
+        input_path: Path | None = None,
+        formats: Sequence[WideFormat] = "csv",
+        write_output: bool | None = None,
+    ) -> SemanticMappingResult:
         configs = self._build_configs(
             base_configs=self._field_configs,
             enable_names=enable_names,
@@ -49,13 +66,30 @@ class SemanticLookupPipeline:
             required_tags=required_tags,
         )
 
-        # validate FieldConfig against Patient
+        # validate FieldConfig against first 10 Patient instances
         if not self._validated and harmonized_data.patients:
             validate_field_paths(harmonized_data.patients[:10], configs)
             self._validated = True
 
+        # run lookup & collect queries
         all_queries = self._build_queries(harmonized_data=harmonized_data, configs=configs)
-        return self._index.lookup_exact(queries=all_queries)
+        query_results = self._index.lookup_exact(queries=all_queries)
+
+        # write output if enabled
+        if write_output is True and self.exporter is not None:
+            self.exporter.export(
+                batch_result=query_results,
+                meta=self.meta,
+                input_path=input_path,
+                formats=formats,
+            )
+            if write_output is True and self.exporter is None:
+                raise ValueError(f"No exporter initialized in {self.__class__.__name__}")
+
+        return SemanticMappingResult(
+            batch_result=query_results,
+            meta=self.meta,
+        )
 
     @staticmethod
     def _build_configs(
