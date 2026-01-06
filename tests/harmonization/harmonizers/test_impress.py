@@ -4,9 +4,6 @@ import pytest
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 from omop_etl.harmonization.models import Patient
 
-# todo: remove this if no explicit imports
-# pytest_plugins = "tests.harmonization.fixtures.impress_fixtures"
-
 
 def test_impress_subject_id_processing(subject_id_fixture):
     harmonizer = ImpressHarmonizer(data=subject_id_fixture, trial_id="IMPRESS_TEST")
