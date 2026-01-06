@@ -4,12 +4,11 @@ from pathlib import Path
 import polars as pl
 import datetime as dt
 
-from omop_etl.harmonization.datamodels import (
+from omop_etl.harmonization.models import (
     MedicalHistory,
     TumorType,
     Patient,
 )
-
 from omop_etl.semantic_mapping.core.models import (
     Query,
     OmopDomain,

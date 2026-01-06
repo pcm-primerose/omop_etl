@@ -1,4 +1,4 @@
-from omop_etl.concept_mapping.api import ConceptLookupService
+from omop_etl.concept_mapping.service import ConceptLookupService
 
 
 class TestConceptLookupService:

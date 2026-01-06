@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 import datetime as dt
 
-from omop_etl.harmonization.core.io_export import HarmonizedExporter
+from omop_etl.harmonization.core.exporter import HarmonizedExporter
 from omop_etl.infra.io.types import Layout, TabularFormat, WideFormat
 from omop_etl.infra.utils.run_context import RunMetadata
 

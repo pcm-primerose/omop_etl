@@ -2,9 +2,10 @@ import datetime as dt
 import pytest
 
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
-from omop_etl.harmonization.datamodels import Patient
+from omop_etl.harmonization.models import Patient
 
-pytest_plugins = "tests.harmonization.fixtures.impress_fixtures"
+# todo: remove this if no explicit imports
+# pytest_plugins = "tests.harmonization.fixtures.impress_fixtures"
 
 
 def test_impress_subject_id_processing(subject_id_fixture):
@@ -705,7 +706,7 @@ def test_treatment_cycles(treatment_cycle_fixture):
     assert cycle_3.was_dose_administered_to_spec is True
     assert cycle_3.was_tablet_taken_to_prescription_in_previous_cycle is False
     assert cycle_3.oral_dose_prescribed_per_day == 200
-    assert cycle_3.oral_dose_prescribed_unit == "mg"
+    assert cycle_3.oral_dose_unit == "mg"
     assert cycle_3.number_of_days_tablet_not_taken == 3
     assert cycle_3.reason_tablet_not_taken == "nausea"
 

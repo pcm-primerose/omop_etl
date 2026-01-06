@@ -3,7 +3,7 @@ import json
 import polars as pl
 import pytest
 
-from omop_etl.harmonization.api import HarmonizationService
+from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.harmonization.core.pipeline import HarmonizationPipeline
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata

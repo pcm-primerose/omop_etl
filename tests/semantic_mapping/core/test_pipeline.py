@@ -1,15 +1,15 @@
 import pytest
 from typing import List
 
-from omop_etl.harmonization.datamodels import HarmonizedData
+from omop_etl.harmonization.models import HarmonizedData
 from omop_etl.infra.utils.run_context import RunMetadata
+from omop_etl.semantic_mapping.core.pipeline import SemanticLookupPipeline
 from omop_etl.semantic_mapping.core.models import (
     FieldConfig,
     OmopDomain,
     QueryTarget,
     SemanticMappingResult,
 )
-from omop_etl.semantic_mapping.core.pipeline import SemanticLookupPipeline
 
 
 @pytest.fixture

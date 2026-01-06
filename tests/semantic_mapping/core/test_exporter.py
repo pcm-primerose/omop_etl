@@ -2,11 +2,10 @@ import json
 import pytest
 from pathlib import Path
 from typing import List
-
 import polars as pl
 
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.semantic_mapping.core.io_export import SemanticExporter
+from omop_etl.semantic_mapping.core.exporter import SemanticExporter
 from omop_etl.semantic_mapping.core.models import (
     Query,
     QueryResult,

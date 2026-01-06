@@ -1,10 +1,13 @@
 from pathlib import Path
 from typing import Optional, Literal
 
-from omop_etl.config import IMPRESS_150, DATA_ROOT
+from omop_etl.config import (
+    IMPRESS_150,
+    DATA_ROOT,
+)
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.preprocessing.api import (
+from omop_etl.preprocessing.service import (
     make_ecrf_config,
     PreprocessResult,
     PreprocessService,
@@ -43,4 +46,9 @@ def run_preprocessing(
 
 
 if __name__ == "__main__":
-    run_preprocessing(preprocessing_input=IMPRESS_150, trial="IMPRESS", base_root=DATA_ROOT, output_format="csv")
+    run_preprocessing(
+        preprocessing_input=IMPRESS_150,
+        trial="IMPRESS",
+        base_root=DATA_ROOT,
+        output_format="csv",
+    )

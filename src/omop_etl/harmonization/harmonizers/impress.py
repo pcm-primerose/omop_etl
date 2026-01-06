@@ -1029,7 +1029,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             # oral
             obj.was_dose_administered_to_spec = s["was_dose_administered_to_spec"]
             obj.oral_dose_prescribed_per_day = s["TR_TRODSTOT"]
-            obj.oral_dose_prescribed_unit = s["TR_TRODSU"]
+            obj.oral_dose_unit = s["TR_TRODSU"]
             obj.was_tablet_taken_to_prescription_in_previous_cycle = s["was_tablet_taken_to_prescription_in_previous_cycle"]
             obj.reason_not_administered_to_spec = s["TR_TROREA"]
             obj.reason_tablet_not_taken = s["TR_TROSPE"]
