@@ -7,7 +7,10 @@ from omop_etl.preprocessing.sources.impress import (
     _aggregate_no_conflicts,
     preprocess_impress,
 )
-from omop_etl.preprocessing.core.models import EcrfConfig, PreprocessingRunOptions
+from omop_etl.preprocessing.core.models import (
+    EcrfConfig,
+    PreprocessingRunOptions,
+)
 
 
 class TestCohortFiltering:

@@ -1,6 +1,5 @@
 from dataclasses import dataclass, asdict
 from typing import List
-
 import pytest
 import polars as pl
 

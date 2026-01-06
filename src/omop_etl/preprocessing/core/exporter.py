@@ -3,13 +3,24 @@ from typing import Dict, Sequence
 import logging
 import polars as pl
 
-from omop_etl.infra.io.types import Layout, WideFormat, WIDE_FORMATS
 from omop_etl.infra.io.options import WriterOptions
 from omop_etl.infra.io.manifest_builder import build_manifest
-from omop_etl.infra.io.io_core import write_frame, write_manifest, WriterResult
-from omop_etl.infra.io.path_planner import plan_single_file, WriterContext
 from omop_etl.infra.logging.scoped import file_logging
 from omop_etl.infra.logging.adapters import with_extra
+from omop_etl.infra.io.types import (
+    Layout,
+    WideFormat,
+    WIDE_FORMATS,
+)
+from omop_etl.infra.io.io_core import (
+    write_frame,
+    write_manifest,
+    WriterResult,
+)
+from omop_etl.infra.io.path_planner import (
+    plan_single_file,
+    WriterContext,
+)
 
 log = logging.getLogger(__name__)
 

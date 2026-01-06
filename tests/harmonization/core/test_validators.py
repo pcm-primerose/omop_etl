@@ -1,5 +1,6 @@
 import datetime as dt
 import pytest
+
 from omop_etl.harmonization.core.validators import StrictValidators as va
 
 

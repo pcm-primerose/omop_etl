@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import patch
 import pytest
 
-
 from omop_etl.preprocessing.core.config_loader import (
     load_ecrf_config,
     available_trials,

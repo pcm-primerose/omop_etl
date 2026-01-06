@@ -2,12 +2,6 @@ from pathlib import Path
 from typing import Optional, Callable, Sequence
 import polars as pl
 
-from .models import (
-    EcrfConfig,
-    PreprocessingRunOptions,
-    PreprocessResult,
-    OutputPath,
-)
 from omop_etl.preprocessing.core.loader import InputResolver
 from omop_etl.preprocessing.core.combine import combine
 from omop_etl.preprocessing.core.dispatch import resolve_preprocessor
@@ -15,6 +9,12 @@ from omop_etl.preprocessing.core.exporter import PreprocessExporter
 from omop_etl.infra.io.types import Layout, TabularFormat
 from omop_etl.infra.io.options import WriterOptions
 from omop_etl.infra.utils.run_context import RunMetadata
+from omop_etl.preprocessing.core.models import (
+    EcrfConfig,
+    PreprocessingRunOptions,
+    PreprocessResult,
+    OutputPath,
+)
 
 PreprocessResolver = Callable[[pl.DataFrame, EcrfConfig, PreprocessingRunOptions], pl.DataFrame]
 

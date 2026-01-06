@@ -1,19 +1,19 @@
-import typing as t
+from typing import get_origin, Union, get_args, Sequence, MutableSequence, Any
 import types as _types
 
 
-def unwrap_optional(tp: t.Any) -> t.Any:
+def unwrap_optional(_type: Any) -> Any:
     """
     Optional[T] or T|None -> T, otherwise unchanged.
     """
-    origin = t.get_origin(tp)
-    if origin in (t.Union, getattr(_types, "UnionType", None)):
-        args = [a for a in t.get_args(tp) if a is not type(None)]
+    origin = get_origin(_type)
+    if origin in (Union, getattr(_types, "UnionType", None)):
+        args = [a for a in get_args(_type) if a is not type(None)]
         if len(args) == 1:
             return args[0]
-    return tp
+    return _type
 
 
-def is_sequence_origin(tp: t.Any) -> bool:
-    origin = t.get_origin(tp)
-    return origin in (list, tuple, t.Sequence, t.MutableSequence)
+def is_sequence_origin(tp: Any) -> bool:
+    origin = get_origin(tp)
+    return origin in (list, tuple, Sequence, MutableSequence)

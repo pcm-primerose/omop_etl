@@ -1,4 +1,3 @@
-from __future__ import annotations
 import json
 import logging
 import os
@@ -6,7 +5,7 @@ import sys
 import multiprocessing as mp
 import atexit
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 
 from logging.config import dictConfig
 from logging.handlers import (
@@ -18,16 +17,16 @@ from omop_etl.infra.logging.adapters import RESERVED
 
 
 # global controller for multiprocessing logging
-_mp_controller: Optional[MpLoggingController] = None
+_mp_controller: MpLoggingController | None = None
 
 # track active file handlers for cleanup
 _file_handlers: List[RotatingFileHandler] = []
 
 
 def configure_logger(
-    level: Optional[int | str] = None,
-    json_out: Optional[bool] = False,
-    log_file: Optional[Path] = None,
+    level: int | str | None = None,
+    json_out: bool | None = False,
+    log_file: Path | None = None,
 ) -> None:
     """
     Configure logging for the application.
@@ -82,7 +81,7 @@ def configure_logger(
     )
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     if name is None:
         import inspect
 
@@ -157,8 +156,8 @@ def add_file_handler(
     path: Path,
     max_bytes: int = 10_000_000,
     backup_count: int = 3,
-    level: Optional[str | int] = None,
-    json_format: Optional[bool] = None,
+    level: str | int | None = None,
+    json_format: bool | None = None,
 ) -> RotatingFileHandler:
     """
     Add a rotating file handler to the root logger.
@@ -221,7 +220,7 @@ atexit.register(_cleanup_file_handlers)
 
 
 def _start_mp_logging(
-    ctx: Optional[mp.context.BaseContext] = None,
+    ctx: mp.context.BaseContext | None = None,
 ) -> tuple[mp.Queue, QueueListener]:
     """
     Set up multiprocessing logging in the parent process,
@@ -257,7 +256,7 @@ def _start_mp_logging(
     return queue, listener
 
 
-def _configure_worker(queue: mp.Queue, level: Optional[str | int] = None) -> None:
+def _configure_worker(queue: mp.Queue, level: str | int | None = None) -> None:
     """
     Configure logging in a worker process,
     call at the start of each worker process.

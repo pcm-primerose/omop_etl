@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 from omop_etl.infra.io.io_core import (
     WriterResult,
     TableMeta,
@@ -15,7 +14,7 @@ def build_manifest(
     fmt: str,
     mode: str,
     result: WriterResult,
-    options: Optional[dict] = None,
+    options: dict | None = None,
 ) -> dict:
     def to_dict(m: TableMeta) -> dict:
         return {"rows": m.rows, "cols": m.cols, "schema": m.schema}

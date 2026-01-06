@@ -1,16 +1,15 @@
 import datetime as dt
 from typing import Optional, List
-
 import polars as pl
 import pytest
 
+from omop_etl.infra.io.types import SerializeTypes
 from omop_etl.harmonization.core.serialize import (
     build_nested_schema,
     build_nested_df,
     to_wide,
     to_normalized,
 )
-from omop_etl.infra.io.types import SerializeTypes
 
 
 class BestOverallResponse:

@@ -1,5 +1,6 @@
 import polars as pl
 from unittest.mock import Mock
+
 from omop_etl.preprocessing.core.pipeline import PreprocessingPipeline
 from omop_etl.preprocessing.core.exporter import PreprocessExporter
 from omop_etl.infra.utils.run_context import RunMetadata

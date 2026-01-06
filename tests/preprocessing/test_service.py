@@ -2,8 +2,12 @@ import polars as pl
 from pathlib import Path
 from unittest.mock import Mock
 from omop_etl.preprocessing.service import PreprocessService
-from omop_etl.preprocessing.core.models import EcrfConfig, SheetConfig, PreprocessResult
 from omop_etl.infra.utils.run_context import RunMetadata
+from omop_etl.preprocessing.core.models import (
+    EcrfConfig,
+    SheetConfig,
+    PreprocessResult,
+)
 
 
 def test_preprocess_trial_with_real_data(tmp_path: Path):

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Dict, Literal
+from typing import Dict, Literal
 
 from omop_etl.infra.io.format_utils import ext
 from omop_etl.infra.io.types import TabularFormat, WideFormat
@@ -32,7 +32,7 @@ def _fill_stem(
     meta: RunMetadata,
     mode: Mode,
     filename_base: str,
-    extra_vars: Optional[Dict[str, str]] = None,
+    extra_vars: Dict[str, str] | None = None,
 ) -> str:
     vars_ = {
         "trial": trial.lower(),
@@ -56,7 +56,7 @@ def plan_single_file(
     mode: Mode,
     fmt: WideFormat,
     filename_base: str = "{trial}_{run_id}_{started_at}_{mode}",
-    extra_vars: Optional[Dict[str, str]] = None,
+    extra_vars: Dict[str, str] | None = None,
 ) -> WriterContext:
     base_dir = _fmt_dir(base_out, meta, module, trial, mode, fmt)
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -84,7 +84,7 @@ def plan_table_dir(
     mode: Mode,
     fmt: TabularFormat,
     filename_base: str = "{trial}_{run_id}_{started_at}_{mode}",
-    extra_vars: Optional[Dict[str, str]] = None,
+    extra_vars: Dict[str, str] | None = None,
 ) -> WriterContext:
     base_dir = _fmt_dir(base_out, meta, module, trial, mode, fmt)
     base_dir.mkdir(parents=True, exist_ok=True)

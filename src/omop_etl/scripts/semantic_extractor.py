@@ -6,10 +6,13 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
 import logging
 from pathlib import Path
-from typing import Sequence, Optional, Mapping, Dict, Literal
+from typing import Sequence, Mapping, Dict, Literal
 import polars as pl
 
-from omop_etl.config import DATA_ROOT, IMPRESS_NON_V600
+from omop_etl.config import (
+    DATA_ROOT,
+    IMPRESS_NON_V600,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
 log = logging.getLogger()
@@ -25,7 +28,7 @@ class SheetConfig:
 class SheetData:
     key: str
     data: pl.DataFrame
-    input_path: Optional[Path] = None
+    input_path: Path | None = None
 
 
 @dataclass
@@ -237,7 +240,7 @@ class CsvDirectoryReader(BaseReader):
 class InputResolver:
     """Resolves and loads input data using appropriate reader."""
 
-    def __init__(self, readers: Optional[Sequence[BaseReader]] = None):
+    def __init__(self, readers: Sequence[BaseReader] | None = None):
         self.readers = readers or [ExcelReader(), CsvDirectoryReader()]
 
     def resolve(self, path: Path, ecfg: EcrfConfig) -> EcrfConfig:
@@ -646,7 +649,7 @@ def get_only_nonv600_cohort(frame: pl.DataFrame) -> pl.Series:
     return filtered.to_series()
 
 
-def frames_to_dict(config: EcrfConfig, braf_non_v600_only: Optional[bool] = None) -> dict[str, pl.Series]:
+def frames_to_dict(config: EcrfConfig, braf_non_v600_only: bool | None = None) -> dict[str, pl.Series]:
     out: dict[str, pl.Series] = {}
 
     if braf_non_v600_only:
@@ -729,7 +732,7 @@ def add_term_id(data: pl.DataFrame, id_scope: Scope = "per_scope") -> pl.DataFra
 
 
 def run(
-    input_path: Path, output_dir: Path, trial: str = "impress", all_data: Optional[bool] = False, braf_non_v600_only: Optional[bool] = False
+    input_path: Path, output_dir: Path, trial: str = "impress", all_data: bool | None = False, braf_non_v600_only: bool | None = False
 ) -> None:
     start_time = time.time()
     config = EcrfConfig.from_mapping(get_config(all_data=all_data))  # type: ignore

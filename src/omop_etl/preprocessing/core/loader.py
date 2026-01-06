@@ -1,11 +1,14 @@
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Sequence, Dict, Optional
+from typing import Sequence, Dict
 import polars as pl
 from logging import getLogger
 
-from .models import EcrfConfig, SheetData
+from omop_etl.preprocessing.core.models import (
+    EcrfConfig,
+    SheetData,
+)
 
 log = getLogger(__name__)
 
@@ -203,7 +206,7 @@ class CsvDirectoryReader(BaseReader):
 class InputResolver:
     """Resolves and loads input data using appropriate reader."""
 
-    def __init__(self, readers: Optional[Sequence[BaseReader]] = None):
+    def __init__(self, readers: Sequence[BaseReader] | None = None):
         self.readers = readers or [ExcelReader(), CsvDirectoryReader()]
 
     def resolve(self, path: Path, ecfg: EcrfConfig) -> EcrfConfig:
