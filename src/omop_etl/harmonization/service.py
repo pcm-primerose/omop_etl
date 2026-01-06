@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Sequence, Optional, List
+from typing import Sequence, List
 from omop_etl.infra.io.types import (
     Layout,
     AnyFormatToken,
@@ -23,7 +23,7 @@ class HarmonizationService:
         self,
         outdir: Path,
         layout: Layout = Layout.TRIAL_RUN,
-        harmonizer_resolver: Optional[HarmonizerResolver] = None,
+        harmonizer_resolver: HarmonizerResolver | None = None,
     ):
         self.outdir = outdir
         self.layout = layout

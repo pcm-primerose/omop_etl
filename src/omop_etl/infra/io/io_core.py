@@ -10,7 +10,7 @@ from omop_etl.infra.io.options import (
     ParquetOptions,
     CsvOptions,
 )
-from omop_etl.infra.io.types import TABULAR_FORMATS, POLARS_DTYPE_TO_NAME
+from omop_etl.infra.io.types import TabularFormat, POLARS_DTYPE_TO_NAME
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class WriterResult:
 def write_frame(
     df: pl.DataFrame,
     path: Path,
-    fmt: TABULAR_FORMATS,
+    fmt: TabularFormat,  # fixme: Type hint is invalid or refers to the expression which is not a correct type
     opts: CsvOptions | ParquetOptions | None = None,
 ) -> WriterResult:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -63,7 +63,7 @@ def write_frame(
 def write_frames_dir(
     frames: Dict[str, pl.DataFrame],
     dirpath: Path,
-    fmt: TABULAR_FORMATS,
+    fmt: TabularFormat,
     opts: CsvOptions | ParquetOptions | None = None,
 ) -> WriterResult:
     dirpath.mkdir(parents=True, exist_ok=True)
