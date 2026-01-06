@@ -15,10 +15,10 @@ class SemanticResultIndex:
     """
 
     # internal: (patient_id, field_path, leaf_index) -> QueryResult
-    _by_location: Dict[Tuple[str, Tuple[str, ...], int | None], "QueryResult"]
+    _by_location: Dict[Tuple[str, Tuple[str, ...], int | None], QueryResult]
 
     @classmethod
-    def from_batch(cls, batch: "BatchQueryResult") -> "SemanticResultIndex":
+    def from_batch(cls, batch: BatchQueryResult) -> SemanticResultIndex:
         by_loc: Dict[Tuple[str, Tuple[str, ...], int | None], QueryResult] = {}
         for query_result in batch.results:
             key = (query_result.patient_id, query_result.query.field_path, query_result.query.leaf_index)

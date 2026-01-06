@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Sequence, Callable, Optional
+from typing import Sequence, Callable
 import polars as pl
 from logging import getLogger
 
@@ -26,10 +26,10 @@ class HarmonizationPipeline:
         self,
         trial: str,
         meta: RunMetadata,
-        exporter: Optional[HarmonizedExporter] = None,
-        resolver: Optional[HarmonizerResolver] = None,
+        exporter: HarmonizedExporter | None = None,
+        resolver: HarmonizerResolver | None = None,
         layout: Layout = Layout.TRIAL_RUN,
-        outdir: Optional[Path] = None,
+        outdir: Path | None = None,
     ):
         self.trial = trial
         self.meta = meta

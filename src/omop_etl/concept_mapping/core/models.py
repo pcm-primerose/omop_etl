@@ -29,7 +29,7 @@ class StaticConcept:
     vocabulary_id: str
 
     @classmethod
-    def from_csv_row(cls, row: dict[str, str]) -> "StaticConcept":
+    def from_csv_row(cls, row: dict[str, str]) -> StaticConcept:
         return cls(
             value_set=row["value_set"],
             local_value=row["local_value"],
@@ -58,7 +58,7 @@ class StructuralConcept:
     table_name: str | None = None
 
     @classmethod
-    def from_csv_row(cls, row: dict[str, str]) -> "StructuralConcept":
+    def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
         return cls(
             value_set=row["value_set"],
             concept_id=row["omop_concept_id"],

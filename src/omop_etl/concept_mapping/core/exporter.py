@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, Sequence
 from dataclasses import asdict
 import logging
+import polars as pl
 
 from omop_etl.infra.io.types import Layout, WideFormat, WIDE_FORMATS
 from omop_etl.infra.io.options import WriterOptions
@@ -16,8 +17,6 @@ from omop_etl.concept_mapping.core.models import (
     MissedLookup,
     FieldCoverage,
 )
-
-import polars as pl
 
 log = logging.getLogger(__name__)
 
