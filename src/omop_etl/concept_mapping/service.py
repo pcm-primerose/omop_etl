@@ -42,7 +42,7 @@ class ConceptLookupService:
         layout: Layout = Layout.TRIAL_RUN,
     ):
         self._static_index = static_index
-        self._structural_index = structural_index or {}
+        self._structural_index = structural_index
         self._semantic_index = semantic_index
         self._meta = meta
         self._result = LookupResult()
@@ -66,15 +66,16 @@ class ConceptLookupService:
 
         Args:
             static_path: Path to static mapping CSV
-            structural_path: Path to structural mapping CSV (optional)
-            semantic_batch: Batch query result from semantic mapping (optional)
+            structural_path: Path to structural mapping CSV
+            semantic_batch: Batch query result from semantic mapping
             meta: Run metadata for export
             outdir: Output directory for exports
             layout: Output layout
         """
         static_index = StaticMapLoader(static_path).as_index()
-        structural_index = StructuralMapLoader(structural_path).as_index() if structural_path else None
-        semantic_index = SemanticResultIndex.from_batch(semantic_batch) if semantic_batch else None
+        structural_index = StructuralMapLoader(structural_path).as_index()
+        semantic_index = SemanticResultIndex.from_batch(semantic_batch)
+
         return cls(
             static_index=static_index,
             structural_index=structural_index,
