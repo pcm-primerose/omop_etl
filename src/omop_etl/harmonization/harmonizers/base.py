@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import polars as pl
 from typing import (
-    Optional,
     List,
     Dict,
     Callable,
@@ -29,12 +28,12 @@ class BaseHarmonizer(ABC):
         self.data = data
         self.trial_id = trial_id
         self.patient_data: Dict[str, Patient] = {}
-        self.medical_histories: Optional[List] = []
-        self.previous_treatment_lines: Optional[List] = []
-        self.ecog_assessments: Optional[List] = []
-        self.adverse_events: Optional[List] = []
-        self.clinical_benefits: Optional[List] = []
-        self.quality_of_life_assessment: Optional[List] = []
+        self.medical_histories: List | None = []
+        self.previous_treatment_lines: List | None = []
+        self.ecog_assessments: List | None = []
+        self.adverse_events: List | None = []
+        self.clinical_benefits: List | None = []
+        self.quality_of_life_assessment: List | None = []
 
     # main processing method
     @abstractmethod
@@ -121,7 +120,7 @@ class BaseHarmonizer(ABC):
         *,
         subject_col: str = "SubjectId",
         value_cols: Sequence[str],
-        order_by_cols: Optional[Sequence[str]] = None,
+        order_by_cols: Sequence[str] | None = None,
         items_col: str = "items",
         require_order_by: bool = False,
     ) -> pl.DataFrame:
@@ -156,11 +155,11 @@ class BaseHarmonizer(ABC):
     def hydrate_list_field(
         packed: pl.DataFrame,
         *,
-        builder: Optional[Callable[[str, Mapping[str, Any]], Any]] = None,
-        skip_missing: Optional[bool] = False,
+        builder: Callable[[str, Mapping[str, Any]], Any] | None = None,
+        skip_missing: bool | None = False,
         subject_col: str = "SubjectId",
         items_col: str = "items",
-        target_attr: Optional[str] = None,
+        target_attr: str | None = None,
         patients: Dict[str, Any],
     ) -> None:
         """
@@ -179,7 +178,7 @@ class BaseHarmonizer(ABC):
         for sid, items in packed.select(subject_col, items_col).iter_rows():
             patient = patients.get(sid)
             if patient is None:
-                if skip_missing is True:
+                if skip_missing:
                     continue
                 raise KeyError(f"Patient {sid} not found in patients mapping")
 
@@ -190,10 +189,10 @@ class BaseHarmonizer(ABC):
     def hydrate_singleton(
         frame: pl.DataFrame,
         *,
-        builder: Optional[Callable[[str, Mapping[str, Any]], Any]] = None,
-        skip_missing_patients: Optional[bool] = False,
+        builder: Callable[[str, Mapping[str, Any]], Any] | None = None,
+        skip_missing_patients: bool | None = False,
         subject_col: str = "SubjectId",
-        target_attr: Optional[str] = None,
+        target_attr: str | None = None,
         patients: Dict[str, Any],
     ) -> None:
         """
@@ -210,7 +209,7 @@ class BaseHarmonizer(ABC):
             sid = row[subject_col]
             patient = patients.get(sid)
             if patient is None:
-                if skip_missing_patients is True:
+                if skip_missing_patients:
                     continue
                 raise KeyError(f"Patient {sid} not found")
 

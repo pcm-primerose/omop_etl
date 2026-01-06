@@ -1,5 +1,5 @@
 import re
-from typing import Mapping, Any, Optional
+from typing import Mapping, Any
 from deprecated import deprecated
 import polars as pl
 from logging import getLogger
@@ -1487,7 +1487,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             value_cols=processed.select(pl.all().exclude("SubjectId")).columns,
         )
 
-        def build_ta(pid: str, s: Mapping[str, Any]) -> Optional[TumorAssessment]:
+        def build_ta(pid: str, s: Mapping[str, Any]) -> TumorAssessment | None:
             obj = TumorAssessment(pid)
             obj.assessment_type = s["assessment_type"]
             obj.target_lesion_change_from_baseline = s["target_lesion_change_from_baseline"]
@@ -1555,7 +1555,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             items_col="items",
         )
 
-        def build_c30(pid: str, s: Mapping[str, Any]) -> Optional[C30]:
+        def build_c30(pid: str, s: Mapping[str, Any]) -> C30 | None:
             obj = C30(patient_id=pid)
             obj.date = s["date"]
             obj.event_name = s["event_name"]
@@ -1624,7 +1624,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             items_col="items",
         )
 
-        def build_eq5d(pid: str, s: Mapping[str, Any]) -> Optional[EQ5D]:
+        def build_eq5d(pid: str, s: Mapping[str, Any]) -> EQ5D | None:
             obj = EQ5D(patient_id=pid)
             obj.date = s["date"]
             obj.event_name = s["event_name"]
