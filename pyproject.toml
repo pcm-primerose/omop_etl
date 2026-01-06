@@ -3,13 +3,12 @@ name = "omop-etl"
 version = "0.1.0"
 description = "ETL for PRIME ROSE to OMOP CDM"
 authors = [{ name = "Gabriel B. Stav" }]
-requires-python = ">=3.13"
+requires-python = ">=3.14.2"
 readme = "README.md"
 
 dependencies = [
   "python-dotenv>=1,<2",
   "openpyxl>=3.1,<4",
-  "ns>=0.1,<0.2",
   "polars>=1.22,<2",
   "json5>=0.12.0",
   "fastexcel>=0.14.0",

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from omop_etl.infra.io.types import ParquetCompression
 
@@ -7,7 +6,7 @@ from omop_etl.infra.io.types import ParquetCompression
 @dataclass(frozen=True)
 class CsvOptions:
     include_header: bool = True
-    null_value: Optional[str] = None
+    null_value: str | None = None
     float_precision: int = 6
     separator: str = ","  # tsv overrides to "\t"
 

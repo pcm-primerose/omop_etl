@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Literal
 
 from omop_etl.config import (
     IMPRESS_150,
@@ -20,8 +20,8 @@ def run_preprocessing(
     trial: str = "IMPRESS",
     combine_key: str = "SubjectId",
     output_format: Literal["csv", "tsv", "parquet"] = "csv",
-    only_cohort: Optional[bool] = True,
-    config: Optional[Path] = None,
+    only_cohort: bool | None = True,
+    config: Path | None = None,
 ) -> PreprocessResult:
     # build runtime options
     base_root.mkdir(parents=True, exist_ok=True)
