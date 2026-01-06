@@ -5,7 +5,7 @@ import polars as pl
 from logging import getLogger
 from omop_etl.harmonization.core.parsers import PolarsParsers
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.datamodels import (
+from omop_etl.harmonization.models import (
     HarmonizedData,
     Patient,
     TumorType,

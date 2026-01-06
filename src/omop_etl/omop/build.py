@@ -1,5 +1,5 @@
-from omop_etl.harmonization.datamodels import HarmonizedData
-from omop_etl.concept_mapping.api import ConceptLookupService
+from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.id_generator import sha1_bigint

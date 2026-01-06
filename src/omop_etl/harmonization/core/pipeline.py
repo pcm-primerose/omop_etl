@@ -2,13 +2,19 @@ import json
 from pathlib import Path
 from typing import Sequence, Callable, Optional
 import polars as pl
-
-from ..datamodels import HarmonizedData
-from ..core.dispatch import resolve_harmonizer
-from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.infra.io.types import Layout, WideFormat, TabularFormat, NAME_TO_POLARS_DTYPE
-from ..core.io_export import HarmonizedExporter
 from logging import getLogger
+
+from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.core.dispatch import resolve_harmonizer
+from omop_etl.infra.utils.run_context import RunMetadata
+from omop_etl.harmonization.core.exporter import HarmonizedExporter
+from omop_etl.infra.io.types import (
+    Layout,
+    WideFormat,
+    TabularFormat,
+    NAME_TO_POLARS_DTYPE,
+)
+
 
 log = getLogger(__name__)
 

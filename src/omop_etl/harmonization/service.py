@@ -1,11 +1,21 @@
 from pathlib import Path
 from typing import Sequence, Optional, List
-from omop_etl.infra.io.types import Layout, AnyFormatToken, WideFormat, TabularFormat, WIDE_FORMATS, TABULAR_FORMATS
+from omop_etl.infra.io.types import (
+    Layout,
+    AnyFormatToken,
+    WideFormat,
+    TabularFormat,
+    WIDE_FORMATS,
+    TABULAR_FORMATS,
+)
 from omop_etl.infra.utils.run_context import RunMetadata
-from .core.dispatch import resolve_harmonizer
-from .datamodels import HarmonizedData
-from .core.pipeline import HarmonizationPipeline, HarmonizerResolver
-from ..infra.io.format_utils import expand_formats
+from omop_etl.infra.io.format_utils import expand_formats
+from omop_etl.harmonization.core.dispatch import resolve_harmonizer
+from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.core.pipeline import (
+    HarmonizationPipeline,
+    HarmonizerResolver,
+)
 
 
 class HarmonizationService:

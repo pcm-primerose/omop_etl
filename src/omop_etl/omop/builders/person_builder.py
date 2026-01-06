@@ -1,6 +1,6 @@
-from omop_etl.harmonization.datamodels import Patient
+from omop_etl.harmonization.models import Patient
 from omop_etl.omop.models.rows import PersonRow
-from omop_etl.concept_mapping.api import ConceptLookupService
+from omop_etl.concept_mapping.service import ConceptLookupService
 
 
 class PersonRowBuilder:

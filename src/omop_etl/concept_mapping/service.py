@@ -3,7 +3,7 @@ from typing import Mapping, List
 
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
-from omop_etl.concept_mapping.core.io_export import ConceptLookupExporter
+from omop_etl.concept_mapping.core.exporter import ConceptLookupExporter
 from omop_etl.concept_mapping.core.static_loader import StaticMapLoader
 from omop_etl.concept_mapping.core.structural_loader import StructuralMapLoader
 from omop_etl.infra.io.format_utils import expand_formats

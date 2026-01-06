@@ -1,16 +1,16 @@
 from pathlib import Path
 
-from omop_etl.concept_mapping.api import ConceptLookupService
-from omop_etl.harmonization.datamodels import HarmonizedData
+from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.harmonization.models import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.harmonization.api import HarmonizationService
+from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.omop.build import BuildOmopRows
 from omop_etl.omop.models.tables import OmopTables
-from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
+from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
-from omop_etl.semantic_mapping.api import SemanticService
+from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
 
 # default resource paths

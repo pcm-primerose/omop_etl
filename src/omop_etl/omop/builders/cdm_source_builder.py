@@ -1,7 +1,7 @@
 import datetime as dt
 
 from omop_etl.omop.models.rows import CdmSourceRow
-from omop_etl.concept_mapping.api import ConceptLookupService
+from omop_etl.concept_mapping.service import ConceptLookupService
 
 
 class CdmSourceBuilder:

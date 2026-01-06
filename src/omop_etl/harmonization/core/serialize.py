@@ -5,7 +5,7 @@ from functools import lru_cache
 import polars as pl
 from polars._typing import PolarsDataType as polars_data_type
 from omop_etl.infra.io.types import SerializeTypes
-from omop_etl.infra.utils.typing_utils import unwrap_optional
+from omop_etl.infra.utils.types import unwrap_optional
 
 
 # TODO: later: refactor main three branches to separate files:

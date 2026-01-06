@@ -9,8 +9,8 @@ from typing import (
     Mapping,
     Any,
 )
-from omop_etl.harmonization.datamodels import Patient
-from omop_etl.harmonization.datamodels import HarmonizedData
+from omop_etl.harmonization.models import Patient
+from omop_etl.harmonization.models import HarmonizedData
 
 
 class BaseHarmonizer(ABC):

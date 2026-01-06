@@ -8,13 +8,13 @@ from .models import (
     PreprocessResult,
     OutputPath,
 )
-from .io_load import InputResolver
-from .combine import combine
-from ...infra.utils.run_context import RunMetadata
-from .dispatch import resolve_preprocessor
-from omop_etl.preprocessing.core.io_export import PreprocessExporter
+from omop_etl.preprocessing.core.loader import InputResolver
+from omop_etl.preprocessing.core.combine import combine
+from omop_etl.preprocessing.core.dispatch import resolve_preprocessor
+from omop_etl.preprocessing.core.exporter import PreprocessExporter
 from omop_etl.infra.io.types import Layout, TabularFormat
 from omop_etl.infra.io.options import WriterOptions
+from omop_etl.infra.utils.run_context import RunMetadata
 
 PreprocessResolver = Callable[[pl.DataFrame, EcrfConfig, PreprocessingRunOptions], pl.DataFrame]
 

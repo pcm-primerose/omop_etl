@@ -5,10 +5,10 @@ from typing import (
     Dict,
 )
 
-from omop_etl.harmonization.datamodels import HarmonizedData
+from omop_etl.harmonization.models import HarmonizedData
 from omop_etl.infra.io.types import WideFormat, Layout
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.semantic_mapping.core.io_export import SemanticExporter
+from omop_etl.semantic_mapping.core.exporter import SemanticExporter
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
 from omop_etl.semantic_mapping.core.loader import LoadSemantics
 from omop_etl.semantic_mapping.core.query_extractor import extract_queries, validate_field_paths
