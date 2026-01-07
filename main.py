@@ -6,7 +6,7 @@ from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
-from omop_etl.omop.build import BuildOmopRows
+from omop_etl.omop.service import OmopService
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
@@ -19,7 +19,7 @@ DEFAULT_STATIC_CSV = RESOURCES_DIR / "static_mapping.csv"
 DEFAULT_STRUCTURAL_CSV = RESOURCES_DIR / "structural_mapping.csv"
 
 
-def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> SemanticMappingResult:
+def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> OmopTables:
     """
     End-to-end test run on synthetic data for implemented modules.
     """
@@ -73,18 +73,14 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     )
 
     # build OMOP rows using the concept service
-    builder = BuildOmopRows(
-        harmonized_data=harmonized_result,
-        concepts=concept_service,
-    )
-    tables: OmopTables = builder.build_all_rows()
+    omop_service = OmopService(concepts=concept_service)
+    tables: OmopTables = omop_service.build(harmonized_result.patients)
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")
-
     print(f"Tables: {tables}")
 
-    return semantic_result
+    return tables
 
 
 if __name__ == "__main__":
