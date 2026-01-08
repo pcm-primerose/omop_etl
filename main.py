@@ -21,7 +21,7 @@ DEFAULT_STRUCTURAL_CSV = RESOURCES_DIR / "structural_mapping.csv"
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> OmopTables:
     """
-    End-to-end test run on synthetic data for implemented modules.
+    End-to-end run of OMOP ETL.
     """
     base_root.mkdir(parents=True, exist_ok=True)
 
@@ -52,6 +52,8 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         meta=_meta,
     )
 
+    print(f"Harmonized: {harmonized_result.patients[0]}")
+
     # run semantic mapping
     semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
     semantic_result: SemanticMappingResult = semantic_mapper.run(
@@ -78,7 +80,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")
-    print(f"Tables: {tables}")
+    # print(f"Tables: {tables}")
 
     return tables
 

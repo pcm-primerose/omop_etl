@@ -142,9 +142,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             pid = row["SubjectId"]
             self.patient_data[pid].age = row["age"]
 
-    # TODO: fix: is COHTTYPE__3/CD in actual dataset, or present but not used?
-    # - present but no data
     def _process_tumor_type(self) -> None:
+        # COHTTYPE__3/CD is present but has no data
         df = (
             self.data.with_row_index("_row")
             .select(

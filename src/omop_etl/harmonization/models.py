@@ -2025,7 +2025,13 @@ class Patient:
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
 
-    def __str__(self):
+    def __iter__(self):
+        return iter(self.__dict__.values())
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def __repr__(self):
         delim = ","
         return (
             f"{self.__class__.__name__}("
@@ -2049,7 +2055,7 @@ class Patient:
             f"end_of_treatment_date={self.end_of_treatment_date}{delim} "
             f"ecog={self.ecog_baseline}{delim} "
             f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
-            f"best_overall_respoonse={self.best_overall_response}{delim} "
+            f"best_overall_response={self.best_overall_response}{delim} "
             f"medical_histories={self.medical_histories}{delim} "
             f"previous_treatments={self.previous_treatments}{delim} "
             f"treatment_cycles={self.treatment_cycles}{delim} "
@@ -2115,3 +2121,9 @@ class HarmonizedData:
         patient_cls = type(next(iter(self.patients), object()))
         df_nested = build_nested_df(self.patients, patient_cls)
         return to_normalized(df_nested)
+
+    def __iter__(self):
+        return iter(self.patients)
+
+    def __getitem__(self, item):
+        return self.patients[item]
