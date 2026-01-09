@@ -1,4 +1,5 @@
 -- db/init/minimal_cdm.sql
+-- https://github.com/Smart-PACER-Registry/omopv5_4_setup/blob/main/CommonDataModel-5.4.0/inst/ddl/5.4/postgresql/OMOPCDM_postgresql_5.4_ddl.sql
 
 CREATE TABLE IF NOT EXISTS person (
   person_id                 bigint        NOT NULL,
@@ -32,7 +33,7 @@ CREATE TABLE IF NOT EXISTS cdm_source (
   cdm_source_name               varchar(255) NOT NULL,
   cdm_source_abbreviation       varchar(25)  NOT NULL,
   cdm_holder                    varchar(255) NOT NULL,
-  source_description            text         NULL,
+  source_description            varchar(MAX) NULL,
   source_documentation_reference varchar(255) NULL,
   cdm_etl_reference             varchar(255) NULL,
   source_release_date           date         NOT NULL,

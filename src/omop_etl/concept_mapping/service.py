@@ -126,10 +126,6 @@ class ConceptLookupService:
         self._result.record_match("structural", value_set, "", concept)
         return concept
 
-    def row_concepts_for_value_set(self, value_set: str) -> MappedConcept | None:
-        """Alias for lookup_structural (compatibility with builders)."""
-        return self.lookup_structural(value_set)
-
     def lookup_semantic(
         self,
         patient_id: str,

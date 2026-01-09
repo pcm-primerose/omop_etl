@@ -1,11 +1,13 @@
-from dataclasses import dataclass, field
+from dataclasses import field
+from pydantic.dataclasses import dataclass as pd_dataclass
+from pydantic import Field as pd_field
 import datetime as dt
 from typing import ClassVar
 
 from omop_etl.omop.core.row_validator import validate_required_fields
 
 
-@dataclass(frozen=True, slots=True)
+@pd_dataclass(frozen=True, slots=True)
 class PersonRow:
     """
     OMOP Person table row.
@@ -43,7 +45,7 @@ class PersonRow:
         validate_required_fields(self)
 
 
-@dataclass(frozen=True, slots=True)
+@pd_dataclass(frozen=True, slots=True)
 class ObservationPeriodRow:
     """
     OMOP ObservationPeriod table row.
@@ -71,61 +73,38 @@ class ObservationPeriodRow:
         validate_required_fields(self)
 
 
-@dataclass(frozen=True, slots=True)
+@pd_dataclass(frozen=True, slots=True)
 class CdmSourceRow:
     """
     OMOP CdmSource table row.
     https://ohdsi.github.io/CommonDataModel/cdm54.html#cdm_source
     """
 
-    cdm_source_name: str
-    cdm_source_abbreviation: str
-    cdm_holder: str
     source_release_date: dt.date
     cdm_release_date: dt.date
     cdm_version_concept_id: int
-    vocabulary_version: str
-    source_description: str | None = None
-    source_documentation_reference: str | None = None
-    cdm_etl_reference: str | None = None
-    cdm_version: str | None = None
+    cdm_source_name: str = pd_field(max_length=255)
+    cdm_source_abbreviation: str = pd_field(max_length=25)
+    cdm_holder: str = pd_field(max_length=255)
+    vocabulary_version: str = pd_field(max_length=20)
+    source_description: str | None = pd_field(None, max_length=2147483647)
+    source_documentation_reference: str | None = pd_field(max_length=255)
+    cdm_etl_reference: str | None = pd_field(max_length=255)
+    cdm_version: str | None = pd_field(max_length=10)
 
     def validate(self) -> None:
         """Validate required fields based on type hints. Raises RowValidationError if invalid."""
         validate_required_fields(self)
 
 
-@dataclass(frozen=True, slots=True)
+@pd_dataclass(frozen=True, slots=True)
 class VisitOccurrenceRow:
     """
     https://ohdsi.github.io/CommonDataModel/cdm54.html#visit_occurrence
     """
 
-    # so all classes with visit dates goes here?
-    # yeah, basically all out-patient visits as well (labs, tele, etc): map to hospital visit id
-    # visits are tracked in vituma, but only for tumor assessments?
-    # what about questionnaires: they should be covered, but are not
-    #   -- they have a different visit ID e.g. V03_E
-    #       -- yeha cause they're really not visits...
-    #   -- but can't I just decide what Patient classes have dates that maps to visits instead?
-    #   -- one point of this was to abstract away from EHR (but i don't track visit ID in questionnaires so don't use that)
-    # todo: look at patient model and decide
-    # todo: figure out if VI contains all visits or we need more data
-    # -- think VI is sufficient, visit name can be EventId/ActivityId?
-    #    since many different assessments can be done on a visit...
+    natural_key_fields: ClassVar[tuple[str, ...]] = ("person_id",)
 
-    # ok so basically this just tracks when a patient had a visit
-    # need static mapping of visit concept ids
-    # req:
-    # visit occerrence id (autogen id)
-    # person id,
-    # visit concept id (always the same? map to hospital concept)
-    # visit start date,
-    # visit end date (date of EHR extraction if no end), visit type concept id (provenance, just map to EHR in static:
-    # https://athena.ohdsi.org/search-terms/terms?domain=Type+Concept&standardConcept=Standard&page=1&pageSize=15&query=)
-
-    # so i don't model visits but, can just take questionnaires + any tumor assessments?
-    # or maybe worth it to make a visit class?
     visit_occurrence_id: int
     person_id: int
     visit_concept_id: int

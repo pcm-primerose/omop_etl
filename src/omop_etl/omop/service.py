@@ -6,6 +6,7 @@ from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.builders.person_builder import PersonBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
+from omop_etl.omop.builders.visit_occurrence_builder import VisitOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 from omop_etl.omop.models.tables import OmopTables
 
@@ -20,7 +21,11 @@ class OmopService:
 
     def __init__(self, concepts: ConceptLookupService):
         self._concepts = concepts
-        self._builders: list[OmopBuilder] = [PersonBuilder(concepts), ObservationPeriodBuilder(concepts)]
+        self._builders: list[OmopBuilder] = [
+            PersonBuilder(concepts),
+            ObservationPeriodBuilder(concepts),
+            VisitOccurrenceBuilder(concepts),
+        ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
         """

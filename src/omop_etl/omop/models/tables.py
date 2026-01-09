@@ -6,6 +6,7 @@ from omop_etl.omop.models.rows import (
     PersonRow,
     ObservationPeriodRow,
     CdmSourceRow,
+    VisitOccurrenceRow,
 )
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class OmopTables:
-    """Container for built OMOP tables.
+    """
+    Container for built OMOP tables.
 
     Supports dynamic table building via extend/add methods,
     with typed property accessors for known tables.
@@ -94,4 +96,9 @@ class OmopTables:
     @property
     def cdm_source(self) -> CdmSourceRow | None:
         rows = self._tables.get("cdm_source", [])
+        return rows[0] if rows else None
+
+    @property
+    def visit_occurrence(self) -> list[VisitOccurrenceRow] | None:
+        rows = self._tables.get("visit_occurrence", [])
         return rows[0] if rows else None

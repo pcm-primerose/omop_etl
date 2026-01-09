@@ -13,8 +13,8 @@ class CdmSourceBuilder:
         self._concepts = concepts
 
     def build(self) -> CdmSourceRow:
-        cdm_version_concept = self._concepts.row_concepts_for_value_set("cdm").concept_id
-        cdm_vocabulary_version = str(self._concepts.row_concepts_for_value_set("vocab").concept_id)
+        cdm_version_concept = self._concepts.lookup_structural("cdm").concept_id
+        cdm_vocabulary_version = str(self._concepts.lookup_structural("vocab").concept_id)
 
         return CdmSourceRow(
             cdm_source_name="test ETL",

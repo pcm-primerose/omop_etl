@@ -36,4 +36,5 @@ eq5d_qol_score,42537274,736535009,EuroQol visual analogue score,Observable Entit
 ecrf,32809,OMOP4976882,Case Report Form,Type Concept,Standard,Valid,Type Concept,Type Concept
 cdm,705800,CDM v5.4.2,OMOP CDM Version 5.4.2,CDM,Standard,Valid,Metadata,CDM
 vocab,1146958,CDM14,vocabulary.vocabulary_version,Field,Standard,Valid,Metadata,CDM
-visit_occurrence,38004515,A0,Hospital,Visit,Standard,Valid,Visit,Medicare Specialty
+outpatient_visit,9202,OP,Outpatient Visit,Visit,Standard,Valid,Visit,Visit
+

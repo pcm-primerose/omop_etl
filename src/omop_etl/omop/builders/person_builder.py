@@ -44,4 +44,5 @@ class PersonBuilder(OmopBuilder[PersonRow]):
             ethnicity_source_value=None,
             ethnicity_source_concept_id=0,
         )
+
         return [row]

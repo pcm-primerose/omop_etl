@@ -9,25 +9,24 @@ T = TypeVar("T")
 
 
 class OmopBuilder(ABC, Generic[T]):
-    """Abstract base class for OMOP table builders.
+    """
+    Abstract base class for OMOP table builders.
 
-    Each builder is responsible for constructing rows for a single OMOP table,
-    potentially from multiple patient fields.
-
-    Class Variables:
+    Class vars:
         table_name: The OMOP table name (e.g., "person", "condition_occurrence")
-        id_namespace: Namespace for ID generation. Defaults to table_name if not set.
+        id_namespace: Namespace for ID generation.
     """
 
     table_name: ClassVar[str]
-    id_namespace: ClassVar[str | None] = None  # defaults to table_name
+    id_namespace: ClassVar[str | None] = None
 
     def __init__(self, concepts: ConceptLookupService):
         self._concepts = concepts
 
     @abstractmethod
     def build(self, patient: Patient, person_id: int) -> list[T]:
-        """Build zero or more rows from a patient.
+        """
+        Build zero or more rows from a patient.
 
         Args:
             patient: The patient data to build rows from.
@@ -39,24 +38,13 @@ class OmopBuilder(ABC, Generic[T]):
         ...
 
     def generate_row_id(self, *key_parts: str) -> int:
-        """Generate a deterministic row ID from key parts.
-
-        Uses SHA1 hashing with the builder's namespace to create a reproducible
-        63-bit integer ID. The namespace defaults to the table_name.
-
-        Args:
-            *key_parts: String components that uniquely identify this row.
-                        For simple tables: just patient_id
-                        For collection tables: patient_id + index or sequence_id
-
-        Returns:
-            A deterministic 63-bit integer suitable for use as a primary key.
+        """
+        Deterministic row ID from key parts, using SHA1 hashing with builder's
+        namespace to create a reproducible 63-bit integer ID.
+        Namespace defaults to the table_name.
 
         Example:
-            # Simple case (one row per patient)
             self.generate_row_id(patient.patient_id)
-
-            # Collection case (multiple rows per patient)
             self.generate_row_id(patient.patient_id, str(index))
         """
         namespace = self.id_namespace or self.table_name

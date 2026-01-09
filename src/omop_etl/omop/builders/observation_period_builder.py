@@ -16,7 +16,7 @@ class ObservationPeriodBuilder(OmopBuilder[ObservationPeriodRow]):
             return []
 
         treatment_end = patient.treatment_end_date
-        observation_type = self._concepts.row_concepts_for_value_set("ecrf")
+        observation_type = self._concepts.lookup_structural("ecrf")
         period_id = self.generate_row_id(patient.patient_id)
 
         row = ObservationPeriodRow(
