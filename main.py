@@ -52,7 +52,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         meta=_meta,
     )
 
-    print(f"Harmonized: {harmonized_result.patients[0:40]}")
+    # print(f"Harmonized: {harmonized_result.patients[0:40]}")
 
     # run semantic mapping
     semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
@@ -80,7 +80,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")
-    # print(f"Tables: {tables}")
+    print(f"Tables: {tables}")
 
     return tables
 

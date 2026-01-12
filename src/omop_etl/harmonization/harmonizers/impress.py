@@ -142,6 +142,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             pid = row["SubjectId"]
             self.patient_data[pid].age = row["age"]
 
+    # todo: start date (or just leave to builder)
     def _process_tumor_type(self) -> None:
         # COHTTYPE__3/CD is present but has no data
         df = (

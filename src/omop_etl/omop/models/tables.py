@@ -100,5 +100,4 @@ class OmopTables:
 
     @property
     def visit_occurrence(self) -> list[VisitOccurrenceRow] | None:
-        rows = self._tables.get("visit_occurrence", [])
-        return rows[0] if rows else None
+        return self._tables.get("visit_occurrence", [])

@@ -8,11 +8,8 @@ from omop_etl.harmonization.models import (
 )
 
 
-# only thing that goes here is data from VI (visits): tumor assessments
-# todo: ensure visit and ecrf concept id
-# todo: make none-filtering upfront instead
 class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
-    table_name: ClassVar[str] = "VisitOccurrence"
+    table_name: ClassVar[str] = "visit_occurrence"
 
     def build(self, patient: Patient, person_id: int) -> list[VisitOccurrenceRow]:
         baseline_assessment: TumorAssessmentBaseline = patient.tumor_assessment_baseline
@@ -21,7 +18,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         visit_concept_id = self._concepts.lookup_structural("outpatient_visit")
         ecrf_concept_id = self._concepts.lookup_structural("ecrf")
 
-        if patient.tumor_assessment_baseline and patient.tumor_assessment_baseline.assessment_date:
+        if baseline_assessment and baseline_assessment.assessment_date:
             visits.append(
                 VisitOccurrenceRow(
                     visit_occurrence_id=self.generate_row_id(patient.patient_id),
