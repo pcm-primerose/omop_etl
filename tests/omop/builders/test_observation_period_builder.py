@@ -32,9 +32,8 @@ class TestObservationPeriodBuilder:
 
         rows = builder.build(patient_minimal, person_id)
 
-        assert len(rows) == 1
-        assert rows[0].observation_period_start_date == dt.date(2024, 1, 1)
-        assert rows[0].observation_period_end_date is None
+        assert rows == [], "Builder requires valid start and end dates to emit rows"
+        assert len(rows) == 0
 
     def test_generates_deterministic_period_id(self, mock_concepts, patient_complete):
         builder = ObservationPeriodBuilder(mock_concepts)

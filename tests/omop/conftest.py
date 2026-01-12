@@ -76,7 +76,6 @@ def mock_concepts(
     cdm_version_concept,
     vocab_version_concept,
 ) -> Mock:
-    """Mock ConceptLookupService with common lookups."""
     mock = Mock(spec=ConceptLookupService)
 
     def lookup_static(value_set: str, value: str):
@@ -87,7 +86,7 @@ def mock_concepts(
                 return female_concept
         return None
 
-    def row_concepts_for_value_set(value_set: str):
+    def lookup_structural(value_set: str):
         if value_set == "ecrf":
             return ecrf_type_concept
         if value_set == "cdm":
@@ -97,7 +96,7 @@ def mock_concepts(
         return None
 
     mock.lookup_static.side_effect = lookup_static
-    mock.row_concepts_for_value_set.side_effect = row_concepts_for_value_set
+    mock.lookup_structural.side_effect = lookup_structural
     return mock
 
 
@@ -157,3 +156,47 @@ def patient_minimal() -> Patient:
     p.date_of_birth = dt.date(2000, 1, 1)
     p.treatment_start_date = dt.date(2024, 1, 1)
     return p
+
+
+@pytest.fixture
+def outpatient_visit_concept() -> MappedConcept:
+    return MappedConcept(
+        concept_id=9202,
+        concept_code="OP",
+        concept_name="Outpatient Visit",
+        domain_id="Visit",
+        vocabulary_id="Visit",
+        standard_flag="S",
+    )
+
+
+@pytest.fixture
+def mock_concepts_visit(
+    male_concept,
+    female_concept,
+    ecrf_type_concept,
+    cdm_version_concept,
+    vocab_version_concept,
+    outpatient_visit_concept,
+) -> Mock:
+    """Mock ConceptLookupService for visit occurrence builder."""
+    mock = Mock(spec=ConceptLookupService)
+
+    def lookup_static(value_set: str, value: str):
+        if value_set == "sex":
+            if value == "M":
+                return male_concept
+            if value == "F":
+                return female_concept
+        return None
+
+    def lookup_structural(name: str):
+        if name == "outpatient_visit":
+            return outpatient_visit_concept
+        if name == "ecrf":
+            return ecrf_type_concept
+        return None
+
+    mock.lookup_static.side_effect = lookup_static
+    mock.lookup_structural.side_effect = lookup_structural
+    return mock
