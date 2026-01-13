@@ -5,7 +5,7 @@ import pytest
 
 from omop_etl.concept_mapping.core.models import MappedConcept
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.harmonization.models import Patient
+from omop_etl.harmonization.models.patient import Patient
 
 
 @pytest.fixture
@@ -128,6 +128,7 @@ def patient_missing_dob() -> Patient:
     p = Patient(patient_id="P003", trial_id="TEST")
     p.sex = "M"
     p.treatment_start_date = dt.date(2023, 1, 1)
+    p.treatment_end_date = dt.date(2023, 6, 30)
     return p
 
 

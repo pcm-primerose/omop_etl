@@ -1,7 +1,7 @@
 import hashlib
 from typing import List, Sequence, Any
 
-from omop_etl.harmonization.models import Patient
+from omop_etl.harmonization.models.patient import Patient
 from omop_etl.semantic_mapping.core.models import (
     Query,
     FieldConfig,

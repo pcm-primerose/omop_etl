@@ -3,28 +3,26 @@ from typing import Mapping, Any
 from deprecated import deprecated
 import polars as pl
 from logging import getLogger
+
 from omop_etl.harmonization.core.parsers import PolarsParsers
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.models import (
-    HarmonizedData,
-    Patient,
-    TumorType,
-    StudyDrugs,
-    Biomarkers,
-    FollowUp,
-    EcogBaseline,
-    MedicalHistory,
-    PreviousTreatments,
-    TreatmentCycle,
-    ConcomitantMedication,
-    AdverseEvent,
-    TumorAssessmentBaseline,
-    TumorAssessment,
-    C30,
-    EQ5D,
-    BestOverallResponse,
-)
-
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
+from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
+from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
+from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.eq5d import EQ5D
+from omop_etl.harmonization.models.domain.followup import FollowUp
+from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
+from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
+from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
+from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.harmonized import HarmonizedData
+from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
 
@@ -339,7 +337,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             bm.gene_and_mutation_code = row["gene_and_mutation_code"]
             bm.cohort_target_mutation = row["cohort_target_mutation"]
             bm.cohort_target_name = row["cohort_target_name"]
-            self.patient_data[pid].biomarker = bm
+            self.patient_data[pid].biomarkers = bm
 
     def _process_date_of_death(self) -> None:
         death_df = (

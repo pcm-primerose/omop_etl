@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Sequence, Set, List
 
-from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.format_utils import expand_formats
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult

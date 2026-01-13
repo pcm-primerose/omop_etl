@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.service import HarmonizationService

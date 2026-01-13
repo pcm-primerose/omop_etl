@@ -4,7 +4,7 @@ from typing import Sequence, Callable
 import polars as pl
 from logging import getLogger
 
-from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.core.dispatch import resolve_harmonizer
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.core.exporter import HarmonizedExporter
@@ -117,7 +117,7 @@ def _schema_from_manifest(manifest_schema: dict[str, str]) -> pl.Schema:
     out: dict[str, pl.DataType] = {}
     for col, type_name in manifest_schema.items():
         try:
-            out[col] = NAME_TO_POLARS_DTYPE[type_name]
+            out[col] = NAME_TO_POLARS_DTYPE[type_name]  # todo: fix type warning
         except KeyError:
             raise ValueError(
                 f"Unknown dtype name {type_name} for column {col} in manifest. Add it to NAME_TO_POLARS_DTYPE/POLARS_DTYPE_TO_NAME."

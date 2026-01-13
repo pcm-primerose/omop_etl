@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import ClassVar, Generic, TypeVar
 
-from omop_etl.harmonization.models import Patient
+from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.core.id_generator import sha1_bigint
 

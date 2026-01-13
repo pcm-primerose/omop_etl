@@ -1,4 +1,8 @@
 import datetime as dt
+from enum import Enum
+from typing import TypeVar
+
+E = TypeVar("E", bound=Enum)
 
 
 class StrictValidators:
@@ -41,3 +45,17 @@ class StrictValidators:
         if type(value) is bool:
             return value
         raise TypeError(f"Expected bool or None for field {field_name}, got {type(value)} with value {value}")
+
+    @staticmethod
+    def validate_optional_enum(*, value, field_name: str, enum_type: type[E]) -> E | None:
+        if value is None:
+            return None
+        if isinstance(value, enum_type):
+            return value
+        if isinstance(value, str):
+            try:
+                return enum_type(value)
+            except ValueError:
+                valid = [e.value for e in enum_type]
+                raise ValueError(f"{field_name}: '{value}' is not a valid {enum_type.__name__}. Valid values: {valid}")
+        raise TypeError(f"{field_name} must be {enum_type.__name__} or None, got {type(value)}: {value}")

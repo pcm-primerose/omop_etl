@@ -11,7 +11,7 @@ from omop_etl.infra.io.types import (
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.infra.io.format_utils import expand_formats
 from omop_etl.harmonization.core.dispatch import resolve_harmonizer
-from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.core.pipeline import (
     HarmonizationPipeline,
     HarmonizerResolver,

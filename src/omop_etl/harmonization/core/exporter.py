@@ -4,7 +4,7 @@ import logging
 
 from omop_etl.infra.logging.scoped import file_logging
 from omop_etl.infra.logging.adapters import with_extra
-from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.options import WriterOptions
 from omop_etl.infra.io.manifest_builder import build_manifest
 from omop_etl.infra.io.types import (

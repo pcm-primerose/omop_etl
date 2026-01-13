@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from omop_etl.harmonization.models import Patient
+from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.builders.person_builder import PersonBuilder

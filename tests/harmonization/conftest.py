@@ -277,7 +277,7 @@ def study_drugs_fixture() -> pl.DataFrame:
 
 
 @dataclass(frozen=True, slots=True)
-class BiomarkerRow:
+class BiomarkersRow:
     SubjectId: str
     COH_GENMUT1: str | None = None
     COH_GENMUT1CD: int | None = None
@@ -287,9 +287,9 @@ class BiomarkerRow:
 
 
 @pytest.fixture
-def biomarker_fixture() -> pl.DataFrame:
-    rows: List[BiomarkerRow] = [
-        BiomarkerRow(
+def biomarkers_fixture() -> pl.DataFrame:
+    rows: List[BiomarkersRow] = [
+        BiomarkersRow(
             "mut_braf_activating",
             COH_GENMUT1="BRAF activating mutations",
             COH_GENMUT1CD=21,
@@ -297,7 +297,7 @@ def biomarker_fixture() -> pl.DataFrame:
             COH_COHTMN="BRAF Non-V600 activating mutations",
             COH_EventDate="1900-nk-nk",
         ),
-        BiomarkerRow(
+        BiomarkersRow(
             "some_info_no_mut",
             COH_GENMUT1="",
             COH_GENMUT1CD=None,
@@ -305,7 +305,7 @@ def biomarker_fixture() -> pl.DataFrame:
             COH_COHTMN="",
             COH_EventDate="1980-02-nk",
         ),
-        BiomarkerRow(
+        BiomarkersRow(
             "brca1_inactivating",
             COH_GENMUT1="BRCA1 inactivating mutation",
             COH_GENMUT1CD=2,
@@ -313,7 +313,7 @@ def biomarker_fixture() -> pl.DataFrame:
             COH_COHTMN="BRCA1 stop-gain deletion",
             COH_EventDate="not a date",
         ),
-        BiomarkerRow(
+        BiomarkersRow(
             "sdhaf2_mut",
             COH_GENMUT1="SDHAF2 mutation",
             COH_GENMUT1CD=-1,
@@ -321,7 +321,7 @@ def biomarker_fixture() -> pl.DataFrame:
             COH_COHTMN="",
             COH_EventDate="1999-nk-11",
         ),
-        BiomarkerRow(
+        BiomarkersRow(
             "code_only_misc",
             COH_GENMUT1="",
             COH_GENMUT1CD=10,

@@ -129,9 +129,9 @@ def build_nested_df(patients: list, patient_cls: type) -> pl.DataFrame:
                 continue
 
             if origin in (list, tuple, Sequence, MutableSequence):
-                row[prop_name] = [_export_leaf_object(item) for item in list(value)]
+                row[prop_name] = [export_leaf_object(item) for item in list(value)]
             elif isinstance(base_type, type) and schema.get(prop_name) == pl.Struct:
-                row[prop_name] = _export_leaf_object(value)
+                row[prop_name] = export_leaf_object(value)
             else:
                 row[prop_name] = _to_polars_primitive(value)
 
@@ -253,7 +253,7 @@ def _to_polars_primitive(value: Any) -> Any:
     return str(value)
 
 
-def _export_leaf_object(obj: Any, *, exclude: set[str] = SerializeTypes.IDENTITY_FIELDS) -> dict[str, Any]:
+def export_leaf_object(obj: Any, *, exclude: set[str] = SerializeTypes.IDENTITY_FIELDS) -> dict[str, Any]:
     """
     Export an object as a dict. Prefer public @properties, if none, fall back
     to __dict__ for dynamic leaves (like C30/EQ5D).
@@ -334,7 +334,7 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
                 value = getattr(patient, prop_name, None)
                 if value is None:
                     continue
-                exported = _export_leaf_object(value)
+                exported = export_leaf_object(value)
                 for field_name, field_value in exported.items():
                     inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
                     fields[field_name] = (
@@ -355,7 +355,7 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
                 for patient in patients:
                     sequence = getattr(patient, prop_name, ()) or ()
                     for item in sequence:
-                        exported = _export_leaf_object(item)
+                        exported = export_leaf_object(item)
                         for field_name, field_value in exported.items():
                             inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
                             fields[field_name] = (
