@@ -1,16 +1,20 @@
 import datetime as dt
 
+from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.models.rows import CdmSourceRow
-from omop_etl.concept_mapping.api import ConceptLookupService
 
 
 class CdmSourceBuilder:
+    """
+    Builds the singleton CdmSource row with CDM metadata.
+    """
+
     def __init__(self, concepts: ConceptLookupService):
         self._concepts = concepts
 
-    def build_cdm_source(self):
-        cdm_version_concept = self._concepts.row_concepts_for_value_set("cdm").concept_id
-        cdm_vocabulary_version = str(self._concepts.row_concepts_for_value_set("vocab").concept_id)
+    def build(self) -> CdmSourceRow:
+        cdm_version_concept = self._concepts.lookup_structural("cdm").concept_id
+        cdm_vocabulary_version = str(self._concepts.lookup_structural("vocab").concept_id)
 
         return CdmSourceRow(
             cdm_source_name="test ETL",

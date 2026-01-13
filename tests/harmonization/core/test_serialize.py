@@ -1,16 +1,15 @@
 import datetime as dt
 from typing import Optional, List
-
 import polars as pl
 import pytest
 
+from omop_etl.infra.io.types import SerializeTypes
 from omop_etl.harmonization.core.serialize import (
     build_nested_schema,
     build_nested_df,
     to_wide,
     to_normalized,
 )
-from omop_etl.infra.io.types import SerializeTypes
 
 
 class BestOverallResponse:
@@ -48,7 +47,7 @@ class AdverseEvent:
         return self._grade
 
 
-class Patient:
+class SerializeTestPatient:
     """
     Serializer only looks at public @property descriptors on the class.
     Return types must be annotated to build the schema.
@@ -90,8 +89,8 @@ class Patient:
 
 
 @pytest.fixture
-def patients() -> list[Patient]:
-    p1 = Patient(
+def patients() -> list[SerializeTestPatient]:
+    p1 = SerializeTestPatient(
         patient_id="P1",
         trial_id="T",
         age=60,
@@ -101,7 +100,7 @@ def patients() -> list[Patient]:
             AdverseEvent("Nausea", None),
         ],
     )
-    p2 = Patient(
+    p2 = SerializeTestPatient(
         patient_id="P2",
         trial_id="T",
         age=None,
@@ -113,11 +112,11 @@ def patients() -> list[Patient]:
 
 @pytest.fixture
 def nested_df(patients) -> pl.DataFrame:
-    return build_nested_df(patients, Patient)
+    return build_nested_df(patients, SerializeTestPatient)
 
 
 def test_build_nested_schema_shapes_structs_and_lists(patients):
-    schema = build_nested_schema(patients, Patient)
+    schema = build_nested_schema(patients, SerializeTestPatient)
 
     # id columns
     assert schema["patient_id"] == pl.Utf8
@@ -144,7 +143,7 @@ def test_build_nested_schema_shapes_structs_and_lists(patients):
 
 
 def test_build_nested_df_matches_schema(patients):
-    df = build_nested_df(patients, Patient)
+    df = build_nested_df(patients, SerializeTestPatient)
     # ensure nested types are present
     assert df.schema["best_overall_response"] == pl.Struct({"code": pl.Int64, "date": pl.Date})
     assert isinstance(df.schema["adverse_events"], pl.List)

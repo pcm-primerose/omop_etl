@@ -2,9 +2,7 @@ import datetime as dt
 import pytest
 
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
-from omop_etl.harmonization.datamodels import Patient
-
-pytest_plugins = "tests.harmonization.fixtures.impress_fixtures"
+from omop_etl.harmonization.models.patient import Patient
 
 
 def test_impress_subject_id_processing(subject_id_fixture):
@@ -195,10 +193,10 @@ def test_date_of_death_processing(date_of_death_fixture):
     assert harmonizer.patient_data["both_invalid"].date_of_death is None
 
 
-def test_biomarker_processing(biomarker_fixture):
-    harmonizer = ImpressHarmonizer(data=biomarker_fixture, trial_id="IMPRESS_TEST")
+def test_biomarkers_processing(biomarkers_fixture):
+    harmonizer = ImpressHarmonizer(data=biomarkers_fixture, trial_id="IMPRESS_TEST")
 
-    for subject_id in biomarker_fixture.select("SubjectId").unique().to_series().to_list():
+    for subject_id in biomarkers_fixture.select("SubjectId").unique().to_series().to_list():
         harmonizer.patient_data[subject_id] = Patient(
             trial_id="IMPRESS_TEST",
             patient_id=subject_id,
@@ -206,35 +204,35 @@ def test_biomarker_processing(biomarker_fixture):
 
     harmonizer._process_biomarkers()
 
-    biomarker_1 = harmonizer.patient_data["mut_braf_activating"].biomarker
+    biomarker_1 = harmonizer.patient_data["mut_braf_activating"].biomarkers
     assert biomarker_1.gene_and_mutation == "BRAF activating mutations"
     assert biomarker_1.gene_and_mutation_code == 21
     assert biomarker_1.cohort_target_name == "BRAF Non-V600 activating mutations"
     assert biomarker_1.cohort_target_mutation == "BRAF Non-V600 activating mutations"
     assert biomarker_1.date == dt.date(1900, 7, 15)
 
-    biomarker_2 = harmonizer.patient_data["some_info_no_mut"].biomarker
+    biomarker_2 = harmonizer.patient_data["some_info_no_mut"].biomarkers
     assert biomarker_2.gene_and_mutation is None
     assert biomarker_2.gene_and_mutation_code is None
     assert biomarker_2.cohort_target_name == "some info"
     assert biomarker_2.cohort_target_mutation is None
     assert biomarker_2.date == dt.date(1980, 2, 15)
 
-    biomarker_3 = harmonizer.patient_data["brca1_inactivating"].biomarker
+    biomarker_3 = harmonizer.patient_data["brca1_inactivating"].biomarkers
     assert biomarker_3.gene_and_mutation == "BRCA1 inactivating mutation"
     assert biomarker_3.gene_and_mutation_code == 2
     assert biomarker_3.cohort_target_name == "BRCA1 stop-gain del exon 11"
     assert biomarker_3.cohort_target_mutation == "BRCA1 stop-gain deletion"
     assert biomarker_3.date is None
 
-    biomarker_4 = harmonizer.patient_data["sdhaf2_mut"].biomarker
+    biomarker_4 = harmonizer.patient_data["sdhaf2_mut"].biomarkers
     assert biomarker_4.gene_and_mutation == "SDHAF2 mutation"
     assert biomarker_4.gene_and_mutation_code == -1
     assert biomarker_4.cohort_target_name == "more info"
     assert biomarker_4.cohort_target_mutation is None
     assert biomarker_4.date == dt.date(1999, 7, 11)
 
-    biomarker_5 = harmonizer.patient_data["code_only_misc"].biomarker
+    biomarker_5 = harmonizer.patient_data["code_only_misc"].biomarkers
     assert biomarker_5.gene_and_mutation is None
     assert biomarker_5.gene_and_mutation_code == 10
     assert biomarker_5.cohort_target_name is None
@@ -705,7 +703,7 @@ def test_treatment_cycles(treatment_cycle_fixture):
     assert cycle_3.was_dose_administered_to_spec is True
     assert cycle_3.was_tablet_taken_to_prescription_in_previous_cycle is False
     assert cycle_3.oral_dose_prescribed_per_day == 200
-    assert cycle_3.oral_dose_prescribed_unit == "mg"
+    assert cycle_3.oral_dose_unit == "mg"
     assert cycle_3.number_of_days_tablet_not_taken == 3
     assert cycle_3.reason_tablet_not_taken == "nausea"
 

@@ -1,6 +1,6 @@
 import polars as pl
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.datamodels import HarmonizedData, Patient
+from omop_etl.harmonization.models import HarmonizedData, Patient
 
 
 class DrupHarmonizer(BaseHarmonizer):

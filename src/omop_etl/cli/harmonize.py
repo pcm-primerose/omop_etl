@@ -1,12 +1,15 @@
 from pathlib import Path
 
-from omop_etl.harmonization.datamodels import HarmonizedData
+from omop_etl.harmonization.models import HarmonizedData
 from omop_etl.infra.io.types import Layout
-from omop_etl.config import DATA_ROOT, LOG_LEVEL
 from omop_etl.infra.utils.find_latest_run import find_latest_run_output
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.harmonization.api import HarmonizationService
+from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
+from omop_etl.config import (
+    DATA_ROOT,
+    LOG_LEVEL,
+)
 
 
 def run_harmonization(input_csv: Path, base_root: Path, trial: str = "IMPRESS") -> HarmonizedData:

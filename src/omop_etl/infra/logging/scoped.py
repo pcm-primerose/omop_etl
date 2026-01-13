@@ -2,18 +2,21 @@ from contextlib import contextmanager
 from logging import Logger, getLogger
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator
 
-from .logging_setup import add_file_handler, _remove_file_handler
+from omop_etl.infra.logging.logging_setup import (
+    add_file_handler,
+    _remove_file_handler,
+)
 
 
 @contextmanager
 def file_logging(
     path: Path,
     *,
-    json_format: Optional[bool] = False,
-    level: Optional[int | str] = None,
-    logger: Optional[Logger] = None,
+    json_format: bool | None = False,
+    level: int | str | None = None,
+    logger: Logger | None = None,
 ) -> Iterator[Logger]:
     """
     Temporarily add a file handler to logger, root by default.

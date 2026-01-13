@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence, List, Final, Mapping, TypeVar, Optional
+from typing import Iterable, Sequence, List, Final, Mapping, TypeVar
 from types import MappingProxyType
 
 from .types import ALIASES, WIDE_FORMATS, AnyFormatToken
@@ -35,7 +35,7 @@ F = TypeVar("F", bound=str)  # element type of `allowed` (TabularFormat or WideF
 
 def expand_formats(
     formats: AnyFormatToken | Sequence[AnyFormatToken],
-    allowed: Optional[Sequence[F]],
+    allowed: Sequence[F] | None,
 ) -> List[F]:
     # normalize to a flat list of strings, services ensures not None
     raw = [formats] if isinstance(formats, str) else _flatten(formats)

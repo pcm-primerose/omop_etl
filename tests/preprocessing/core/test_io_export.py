@@ -3,12 +3,23 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from omop_etl.preprocessing.core.io_export import PreprocessExporter
+from omop_etl.preprocessing.core.exporter import PreprocessExporter
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.infra.io.types import TabularFormat, WIDE_FORMATS, TABULAR_FORMATS
-from omop_etl.infra.io.format_utils import expand_formats, normalize_format
-from omop_etl.infra.io.path_planner import plan_table_dir, plan_single_file, WriterContext
 from omop_etl.infra.io.types import Layout
+from omop_etl.infra.io.types import (
+    TabularFormat,
+    WIDE_FORMATS,
+    TABULAR_FORMATS,
+)
+from omop_etl.infra.io.format_utils import (
+    expand_formats,
+    normalize_format,
+)
+from omop_etl.infra.io.path_planner import (
+    plan_table_dir,
+    plan_single_file,
+    WriterContext,
+)
 
 
 @pytest.fixture

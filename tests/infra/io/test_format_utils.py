@@ -1,6 +1,10 @@
 import pytest
 
-from omop_etl.infra.io.format_utils import ext, expand_formats, normalize_format
+from omop_etl.infra.io.format_utils import (
+    ext,
+    expand_formats,
+    normalize_format,
+)
 
 
 @pytest.fixture

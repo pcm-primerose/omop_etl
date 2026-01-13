@@ -1,10 +1,9 @@
 from dataclasses import dataclass
+import uuid
 from datetime import (
     datetime,
     timezone,
 )
-import uuid
-from typing import Optional
 
 from omop_etl.infra.io.types import RunSource
 
@@ -14,11 +13,11 @@ class RunMetadata:
     trial: str
     run_id: str
     started_at: str
-    source: Optional[RunSource] = None
-    user: Optional[str] = None
+    source: RunSource | None = None
+    user: str | None = None
 
     @classmethod
-    def create(cls, trial: str, run_id: Optional[str] = None) -> "RunMetadata":
+    def create(cls, trial: str, run_id: str | None = None) -> RunMetadata:
         return cls(
             trial=trial,
             run_id=run_id or uuid.uuid4().hex[:8],

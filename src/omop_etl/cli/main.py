@@ -3,17 +3,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from omop_etl.db.postgres import PostgresOmopWriter
-from omop_etl.harmonization.datamodels import HarmonizedData
-from omop_etl.harmonization.api import HarmonizationService
+from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.infra.logging.logging_setup import configure_logger
-from omop_etl.preprocessing.api import make_ecrf_config, PreprocessService
+from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
-from omop_etl.semantic_mapping.api import SemanticService
+from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import BatchQueryResult
+from omop_etl.concept_mapping.service import ConceptLookupService
 
-from omop_etl.omop.build import BuildOmopRows
+from omop_etl.omop.service import OmopService
 from omop_etl.omop.models.tables import OmopTables
 
 
@@ -50,20 +51,30 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str) -> Harm
 
 # todo: always use semantic & static (remove args basically)
 def _build_tables(
-    harmonized: HarmonizedData, meta: RunMetadata, *, static_mapping: Path, structural_mapping: Path, with_semantic: bool
+    harmonized: HarmonizedData,
+    meta: RunMetadata,
+    outdir: Path,
+    *,
+    static_mapping: Path,
+    structural_mapping: Path,
+    with_semantic: bool,
 ) -> OmopTables:
     semantic_batch: BatchQueryResult | None = None
     if with_semantic:
         result = SemanticService().run(harmonized_data=harmonized, meta=meta)
         semantic_batch = result.batch_result
 
-    builder = BuildOmopRows(
-        harmonized_data=harmonized,
-        static_mapping_path=static_mapping,
+    concept_service = ConceptLookupService.from_paths(
+        static_path=static_mapping,
+        structural_path=structural_mapping,
         semantic_batch=semantic_batch,
-        structural_mapping_path=structural_mapping,
+        meta=meta,
+        outdir=outdir,
+        layout=Layout.TRIAL_TIMESTAMP_RUN,
     )
-    return builder.build_all_rows()
+
+    omop_service = OmopService(concepts=concept_service)
+    return omop_service.build(harmonized.patients)
 
 
 def cmd_load(args: argparse.Namespace) -> int:
@@ -79,6 +90,7 @@ def cmd_load(args: argparse.Namespace) -> int:
     tables = _build_tables(
         harmonized,
         meta=RunMetadata.create(args.trial),
+        outdir=args.outdir,
         static_mapping=args.static_mapping,
         structural_mapping=args.structural_mapping,
         with_semantic=args.with_semantic,

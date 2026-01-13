@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Mapping, Sequence, Literal
+from typing import Mapping, Sequence, Literal
 import polars as pl
 
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -16,7 +16,7 @@ class SheetConfig:
 class SheetData:
     key: str
     data: pl.DataFrame
-    input_path: Optional[Path] = None
+    input_path: Path | None = None
 
 
 @dataclass
@@ -27,7 +27,7 @@ class EcrfConfig:
     source_type: str | None = None
 
     @classmethod
-    def from_mapping(cls, m: Mapping[str, list[str]]) -> "EcrfConfig":
+    def from_mapping(cls, m: Mapping[str, list[str]]) -> EcrfConfig:
         return cls([SheetConfig(key=k.upper(), usecols=v) for k, v in m.items()])
 
 

@@ -1,6 +1,6 @@
 import json
 
-from omop_etl.concept_mapping.core.io_export import ConceptLookupExporter
+from omop_etl.concept_mapping.core.exporter import ConceptLookupExporter
 from omop_etl.concept_mapping.core.models import (
     LookupResult,
     MappedConcept,

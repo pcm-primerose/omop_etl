@@ -1,13 +1,16 @@
-from omop_etl.harmonization.datamodels import Patient
+from typing import ClassVar
+
+from omop_etl.harmonization.models.patient import Patient
+from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.models.rows import PersonRow
-from omop_etl.concept_mapping.api import ConceptLookupService
 
 
-class PersonRowBuilder:
-    def __init__(self, concepts: ConceptLookupService):
-        self._concepts = concepts
+class PersonBuilder(OmopBuilder[PersonRow]):
+    """Builds Person table rows from patient demographics."""
 
-    def build(self, patient: Patient, person_id: int) -> PersonRow | None:
+    table_name: ClassVar[str] = "person"
+
+    def build(self, patient: Patient, person_id: int) -> list[PersonRow]:
         sex_raw = patient.sex
 
         mapped = None
@@ -20,16 +23,16 @@ class PersonRowBuilder:
         gender_concept_id = mapped.concept_id if mapped else 0
 
         dob = patient.date_of_birth
-        # dob is req by cdm
+        # dob is required by CDM
         if dob is None:
-            return None
+            return []
 
-        return PersonRow(
+        row = PersonRow(
             person_id=person_id,
             gender_concept_id=gender_concept_id,
-            year_of_birth=dob.year if dob is not None else None,
-            month_of_birth=dob.month if dob is not None else None,
-            day_of_birth=dob.day if dob is not None else None,
+            year_of_birth=dob.year,
+            month_of_birth=dob.month,
+            day_of_birth=dob.day,
             birth_datetime=None,
             race_concept_id=0,
             ethnicity_concept_id=0,
@@ -41,3 +44,5 @@ class PersonRowBuilder:
             ethnicity_source_value=None,
             ethnicity_source_concept_id=0,
         )
+
+        return [row]

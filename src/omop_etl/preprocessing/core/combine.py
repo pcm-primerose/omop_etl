@@ -1,6 +1,6 @@
 import polars as pl
 
-from .models import EcrfConfig
+from omop_etl.preprocessing.core.models import EcrfConfig
 
 
 def combine(ecfg: EcrfConfig, on: str = "SubjectId") -> pl.DataFrame:

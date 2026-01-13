@@ -1,30 +1,28 @@
 import re
-from typing import Mapping, Any, Optional
+from typing import Mapping, Any
 from deprecated import deprecated
 import polars as pl
 from logging import getLogger
+
 from omop_etl.harmonization.core.parsers import PolarsParsers
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.datamodels import (
-    HarmonizedData,
-    Patient,
-    TumorType,
-    StudyDrugs,
-    Biomarkers,
-    FollowUp,
-    EcogBaseline,
-    MedicalHistory,
-    PreviousTreatments,
-    TreatmentCycle,
-    ConcomitantMedication,
-    AdverseEvent,
-    TumorAssessmentBaseline,
-    TumorAssessment,
-    C30,
-    EQ5D,
-    BestOverallResponse,
-)
-
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
+from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
+from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
+from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.eq5d import EQ5D
+from omop_etl.harmonization.models.domain.followup import FollowUp
+from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
+from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
+from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
+from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.harmonized import HarmonizedData
+from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
 
@@ -142,9 +140,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             pid = row["SubjectId"]
             self.patient_data[pid].age = row["age"]
 
-    # TODO: fix: is COHTTYPE__3/CD in actual dataset, or present but not used?
-    # - present but no data
+    # todo: start date (or just leave to builder)
     def _process_tumor_type(self) -> None:
+        # COHTTYPE__3/CD is present but has no data
         df = (
             self.data.with_row_index("_row")
             .select(
@@ -339,7 +337,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             bm.gene_and_mutation_code = row["gene_and_mutation_code"]
             bm.cohort_target_mutation = row["cohort_target_mutation"]
             bm.cohort_target_name = row["cohort_target_name"]
-            self.patient_data[pid].biomarker = bm
+            self.patient_data[pid].biomarkers = bm
 
     def _process_date_of_death(self) -> None:
         death_df = (
@@ -1029,7 +1027,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             # oral
             obj.was_dose_administered_to_spec = s["was_dose_administered_to_spec"]
             obj.oral_dose_prescribed_per_day = s["TR_TRODSTOT"]
-            obj.oral_dose_prescribed_unit = s["TR_TRODSU"]
+            obj.oral_dose_unit = s["TR_TRODSU"]
             obj.was_tablet_taken_to_prescription_in_previous_cycle = s["was_tablet_taken_to_prescription_in_previous_cycle"]
             obj.reason_not_administered_to_spec = s["TR_TROREA"]
             obj.reason_tablet_not_taken = s["TR_TROSPE"]
@@ -1487,7 +1485,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             value_cols=processed.select(pl.all().exclude("SubjectId")).columns,
         )
 
-        def build_ta(pid: str, s: Mapping[str, Any]) -> Optional[TumorAssessment]:
+        def build_ta(pid: str, s: Mapping[str, Any]) -> TumorAssessment | None:
             obj = TumorAssessment(pid)
             obj.assessment_type = s["assessment_type"]
             obj.target_lesion_change_from_baseline = s["target_lesion_change_from_baseline"]
@@ -1555,7 +1553,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             items_col="items",
         )
 
-        def build_c30(pid: str, s: Mapping[str, Any]) -> Optional[C30]:
+        def build_c30(pid: str, s: Mapping[str, Any]) -> C30 | None:
             obj = C30(patient_id=pid)
             obj.date = s["date"]
             obj.event_name = s["event_name"]
@@ -1624,7 +1622,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             items_col="items",
         )
 
-        def build_eq5d(pid: str, s: Mapping[str, Any]) -> Optional[EQ5D]:
+        def build_eq5d(pid: str, s: Mapping[str, Any]) -> EQ5D | None:
             obj = EQ5D(patient_id=pid)
             obj.date = s["date"]
             obj.event_name = s["event_name"]

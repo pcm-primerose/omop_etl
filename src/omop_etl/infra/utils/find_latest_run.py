@@ -1,14 +1,14 @@
 from pathlib import Path
-from typing import Optional, Literal, Union
+from typing import Literal, Union
 
 
 def find_latest_run_output(
     module: Literal["preprocessed", "harmonized"],
     trial: str = "impress",
     fmt: str = "csv",
-    mode: Optional[Literal["wide", "norm"]] = None,
-    data_root: Optional[Path] = None,
-) -> Optional[Union[Path, dict[str, Path]]]:
+    mode: Literal["wide", "norm"] | None = None,
+    data_root: Path | None = None,
+) -> Union[Path, dict[str, Path]] | None:
     """
     Find the most recent output from a pipeline module.
 
@@ -35,7 +35,7 @@ def find_latest_run_output(
         return None
 
     # find all timestamped run directories
-    all_run_dirs = [d for d in runs_dir.iterdir() if d.is_dir()]
+    all_run_dirs = [_dir for _dir in runs_dir.iterdir() if _dir.is_dir()]
     if not all_run_dirs:
         return None
 

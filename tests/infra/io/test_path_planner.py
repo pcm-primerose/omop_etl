@@ -7,7 +7,10 @@ from omop_etl.infra.io.path_planner import (
     plan_single_file,
     plan_table_dir,
 )
-from omop_etl.infra.io.types import TabularFormat, WideFormat
+from omop_etl.infra.io.types import (
+    TabularFormat,
+    WideFormat,
+)
 
 
 @pytest.fixture

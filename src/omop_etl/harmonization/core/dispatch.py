@@ -1,6 +1,7 @@
 from typing import Dict
-from ..harmonizers.base import BaseHarmonizer
-from ..harmonizers.impress import ImpressHarmonizer
+
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 
 _TRIALS: Dict[str, type[BaseHarmonizer]] = {
     "impress": ImpressHarmonizer,

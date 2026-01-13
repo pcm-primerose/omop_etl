@@ -1,10 +1,16 @@
 import polars as pl
 from unittest.mock import Mock
+
 from omop_etl.preprocessing.core.pipeline import PreprocessingPipeline
-from omop_etl.preprocessing.core.models import PreprocessingRunOptions, PreprocessResult, EcrfConfig, SheetConfig
-from omop_etl.preprocessing.core.io_export import PreprocessExporter
+from omop_etl.preprocessing.core.exporter import PreprocessExporter
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.infra.io.types import Layout
+from omop_etl.preprocessing.core.models import (
+    PreprocessingRunOptions,
+    PreprocessResult,
+    EcrfConfig,
+    SheetConfig,
+)
 
 
 def test_pipeline_with_real_components(tmp_path):
