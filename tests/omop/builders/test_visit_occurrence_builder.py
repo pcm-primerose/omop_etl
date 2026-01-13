@@ -113,8 +113,7 @@ class TestVisitOccurrenceBuilder:
         visits = builder.build(patient, person_id)
 
         assert len(visits) == 2
-        # Verify they have different visit_occurrence_ids
-        assert visits[0].visit_occurrence_id != visits[1].visit_occurrence_id
+        assert visits[0].visit_occurrence_id != visits[1].visit_occurrence_id, "should have different visit_occurrence_ids"
 
     def test_duplicate_date_and_event_id_collapses_to_one_visit(self, mock_concepts_visit):
         """Duplicate (date, event_id) rows should collapse to one visit."""
@@ -137,8 +136,7 @@ class TestVisitOccurrenceBuilder:
 
         visits = builder.build(patient, person_id)
 
-        # Should collapse to one visit since date+event_id are the same
-        assert len(visits) == 1
+        assert len(visits) == 1, "should collapse to one visit since date+event_id are the same"
 
     def test_returns_empty_when_no_assessments(self, mock_concepts_visit):
         """Patient with no baseline or assessments returns empty list."""
@@ -161,7 +159,6 @@ class TestVisitOccurrenceBuilder:
 
         assessment_no_date = TumorAssessment(patient_id="P001")
         assessment_no_date.event_id = "EVT002"
-        # No date set
 
         patient.tumor_assessments = [assessment_with_date, assessment_no_date]
 
