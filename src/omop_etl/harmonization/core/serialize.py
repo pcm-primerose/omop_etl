@@ -4,7 +4,7 @@ import typing
 from typing import Any, Sequence, MutableSequence
 from functools import lru_cache
 import polars as pl
-from polars._typing import PolarsDataType as polars_data_type
+from polars._typing import PolarsDataType as polars_data_type  # noqa
 
 from omop_etl.infra.io.types import SerializeTypes
 from omop_etl.infra.utils.types import unwrap_optional
@@ -167,6 +167,11 @@ def _py_to_pl(tp: Any) -> polars_data_type:
 
 def _unify_dtypes(dtype_a: polars_data_type, dtype_b: polars_data_type) -> polars_data_type:
     if dtype_a == dtype_b:
+        return dtype_a
+    # null doesn't change the other type
+    if dtype_a == pl.Null:
+        return dtype_b
+    if dtype_b == pl.Null:
         return dtype_a
     numeric_types: set[polars_data_type] = {pl.Int64, pl.Float64}
     if dtype_a in numeric_types and dtype_b in numeric_types:
@@ -346,29 +351,33 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
                     {field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()}
                 )
 
-        # collections with empty inner struct: learn fields from data
+        # collections: enrich inner struct from data (handles dynamic properties like C30.q1-q30)
         current_dtype = enriched_schema.get(prop_name)
         if origin in (list, tuple, Sequence, MutableSequence) and isinstance(current_dtype, pl.List):
             inner = current_dtype.inner
-            if str(inner) == "Struct({})":
-                fields: dict[str, pl.DataType] = {}
-                for patient in patients:
-                    sequence = getattr(patient, prop_name, ()) or ()
-                    for item in sequence:
-                        exported = export_leaf_object(item)
-                        for field_name, field_value in exported.items():
-                            inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
-                            fields[field_name] = (
-                                _unify_dtypes(fields.get(field_name, inferred_dtype), inferred_dtype)
-                                if field_name in fields
-                                else inferred_dtype
-                            )
-                if fields:
-                    enriched_schema[prop_name] = pl.List(
-                        pl.Struct(
-                            {field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()}
-                        )
+            # start with existing fields from class schema (if any)
+            fields: dict[str, pl.DataType] = {}
+            if isinstance(inner, pl.Struct):
+                fields.update(inner.to_schema())
+
+            # enrich with fields from actual data
+            for patient in patients:
+                sequence = getattr(patient, prop_name, ()) or ()
+                for item in sequence:
+                    exported = export_leaf_object(item)
+                    for field_name, field_value in exported.items():
+                        inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
+                        if field_name in fields:
+                            fields[field_name] = _unify_dtypes(fields[field_name], inferred_dtype)
+                        else:
+                            fields[field_name] = inferred_dtype
+
+            if fields:
+                enriched_schema[prop_name] = pl.List(
+                    pl.Struct(
+                        {field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()}
                     )
+                )
 
     enriched_schema.setdefault("patient_id", pl.Utf8)
     enriched_schema.setdefault("trial_id", pl.Utf8)

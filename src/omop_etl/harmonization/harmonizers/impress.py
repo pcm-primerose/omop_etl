@@ -1572,7 +1572,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             packed=packed,
             builder=build_c30,
             skip_missing=False,
-            target_attr="c30_list",
+            target_attr="c30_collection",
         )
 
     # TODO: refactor to not use regex later
@@ -1642,7 +1642,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             packed=packed,
             builder=build_eq5d,
             skip_missing=False,
-            target_attr="eq5d_list",
+            target_attr="eq5d_collection",
         )
 
     def _process_best_overall_response(self):
