@@ -5,7 +5,7 @@ import polars as pl
 from logging import getLogger
 
 from omop_etl.harmonization.core.parsers import PolarsParsers
-from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer, ProcessorSpec
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -31,38 +31,42 @@ class ImpressHarmonizer(BaseHarmonizer):
     def __init__(self, data: pl.DataFrame, trial_id: str):
         super().__init__(data, trial_id)
 
+    SPECS = (ProcessorSpec("adverse_events", AdverseEvent, "collection", order_by=("start_date",), require_order_by=True),)
+
     def process(self) -> HarmonizedData:
         self._process_patient_id()
         self._process_cohort_name()
         self._process_gender()
         self._process_age()
         self._process_date_of_birth()
-        self._process_tumor_type()
-        self._process_study_drugs()
-        self._process_biomarkers()
-        self._process_date_of_death()
-        self._process_date_lost_to_followup()
-        self._process_evaluability()
-        self._process_ecog_baseline()
-        self._process_previous_treatments()
-        self._process_medical_histories()
-        self._process_treatment_start_date()
-        self._process_treatment_stop_date()
-        self._process_start_last_cycle()
-        self._process_treatment_cycle()
-        self._process_concomitant_medication()
-        self._process_has_any_adverse_events()
-        self._process_number_of_adverse_events()
-        self._process_number_of_serious_adverse_events()
+        # self._process_tumor_type()
+        # self._process_study_drugs()
+        # self._process_biomarkers()
+        # self._process_date_of_death()
+        # self._process_date_lost_to_followup()
+        # self._process_evaluability()
+        # self._process_ecog_baseline()
+        # self._process_previous_treatments()
+        # self._process_medical_histories()
+        # self._process_treatment_start_date()
+        # self._process_treatment_stop_date()
+        # self._process_start_last_cycle()
+        # self._process_treatment_cycle()
+        # self._process_concomitant_medication()
+        # self._process_has_any_adverse_events()
+        # self._process_number_of_adverse_events()
+        # self._process_number_of_serious_adverse_events()
         self._process_adverse_events()
-        self._process_baseline_tumor_assessment()
-        self._process_tumor_assessments()
-        self._process_c30()
-        self._process_eq5d()
-        self._process_best_overall_response()
-        self._process_clinical_benefit()
-        self._process_eot_reason()
-        self._process_eot_date()
+        # self._process_baseline_tumor_assessment()
+        # self._process_tumor_assessments()
+        # self._process_c30()
+        # self._process_eq5d()
+        # self._process_best_overall_response()
+        # self._process_clinical_benefit()
+        # self._process_eot_reason()
+        # self._process_eot_date()
+
+        self._run_processors()
 
         patients = list(self.patient_data.values())
         output = HarmonizedData(patients=patients, trial_id=self.trial_id)
@@ -763,7 +767,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             builder=build_ct,
             patients=self.patient_data,
             item_type=PreviousTreatments,
-            skip_missing=False,
+            skip_missing_patients=False,
         )
 
     def _process_treatment_start_date(self) -> None:
@@ -1099,7 +1103,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             skip_missing=False,
         )
 
-    def _process_adverse_events(self) -> None:
+    def _process_adverse_events(self) -> pl.DataFrame | None:
         ae_base = self.data.select(
             "SubjectId",
             "AE_AECTCAET",
@@ -1191,8 +1195,29 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
         parsed = parse_events(ae_base)
-        annot = locate_end_date_for_deceased(parsed)
-        coerced = coerce(annot)
+        annot = locate_end_date_for_deceased(parsed).rename(
+            {
+                "AE_AECTCAET": "term",
+                "AE_AETOXGRECD": "",
+                "AE_AEOUT": "outcome",
+                "was_serious": "was_serious",
+                "serious_date": "turned_serious_date",
+                "related_status_1": "related_to_treatment_1_status",
+                "related_status_2": "related_to_treatment_2_status",
+                "ser_expected_treatment_1": "was_serious_grade_expected_treatment_1",
+                "ser_expected_treatment_2": "was_serious_grade_expected_treatment_2",
+                "AE_AETRT1": "treatment_1_name",
+                "AE_AETRT2": "treatment_2_name",
+                "start_date": "start_date",
+                "end_date": "end_date",
+            }
+        )
+
+        coerced = coerce(annot).filter(pl.col("term").is_not_null()).select("SubjectId", *AdverseEvent.DOMAIN_FIELDS)
+
+        return None if coerced.is_empty() else coerced
+
+        # old code:
         packed = self.pack_structs(df=coerced, value_cols=annot.select(pl.all().exclude("SubjectId")).columns)
 
         def build_ae(pid: str, s: Mapping[str, Any]) -> AdverseEvent:

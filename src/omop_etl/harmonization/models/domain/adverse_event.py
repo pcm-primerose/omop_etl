@@ -2,8 +2,8 @@ from enum import Enum
 from typing import Set
 import datetime as dt
 
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class RelatedStatus(str, Enum):
@@ -12,7 +12,24 @@ class RelatedStatus(str, Enum):
     UNKNOWN = "unknown"  # code 2 & 3
 
 
-class AdverseEvent(TrackedValidated):
+class AdverseEvent(DomainBase):
+    MATERIAL_COLS = ("term",)
+    CANONICAL_COLS = (
+        "term",
+        "grade",
+        "outcome",
+        "start_date",
+        "end_date",
+        "was_serious",
+        "turned_serious_date",
+        "related_to_treatment_1_status",
+        "treatment_1_name",
+        "related_to_treatment_2_status",
+        "treatment_2_name",
+        "was_serious_grade_expected_treatment_1",
+        "was_serious_grade_expected_treatment_2",
+    )
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._term: str | None = None
