@@ -152,25 +152,27 @@ class BaseHarmonizer(ABC):
         return out
 
     @staticmethod
-    def hydrate_list_field(
+    def hydrate_collection_field(
         packed: pl.DataFrame,
         *,
         builder: Callable[[str, Mapping[str, Any]], Any] | None = None,
         skip_missing: bool | None = False,
         subject_col: str = "SubjectId",
         items_col: str = "items",
-        target_attr: str | None = None,
-        patients: Dict[str, Any],
+        item_type: type,
+        patients: Dict[str, Patient],
     ) -> None:
         """
-        Hydrate a list-valued patient field from a packed List[Struct] col: multiple instances per patient.
+        Hydrate a collection-valued patient field from a packed List[Struct] col: multiple instances per patient.
         Iterates each subject row from packed: [subject_col, items_col], for each struct in items, builds a Python model object.
         Allows instantiation of many-to-one fields in collection models.
 
+        The item_type is used to look up the attribute name via Patient.get_attr_for_type(),
+        preventing typos in string literals.
+
         Defaults to raising error for missing patients.
         """
-        if target_attr is None:
-            raise ValueError("Provide either target_attr to attach objects to the patient")
+        target_attr = Patient.get_attr_for_type(item_type)
 
         if builder is None:
             raise ValueError("Provide builder")
@@ -192,18 +194,19 @@ class BaseHarmonizer(ABC):
         builder: Callable[[str, Mapping[str, Any]], Any] | None = None,
         skip_missing_patients: bool | None = False,
         subject_col: str = "SubjectId",
-        target_attr: str | None = None,
-        patients: Dict[str, Any],
+        item_type: type,
+        patients: Dict[str, Patient],
     ) -> None:
         """
-        Hydrate a singleton patient field from a packed List[Struct] col: single instance per patient.
-        Iterates each subject row from packed: [subject_col, items_col], for each struct in items, builds a Python model object.
-        Allows instantiation of many-to-one fields in collection models.
+        Hydrate a singleton patient field from a DataFrame: single instance per patient.
+        Iterates each row, builds a Python model object using the builder.
+
+        The item_type is used to look up the attribute name via Patient.get_attr_for_type(),
+        preventing typos in string literals.
 
         Defaults to raising error for missing patients.
         """
-        if not target_attr:
-            raise ValueError("target_attr is required")
+        target_attr = Patient.get_attr_for_type(item_type)
 
         for row in frame.iter_rows(named=True):
             sid = row[subject_col]

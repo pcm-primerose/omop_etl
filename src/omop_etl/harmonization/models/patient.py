@@ -1,4 +1,4 @@
-from typing import Set, Sequence
+from typing import ClassVar, Set, Sequence, Union, get_type_hints, get_origin, get_args
 import datetime as dt
 from logging import getLogger
 from typing import TypeVar
@@ -29,6 +29,8 @@ class Patient(TrackedValidated):
     """
     Stores all data for a patient
     """
+
+    _attr_cache: ClassVar[dict[type, str]] = {}
 
     def __init__(self, patient_id: str, trial_id: str):
         self.updated_fields: Set[str] = set()
@@ -542,6 +544,48 @@ class Patient(TrackedValidated):
                 raise ValueError(f"{field_name}: mismatched patient_id {existing!r} != {patient_id!r}")
 
         return tuple(items)
+
+    @classmethod
+    def get_attr_for_type(cls, item_type: type) -> str:
+        """
+        Find the attribute name that accepts the given type by inspecting property return type hints.
+        Results are cached for performance.
+
+        Works for both singletons (T | None) and collections (tuple[T, ...]).
+        """
+        if item_type in cls._attr_cache:
+            return cls._attr_cache[item_type]
+
+        for name in dir(cls):
+            if name.startswith("_"):
+                continue
+
+            attr = getattr(cls, name, None)
+            if not isinstance(attr, property) or attr.fget is None:
+                continue
+
+            hints = get_type_hints(attr.fget)
+            return_hint = hints.get("return")
+            if return_hint is None:
+                continue
+
+            origin = get_origin(return_hint)
+
+            # collections: tuple[T, ...]
+            if origin is tuple:
+                args = get_args(return_hint)
+                if args and args[0] is item_type:
+                    cls._attr_cache[item_type] = name
+                    return name
+
+            # singletons: T | None (Union[T, None])
+            if origin is Union:
+                args = get_args(return_hint)
+                if item_type in args:
+                    cls._attr_cache[item_type] = name
+                    return name
+
+        raise KeyError(f"No attribute found for type {item_type.__name__}")
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields

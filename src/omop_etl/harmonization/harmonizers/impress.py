@@ -622,7 +622,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             labeled,
             patients=self.patient_data,
             builder=build_ecog,
-            target_attr="ecog_baseline",
+            item_type=EcogBaseline,
         )
 
     def _process_medical_histories(self) -> None:
@@ -689,11 +689,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             return obj
 
         # hydrate to Patient class
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             packed,
             builder=build_mh,
             patients=self.patient_data,
-            target_attr="medical_histories",
+            item_type=MedicalHistory,
             skip_missing=False,
         )
 
@@ -758,11 +758,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             obj.additional_treatment = s["additional_treatment"]
             return obj
 
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             packed,
             builder=build_ct,
             patients=self.patient_data,
-            target_attr="previous_treatments",
+            item_type=PreviousTreatments,
             skip_missing=False,
         )
 
@@ -1036,11 +1036,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             return obj
 
         # hydrate to Patient class
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             packed,
             builder=build_tc,
             patients=self.patient_data,
-            target_attr="treatment_cycles",
+            item_type=TreatmentCycle,
             skip_missing=False,
         )
 
@@ -1091,11 +1091,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             obj.sequence_id = s["sequence_id"]
             return obj
 
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             packed,
             builder=build_cm,
             patients=self.patient_data,
-            target_attr="concomitant_medications",
+            item_type=ConcomitantMedication,
             skip_missing=False,
         )
 
@@ -1212,12 +1212,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             obj.end_date = s["end_date"]
             return obj
 
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             patients=self.patient_data,
             packed=packed,
             builder=build_ae,
             skip_missing=False,
-            target_attr="adverse_events",
+            item_type=AdverseEvent,
         )
 
     def _process_baseline_tumor_assessment(self):
@@ -1373,7 +1373,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             joined,
             patients=self.patient_data,
             builder=build_tumor_assessment_baseline,
-            target_attr="tumor_assessment_baseline",
+            item_type=TumorAssessmentBaseline,
         )
 
     def _process_tumor_assessments(self):
@@ -1500,12 +1500,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             obj.event_id = s["event_id"]
             return obj
 
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             patients=self.patient_data,
             packed=packed,
             builder=build_ta,
             skip_missing=False,
-            target_attr="tumor_assessments",
+            item_type=TumorAssessment,
         )
 
     # TODO: refactor to not use regex later
@@ -1567,12 +1567,12 @@ class ImpressHarmonizer(BaseHarmonizer):
                     setattr(obj, f"q{int(c.group(1))}_code", v)
             return obj
 
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             patients=self.patient_data,
             packed=packed,
             builder=build_c30,
             skip_missing=False,
-            target_attr="c30_collection",
+            item_type=C30,
         )
 
     # TODO: refactor to not use regex later
@@ -1637,12 +1637,12 @@ class ImpressHarmonizer(BaseHarmonizer):
                     setattr(obj, f"q{int(c.group(1))}_code", v)
             return obj
 
-        self.hydrate_list_field(
+        self.hydrate_collection_field(
             patients=self.patient_data,
             packed=packed,
             builder=build_eq5d,
             skip_missing=False,
-            target_attr="eq5d_collection",
+            item_type=EQ5D,
         )
 
     def _process_best_overall_response(self):
@@ -1755,7 +1755,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             processed,
             patients=self.patient_data,
             builder=build_best_overall_response,
-            target_attr="best_overall_response",
+            item_type=BestOverallResponse,
         )
 
     def _process_clinical_benefit(self):

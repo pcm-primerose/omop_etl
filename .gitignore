@@ -15,3 +15,5 @@ activate
 mock.py
 idea.complexipy_cache/
 profile.json
+perf_profile.json
+.complexipy_cache/
