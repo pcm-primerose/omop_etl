@@ -47,6 +47,22 @@ class DomainBase(TrackedValidated):
         if not cls.MATERIAL_COLS:
             raise ValueError(f"{cls.__name__}.MATERIAL_COLS is empty. Concrete domains must define at least one material column.")
 
+    #     # ensure each canonical col is actually settable
+    #     missing = [c for c in cols if not DomainBase._is_settable_attr(cls, name=c)]
+    #     if missing:
+    #         raise ValueError(
+    #             f"{cls.__name__}: CANONICAL_COLS contains non-settable attributes: {missing}"
+    #         )
+    #
+    # @classmethod
+    # def _is_settable_attr(cls: type, name: str) -> bool:
+    #     # property with setter?
+    #     attr = getattr(cls, name, None)
+    #     if isinstance(attr, property):
+    #         return attr.fset is not None
+    #     # plain attribute on class (dataclasses, descriptors, etc.)
+    #     return hasattr(cls, name)
+
     @classmethod
     def expected_columns(cls) -> tuple[str, ...]:
         """Returns the canonical columns this class expects from a DataFrame row."""

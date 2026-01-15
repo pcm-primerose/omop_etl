@@ -622,12 +622,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             e.grade = row["grade"]
             return e
 
-        self.hydrate_singleton(
-            labeled,
-            patients=self.patient_data,
-            builder=build_ecog,
-            item_type=EcogBaseline,
-        )
+        self.hydrate_singleton(labeled, builder=build_ecog, item_type=EcogBaseline, patients=self.patient_data)
 
     def _process_medical_histories(self) -> None:
         mh_base = self.data.select(
@@ -698,7 +693,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             builder=build_mh,
             patients=self.patient_data,
             item_type=MedicalHistory,
-            skip_missing=False,
+            skip_missing_patients=False,
         )
 
     def _process_previous_treatments(self) -> None:
@@ -1045,7 +1040,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             builder=build_tc,
             patients=self.patient_data,
             item_type=TreatmentCycle,
-            skip_missing=False,
+            skip_missing_patients=False,
         )
 
     def _process_concomitant_medication(self) -> None:
@@ -1100,7 +1095,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             builder=build_cm,
             patients=self.patient_data,
             item_type=ConcomitantMedication,
-            skip_missing=False,
+            skip_missing_patients=False,
         )
 
     def _process_adverse_events(self) -> pl.DataFrame | None:
@@ -1195,25 +1190,25 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
         parsed = parse_events(ae_base)
-        annot = locate_end_date_for_deceased(parsed).rename(
-            {
-                "AE_AECTCAET": "term",
-                "AE_AETOXGRECD": "",
-                "AE_AEOUT": "outcome",
-                "was_serious": "was_serious",
-                "serious_date": "turned_serious_date",
-                "related_status_1": "related_to_treatment_1_status",
-                "related_status_2": "related_to_treatment_2_status",
-                "ser_expected_treatment_1": "was_serious_grade_expected_treatment_1",
-                "ser_expected_treatment_2": "was_serious_grade_expected_treatment_2",
-                "AE_AETRT1": "treatment_1_name",
-                "AE_AETRT2": "treatment_2_name",
-                "start_date": "start_date",
-                "end_date": "end_date",
-            }
-        )
+        annot = locate_end_date_for_deceased(parsed)
 
-        coerced = coerce(annot).filter(pl.col("term").is_not_null()).select("SubjectId", *AdverseEvent.DOMAIN_FIELDS)
+        _rename_map = {
+            "AE_AECTCAET": "term",
+            "AE_AETOXGRECD": "grade",
+            "AE_AEOUT": "outcome",
+            "was_serious": "was_serious",
+            "serious_date": "turned_serious_date",
+            "related_status_1": "related_to_treatment_1_status",
+            "related_status_2": "related_to_treatment_2_status",
+            "ser_expected_treatment_1": "was_serious_grade_expected_treatment_1",
+            "ser_expected_treatment_2": "was_serious_grade_expected_treatment_2",
+            "AE_AETRT1": "treatment_1_name",
+            "AE_AETRT2": "treatment_2_name",
+            "start_date": "start_date",
+            "end_date": "end_date",
+        }
+
+        coerced = coerce(annot).rename(_rename_map).filter(pl.col("term").is_not_null()).select("SubjectId", *AdverseEvent.CANONICAL_COLS)
 
         return None if coerced.is_empty() else coerced
 
@@ -1241,7 +1236,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             patients=self.patient_data,
             packed=packed,
             builder=build_ae,
-            skip_missing=False,
+            skip_missing_patients=False,
             item_type=AdverseEvent,
         )
 
@@ -1395,10 +1390,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             return tab
 
         self.hydrate_singleton(
-            joined,
-            patients=self.patient_data,
-            builder=build_tumor_assessment_baseline,
-            item_type=TumorAssessmentBaseline,
+            joined, builder=build_tumor_assessment_baseline, item_type=TumorAssessmentBaseline, patients=self.patient_data
         )
 
     def _process_tumor_assessments(self):
@@ -1529,7 +1521,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             patients=self.patient_data,
             packed=packed,
             builder=build_ta,
-            skip_missing=False,
+            skip_missing_patients=False,
             item_type=TumorAssessment,
         )
 
@@ -1596,7 +1588,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             patients=self.patient_data,
             packed=packed,
             builder=build_c30,
-            skip_missing=False,
+            skip_missing_patients=False,
             item_type=C30,
         )
 
@@ -1666,7 +1658,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             patients=self.patient_data,
             packed=packed,
             builder=build_eq5d,
-            skip_missing=False,
+            skip_missing_patients=False,
             item_type=EQ5D,
         )
 
@@ -1776,12 +1768,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             bor.date = row["best_response_date"]
             return bor
 
-        self.hydrate_singleton(
-            processed,
-            patients=self.patient_data,
-            builder=build_best_overall_response,
-            item_type=BestOverallResponse,
-        )
+        self.hydrate_singleton(processed, builder=build_best_overall_response, item_type=BestOverallResponse, patients=self.patient_data)
 
     def _process_clinical_benefit(self):
         """

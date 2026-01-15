@@ -218,7 +218,6 @@ class AdverseEvent(DomainBase):
             f"outcome={self.outcome!r}{delim} "
             f"start_date={self.start_date!r}{delim} "
             f"end_date={self.end_date!r}{delim} "
-            f"end_date={self.end_date!r}{delim} "
             f"was_serious={self.was_serious!r}{delim} "
             f"turned_serious_date={self.turned_serious_date!r}{delim} "
             f"related_to_treatment_1_status={self.related_to_treatment_1_status!r}{delim} "
