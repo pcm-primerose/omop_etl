@@ -47,12 +47,16 @@ class PostgresOmopWriter:
 
     @staticmethod
     def _copy_dataclasses(conn: psycopg.Connection, table: str, rows: Sequence[object]) -> None:
+        from dataclasses import fields
+        from typing import get_type_hints, ClassVar, get_origin
+
         first = rows[0]
         if not is_dataclass(first):
             raise TypeError(f"Expected dataclass rows for {table}, got: {type(first)}")
 
-        # takes dataclass fields in declared order
-        cols = tuple(getattr(first, "__dataclass_fields__").keys())
+        # Filter out ClassVar and private fields (start with _)
+        hints = get_type_hints(type(first), include_extras=True)
+        cols = tuple(f.name for f in fields(first) if not f.name.startswith("_") and get_origin(hints.get(f.name)) is not ClassVar)
         col_sql = ", ".join(cols)
         copy_sql = f"COPY {table} ({col_sql}) FROM STDIN"
 

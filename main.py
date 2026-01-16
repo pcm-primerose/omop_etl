@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.db.postgres import PostgresOmopWriter
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -13,13 +14,13 @@ from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
 
-# default resource paths
+# default resource paths: make dev defaults later
 RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"
 DEFAULT_STATIC_CSV = RESOURCES_DIR / "static_mapping.csv"
 DEFAULT_STRUCTURAL_CSV = RESOURCES_DIR / "structural_mapping.csv"
 
 
-def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> OmopTables:
+def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> int:
     """
     End-to-end run of OMOP ETL.
     """
@@ -80,7 +81,16 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")
-    # print(f"Tables: {tables}")
+
+    # just use a static default for testing locally
+    # todo: integrate later
+    dsn = "postgresql://omop:omop@localhost:5433/omop"
+    if not dsn:
+        raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
+
+    writer = PostgresOmopWriter(dsn=dsn, truncate_first=True)
+    writer.write(tables)
+    return 0
 
     return tables
 

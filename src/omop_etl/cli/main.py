@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from omop_etl.db.postgres import PostgresOmopWriter
-from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata

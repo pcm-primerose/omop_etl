@@ -1,11 +1,11 @@
 from typing import Set
 import datetime as dt
 
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class TumorAssessmentBaseline(TrackedValidated):
+class TumorAssessmentBaseline(DomainBase):
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._assessment_type: str | None = None

@@ -2,11 +2,11 @@ from typing import Set
 import datetime as dt
 
 from omop_etl.harmonization.core.make_validated_property import make_validated_property
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class EQ5D(TrackedValidated):
+class EQ5D(DomainBase):
     Q_COUNT = 5
 
     def __init__(self, patient_id: str):
