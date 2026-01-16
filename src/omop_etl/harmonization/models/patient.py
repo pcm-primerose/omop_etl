@@ -605,6 +605,7 @@ class Patient(TrackedValidated):
             f"cohort_name={self.cohort_name}{delim} "
             f"sex={self.sex}{delim} "
             f"age={self.age}{delim} "
+            f"date_of_birth={self.date_of_birth}{delim} "
             f"tumor_type={self.tumor_type}{delim} "
             f"study_drugs={self.study_drugs}{delim} "
             f"biomarkers={self.biomarkers}{delim} "

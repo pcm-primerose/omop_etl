@@ -51,6 +51,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             target_attr="sex",
             value_col="sex",
         ),
+        ProcessorSpec("date_of_birth", kind="scalar", target_attr="date_of_birth", value_col="date_of_birth"),
+        ProcessorSpec("age", kind="scalar", target_attr="age", value_col="age"),
     )
 
     def _create_patients(self) -> None:
@@ -61,8 +63,6 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _run_legacy_processors(self) -> None:
         """Run old-style processors not yet migrated to SPECS."""
-        self._process_age()
-        self._process_date_of_birth()
         self._process_tumor_type()
         self._process_study_drugs()
         self._process_biomarkers()
@@ -92,7 +92,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def process(self) -> HarmonizedData:
         """Run harmonization and return HarmonizedData."""
-        self.run()  # enforced order: _create_patients -> _run_legacy_processors -> _run_processors
+        self.run()
         return HarmonizedData(patients=list(self.patient_data.values()), trial_id=self.trial_id)
 
     def _process_cohort_name(self) -> pl.DataFrame | None:
@@ -117,22 +117,17 @@ class ImpressHarmonizer(BaseHarmonizer):
             .unique(subset=["SubjectId"], keep="first")
         )
 
-    def _process_date_of_birth(self) -> None:
+    def _process_date_of_birth(self) -> pl.DataFrame | None:
         """Process date of birth and update patient objects"""
-        birth_data = (
+        return (
             self.data.group_by("SubjectId")
             .agg(pl.col("DM_BRTHDAT").drop_nulls().first().alias("birth_date"))
-            .with_columns(birth_date=(PolarsParsers.to_optional_date(pl.col("birth_date"))))
+            .with_columns(date_of_birth=(PolarsParsers.to_optional_date(pl.col("birth_date"))))
         )
 
-        for row in birth_data.iter_rows(named=True):
-            pid = row["SubjectId"]
-            birth_date = row["birth_date"]
-            self.patient_data[pid].date_of_birth = birth_date
-
-    def _process_age(self) -> None:
-        """Process and calculate age at treatment start and update patient object"""
-        age_data = (
+    def _process_age(self) -> pl.DataFrame | None:
+        """Calculate age at treatment start and update patient object"""
+        return (
             self.data.group_by("SubjectId")
             .agg(
                 [
@@ -149,11 +144,382 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         )
 
-        for row in age_data.iter_rows(named=True):
+    def _process_date_of_death(self) -> None:
+        death_df = (
+            self.data.select(
+                "SubjectId",
+                eos=PolarsParsers.to_optional_date(pl.col("EOS_DEATHDTC")),
+                fu=PolarsParsers.to_optional_date(pl.col("FU_FUPDEDAT")),
+            )
+            .with_columns(
+                date_of_death=pl.max_horizontal("eos", "fu"),
+            )
+            .group_by("SubjectId")
+            .agg(pl.max("date_of_death").alias("date_of_death"))
+            .filter(pl.col("date_of_death").is_not_null())
+            .select("SubjectId", "date_of_death")
+        )
+
+        for pid, dod in death_df.iter_rows():
+            self.patient_data[pid].date_of_death = dod
+
+    def _process_has_any_adverse_events(self) -> None:
+        ae_status = (
+            self.data.with_columns(
+                ae_text_present=PolarsParsers.to_optional_utf8("AE_AECTCAET").str.len_chars().fill_null(0) > 0,
+                ae_date_present=PolarsParsers.to_optional_utf8("AE_AESTDAT").str.len_chars().fill_null(0) > 0,
+                ae_grade_present=PolarsParsers.to_optional_utf8("AE_AETOXGRECD").str.len_chars().fill_null(0) > 0,
+            )
+            .with_columns(
+                row_has_ae=pl.any_horizontal(
+                    [
+                        pl.col("ae_text_present"),
+                        pl.col("ae_date_present"),
+                        pl.col("ae_grade_present"),
+                    ],
+                ),
+            )
+            .group_by("SubjectId")
+            .agg(has_ae=pl.col("row_has_ae").any())
+        )
+
+        for row in ae_status.iter_rows(named=True):
             pid = row["SubjectId"]
-            self.patient_data[pid].age = row["age"]
+            if pid in self.patient_data:
+                self.patient_data[pid].has_any_adverse_events = bool(row["has_ae"])
+
+    def _process_number_of_adverse_events(self) -> None:
+        ae_num = (
+            self.data.with_columns(
+                ae_num=pl.any_horizontal(
+                    [
+                        (PolarsParsers.to_optional_utf8(pl.col("AE_AECTCAET")).str.len_chars().fill_null(0) > 0),
+                        (PolarsParsers.to_optional_utf8(pl.col("AE_AESTDAT")).str.len_chars().fill_null(0) > 0),
+                        (PolarsParsers.to_optional_utf8(pl.col("AE_AETOXGRECD")).str.len_chars().fill_null(0)),
+                    ],
+                ),
+            )
+            .group_by("SubjectId")
+            .agg(ae_number=pl.col("ae_num").sum())
+        )
+
+        for row in ae_num.iter_rows(named=True):
+            pid = row["SubjectId"]
+            if pid in self.patient_data:
+                self.patient_data[pid].number_of_adverse_events = int(row["ae_number"])
+
+    def _process_number_of_serious_adverse_events(self) -> None:
+        sae_counts = (
+            self.data.with_columns(
+                is_serious=(PolarsParsers.to_optional_int64("AE_AESERCD") == 1).fill_null(False),
+            )
+            .group_by("SubjectId")
+            .agg(sae_number=pl.col("is_serious").sum().cast(pl.Int64))
+        )
+
+        for row in sae_counts.iter_rows(named=True):
+            self.patient_data[row["SubjectId"]].number_of_serious_adverse_events = row["sae_number"]
+
+    def _process_clinical_benefit(self):
+        """
+        Clinical benefit at W16 (visit 3).
+        Note: If patient has iRecist *and* Recist at same assessment, iRecist evaluation takes precedence as it's a more specific assessment.
+        """
+        timepoint = "V03"
+
+        base = (
+            self.data.select(
+                "SubjectId",
+                "RA_RATIMRESCD",
+                "RA_RAiMODCD",
+                "RNRSP_RNRSPCLCD",
+                "RNRSP_EventId",
+                "RA_EventId",
+            )
+            .filter(pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null()))
+            .filter((pl.col("RA_EventId") == timepoint) | (pl.col("RNRSP_EventId") == timepoint))
+            .with_columns(
+                benefit_w16=pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
+                .then(True)
+                .when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
+                .then(True)
+                .when(PolarsParsers.to_optional_int64(pl.col("RNRSP_RNRSPCLCD")).le(3))
+                .then(True)
+                .otherwise(False),
+            )
+        )
+
+        for row in base.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].has_clinical_benefit_at_week16 = bool(row["benefit_w16"])
+
+    def _process_eot_reason(self):
+        filtered = (
+            self.data.select("SubjectId", "EOT_EOTREOT")
+            .with_columns(
+                eot_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
+            )
+            .filter(pl.col("eot_reason").is_not_null())
+        )
+
+        for row in filtered.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].end_of_treatment_reason = row["eot_reason"]
+
+    def _process_eot_date(self):
+        """
+        Note: Docs mention progression date and EventDate as well,
+        but all patients in EOT source has EOTDAT,
+        EventDate is date recorded (so it's wrong) and progression date is tracked in TumorAssessment class.
+        fixme: EOT + Other sources of EOTs are in treatment_end_date method, so this shold probablky be removed
+        """
+        filtered = (
+            self.data.select("SubjectId", "EOT_EOTDAT")
+            .filter(pl.col("EOT_EOTDAT").is_not_null())
+            .with_columns(eot_date=PolarsParsers.to_optional_date(pl.col("EOT_EOTDAT")))
+        )
+
+        for row in filtered.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].end_of_treatment_date = row["eot_date"]
+
+    def _process_evaluability(self) -> None:
+        """
+        Filtering criteria:
+            Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
+            For IV cycles, the cycle end is modeled as the day before the next cycles start.
+            Inclusive length = next_start − start days. Length ≥ 21 qualifies.
+            For oral cycles, length = stop − start days; ≥ 28 qualifies.
+
+        For subjects with oral drugs, the start and end date per cycle is checked directly.
+            If a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
+
+        For subjects without oral drugs, cycle stop date is set to start date of next cycle and needs to last 21 days or more.
+            Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
+            each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
+            assumes no malformed dates, because imputing would change the length.
+
+        Old filteing criteria:
+            Patients marked as evaluable for efficacy analysis needs to have:
+                - sufficient treatment length for any cycle (21 days for IV, 28 days for oral) and *either one of*:
+                - tumor assessment after week 4 (patient has any tumor assessment with EventId==V04 in RA, RCNT, RTNTMNT, RNRSP)
+                - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
+        """
+        evaluability_data = self.data.select(
+            "SubjectId",
+            "TR_TROSTPDT",
+            "TR_TRO_STDT",
+            "TR_TRTNO",
+            "TR_TRC1_DT",
+            "TR_TRCYNCD",
+            # not currently used:
+            # "RA_EventDate",
+            # "RA_EventId",
+            # "RNRSP_EventDate",
+            # "RNRSP_EventId",
+            # "RCNT_EventDate",
+            # "RCNT_EventId",
+            # "RNTMNT_EventDate",
+            # "RNTMNT_EventId",
+            # "EOT_EventDate",
+        )
+
+        def oral_treatment_lengths() -> pl.DataFrame:
+            oral_sufficient_treatment_length = (
+                evaluability_data.select(["SubjectId", "TR_TRO_STDT", "TR_TROSTPDT", "TR_TRCYNCD"])
+                .with_columns(
+                    start=PolarsParsers.to_optional_utf8(pl.col("TR_TRO_STDT")).str.strptime(pl.Date, strict=False),
+                    stop=PolarsParsers.to_optional_utf8(pl.col("TR_TROSTPDT")).str.strptime(pl.Date, strict=False),
+                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                )
+                .filter(~pl.col("not_recieved_treatment_this_cycle"))
+                .with_columns(treatment_duration=((pl.col("stop") - pl.col("start")).dt.total_days()))
+                .group_by("SubjectId")
+                .agg((pl.col("treatment_duration").fill_null(-1) >= 28).any().alias("oral_sufficient_treatment_length"))
+            )
+            return oral_sufficient_treatment_length
+
+        def iv_treatment_lengths() -> pl.DataFrame:
+            iv_sufficient_treatment_length = (
+                evaluability_data.select(
+                    "SubjectId",
+                    "TR_TRTNO",
+                    "TR_TRC1_DT",
+                    "TR_TRO_STDT",
+                    "TR_TROSTPDT",
+                    "TR_TRCYNCD",
+                )
+                # remove oral treatment rows
+                .with_columns(
+                    oral_present=pl.any_horizontal(
+                        PolarsParsers.to_optional_utf8(pl.col(["TR_TRO_STDT", "TR_TROSTPDT"])).str.len_bytes().fill_null(0) > 0,
+                    ),
+                    start=PolarsParsers.to_optional_utf8(pl.col("TR_TRC1_DT")).str.strptime(pl.Date, strict=False),
+                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                )
+                .filter(~pl.col("oral_present") & ~pl.col("not_recieved_treatment_this_cycle"))
+                .drop_nulls("start")
+                .sort(["SubjectId", "TR_TRTNO", "start"])
+                # partitioned shift to make next start
+                .with_columns(pl.col("start").shift(-1).over(["SubjectId", "TR_TRTNO"]).alias("next_start"))
+                # compute gap days
+                .with_columns((pl.col("next_start") - pl.col("start")).dt.total_days().alias("gap_days"))
+                .group_by("SubjectId")
+                .agg(pl.col("gap_days").ge(21).fill_null(False).any().alias("iv_sufficient_treatment_length"))
+            )
+
+            return iv_sufficient_treatment_length
+
+        @deprecated
+        def eot_filter() -> pl.DataFrame:
+            has_ended_treatment = evaluability_data.group_by("SubjectId").agg(
+                pl.any_horizontal(PolarsParsers.to_optional_utf8(pl.col(["EOT_EventDate"])).str.len_bytes() > 0)
+                .any()
+                .alias("has_clinical_assessment"),
+            )
+            return has_ended_treatment
+
+        @deprecated
+        def tumor_assessment() -> pl.DataFrame:
+            # need to add V04 filter (if this is to be used again)
+            has_tumor_assessment_week_4 = evaluability_data.group_by("SubjectId").agg(
+                pl.any_horizontal(
+                    PolarsParsers.to_optional_utf8(
+                        pl.col(
+                            [
+                                "RA_EventDate",
+                                "RNRSP_EventDate",
+                                "RCNT_EventDate",
+                                "RNTMNT_EventDate",
+                            ],
+                        ),
+                    ).str.len_bytes()
+                    > 0,
+                )
+                .any()
+                .alias("has_tumor_assessment"),
+            )
+            return has_tumor_assessment_week_4
+
+        def _merge_evaluability() -> pl.DataFrame:
+            base = evaluability_data.select("SubjectId").unique()
+            _merged_df: pl.DataFrame = (
+                base.join(oral_treatment_lengths(), on="SubjectId", how="left")
+                .join(iv_treatment_lengths(), on="SubjectId", how="left")
+                .with_columns(
+                    pl.col("oral_sufficient_treatment_length").fill_null(False),
+                    pl.col("iv_sufficient_treatment_length").fill_null(False),
+                )
+                .with_columns(is_evaluable=(pl.col("oral_sufficient_treatment_length") | pl.col("iv_sufficient_treatment_length")))
+            )
+
+            return _merged_df
+
+        # hydrate
+        merged_evaluability: pl.DataFrame = _merge_evaluability()
+        for row in merged_evaluability.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].evaluable_for_efficacy_analysis = bool(row["is_evaluable"])
+
+    def _process_treatment_start_date(self) -> None:
+        treatment_start_data = (
+            self.data.lazy()
+            .select(["SubjectId", "TR_TRNAME", "TR_TRC1_DT"])
+            .with_columns(
+                tr_name=PolarsParsers.to_optional_utf8(pl.col("TR_TRNAME")).str.strip_chars(),
+                treatment_start_date=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT")),
+            )
+            # keep only real names: non-null & len > 0
+            .filter(pl.col("tr_name").is_not_null() & (pl.col("tr_name").str.len_chars() > 0))
+            .group_by("SubjectId")
+            .agg(pl.col("treatment_start_date").drop_nulls().min().alias("treatment_start_date"))
+            .collect()
+            .select(["SubjectId", "treatment_start_date"])
+        )
+
+        for row in treatment_start_data.iter_rows(named=True):
+            patient_id = row["SubjectId"]
+            self.patient_data[patient_id].treatment_start_date = row["treatment_start_date"]
+
+    def _process_treatment_stop_date(self) -> None:
+        treatment_stop_data = (
+            self.data.select(
+                "SubjectId",
+                "TR_TRCYNCD",
+                "TR_TROSTPDT",
+                "TR_TRC1_DT",
+                "EOT_EOTDAT",
+            )
+            .with_columns(
+                valid=PolarsParsers.to_optional_int64(pl.col("TR_TRCYNCD")).eq(1),
+                eot_date=PolarsParsers.to_optional_date(pl.col("EOT_EOTDAT").cast(pl.Utf8)),
+                oral_stop=PolarsParsers.to_optional_date(pl.col("TR_TROSTPDT").cast(pl.Utf8)),
+                iv_start=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT").cast(pl.Utf8)),
+            )
+            # only valid TR rows for oral/IV
+            .with_columns(
+                oral_stop_valid=pl.when(pl.col("valid")).then(pl.col("oral_stop")).otherwise(None),
+                iv_start_valid=pl.when(pl.col("valid")).then(pl.col("iv_start")).otherwise(None),
+            )
+            .group_by("SubjectId")
+            .agg(
+                last_eot=pl.col("eot_date").max(),
+                last_oral=pl.col("oral_stop_valid").max(),
+                last_iv=pl.col("iv_start_valid").max(),
+            )
+            .with_columns(
+                # precedence: EOT > oral > IV
+                treatment_end=pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]),
+                treatment_end_source=(
+                    pl.when(pl.col("last_eot").is_not_null())
+                    .then(pl.lit("EOT"))
+                    .when(pl.col("last_oral").is_not_null())
+                    .then(pl.lit("ORAL_STOP"))
+                    .when(pl.col("last_iv").is_not_null())
+                    .then(pl.lit("IV_START"))
+                    .otherwise(pl.lit(None))
+                ),
+            )
+        )
+
+        # log no ends
+        subjects = self.data.select("SubjectId").unique()
+        df_all = subjects.join(treatment_stop_data, on="SubjectId", how="left")
+        no_end = df_all.filter(pl.col("treatment_end").is_null()).get_column("SubjectId").to_list()
+        for pid in no_end:
+            log.warning(f"No treatment end found for SubjectId={pid}")
+
+        # hydrate
+        for pid, end_date in treatment_stop_data.select("SubjectId", "treatment_end").iter_rows():
+            self.patient_data[pid].treatment_end_date = end_date
+
+    def _process_start_last_cycle(self) -> None:
+        """
+        Note: currently not filtering for valid cycles, just selecting latest treatment starts.
+        Set enforce_valid=True if TR_TRCYNCD must be 1 (i.e. filtering for valid cycles only)
+        """
+        enforce_valid = False
+
+        last_cycle_data = (
+            self.data.select("SubjectId", "TR_TRC1_DT", "TR_TRCYNCD")
+            .with_columns(
+                cycle_start=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT")),
+                valid=PolarsParsers.to_optional_int64(pl.col("TR_TRCYNCD")).eq(1),
+            )
+            # null-out only if enforce_valid and row invalid
+            .with_columns(
+                cycle_start=pl.when(pl.lit(enforce_valid) & ~pl.col("valid")).then(None).otherwise(pl.col("cycle_start")),
+            )
+            .group_by("SubjectId")
+            .agg(treatment_start_last_cycle=pl.col("cycle_start").max())
+            .select("SubjectId", "treatment_start_last_cycle")
+        )
+
+        for pid, end_date in last_cycle_data.select("SubjectId", "treatment_start_last_cycle").iter_rows():
+            self.patient_data[pid].treatment_start_last_cycle = end_date
 
     # todo: start date (or just leave to builder)
+
     def _process_tumor_type(self) -> None:
         # COHTTYPE__3/CD is present but has no data
         df = (
@@ -352,82 +718,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             bm.cohort_target_name = row["cohort_target_name"]
             self.patient_data[pid].biomarkers = bm
 
-    def _process_date_of_death(self) -> None:
-        death_df = (
-            self.data.select(
-                "SubjectId",
-                eos=PolarsParsers.to_optional_date(pl.col("EOS_DEATHDTC")),
-                fu=PolarsParsers.to_optional_date(pl.col("FU_FUPDEDAT")),
-            )
-            .with_columns(
-                date_of_death=pl.max_horizontal("eos", "fu"),
-            )
-            .group_by("SubjectId")
-            .agg(pl.max("date_of_death").alias("date_of_death"))
-            .filter(pl.col("date_of_death").is_not_null())
-            .select("SubjectId", "date_of_death")
-        )
-
-        for pid, dod in death_df.iter_rows():
-            self.patient_data[pid].date_of_death = dod
-
-    def _process_has_any_adverse_events(self) -> None:
-        ae_status = (
-            self.data.with_columns(
-                ae_text_present=PolarsParsers.to_optional_utf8("AE_AECTCAET").str.len_chars().fill_null(0) > 0,
-                ae_date_present=PolarsParsers.to_optional_utf8("AE_AESTDAT").str.len_chars().fill_null(0) > 0,
-                ae_grade_present=PolarsParsers.to_optional_utf8("AE_AETOXGRECD").str.len_chars().fill_null(0) > 0,
-            )
-            .with_columns(
-                row_has_ae=pl.any_horizontal(
-                    [
-                        pl.col("ae_text_present"),
-                        pl.col("ae_date_present"),
-                        pl.col("ae_grade_present"),
-                    ],
-                ),
-            )
-            .group_by("SubjectId")
-            .agg(has_ae=pl.col("row_has_ae").any())
-        )
-
-        for row in ae_status.iter_rows(named=True):
-            pid = row["SubjectId"]
-            if pid in self.patient_data:
-                self.patient_data[pid].has_any_adverse_events = bool(row["has_ae"])
-
-    def _process_number_of_adverse_events(self) -> None:
-        ae_num = (
-            self.data.with_columns(
-                ae_num=pl.any_horizontal(
-                    [
-                        (PolarsParsers.to_optional_utf8(pl.col("AE_AECTCAET")).str.len_chars().fill_null(0) > 0),
-                        (PolarsParsers.to_optional_utf8(pl.col("AE_AESTDAT")).str.len_chars().fill_null(0) > 0),
-                        (PolarsParsers.to_optional_utf8(pl.col("AE_AETOXGRECD")).str.len_chars().fill_null(0)),
-                    ],
-                ),
-            )
-            .group_by("SubjectId")
-            .agg(ae_number=pl.col("ae_num").sum())
-        )
-
-        for row in ae_num.iter_rows(named=True):
-            pid = row["SubjectId"]
-            if pid in self.patient_data:
-                self.patient_data[pid].number_of_adverse_events = int(row["ae_number"])
-
-    def _process_number_of_serious_adverse_events(self) -> None:
-        sae_counts = (
-            self.data.with_columns(
-                is_serious=(PolarsParsers.to_optional_int64("AE_AESERCD") == 1).fill_null(False),
-            )
-            .group_by("SubjectId")
-            .agg(sae_number=pl.col("is_serious").sum().cast(pl.Int64))
-        )
-
-        for row in sae_counts.iter_rows(named=True):
-            self.patient_data[row["SubjectId"]].number_of_serious_adverse_events = row["sae_number"]
-
     def _process_date_lost_to_followup(self) -> None:
         lost_to_followup = (
             self.data.select("SubjectId", "FU_FUPSST", "FU_FUPALDAT")
@@ -450,144 +740,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             fu.lost_to_followup = bool(row["lost_to_followup"])
             fu.date_lost_to_followup = row["date_lost_to_followup"]
             self.patient_data[pid].lost_to_followup = fu
-
-    def _process_evaluability(self) -> None:
-        """
-        Filtering criteria:
-            Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
-            For IV cycles, the cycle end is modeled as the day before the next cycles start.
-            Inclusive length = next_start − start days. Length ≥ 21 qualifies.
-            For oral cycles, length = stop − start days; ≥ 28 qualifies.
-
-        For subjects with oral drugs, the start and end date per cycle is checked directly.
-            If a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
-
-        For subjects without oral drugs, cycle stop date is set to start date of next cycle and needs to last 21 days or more.
-            Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
-            each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
-            assumes no malformed dates, because imputing would change the length.
-
-        Old filteing criteria:
-            Patients marked as evaluable for efficacy analysis needs to have:
-                - sufficient treatment length for any cycle (21 days for IV, 28 days for oral) and *either one of*:
-                - tumor assessment after week 4 (patient has any tumor assessment with EventId==V04 in RA, RCNT, RTNTMNT, RNRSP)
-                - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
-        """
-        evaluability_data = self.data.select(
-            "SubjectId",
-            "TR_TROSTPDT",
-            "TR_TRO_STDT",
-            "TR_TRTNO",
-            "TR_TRC1_DT",
-            "TR_TRCYNCD",
-            # not currently used:
-            # "RA_EventDate",
-            # "RA_EventId",
-            # "RNRSP_EventDate",
-            # "RNRSP_EventId",
-            # "RCNT_EventDate",
-            # "RCNT_EventId",
-            # "RNTMNT_EventDate",
-            # "RNTMNT_EventId",
-            # "EOT_EventDate",
-        )
-
-        def oral_treatment_lengths() -> pl.DataFrame:
-            oral_sufficient_treatment_length = (
-                evaluability_data.select(["SubjectId", "TR_TRO_STDT", "TR_TROSTPDT", "TR_TRCYNCD"])
-                .with_columns(
-                    start=PolarsParsers.to_optional_utf8(pl.col("TR_TRO_STDT")).str.strptime(pl.Date, strict=False),
-                    stop=PolarsParsers.to_optional_utf8(pl.col("TR_TROSTPDT")).str.strptime(pl.Date, strict=False),
-                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
-                )
-                .filter(~pl.col("not_recieved_treatment_this_cycle"))
-                .with_columns(treatment_duration=((pl.col("stop") - pl.col("start")).dt.total_days()))
-                .group_by("SubjectId")
-                .agg((pl.col("treatment_duration").fill_null(-1) >= 28).any().alias("oral_sufficient_treatment_length"))
-            )
-            return oral_sufficient_treatment_length
-
-        def iv_treatment_lengths() -> pl.DataFrame:
-            iv_sufficient_treatment_length = (
-                evaluability_data.select(
-                    "SubjectId",
-                    "TR_TRTNO",
-                    "TR_TRC1_DT",
-                    "TR_TRO_STDT",
-                    "TR_TROSTPDT",
-                    "TR_TRCYNCD",
-                )
-                # remove oral treatment rows
-                .with_columns(
-                    oral_present=pl.any_horizontal(
-                        PolarsParsers.to_optional_utf8(pl.col(["TR_TRO_STDT", "TR_TROSTPDT"])).str.len_bytes().fill_null(0) > 0,
-                    ),
-                    start=PolarsParsers.to_optional_utf8(pl.col("TR_TRC1_DT")).str.strptime(pl.Date, strict=False),
-                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
-                )
-                .filter(~pl.col("oral_present") & ~pl.col("not_recieved_treatment_this_cycle"))
-                .drop_nulls("start")
-                .sort(["SubjectId", "TR_TRTNO", "start"])
-                # partitioned shift to make next start
-                .with_columns(pl.col("start").shift(-1).over(["SubjectId", "TR_TRTNO"]).alias("next_start"))
-                # compute gap days
-                .with_columns((pl.col("next_start") - pl.col("start")).dt.total_days().alias("gap_days"))
-                .group_by("SubjectId")
-                .agg(pl.col("gap_days").ge(21).fill_null(False).any().alias("iv_sufficient_treatment_length"))
-            )
-
-            return iv_sufficient_treatment_length
-
-        @deprecated
-        def eot_filter() -> pl.DataFrame:
-            has_ended_treatment = evaluability_data.group_by("SubjectId").agg(
-                pl.any_horizontal(PolarsParsers.to_optional_utf8(pl.col(["EOT_EventDate"])).str.len_bytes() > 0)
-                .any()
-                .alias("has_clinical_assessment"),
-            )
-            return has_ended_treatment
-
-        @deprecated
-        def tumor_assessment() -> pl.DataFrame:
-            # need to add V04 filter (if this is to be used again)
-            has_tumor_assessment_week_4 = evaluability_data.group_by("SubjectId").agg(
-                pl.any_horizontal(
-                    PolarsParsers.to_optional_utf8(
-                        pl.col(
-                            [
-                                "RA_EventDate",
-                                "RNRSP_EventDate",
-                                "RCNT_EventDate",
-                                "RNTMNT_EventDate",
-                            ],
-                        ),
-                    ).str.len_bytes()
-                    > 0,
-                )
-                .any()
-                .alias("has_tumor_assessment"),
-            )
-            return has_tumor_assessment_week_4
-
-        def _merge_evaluability() -> pl.DataFrame:
-            base = evaluability_data.select("SubjectId").unique()
-            _merged_df: pl.DataFrame = (
-                base.join(oral_treatment_lengths(), on="SubjectId", how="left")
-                .join(iv_treatment_lengths(), on="SubjectId", how="left")
-                .with_columns(
-                    pl.col("oral_sufficient_treatment_length").fill_null(False),
-                    pl.col("iv_sufficient_treatment_length").fill_null(False),
-                )
-                .with_columns(is_evaluable=(pl.col("oral_sufficient_treatment_length") | pl.col("iv_sufficient_treatment_length")))
-            )
-
-            return _merged_df
-
-        # hydrate
-        merged_evaluability: pl.DataFrame = _merge_evaluability()
-        for row in merged_evaluability.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].evaluable_for_efficacy_analysis = bool(row["is_evaluable"])
 
     def _process_ecog_baseline(self) -> None:
         """
@@ -773,103 +925,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             item_type=PreviousTreatments,
             skip_missing_patients=False,
         )
-
-    def _process_treatment_start_date(self) -> None:
-        treatment_start_data = (
-            self.data.lazy()
-            .select(["SubjectId", "TR_TRNAME", "TR_TRC1_DT"])
-            .with_columns(
-                tr_name=PolarsParsers.to_optional_utf8(pl.col("TR_TRNAME")).str.strip_chars(),
-                treatment_start_date=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT")),
-            )
-            # keep only real names: non-null & len > 0
-            .filter(pl.col("tr_name").is_not_null() & (pl.col("tr_name").str.len_chars() > 0))
-            .group_by("SubjectId")
-            .agg(pl.col("treatment_start_date").drop_nulls().min().alias("treatment_start_date"))
-            .collect()
-            .select(["SubjectId", "treatment_start_date"])
-        )
-
-        for row in treatment_start_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].treatment_start_date = row["treatment_start_date"]
-
-    def _process_treatment_stop_date(self) -> None:
-        treatment_stop_data = (
-            self.data.select(
-                "SubjectId",
-                "TR_TRCYNCD",
-                "TR_TROSTPDT",
-                "TR_TRC1_DT",
-                "EOT_EOTDAT",
-            )
-            .with_columns(
-                valid=PolarsParsers.to_optional_int64(pl.col("TR_TRCYNCD")).eq(1),
-                eot_date=PolarsParsers.to_optional_date(pl.col("EOT_EOTDAT").cast(pl.Utf8)),
-                oral_stop=PolarsParsers.to_optional_date(pl.col("TR_TROSTPDT").cast(pl.Utf8)),
-                iv_start=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT").cast(pl.Utf8)),
-            )
-            # only valid TR rows for oral/IV
-            .with_columns(
-                oral_stop_valid=pl.when(pl.col("valid")).then(pl.col("oral_stop")).otherwise(None),
-                iv_start_valid=pl.when(pl.col("valid")).then(pl.col("iv_start")).otherwise(None),
-            )
-            .group_by("SubjectId")
-            .agg(
-                last_eot=pl.col("eot_date").max(),
-                last_oral=pl.col("oral_stop_valid").max(),
-                last_iv=pl.col("iv_start_valid").max(),
-            )
-            .with_columns(
-                # precedence: EOT > oral > IV
-                treatment_end=pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]),
-                treatment_end_source=(
-                    pl.when(pl.col("last_eot").is_not_null())
-                    .then(pl.lit("EOT"))
-                    .when(pl.col("last_oral").is_not_null())
-                    .then(pl.lit("ORAL_STOP"))
-                    .when(pl.col("last_iv").is_not_null())
-                    .then(pl.lit("IV_START"))
-                    .otherwise(pl.lit(None))
-                ),
-            )
-        )
-
-        # log no ends
-        subjects = self.data.select("SubjectId").unique()
-        df_all = subjects.join(treatment_stop_data, on="SubjectId", how="left")
-        no_end = df_all.filter(pl.col("treatment_end").is_null()).get_column("SubjectId").to_list()
-        for pid in no_end:
-            log.warning(f"No treatment end found for SubjectId={pid}")
-
-        # hydrate
-        for pid, end_date in treatment_stop_data.select("SubjectId", "treatment_end").iter_rows():
-            self.patient_data[pid].treatment_end_date = end_date
-
-    def _process_start_last_cycle(self) -> None:
-        """
-        Note: currently not filtering for valid cycles, just selecting latest treatment starts.
-        Set enforce_valid=True if TR_TRCYNCD must be 1 (i.e. filtering for valid cycles only)
-        """
-        enforce_valid = False
-
-        last_cycle_data = (
-            self.data.select("SubjectId", "TR_TRC1_DT", "TR_TRCYNCD")
-            .with_columns(
-                cycle_start=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT")),
-                valid=PolarsParsers.to_optional_int64(pl.col("TR_TRCYNCD")).eq(1),
-            )
-            # null-out only if enforce_valid and row invalid
-            .with_columns(
-                cycle_start=pl.when(pl.lit(enforce_valid) & ~pl.col("valid")).then(None).otherwise(pl.col("cycle_start")),
-            )
-            .group_by("SubjectId")
-            .agg(treatment_start_last_cycle=pl.col("cycle_start").max())
-            .select("SubjectId", "treatment_start_last_cycle")
-        )
-
-        for pid, end_date in last_cycle_data.select("SubjectId", "treatment_start_last_cycle").iter_rows():
-            self.patient_data[pid].treatment_start_last_cycle = end_date
 
     def _process_treatment_cycle(self) -> None:
         treatment_cycle_cols = [
@@ -1220,34 +1275,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         coerced = coerce(annot).rename(_rename_map).filter(pl.col("term").is_not_null()).select("SubjectId", *AdverseEvent.CANONICAL_COLS)
 
         return None if coerced.is_empty() else coerced
-
-        # old code:
-        packed = self.pack_structs(df=coerced, value_cols=annot.select(pl.all().exclude("SubjectId")).columns)
-
-        def build_ae(pid: str, s: Mapping[str, Any]) -> AdverseEvent:
-            obj = AdverseEvent(pid)
-            obj.term = s["AE_AECTCAET"]
-            obj.grade = s["AE_AETOXGRECD"]
-            obj.outcome = s["AE_AEOUT"]
-            obj.was_serious = s["was_serious"]
-            obj.turned_serious_date = s["serious_date"]
-            obj.related_to_treatment_1_status = s["related_status_1"]
-            obj.related_to_treatment_2_status = s["related_status_2"]
-            obj.was_serious_grade_expected_treatment_1 = s["ser_expected_treatment_1"]
-            obj.was_serious_grade_expected_treatment_2 = s["ser_expected_treatment_2"]
-            obj.treatment_1_name = s["AE_AETRT1"]
-            obj.treatment_2_name = s["AE_AETRT2"]
-            obj.start_date = s["start_date"]
-            obj.end_date = s["end_date"]
-            return obj
-
-        self.hydrate_collection_field(
-            patients=self.patient_data,
-            packed=packed,
-            builder=build_ae,
-            skip_missing_patients=False,
-            item_type=AdverseEvent,
-        )
 
     def _process_baseline_tumor_assessment(self):
         """
@@ -1778,66 +1805,3 @@ class ImpressHarmonizer(BaseHarmonizer):
             return bor
 
         self.hydrate_singleton(processed, builder=build_best_overall_response, item_type=BestOverallResponse, patients=self.patient_data)
-
-    def _process_clinical_benefit(self):
-        """
-        Clinical benefit at W16 (visit 3).
-        Note: If patient has iRecist *and* Recist at same assessment, iRecist evaluation takes precedence as it's a more specific assessment.
-        """
-        timepoint = "V03"
-
-        base = (
-            self.data.select(
-                "SubjectId",
-                "RA_RATIMRESCD",
-                "RA_RAiMODCD",
-                "RNRSP_RNRSPCLCD",
-                "RNRSP_EventId",
-                "RA_EventId",
-            )
-            .filter(pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null()))
-            .filter((pl.col("RA_EventId") == timepoint) | (pl.col("RNRSP_EventId") == timepoint))
-            .with_columns(
-                benefit_w16=pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
-                .then(True)
-                .when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
-                .then(True)
-                .when(PolarsParsers.to_optional_int64(pl.col("RNRSP_RNRSPCLCD")).le(3))
-                .then(True)
-                .otherwise(False),
-            )
-        )
-
-        for row in base.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].has_clinical_benefit_at_week16 = bool(row["benefit_w16"])
-
-    def _process_eot_reason(self):
-        filtered = (
-            self.data.select("SubjectId", "EOT_EOTREOT")
-            .with_columns(
-                eot_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
-            )
-            .filter(pl.col("eot_reason").is_not_null())
-        )
-
-        for row in filtered.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].end_of_treatment_reason = row["eot_reason"]
-
-    def _process_eot_date(self):
-        """
-        Note: Docs mention progression date and EventDate as well,
-        but all patients in EOT source has EOTDAT,
-        EventDate is date recorded (so it's wrong) and progression date is tracked in TumorAssessment class.
-        fixme: EOT + Other sources of EOTs are in treatment_end_date method, so this shold probablky be removed
-        """
-        filtered = (
-            self.data.select("SubjectId", "EOT_EOTDAT")
-            .filter(pl.col("EOT_EOTDAT").is_not_null())
-            .with_columns(eot_date=PolarsParsers.to_optional_date(pl.col("EOT_EOTDAT")))
-        )
-
-        for row in filtered.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].end_of_treatment_date = row["eot_date"]
