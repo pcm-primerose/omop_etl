@@ -209,6 +209,7 @@ class BaseHarmonizer(ABC):
                         raise ValueError(f"Missing {spec.value_col} in scalar processor output")
 
                     log.info(f"{spec.name}: {df.height} rows (scalar -> {spec.target_attr})")
+
                     self.hydrate_scalar(
                         df,
                         attr=spec.target_attr,
@@ -261,7 +262,7 @@ class BaseHarmonizer(ABC):
 
             except Exception as e:
                 target = spec.target_attr if spec.kind == "scalar" else spec.target_domain.__name__
-                raise ValueError(f"{spec.name}: hydration failed for {target}") from e
+                raise ValueError(f"{spec.name}: hydration failed for {target}: {e}") from e
 
     def _get_strictness(self, spec: ProcessorSpec) -> bool:
         """Provided spec overrides harmonizer default."""

@@ -39,6 +39,18 @@ class ImpressHarmonizer(BaseHarmonizer):
             order_by=("start_date",),
             require_order_by=True,
         ),
+        ProcessorSpec(
+            "cohort_name",
+            kind="scalar",
+            target_attr="cohort_name",
+            value_col="cohort_name",
+        ),
+        ProcessorSpec(
+            "sex",
+            kind="scalar",
+            target_attr="sex",
+            value_col="sex",
+        ),
     )
 
     def _create_patients(self) -> None:
@@ -49,8 +61,6 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _run_legacy_processors(self) -> None:
         """Run old-style processors not yet migrated to SPECS."""
-        self._process_cohort_name()
-        self._process_gender()
         self._process_age()
         self._process_date_of_birth()
         self._process_tumor_type()
@@ -86,33 +96,26 @@ class ImpressHarmonizer(BaseHarmonizer):
         return HarmonizedData(patients=list(self.patient_data.values()), trial_id=self.trial_id)
 
     def _process_cohort_name(self) -> pl.DataFrame | None:
-        """Process cohort names and update patient objects"""
-        cohort_data = self.data.filter(PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).is_not_null())
-        return cohort_data
+        return self.data.select(
+            "SubjectId",
+            cohort_name=PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")),
+        ).filter(pl.col("cohort_name").is_not_null())
 
-        for row in cohort_data.iter_rows(named=True):
-            pid = row["SubjectId"]
-            cohort_name = row["COH_COHORTNAME"]
-            self.patient_data[pid].cohort_name = cohort_name
-
-    def _process_gender(self) -> None:
-        gender_data = (self.data.lazy().select(["SubjectId", "DM_SEX"])).filter(
-            PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).is_not_null()
+    def _process_sex(self) -> pl.DataFrame | None:
+        return (
+            self.data.select(
+                "SubjectId",
+                sex=(
+                    pl.when(PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).str.to_lowercase().is_in(["m", "male"]))
+                    .then(pl.lit("male"))
+                    .when(PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).str.to_lowercase().is_in(["f", "female"]))
+                    .then(pl.lit("female"))
+                    .otherwise(None)
+                ),
+            )
+            .filter(pl.col("sex").is_not_null())
+            .unique(subset=["SubjectId"], keep="first")
         )
-        gender_data = gender_data.with_columns(
-            processed_sex=(
-                pl.when(PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).str.to_lowercase().is_in(["m", "male"]))
-                .then(pl.lit("male"))
-                .when(PolarsParsers.to_optional_utf8(pl.col("DM_SEX")).str.to_lowercase().is_in(["f", "female"]))
-                .then(pl.lit("female"))
-                .otherwise(None)
-            ),
-        ).collect()
-
-        for row in gender_data.iter_rows(named=True):
-            pid = row["SubjectId"]
-            sex = row["processed_sex"]
-            self.patient_data[pid].sex = sex
 
     def _process_date_of_birth(self) -> None:
         """Process date of birth and update patient objects"""

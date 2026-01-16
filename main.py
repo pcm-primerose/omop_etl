@@ -52,7 +52,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         meta=_meta,
     )
 
-    # print(f"Harmonized: {harmonized_result.patients}")
+    print(f"Harmonized: {harmonized_result.patients[0]}")
 
     # run semantic mapping
     semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
@@ -86,6 +86,14 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     dsn = "postgresql://omop:omop@localhost:5433/omop"
     if not dsn:
         raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
+
+    # print(
+    #     f"Tables: \n"
+    #     f"{tables.cdm_source} \n\n"
+    #     f"{tables.person[0]} \n\n"
+    #     f"{tables.observation_period[0]} \n\n"
+    #     f"{tables.visit_occurrence[0]} \n\n"
+    # )
 
     # writer = PostgresOmopWriter(dsn=dsn, truncate_first=True)
     # writer.write(tables)
