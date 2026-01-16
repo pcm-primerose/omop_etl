@@ -643,8 +643,6 @@ def get_only_nonv600_cohort(frame: pl.DataFrame) -> pl.Series:
     filtered = frame.with_columns(cohort_col=pl.col("COHTMN").str.strip_chars().str.to_lowercase()).filter(
         pl.col("cohort_col").str.contains_any(["braf non-v600", "braf non-v600activating"])
     )
-    with pl.Config(tbl_cols=-1):
-        print(f"cohorts: {filtered}")
 
     return filtered.to_series()
 
@@ -661,8 +659,6 @@ def frames_to_dict(config: EcrfConfig, braf_non_v600_only: bool | None = None) -
 
         # only subject ids that belong to the BRAF non-V600 cohort
         cohort_subject_ids = get_only_nonv600_cohort(coh_sheet).to_list()
-
-        print(f"num subjects in non-V600 cohort: {len(cohort_subject_ids)}")
 
         for sheet in config.data:  # type: ignore
             df = sheet.data

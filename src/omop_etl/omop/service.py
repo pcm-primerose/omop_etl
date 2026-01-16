@@ -42,6 +42,4 @@ class OmopService:
         # singleton metadata row
         tables.add("cdm_source", CdmSourceBuilder(self._concepts).build())
 
-        print(f"tables: {tables.visit_occurrence}")
-
         return tables

@@ -108,8 +108,6 @@ def patients() -> List[Patient]:
     for mh in patient_2.medical_histories:
         mh.term = "medical_history_2"
 
-    print(f"patient 1: {patient_1}")
-
     return [patient_1, patient_2]
 
 

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.db.postgres import PostgresOmopWriter
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -88,8 +87,8 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     if not dsn:
         raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
 
-    writer = PostgresOmopWriter(dsn=dsn, truncate_first=True)
-    writer.write(tables)
+    # writer = PostgresOmopWriter(dsn=dsn, truncate_first=True)
+    # writer.write(tables)
     return 0
 
 

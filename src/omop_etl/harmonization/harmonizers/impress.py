@@ -85,9 +85,10 @@ class ImpressHarmonizer(BaseHarmonizer):
         self.run()  # enforced order: _create_patients -> _run_legacy_processors -> _run_processors
         return HarmonizedData(patients=list(self.patient_data.values()), trial_id=self.trial_id)
 
-    def _process_cohort_name(self) -> None:
+    def _process_cohort_name(self) -> pl.DataFrame | None:
         """Process cohort names and update patient objects"""
         cohort_data = self.data.filter(PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).is_not_null())
+        return cohort_data
 
         for row in cohort_data.iter_rows(named=True):
             pid = row["SubjectId"]
@@ -743,8 +744,6 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         filtered = filter_previous_treatments(ct_base)
         merged = merge_previous_treatments(base=ct_base, processed=filtered)
-
-        print(f"merged pt: {merged.columns}")
 
         # pack
         packed = self.pack_structs(
