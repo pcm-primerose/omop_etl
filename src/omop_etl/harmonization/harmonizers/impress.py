@@ -32,27 +32,16 @@ class ImpressHarmonizer(BaseHarmonizer):
         super().__init__(data, trial_id)
 
     SPECS = (
-        ProcessorSpec(
-            "adverse_events",
-            kind="collection",
-            target_domain=AdverseEvent,
-            order_by=("start_date",),
-            require_order_by=True,
-        ),
-        ProcessorSpec(
-            "cohort_name",
-            kind="scalar",
-            target_attr="cohort_name",
-            value_col="cohort_name",
-        ),
-        ProcessorSpec(
-            "sex",
-            kind="scalar",
-            target_attr="sex",
-            value_col="sex",
-        ),
+        ProcessorSpec("adverse_events", kind="collection", target_domain=AdverseEvent, order_by=("start_date",), require_order_by=True),
+        ProcessorSpec("cohort_name", kind="scalar", target_attr="cohort_name", value_col="cohort_name"),
+        ProcessorSpec("sex", kind="scalar", target_attr="sex", value_col="sex"),
         ProcessorSpec("date_of_birth", kind="scalar", target_attr="date_of_birth", value_col="date_of_birth"),
         ProcessorSpec("age", kind="scalar", target_attr="age", value_col="age"),
+        ProcessorSpec("date_of_death", kind="scalar", target_attr="date_of_death", value_col="date_of_death"),
+        ProcessorSpec("has_any_adverse_events", kind="scalar", target_attr="has_any_adverse_events", value_col="has_any_adverse_events"),
+        ProcessorSpec(
+            "number_of_adverse_events", kind="scalar", target_attr="number_of_adverse_events", value_col="number_of_adverse_events"
+        ),
     )
 
     def _create_patients(self) -> None:
@@ -66,7 +55,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_tumor_type()
         self._process_study_drugs()
         self._process_biomarkers()
-        self._process_date_of_death()
         self._process_date_lost_to_followup()
         self._process_evaluability()
         self._process_ecog_baseline()
@@ -77,7 +65,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_start_last_cycle()
         self._process_treatment_cycle()
         self._process_concomitant_medication()
-        self._process_has_any_adverse_events()
         self._process_number_of_adverse_events()
         self._process_number_of_serious_adverse_events()
         self._process_adverse_events()
@@ -144,7 +131,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         )
 
-    def _process_date_of_death(self) -> None:
+    def _process_date_of_death(self) -> pl.DataFrame | None:
         death_df = (
             self.data.select(
                 "SubjectId",
@@ -159,11 +146,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             .filter(pl.col("date_of_death").is_not_null())
             .select("SubjectId", "date_of_death")
         )
+        return death_df
 
-        for pid, dod in death_df.iter_rows():
-            self.patient_data[pid].date_of_death = dod
-
-    def _process_has_any_adverse_events(self) -> None:
+    def _process_has_any_adverse_events(self) -> pl.DataFrame | None:
         ae_status = (
             self.data.with_columns(
                 ae_text_present=PolarsParsers.to_optional_utf8("AE_AECTCAET").str.len_chars().fill_null(0) > 0,
@@ -180,15 +165,11 @@ class ImpressHarmonizer(BaseHarmonizer):
                 ),
             )
             .group_by("SubjectId")
-            .agg(has_ae=pl.col("row_has_ae").any())
+            .agg(has_any_adverse_events=pl.col("row_has_ae").any())
         )
+        return ae_status
 
-        for row in ae_status.iter_rows(named=True):
-            pid = row["SubjectId"]
-            if pid in self.patient_data:
-                self.patient_data[pid].has_any_adverse_events = bool(row["has_ae"])
-
-    def _process_number_of_adverse_events(self) -> None:
+    def _process_number_of_adverse_events(self) -> pl.DataFrame | None:
         ae_num = (
             self.data.with_columns(
                 ae_num=pl.any_horizontal(
@@ -200,8 +181,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 ),
             )
             .group_by("SubjectId")
-            .agg(ae_number=pl.col("ae_num").sum())
+            .agg(number_of_adverse_events=pl.col("ae_num").sum())
         )
+        return ae_num
 
         for row in ae_num.iter_rows(named=True):
             pid = row["SubjectId"]
