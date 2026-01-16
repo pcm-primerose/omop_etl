@@ -31,10 +31,24 @@ class ImpressHarmonizer(BaseHarmonizer):
     def __init__(self, data: pl.DataFrame, trial_id: str):
         super().__init__(data, trial_id)
 
-    SPECS = (ProcessorSpec("adverse_events", AdverseEvent, "collection", order_by=("start_date",), require_order_by=True),)
+    SPECS = (
+        ProcessorSpec(
+            "adverse_events",
+            kind="collection",
+            target_domain=AdverseEvent,
+            order_by=("start_date",),
+            require_order_by=True,
+        ),
+    )
 
-    def process(self) -> HarmonizedData:
-        self._process_patient_id()
+    def _create_patients(self) -> None:
+        """Create Patient instances from unique SubjectIds."""
+        patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
+        for pid in patient_ids:
+            self.patient_data[pid] = Patient(trial_id=self.trial_id, patient_id=pid)
+
+    def _run_legacy_processors(self) -> None:
+        """Run old-style processors not yet migrated to SPECS."""
         self._process_cohort_name()
         self._process_gender()
         self._process_age()
@@ -66,19 +80,10 @@ class ImpressHarmonizer(BaseHarmonizer):
         self._process_eot_reason()
         self._process_eot_date()
 
-        self._run_processors()
-
-        patients = list(self.patient_data.values())
-        output = HarmonizedData(patients=patients, trial_id=self.trial_id)
-
-        return output
-
-    def _process_patient_id(self) -> None:
-        """Process patient ID and create patient object"""
-        patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
-
-        for pid in patient_ids:
-            self.patient_data[pid] = Patient(trial_id=self.trial_id, patient_id=pid)
+    def process(self) -> HarmonizedData:
+        """Run harmonization and return HarmonizedData."""
+        self.run()  # enforced order: _create_patients -> _run_legacy_processors -> _run_processors
+        return HarmonizedData(patients=list(self.patient_data.values()), trial_id=self.trial_id)
 
     def _process_cohort_name(self) -> None:
         """Process cohort names and update patient objects"""
