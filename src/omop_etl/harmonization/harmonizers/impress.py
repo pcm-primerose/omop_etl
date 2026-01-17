@@ -34,26 +34,89 @@ class ImpressHarmonizer(BaseHarmonizer):
     # todo: structural type this
     SPECS = (
         # scalars
-        ProcessorSpec("cohort_name", kind="scalar", target_attr="cohort_name", value_col="cohort_name"),
-        ProcessorSpec("sex", kind="scalar", target_attr="sex", value_col="sex"),
-        ProcessorSpec("date_of_birth", kind="scalar", target_attr="date_of_birth", value_col="date_of_birth"),
-        ProcessorSpec("age", kind="scalar", target_attr="age", value_col="age"),
-        ProcessorSpec("date_of_death", kind="scalar", target_attr="date_of_death", value_col="date_of_death"),
-        ProcessorSpec("has_any_adverse_events", kind="scalar", target_attr="has_any_adverse_events", value_col="has_any_adverse_events"),
-        ProcessorSpec("number_of_adverse_events", kind="scalar", target_attr="number_of_adverse_events", value_col="number_of_adverse_events"),
         ProcessorSpec(
-            "number_of_serious_adverse_events", kind="scalar", target_attr="number_of_serious_adverse_events", value_col="number_of_serious_adverse_events"
+            "cohort_name",
+            kind="scalar",
+            target_attr="cohort_name",
+            value_col="cohort_name",
         ),
-        ProcessorSpec("treatment_start_last_cycle", kind="scalar", target_attr="treatment_start_last_cycle", value_col="treatment_start_last_cycle"),
-        ProcessorSpec("treatment_start_date", kind="scalar", target_attr="treatment_start_date", value_col="treatment_start_date"),
+        ProcessorSpec(
+            "sex",
+            kind="scalar",
+            target_attr="sex",
+            value_col="sex",
+        ),
+        ProcessorSpec(
+            "date_of_birth",
+            kind="scalar",
+            target_attr="date_of_birth",
+            value_col="date_of_birth",
+        ),
+        ProcessorSpec(
+            "age",
+            kind="scalar",
+            target_attr="age",
+            value_col="age",
+        ),
+        ProcessorSpec(
+            "date_of_death",
+            kind="scalar",
+            target_attr="date_of_death",
+            value_col="date_of_death",
+        ),
+        ProcessorSpec(
+            "has_any_adverse_events",
+            kind="scalar",
+            target_attr="has_any_adverse_events",
+            value_col="has_any_adverse_events",
+        ),
+        ProcessorSpec(
+            "number_of_adverse_events",
+            kind="scalar",
+            target_attr="number_of_adverse_events",
+            value_col="number_of_adverse_events",
+        ),
+        ProcessorSpec(
+            "number_of_serious_adverse_events",
+            kind="scalar",
+            target_attr="number_of_serious_adverse_events",
+            value_col="number_of_serious_adverse_events",
+        ),
+        ProcessorSpec(
+            "treatment_start_last_cycle",
+            kind="scalar",
+            target_attr="treatment_start_last_cycle",
+            value_col="treatment_start_last_cycle",
+        ),
+        ProcessorSpec(
+            "treatment_start_date",
+            kind="scalar",
+            target_attr="treatment_start_date",
+            value_col="treatment_start_date",
+        ),
+        ProcessorSpec(
+            "evaluable_for_efficacy_analysis",
+            kind="scalar",
+            target_attr="evaluable_for_efficacy_analysis",
+            value_col="evaluable_for_efficacy_analysis",
+        ),
+        ProcessorSpec(
+            "clinical_benefit",
+            kind="scalar",
+            target_attr="has_clinical_benefit_at_week16",
+            value_col="has_clinical_benefit_at_week16",
+        ),
+        ProcessorSpec("eot_reason", kind="scalar", target_attr="end_of_treatment_reason", value_col="end_of_treatment_reason"),
         ProcessorSpec("end_of_treatment_date", kind="scalar", target_attr="end_of_treatment_date", value_col="end_of_treatment_date"),
-        ProcessorSpec(
-            "evaluable_for_efficacy_analysis", kind="scalar", target_attr="evaluable_for_efficacy_analysis", value_col="evaluable_for_efficacy_analysis"
-        ),
-        ProcessorSpec("clinical_benefit", kind="scalar", target_attr="has_clinical_benefit_at_week16", value_col="has_clinical_benefit_at_week16"),
         # singletons
         # collections
-        ProcessorSpec("adverse_events", kind="collection", target_domain=AdverseEvent, order_by=("start_date",), require_order_by=True),
+        ProcessorSpec(
+            "adverse_events",
+            kind="collection",
+            target_domain=AdverseEvent,
+            order_by=("start_date",),
+            require_order_by=True,
+        ),
     )
 
     def _create_patients(self) -> None:
@@ -70,8 +133,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         # self._process_treatment_stop_date()
         # self._process_start_last_cycle()
         # self._process_clinical_benefit()
-        self._process_eot_reason()
-        self._process_eot_date()
+        # self._process_eot_reason()
+        # self._process_eot_date()
 
         # singeltons
         self._process_best_overall_response()
@@ -241,35 +304,15 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return benefit
 
-    def _process_eot_reason(self):
-        filtered = (
+    def _process_eot_reason(self) -> pl.DataFrame | None:
+        eot_reason = (
             self.data.select("SubjectId", "EOT_EOTREOT")
             .with_columns(
-                eot_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
+                end_of_treatment_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
             )
-            .filter(pl.col("eot_reason").is_not_null())
+            .filter(pl.col("end_of_treatment_reason").is_not_null())
         )
-
-        for row in filtered.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].end_of_treatment_reason = row["eot_reason"]
-
-    def _process_eot_date(self):
-        """
-        Note: Docs mention progression date and EventDate as well,
-        but all patients in EOT source has EOTDAT,
-        EventDate is date recorded (so it's wrong) and progression date is tracked in TumorAssessment class.
-        fixme: EOT + Other sources of EOTs are in treatment_end_date method, so this shold probablky be removed
-        """
-        filtered = (
-            self.data.select("SubjectId", "EOT_EOTDAT")
-            .filter(pl.col("EOT_EOTDAT").is_not_null())
-            .with_columns(eot_date=PolarsParsers.to_optional_date(pl.col("EOT_EOTDAT")))
-        )
-
-        for row in filtered.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].end_of_treatment_date = row["eot_date"]
+        return eot_reason
 
     def _process_evaluable_for_efficacy_analysis(self) -> pl.DataFrame | None:
         """
@@ -401,8 +444,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             return _merged_df
 
-        merged_evaluability: pl.DataFrame = _merge_evaluability()
-        return merged_evaluability
+        return _merge_evaluability()
 
     def _process_treatment_start_date(self) -> pl.DataFrame | None:
         treatment_start_data = (
