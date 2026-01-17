@@ -42,7 +42,7 @@ package-data = { "omop_etl" = ["resources/*.json"] }
 etl = "omop_etl.cli.main:main"
 
 [tool.ruff]
-line-length = 140
+line-length = 160
 target-version = "py314"
 fix = true
 
