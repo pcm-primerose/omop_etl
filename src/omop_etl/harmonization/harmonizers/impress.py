@@ -31,8 +31,8 @@ class ImpressHarmonizer(BaseHarmonizer):
     def __init__(self, data: pl.DataFrame, trial_id: str):
         super().__init__(data, trial_id)
 
+    # todo: structural type this
     SPECS = (
-        ProcessorSpec("adverse_events", kind="collection", target_domain=AdverseEvent, order_by=("start_date",), require_order_by=True),
         ProcessorSpec("cohort_name", kind="scalar", target_attr="cohort_name", value_col="cohort_name"),
         ProcessorSpec("sex", kind="scalar", target_attr="sex", value_col="sex"),
         ProcessorSpec("date_of_birth", kind="scalar", target_attr="date_of_birth", value_col="date_of_birth"),
@@ -42,6 +42,15 @@ class ImpressHarmonizer(BaseHarmonizer):
         ProcessorSpec(
             "number_of_adverse_events", kind="scalar", target_attr="number_of_adverse_events", value_col="number_of_adverse_events"
         ),
+        ProcessorSpec(
+            "number_of_serious_adverse_events",
+            kind="scalar",
+            target_attr="number_of_serious_adverse_events",
+            value_col="number_of_serious_adverse_events",
+        ),
+        ProcessorSpec("treatment_start_date", kind="scalar", target_attr="treatment_start_date", value_col="treatment_start_date"),
+        ProcessorSpec("end_of_treatment_date", kind="scalar", target_attr="end_of_treatment_date", value_col="end_of_treatment_date"),
+        ProcessorSpec("adverse_events", kind="collection", target_domain=AdverseEvent, order_by=("start_date",), require_order_by=True),
     )
 
     def _create_patients(self) -> None:
@@ -52,30 +61,33 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     def _run_legacy_processors(self) -> None:
         """Run old-style processors not yet migrated to SPECS."""
-        self._process_tumor_type()
-        self._process_study_drugs()
-        self._process_biomarkers()
-        self._process_date_lost_to_followup()
-        self._process_evaluability()
-        self._process_ecog_baseline()
-        self._process_previous_treatments()
-        self._process_medical_histories()
-        self._process_treatment_start_date()
-        self._process_treatment_stop_date()
+
+        # scalars
+        # self._process_treatment_start_date()
+        # self._process_treatment_stop_date()
         self._process_start_last_cycle()
-        self._process_treatment_cycle()
-        self._process_concomitant_medication()
-        self._process_number_of_adverse_events()
-        self._process_number_of_serious_adverse_events()
-        self._process_adverse_events()
-        self._process_baseline_tumor_assessment()
-        self._process_tumor_assessments()
-        self._process_c30()
-        self._process_eq5d()
         self._process_best_overall_response()
         self._process_clinical_benefit()
         self._process_eot_reason()
         self._process_eot_date()
+
+        # singeltons
+        self._process_biomarkers()
+        self._process_baseline_tumor_assessment()
+        self._process_tumor_type()
+        self._process_date_lost_to_followup()
+        self._process_evaluability()
+        self._process_ecog_baseline()
+
+        # collections
+        self._process_previous_treatments()
+        self._process_medical_histories()
+        self._process_study_drugs()
+        self._process_treatment_cycle()
+        self._process_concomitant_medication()
+        self._process_tumor_assessments()
+        self._process_c30()
+        self._process_eq5d()
 
     def process(self) -> HarmonizedData:
         """Run harmonization and return HarmonizedData."""
@@ -185,27 +197,21 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return ae_num
 
-        for row in ae_num.iter_rows(named=True):
-            pid = row["SubjectId"]
-            if pid in self.patient_data:
-                self.patient_data[pid].number_of_adverse_events = int(row["ae_number"])
-
-    def _process_number_of_serious_adverse_events(self) -> None:
+    def _process_number_of_serious_adverse_events(self) -> pl.DataFrame | None:
         sae_counts = (
             self.data.with_columns(
                 is_serious=(PolarsParsers.to_optional_int64("AE_AESERCD") == 1).fill_null(False),
             )
             .group_by("SubjectId")
-            .agg(sae_number=pl.col("is_serious").sum().cast(pl.Int64))
+            .agg(number_of_serious_adverse_events=pl.col("is_serious").sum().cast(pl.Int64))
         )
-
-        for row in sae_counts.iter_rows(named=True):
-            self.patient_data[row["SubjectId"]].number_of_serious_adverse_events = row["sae_number"]
+        return sae_counts
 
     def _process_clinical_benefit(self):
         """
         Clinical benefit at W16 (visit 3).
-        Note: If patient has iRecist *and* Recist at same assessment, iRecist evaluation takes precedence as it's a more specific assessment.
+        Note: If patient has iRecist *and* Recist at same assessment,
+        iRecist evaluation takes precedence as it's a more specific assessment.
         """
         timepoint = "V03"
 
@@ -403,7 +409,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             patient_id = row["SubjectId"]
             self.patient_data[patient_id].evaluable_for_efficacy_analysis = bool(row["is_evaluable"])
 
-    def _process_treatment_start_date(self) -> None:
+    def _process_treatment_start_date(self) -> pl.DataFrame | None:
         treatment_start_data = (
             self.data.lazy()
             .select(["SubjectId", "TR_TRNAME", "TR_TRC1_DT"])
@@ -419,11 +425,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             .select(["SubjectId", "treatment_start_date"])
         )
 
-        for row in treatment_start_data.iter_rows(named=True):
-            patient_id = row["SubjectId"]
-            self.patient_data[patient_id].treatment_start_date = row["treatment_start_date"]
+        return treatment_start_data
 
-    def _process_treatment_stop_date(self) -> None:
+    def _process_end_of_treatment_date(self) -> pl.DataFrame | None:
         treatment_stop_data = (
             self.data.select(
                 "SubjectId",
@@ -451,7 +455,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             .with_columns(
                 # precedence: EOT > oral > IV
-                treatment_end=pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]),
+                end_of_treatment_date=pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]),
                 treatment_end_source=(
                     pl.when(pl.col("last_eot").is_not_null())
                     .then(pl.lit("EOT"))
@@ -464,16 +468,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         )
 
-        # log no ends
-        subjects = self.data.select("SubjectId").unique()
-        df_all = subjects.join(treatment_stop_data, on="SubjectId", how="left")
-        no_end = df_all.filter(pl.col("treatment_end").is_null()).get_column("SubjectId").to_list()
-        for pid in no_end:
-            log.warning(f"No treatment end found for SubjectId={pid}")
-
-        # hydrate
-        for pid, end_date in treatment_stop_data.select("SubjectId", "treatment_end").iter_rows():
-            self.patient_data[pid].treatment_end_date = end_date
+        return treatment_stop_data
 
     def _process_start_last_cycle(self) -> None:
         """
