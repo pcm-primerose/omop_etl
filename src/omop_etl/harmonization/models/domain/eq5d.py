@@ -64,11 +64,7 @@ class EQ5D(DomainBase):
             f"qol_metric={self.qol_metric!r}",
         ]
         qs = [f"q{i}={getattr(self, f'q{i}')!r}" for i in range(1, self.Q_COUNT + 1) if getattr(self, f"q{i}", None) is not None]
-        qcs = [
-            f"q{i}_code={getattr(self, f'q{i}_code')!r}"
-            for i in range(1, self.Q_COUNT + 1)
-            if getattr(self, f"q{i}_code", None) is not None
-        ]
+        qcs = [f"q{i}_code={getattr(self, f'q{i}_code')!r}" for i in range(1, self.Q_COUNT + 1) if getattr(self, f"q{i}_code", None) is not None]
         return f"{self.__class__.__name__}({', '.join(base + qs + qcs)})"
 
 

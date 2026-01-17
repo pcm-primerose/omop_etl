@@ -113,9 +113,7 @@ def patients() -> List[Patient]:
 
 @pytest.fixture
 def configs() -> List[FieldConfig]:
-    tumor_config = FieldConfig(
-        name="tumor type main", field_path=("tumor_type", "main_tumor_type"), target=QueryTarget([OmopDomain.CONDITION])
-    )
+    tumor_config = FieldConfig(name="tumor type main", field_path=("tumor_type", "main_tumor_type"), target=QueryTarget([OmopDomain.CONDITION]))
     medical_history_config = FieldConfig(
         name="medical histories", field_path=("medical_histories", "term"), target=QueryTarget([OmopDomain.CONDITION, OmopDomain.PROCEDURE])
     )

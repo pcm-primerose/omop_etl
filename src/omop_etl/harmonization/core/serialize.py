@@ -72,9 +72,9 @@ def to_normalized(df_nested: pl.DataFrame) -> dict[str, pl.DataFrame]:
 
     # patients
     base_cols = [col for col, dtype in df_nested.schema.items() if dtype not in (pl.Struct,) and not isinstance(dtype, pl.List)]
-    tables["patients"] = df_nested.select(
-        [*SerializeTypes.ID_COLUMNS, *[col for col in base_cols if col not in SerializeTypes.ID_COLUMNS]]
-    ).sort(pl.col("patient_id"))
+    tables["patients"] = df_nested.select([*SerializeTypes.ID_COLUMNS, *[col for col in base_cols if col not in SerializeTypes.ID_COLUMNS]]).sort(
+        pl.col("patient_id")
+    )
 
     # singletons
     for col_name, col_dtype in df_nested.schema.items():
@@ -266,11 +266,7 @@ def export_leaf_object(obj: Any, *, exclude: set[str] = SerializeTypes.IDENTITY_
     """
     props = _public_properties(obj.__class__)
     if props:
-        return {
-            prop_name: _to_polars_primitive(getattr(obj, prop_name))
-            for prop_name, prop in props.items()
-            if prop.fget and prop_name not in exclude
-        }
+        return {prop_name: _to_polars_primitive(getattr(obj, prop_name)) for prop_name, prop in props.items() if prop.fget and prop_name not in exclude}
     if hasattr(obj, "__dict__"):
         result: dict[str, Any] = {}
         for attr_name, attr_value in obj.__dict__.items():
@@ -342,9 +338,7 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
                 exported = export_leaf_object(value)
                 for field_name, field_value in exported.items():
                     inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
-                    fields[field_name] = (
-                        _unify_dtypes(fields.get(field_name, inferred_dtype), inferred_dtype) if field_name in fields else inferred_dtype
-                    )
+                    fields[field_name] = _unify_dtypes(fields.get(field_name, inferred_dtype), inferred_dtype) if field_name in fields else inferred_dtype
 
             if fields:
                 enriched_schema[prop_name] = pl.Struct(
@@ -374,9 +368,7 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
 
             if fields:
                 enriched_schema[prop_name] = pl.List(
-                    pl.Struct(
-                        {field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()}
-                    )
+                    pl.Struct({field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()})
                 )
 
     enriched_schema.setdefault("patient_id", pl.Utf8)
@@ -436,10 +428,7 @@ def _sort_wide(
         rank = {name: idx + 1 for idx, name in enumerate(collection_order)}
         wide = (
             wide.with_columns(
-                pl.when(pl.col("row_type") == "base")
-                .then(0)
-                .otherwise(pl.col("row_type").replace(rank, default=len(rank) + 1))
-                .alias("_rt_rank"),
+                pl.when(pl.col("row_type") == "base").then(0).otherwise(pl.col("row_type").replace(rank, default=len(rank) + 1)).alias("_rt_rank"),
             )
             .sort([*id_cols, "_rt_rank", "row_index"])
             .drop("_rt_rank")

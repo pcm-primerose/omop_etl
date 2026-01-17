@@ -27,7 +27,6 @@ class TreatmentCycle(DomainBase):
         self._reason_not_administered_to_spec: str | None = None
         self._oral_dose_prescribed_per_day: float | None = None
         self._oral_dose_unit: str | None = None
-        self._other_dose_unit: str | None = None
         self._number_of_days_tablet_not_taken: int | None = None
         self._reason_tablet_not_taken: str | None = None
         self._was_tablet_taken_to_prescription_in_previous_cycle: bool | None = None
@@ -208,18 +207,6 @@ class TreatmentCycle(DomainBase):
         )
 
     @property
-    def other_dose_unit(self) -> str | None:
-        return self._other_dose_unit
-
-    @other_dose_unit.setter
-    def other_dose_unit(self, value: str | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.other_dose_unit,
-            value=value,
-            validator=StrictValidators.validate_optional_str,
-        )
-
-    @property
     def number_of_days_tablet_not_taken(self) -> int | None:
         return self._number_of_days_tablet_not_taken
 
@@ -272,7 +259,6 @@ class TreatmentCycle(DomainBase):
             f"reason_not_administered_to_spec={self.reason_not_administered_to_spec!r}{delim} "
             f"oral_dose_prescribed_per_day={self.oral_dose_prescribed_per_day!r}{delim} "
             f"oral_dose_unit={self.oral_dose_unit!r}{delim} "
-            f"other_dose_unit={self.other_dose_unit!r}{delim} "
             f"number_of_days_tablet_not_taken={self.number_of_days_tablet_not_taken!r}{delim} "
             f"reason_tablet_not_taken={self.reason_tablet_not_taken!r}{delim} "
             f"was_tablet_taken_to_prescription_in_previous_cycle={self.was_tablet_taken_to_prescription_in_previous_cycle!r}"

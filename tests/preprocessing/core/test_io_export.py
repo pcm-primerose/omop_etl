@@ -45,9 +45,7 @@ def exporter(tmp_path: Path) -> PreprocessExporter:
 
 class TestPlanPaths:
     def test_plan_table_dir_structured(self, run_context, tmp_path):
-        ctx: WriterContext = plan_table_dir(
-            base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="csv", mode="preprocessed"
-        )
+        ctx: WriterContext = plan_table_dir(base_out=tmp_path, meta=run_context, module="preprocessed", trial=run_context.trial, fmt="csv", mode="preprocessed")
 
         seg = f"{run_context.started_at}_{run_context.run_id}"
         assert ctx.base_dir == (tmp_path / "runs" / seg / "preprocessed" / "test_trial" / "preprocessed" / "csv")

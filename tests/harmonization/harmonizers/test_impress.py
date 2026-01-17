@@ -529,19 +529,19 @@ def test_baseline_tumor_assessment(baseline_tumor_assessment_fixture):
     assert ta.assessment_type == "SD"
 
     ta = harmonizer.patient_data["both_ntl_cols"].tumor_assessment_baseline
-    assert ta.number_off_target_lesions == 5
+    assert ta.off_target_lesions_number == 5
     assert ta.off_target_lesion_measurement_date == dt.date(2020, 2, 1)
 
     ta = harmonizer.patient_data["rntmnt_only"].tumor_assessment_baseline
-    assert ta.number_off_target_lesions == 4
+    assert ta.off_target_lesions_number == 4
     assert ta.off_target_lesion_measurement_date == dt.date(2020, 2, 2)
 
     ta = harmonizer.patient_data["rcnt_only"].tumor_assessment_baseline
-    assert ta.number_off_target_lesions == 3
+    assert ta.off_target_lesions_number == 3
     assert ta.off_target_lesion_measurement_date == dt.date(2020, 2, 4)
 
     ta = harmonizer.patient_data["ntl_no_date"].tumor_assessment_baseline
-    assert ta.number_off_target_lesions == 6
+    assert ta.off_target_lesions_number == 6
     assert ta.off_target_lesion_measurement_date is None
 
     ta = harmonizer.patient_data["ra_valid"].tumor_assessment_baseline

@@ -113,9 +113,7 @@ class BaseReader(ABC):
                 continue
 
             # check if all non-null values are integer strings
-            is_int_col = df.select(
-                (pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()
-            ).item()
+            is_int_col = df.select((pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()).item()
 
             if is_int_col:
                 int_columns.append(col_name)
@@ -194,9 +192,7 @@ class CsvDirectoryReader(BaseReader):
             key_lower = source_config.key.casefold()
 
             if key_lower not in file_index:
-                raise FileNotFoundError(
-                    f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}"
-                )
+                raise FileNotFoundError(f"No CSV file for key '{source_config.key}' in {path}. Available files: {list(file_index.values())}")
 
             csv_path = file_index[key_lower]
             log.debug(f"Reading CSV file: {csv_path}")
@@ -609,9 +605,7 @@ def get_config(all_data: bool = False) -> Dict[str, list[str]]:
         return semantic_vars
 
     else:
-        log.warning(
-            "Running extraction on all data from all_vars in get_config(): *Cannot* be exported, will contain mostly non-semantic data!"
-        )
+        log.warning("Running extraction on all data from all_vars in get_config(): *Cannot* be exported, will contain mostly non-semantic data!")
         return all_vars
 
 
@@ -709,9 +703,9 @@ def add_term_id(data: pl.DataFrame, id_scope: Scope = "per_scope") -> pl.DataFra
 
     if id_scope == "global":
         namespace = uuid.UUID(_namespace)
-        output = data.with_columns(
-            term.map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8).alias("term_id")
-        ).select("term_id", "source_col", "source_term", "frequency")
+        output = data.with_columns(term.map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8).alias("term_id")).select(
+            "term_id", "source_col", "source_term", "frequency"
+        )
         return output
 
     if id_scope == "per_scope":
@@ -727,9 +721,7 @@ def add_term_id(data: pl.DataFrame, id_scope: Scope = "per_scope") -> pl.DataFra
         raise ValueError(f"id_scope not valid: `{id_scope}`. Needs to be: `{Scope}`")
 
 
-def run(
-    input_path: Path, output_dir: Path, trial: str = "impress", all_data: bool | None = False, braf_non_v600_only: bool | None = False
-) -> None:
+def run(input_path: Path, output_dir: Path, trial: str = "impress", all_data: bool | None = False, braf_non_v600_only: bool | None = False) -> None:
     start_time = time.time()
     config = EcrfConfig.from_mapping(get_config(all_data=all_data))  # type: ignore
     InputResolver().resolve(path=input_path, ecfg=config)

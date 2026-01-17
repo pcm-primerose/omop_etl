@@ -41,8 +41,4 @@ class FollowUp(DomainBase):
         )
 
     def __repr__(self, delim=","):
-        return (
-            f"{self.__class__.__name__}("
-            f"lost_to_followup={self.lost_to_followup!r}{delim} "
-            f"date_lost_to_followup={self.date_lost_to_followup!r})"
-        )
+        return f"{self.__class__.__name__}(lost_to_followup={self.lost_to_followup!r}{delim} date_lost_to_followup={self.date_lost_to_followup!r})"

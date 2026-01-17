@@ -13,7 +13,7 @@ class TumorAssessmentBaseline(DomainBase):
         self._target_lesion_size: int | None = None
         self._target_lesion_nadir: int | None = None
         self._target_lesion_measurement_date: dt.date | None = None
-        self._number_off_target_lesions: int | None = None
+        self._off_target_lesions_number: int | None = None
         self._off_target_lesion_measurement_date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
@@ -82,13 +82,13 @@ class TumorAssessmentBaseline(DomainBase):
         )
 
     @property
-    def number_off_target_lesions(self) -> int | None:
-        return self._number_off_target_lesions
+    def off_target_lesions_number(self) -> int | None:
+        return self._off_target_lesions_number
 
-    @number_off_target_lesions.setter
-    def number_off_target_lesions(self, value: int | None) -> None:
+    @off_target_lesions_number.setter
+    def off_target_lesions_number(self, value: int | None) -> None:
         self._set_validated_prop(
-            prop=self.__class__.number_off_target_lesions,
+            prop=self.__class__.off_target_lesions_number,
             value=value,
             validator=StrictValidators.validate_optional_int,
         )
@@ -113,7 +113,7 @@ class TumorAssessmentBaseline(DomainBase):
             f"target_lesion_size={self.target_lesion_size!r}{delim} "
             f"target_lesion_nadir={self.target_lesion_nadir!r}{delim} "
             f"target_lesion_measurement_date={self.target_lesion_measurement_date!r}{delim} "
-            f"off_target_lesion_size={self.number_off_target_lesions!r}{delim} "
+            f"off_target_lesion_size={self.off_target_lesions_number!r}{delim} "
             f"off_target_lesion_measurement_date={self.off_target_lesion_measurement_date!r}"
             f")"
         )
