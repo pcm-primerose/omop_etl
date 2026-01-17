@@ -52,7 +52,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         meta=_meta,
     )
 
-    print(f"Harmonized: {harmonized_result.patients[0:10]}")
+    print(f"Harmonized: {harmonized_result.patients[0:40]}")
 
     # run semantic mapping
     semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
@@ -102,6 +102,4 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
 if __name__ == "__main__":
     configure_logger(level="DEBUG")
-    run_pipeline(
-        preprocessing_input=Path(__file__).parent / ".data" / "synthetic" / "nonv600_cohorts", base_root=Path(__file__).parent / ".data"
-    )
+    run_pipeline(preprocessing_input=Path(__file__).parent / ".data" / "synthetic" / "nonv600_cohorts", base_root=Path(__file__).parent / ".data")

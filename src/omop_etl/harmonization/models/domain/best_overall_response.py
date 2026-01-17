@@ -13,6 +13,8 @@ class BestOverallResponse(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
+    MATERIAL_COLS = ("response",)
+
     @property
     def patient_id(self) -> str:
         return self._patient_id

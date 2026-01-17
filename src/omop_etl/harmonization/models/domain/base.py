@@ -1,94 +1,88 @@
+from abc import ABC, abstractmethod
 from typing import Any, Mapping, ClassVar, Self
 
 from omop_etl.harmonization.core.track_validated import TrackedValidated
 
 
-class DomainBase(TrackedValidated):
-    """Base class for all domain models with schema contract support."""
+class DomainBase(TrackedValidated, ABC):
+    """
+    Base class for all domain models with schema contract support.
 
-    # Explicit schema contract - subclasses must define
-    CANONICAL_COLS: ClassVar[tuple[str, ...]] = ()
+    data_fields() is derived lazily by scanning for public writable properties,
+    to support classes that dynamically generate properties after class definition.
+    """
 
-    # Optional: columns that should trigger warnings/metrics if null (for observability)
-    SOFT_REQUIRED_COLS: ClassVar[tuple[str, ...]] = ()
+    # internal cache, use data_fields() method to access
+    _data_fields: ClassVar[tuple[str, ...] | None] = None
+    _schema_validated: ClassVar[bool] = False
 
-    # Optional: columns that determine "materiality" - if all are null, row is non-material
-    # Processors use this: .filter(pl.any_horizontal(pl.col(*Domain.MATERIAL_COLS).is_not_null()))
+    # optional overrides
     MATERIAL_COLS: ClassVar[tuple[str, ...]] = ()
+    EXCLUDE_DATA_FIELDS: ClassVar[frozenset[str]] = frozenset({"updated_fields", "patient_id"})
+
+    @abstractmethod
+    def __init__(self, patient_id: str) -> None:
+        """Initialize domain object with patient_id. Must be implemented by subclasses."""
+        ...
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        """Validate schema contract at class definition time."""
         super().__init_subclass__(**kwargs)
-
-        # Skip validation for intermediate base classes
-        if cls.CANONICAL_COLS == ():
-            return
-
-        # No duplicates in CANONICAL_COLS
-        cols = cls.CANONICAL_COLS
-        if len(cols) != len(set(cols)):
-            dupes = [c for c in cols if cols.count(c) > 1]
-            raise ValueError(f"{cls.__name__}.CANONICAL_COLS has duplicates: {set(dupes)}")
-
-        # SOFT_REQUIRED_COLS ⊆ CANONICAL_COLS
-        soft = set(cls.SOFT_REQUIRED_COLS)
-        canonical = set(cols)
-        if not soft.issubset(canonical):
-            invalid = soft - canonical
-            raise ValueError(f"{cls.__name__}.SOFT_REQUIRED_COLS contains columns not in CANONICAL_COLS: {invalid}")
-
-        # MATERIAL_COLS ⊆ CANONICAL_COLS
-        material = set(cls.MATERIAL_COLS)
-        if not material.issubset(canonical):
-            invalid = material - canonical
-            raise ValueError(f"{cls.__name__}.MATERIAL_COLS contains columns not in CANONICAL_COLS: {invalid}")
-
-        # MATERIAL_COLS must be non-empty for concrete domains
-        if not cls.MATERIAL_COLS:
-            raise ValueError(f"{cls.__name__}.MATERIAL_COLS is empty. Concrete domains must define at least one material column.")
-
-    #     # ensure each canonical col is actually settable
-    #     missing = [c for c in cols if not DomainBase._is_settable_attr(cls, name=c)]
-    #     if missing:
-    #         raise ValueError(
-    #             f"{cls.__name__}: CANONICAL_COLS contains non-settable attributes: {missing}"
-    #         )
-    #
-    # @classmethod
-    # def _is_settable_attr(cls: type, name: str) -> bool:
-    #     # property with setter?
-    #     attr = getattr(cls, name, None)
-    #     if isinstance(attr, property):
-    #         return attr.fset is not None
-    #     # plain attribute on class (dataclasses, descriptors, etc.)
-    #     return hasattr(cls, name)
+        # reset cache for each subclass
+        cls._data_fields = None
+        cls._schema_validated = False
 
     @classmethod
-    def expected_columns(cls) -> tuple[str, ...]:
-        """Returns the canonical columns this class expects from a DataFrame row."""
-        return cls.CANONICAL_COLS
+    def _derive_data_fields(cls) -> tuple[str, ...]:
+        """Scan class for all public writable properties."""
+        out: list[str] = []
+        for name in dir(cls):
+            if name.startswith("_") or name in cls.EXCLUDE_DATA_FIELDS:
+                continue
+            attr = getattr(cls, name, None)
+            if isinstance(attr, property) and attr.fset is not None:
+                out.append(name)
+        return tuple(sorted(out))
+
+    @classmethod
+    def _ensure_schema(cls) -> None:
+        """Lazily derive and validate schema on first access."""
+        if cls._schema_validated:
+            return
+
+        # derive expected fields from properties
+        if cls._data_fields is None:
+            cls._data_fields = cls._derive_data_fields()
+
+        fields = cls._data_fields
+        if not fields:
+            raise ValueError(f"{cls.__name__}: no data fields derived (no public writable properties found)")
+
+        if len(fields) != len(set(fields)):
+            raise ValueError(f"{cls.__name__}.data_fields has duplicates")
+
+        material = set(cls.MATERIAL_COLS)
+        if not material.issubset(set(fields)):
+            raise ValueError(f"{cls.__name__}.MATERIAL_COLS not subset of data_fields: {material - set(fields)}")
+
+        cls._schema_validated = True
+
+    @classmethod
+    def data_fields(cls) -> tuple[str, ...]:
+        """Returns the data fields for this domain class."""
+        cls._ensure_schema()
+        return cls._data_fields
 
     @classmethod
     def from_row(
         cls,
         patient_id: str,
         row: Mapping[str, Any],
-        *,
-        context: Mapping[str, Any] | None = None,
     ) -> Self:
         """
         Construct instance from a row dict.
         Assumes schema validation already happened at DataFrame level.
-
-        Sets field to whatever is in the row (including None).
-        Setters handle validation/coercion.
-
-        Args:
-            patient_id: The patient identifier
-            row: Dict-like row from DataFrame iteration
-            context: Optional metadata (source info, flags, etc.) for future use
         """
         obj = cls(patient_id)
-        for col in cls.CANONICAL_COLS:
-            setattr(obj, col, row[col])  # Fail-fast: schema guarantees col exists
+        for field in cls.data_fields():
+            setattr(obj, field, row[field])
         return obj

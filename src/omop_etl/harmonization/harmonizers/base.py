@@ -48,7 +48,7 @@ class ProcessorSpec:
     mode: Literal["replace", "extend"] = "replace"
     order_by: tuple[str, ...] = ()
     require_order_by: bool = False
-    strict_schema: bool | None = None
+    strict_schema: bool | None = True
     skip_missing_patients: bool = False
     subject_col: str = "SubjectId"
     items_col: str = "items"
@@ -62,14 +62,13 @@ class BaseHarmonizer(ABC):
     Each spec maps a processor method (_process_{name}) to a target domain class
     and hydration strategy (singleton vs collection).
 
-    Workflow (enforced by run() template method):
-    1. _create_patients() creates Patient instances (subclass implements)
-    2. _run_legacy_processors() runs old-style processors (hook, default no-op)
-    3. _run_processors() iterates SPECS, calling each processor
-    4. Processor output is validated and conformed to target schema
-    5. Domain objects are hydrated onto Patient instances
+    Workflow is enforced by run() template method:
+        - _create_patients() creates Patient instances (subclass implements)
+        - _run_processors() iterates SPECS, calling each processor
+        - Processor output is validated and conformed to target schema
+        - Domain objects are hydrated onto Patient instances
 
-    Processors return DataFrames with a subset of CANONICAL_COLS.
+    Processors return DataFrames with a subset of data_fields().
     Unknown columns are errors, missing columns are filled with null.
     """
 
@@ -87,37 +86,17 @@ class BaseHarmonizer(ABC):
         """
         Template method: executes harmonization pipeline in correct order.
 
-        1. _create_patients() - creates Patient instances
-        2. _run_legacy_processors() - runs old-style processors (hook, default no-op)
-        3. _run_processors() - runs SPECS-based processors
-
-        Subclasses should not override this method. Override the hooks instead.
+        Creates Patient instances and run spec-based processors.
+        Subclasses should not override this method, override the hooks instead.
         """
         self._create_patients()
-        self._run_legacy_processors()
         self._run_processors()
-
-    def _run_legacy_processors(self) -> None:
-        """
-        Hook for old-style processors not yet migrated to SPECS.
-
-        Override in subclass to call legacy _process_* methods.
-        Called after _create_patients() and before _run_processors().
-        """
-        pass
 
     @abstractmethod
     def _create_patients(self) -> None:
         """
         Create Patient instances and populate patient_data.
-
-        Subclass must implement this to create Patient instances with at minimum
-        patient_id. Called by run() before _run_legacy_processors().
-
-        Example:
-            for row in self.data.select("SubjectId").unique().iter_rows(named=True):
-                pid = row["SubjectId"]
-                self.patient_data[pid] = Patient(patient_id=pid, trial_id=self.trial_id)
+        Subclass must implement this to create Patient instances with at minimum patient_id.
         """
         ...
 
@@ -135,7 +114,7 @@ class BaseHarmonizer(ABC):
                 raise ValueError(f"{spec.name}: subject_col cannot be empty")
 
             if spec.kind == "scalar":
-                # Scalar validation
+                # scalar validation
                 if not spec.target_attr:
                     raise ValueError(f"{spec.name}: scalar requires target_attr")
                 if not spec.value_col:
@@ -143,17 +122,15 @@ class BaseHarmonizer(ABC):
                 if not hasattr(Patient, spec.target_attr):
                     raise ValueError(f"{spec.name}: Patient has no attribute '{spec.target_attr}'")
             else:
-                # Singleton/collection validation
+                # singleton/collection validation
                 if not spec.target_domain:
                     raise ValueError(f"{spec.name}: {spec.kind} requires target_domain")
 
                 if spec.order_by:
-                    canonical = set(spec.target_domain.CANONICAL_COLS)
+                    canonical = set(spec.target_domain.data_fields())
                     invalid = set(spec.order_by) - canonical
                     if invalid:
-                        raise ValueError(
-                            f"{spec.name}: order_by contains columns not in {spec.target_domain.__name__}.CANONICAL_COLS: {invalid}"
-                        )
+                        raise ValueError(f"{spec.name}: order_by contains columns not in {spec.target_domain.__name__}.data_fields(): {invalid}")
 
                 if spec.kind == "singleton" and spec.mode != "replace":
                     raise ValueError(f"{spec.name}: mode={spec.mode!r} is invalid for singleton (only 'replace' is meaningful)")
@@ -231,7 +208,7 @@ class BaseHarmonizer(ABC):
                     packed = self.pack_structs(
                         df,
                         subject_col=spec.subject_col,
-                        value_cols=spec.target_domain.CANONICAL_COLS,
+                        value_cols=spec.target_domain.data_fields(),
                         order_by_cols=spec.order_by or None,
                         items_col=spec.items_col,
                     )
@@ -295,12 +272,12 @@ class BaseHarmonizer(ABC):
         if dupes:
             raise ValueError(f"Duplicate columns for {item_type.__name__}: {dupes}")
 
-        canonical = set(item_type.CANONICAL_COLS)
-        if subject_col in canonical:
-            raise ValueError(f"{item_type.__name__}: subject_col {subject_col!r} must not be in CANONICAL_COLS")
+        data_fields = set(item_type.data_fields())
+        if subject_col in data_fields:
+            raise ValueError(f"{item_type.__name__}: subject_col {subject_col!r} must not be in data_fields()")
 
         actual = set(cols) - {subject_col}
-        unknown = actual - canonical
+        unknown = actual - data_fields
         if unknown:
             msg = f"{item_type.__name__}: unknown columns {sorted(unknown)}"
             if strict_unknown:
@@ -315,9 +292,9 @@ class BaseHarmonizer(ABC):
         subject_col: str = "SubjectId",
     ) -> pl.DataFrame:
         """
-        Conform DataFrame to the full canonical schema for a DomainBase datamodel.
+        Conform DataFrame to the full schema for a DomainBase datamodel.
         Columns not matching target domain are filled with pl.Null.
-        Selects columns in order: [subject_col, *`target_domain_canonical_cols`].
+        Selects columns in order: [subject_col, *data_fields()].
         Extra columns (if not caught by validate_schema_subset) are dropped.
 
         Args:
@@ -326,13 +303,13 @@ class BaseHarmonizer(ABC):
            subject_col (str): Subject column name.
 
         Returns:
-           pl.DataFrame[subject_col, *CANONICAL_COLS]
+           pl.DataFrame[subject_col, *data_fields()]
         """
-        canonical = list(item_type.CANONICAL_COLS)
-        missing = [c for c in canonical if c not in frame.columns]
+        fields = list(item_type.data_fields())
+        missing = [f for f in fields if f not in frame.columns]
         if missing:
-            frame = frame.with_columns([pl.lit(None).alias(c) for c in missing])
-        return frame.select([subject_col, *canonical])
+            frame = frame.with_columns([pl.lit(None).alias(f) for f in missing])
+        return frame.select([subject_col, *fields])
 
     @staticmethod
     def pack_structs(
@@ -519,13 +496,19 @@ class BaseHarmonizer(ABC):
 
     @staticmethod
     def _log_processor_metrics(spec: ProcessorSpec, df: pl.DataFrame) -> None:
-        """Log basic observability metrics for a processor result."""
+        """
+        Log basic observability metrics for a processor result.
+
+        Args:
+            spec (ProcessorSpec): ProcessorSpec instance to log.
+            df (pl.DataFrame): Dataframe for that processor spec.
+        """
         row_count = df.height
         patient_count = df.select(spec.subject_col).n_unique()
         log.info(f"{spec.name}: {row_count} rows, {patient_count} patients")
 
         # null rates for soft-required columns
-        for col in spec.target_domain.CANONICAL_COLS:
+        for col in spec.target_domain.data_fields():
             if col in df.columns:
                 null_count = df.select(pl.col(col).is_null().sum()).item()
                 null_pct = (null_count / row_count * 100) if row_count > 0 else 0

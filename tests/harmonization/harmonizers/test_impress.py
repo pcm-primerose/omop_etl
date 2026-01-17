@@ -251,7 +251,7 @@ def test_lost_to_followup(lost_to_followup_fixture):
             trial_id="IMPRESS_TEST",
         )
 
-    harmonizer._process_date_lost_to_followup()
+    harmonizer._process_lost_to_followup()
 
     ins_1 = harmonizer.patient_data["alive_valid"].lost_to_followup
     assert not ins_1.lost_to_followup

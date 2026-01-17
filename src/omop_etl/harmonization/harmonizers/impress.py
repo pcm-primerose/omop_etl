@@ -1,5 +1,4 @@
 import re
-from typing import Mapping, Any
 from deprecated import deprecated
 import polars as pl
 from logging import getLogger
@@ -106,15 +105,109 @@ class ImpressHarmonizer(BaseHarmonizer):
             target_attr="has_clinical_benefit_at_week16",
             value_col="has_clinical_benefit_at_week16",
         ),
-        ProcessorSpec("eot_reason", kind="scalar", target_attr="end_of_treatment_reason", value_col="end_of_treatment_reason"),
-        ProcessorSpec("end_of_treatment_date", kind="scalar", target_attr="end_of_treatment_date", value_col="end_of_treatment_date"),
+        ProcessorSpec(
+            "eot_reason",
+            kind="scalar",
+            target_attr="end_of_treatment_reason",
+            value_col="end_of_treatment_reason",
+        ),
+        ProcessorSpec(
+            "end_of_treatment_date",
+            kind="scalar",
+            target_attr="end_of_treatment_date",
+            value_col="end_of_treatment_date",
+        ),
         # singletons
+        ProcessorSpec(
+            "best_overall_response",
+            kind="singleton",
+            target_domain=BestOverallResponse,
+        ),
+        ProcessorSpec(
+            "lost_to_followup",
+            kind="singleton",
+            target_domain=FollowUp,
+        ),
+        ProcessorSpec(
+            "biomarkers",
+            kind="singleton",
+            target_domain=Biomarkers,
+        ),
+        ProcessorSpec(
+            "baseline_tumor_assessment",
+            kind="singleton",
+            target_domain=TumorAssessmentBaseline,
+        ),
+        ProcessorSpec(
+            "tumor_type",
+            kind="singleton",
+            target_domain=TumorType,
+        ),
+        ProcessorSpec(
+            "ecog_baseline",
+            kind="singleton",
+            target_domain=EcogBaseline,
+        ),
         # collections
         ProcessorSpec(
             "adverse_events",
             kind="collection",
             target_domain=AdverseEvent,
             order_by=("start_date",),
+            require_order_by=True,
+        ),
+        ProcessorSpec(
+            "previous_treatments",
+            kind="collection",
+            target_domain=PreviousTreatments,
+            order_by=("start_date",),
+            require_order_by=True,
+        ),
+        ProcessorSpec(
+            "medical_histories",
+            kind="collection",
+            target_domain=MedicalHistory,
+            order_by=("start_date",),
+            require_order_by=True,
+        ),
+        ProcessorSpec(
+            "study_drugs",
+            kind="collection",
+            target_domain=StudyDrugs,
+        ),
+        ProcessorSpec(
+            "treatment_cycle",
+            kind="collection",
+            target_domain=TreatmentCycle,
+            order_by=("start_date",),
+            require_order_by=True,
+        ),
+        ProcessorSpec(
+            "concomitant_medication",
+            kind="collection",
+            target_domain=ConcomitantMedication,
+            order_by=("start_date",),
+            require_order_by=True,
+        ),
+        ProcessorSpec(
+            "tumor_assessments",
+            kind="collection",
+            target_domain=TumorAssessment,
+            order_by=("date",),
+            require_order_by=True,
+        ),
+        ProcessorSpec(
+            "c30",
+            kind="collection",
+            target_domain=C30,
+            order_by=("date",),
+            require_order_by=True,
+        ),
+        ProcessorSpec(
+            "eq5d",
+            kind="collection",
+            target_domain=EQ5D,
+            order_by=("date",),
             require_order_by=True,
         ),
     )
@@ -124,35 +217,6 @@ class ImpressHarmonizer(BaseHarmonizer):
         patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
         for pid in patient_ids:
             self.patient_data[pid] = Patient(trial_id=self.trial_id, patient_id=pid)
-
-    def _run_legacy_processors(self) -> None:
-        """Run old-style processors not yet migrated to SPECS."""
-
-        # scalars
-        # self._process_treatment_start_date()
-        # self._process_treatment_stop_date()
-        # self._process_start_last_cycle()
-        # self._process_clinical_benefit()
-        # self._process_eot_reason()
-        # self._process_eot_date()
-
-        # singeltons
-        self._process_best_overall_response()
-        self._process_date_lost_to_followup()
-        self._process_biomarkers()
-        self._process_baseline_tumor_assessment()
-        self._process_tumor_type()
-        self._process_ecog_baseline()
-
-        # collections
-        self._process_previous_treatments()
-        self._process_medical_histories()
-        self._process_study_drugs()
-        self._process_treatment_cycle()
-        self._process_concomitant_medication()
-        self._process_tumor_assessments()
-        self._process_c30()
-        self._process_eq5d()
 
     def process(self) -> HarmonizedData:
         """Run harmonization and return HarmonizedData."""
@@ -531,7 +595,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return last_cycle_data
 
-    def _process_tumor_type(self) -> None:
+    def _process_tumor_type(self) -> pl.DataFrame | None:
         # COHTTYPE__3/CD is present in source, but has no data
         df = (
             self.data.with_row_index("_row")
@@ -597,21 +661,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         )
 
-        for row in df.iter_rows(named=True):
-            sid = row["SubjectId"]
-            if sid not in self.patient_data:
-                continue
+        return df
 
-            tt = TumorType(patient_id=sid)
-            tt.icd10_code = row["icd10_code"]
-            tt.icd10_description = row["icd10_description"]
-            tt.main_tumor_type = row["main_tumor_type"]
-            tt.main_tumor_type_code = row["main_tumor_type_code"]
-            tt.cohort_tumor_type = row["cohort_tumor_type"]
-            tt.other_tumor_type = row["other_tumor_type"]
-            self.patient_data[sid].tumor_type = tt
-
-    def _process_study_drugs(self) -> None:
+    def _process_study_drugs(self) -> pl.DataFrame | None:
         df = (
             self.data.with_row_index("_row")
             .select(
@@ -669,18 +721,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             .select("SubjectId", "primary_drug", "primary_drug_code", "secondary_drug", "secondary_drug_code")
         )
 
-        for row in df.iter_rows(named=True):
-            sid = row["SubjectId"]
-            if sid not in self.patient_data:
-                continue
-            sd = StudyDrugs(patient_id=sid)
-            sd.primary_treatment_drug = row["primary_drug"]
-            sd.primary_treatment_drug_code = row["primary_drug_code"]
-            sd.secondary_treatment_drug = row["secondary_drug"]
-            sd.secondary_treatment_drug_code = row["secondary_drug_code"]
-            self.patient_data[sid].study_drugs = sd
+        return df
 
-    def _process_biomarkers(self) -> None:
+    def _process_biomarkers(self) -> pl.DataFrame | None:
         df = (
             self.data.select(
                 "SubjectId",
@@ -700,10 +743,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             # latest event per SubjectId
             .sort(["SubjectId", "event_date"])
+            .rename({"event_date": "date"})
             .unique(subset=["SubjectId"], keep="last")
             .select(
                 "SubjectId",
-                "event_date",
+                "date",
                 "gene_and_mutation",
                 "gene_and_mutation_code",
                 "cohort_target_mutation",
@@ -711,17 +755,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         )
 
-        for row in df.iter_rows(named=True):
-            pid = row["SubjectId"]
-            bm = Biomarkers(patient_id=pid)
-            bm.date = row["event_date"]
-            bm.gene_and_mutation = row["gene_and_mutation"]
-            bm.gene_and_mutation_code = row["gene_and_mutation_code"]
-            bm.cohort_target_mutation = row["cohort_target_mutation"]
-            bm.cohort_target_name = row["cohort_target_name"]
-            self.patient_data[pid].biomarkers = bm
+        return df
 
-    def _process_date_lost_to_followup(self) -> None:
+    def _process_lost_to_followup(self) -> pl.DataFrame | None:
         lost_to_followup = (
             self.data.select("SubjectId", "FU_FUPSST", "FU_FUPALDAT")
             .with_columns(fu_status=PolarsParsers.to_optional_utf8("FU_FUPSST"))
@@ -737,14 +773,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         )
 
-        for row in lost_to_followup.iter_rows(named=True):
-            pid = row["SubjectId"]
-            fu = FollowUp(patient_id=pid)
-            fu.lost_to_followup = bool(row["lost_to_followup"])
-            fu.date_lost_to_followup = row["date_lost_to_followup"]
-            self.patient_data[pid].lost_to_followup = fu
+        return lost_to_followup
 
-    def _process_ecog_baseline(self) -> None:
+    def _process_ecog_baseline(self) -> pl.DataFrame | None:
         """
         Parses dates with defaults, strips description data, casts to correct types.
         Only select one baseline ECOG event per patient, using latest available date.
@@ -779,16 +810,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         joined = merge_ecog(base=ecog_base, processed=valid)
         labeled = filter_all_nulls(joined).select("SubjectId", "date", "description", "grade", "has_ecog")
 
-        def build_ecog(pid: str, row: Mapping[str, Any]) -> EcogBaseline:
-            e = EcogBaseline(pid)
-            e.date = row["date"]
-            e.description = row["description"]
-            e.grade = row["grade"]
-            return e
+        return labeled
 
-        self.hydrate_singleton(labeled, builder=build_ecog, item_type=EcogBaseline, patients=self.patient_data)
-
-    def _process_medical_histories(self) -> None:
+    def _process_medical_histories(self) -> pl.DataFrame | None:
         mh_base = self.data.select(
             "SubjectId",
             "MH_MHSPID",
@@ -832,35 +856,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         filtered = filter_medical_histories(mh_base)
         merged = merge_medical_history(base=mh_base, processed=filtered)
 
-        # pack to structs grouped by SubjectId
-        packed = self.pack_structs(
-            merged,
-            subject_col="SubjectId",
-            value_cols=merged.select(pl.all().exclude("SubjectId")).columns,
-            order_by_cols=["sequence_id", "start_date"],
-        )
+        return merged
 
-        # build mh objects
-        def build_mh(pid: str, s: Mapping[str, Any]) -> MedicalHistory:
-            obj = MedicalHistory(pid)
-            obj.term = s["term"]
-            obj.sequence_id = s["sequence_id"]
-            obj.start_date = s["start_date"]
-            obj.end_date = s["end_date"]
-            obj.status = s["status"]
-            obj.status_code = s["status_code"]
-            return obj
-
-        # hydrate to Patient class
-        self.hydrate_collection_field(
-            packed,
-            builder=build_mh,
-            patients=self.patient_data,
-            item_type=MedicalHistory,
-            skip_missing_patients=False,
-        )
-
-    def _process_previous_treatments(self) -> None:
+    def _process_previous_treatments(self) -> pl.DataFrame | None:
         ct_base = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -902,34 +900,9 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         filtered = filter_previous_treatments(ct_base)
         merged = merge_previous_treatments(base=ct_base, processed=filtered)
+        return merged
 
-        # pack
-        packed = self.pack_structs(
-            merged,
-            subject_col="SubjectId",
-            value_cols=merged.select(pl.all().exclude("SubjectId")).columns,
-            order_by_cols=["sequence_id", "start_date"],
-        )
-
-        def build_ct(pid: str, s: Mapping[str, Any]) -> PreviousTreatments:
-            obj = PreviousTreatments(pid)
-            obj.treatment = s["treatment"]
-            obj.treatment_code = s["treatment_code"]
-            obj.treatment_sequence_number = s["sequence_id"]
-            obj.start_date = s["start_date"]
-            obj.end_date = s["end_date"]
-            obj.additional_treatment = s["additional_treatment"]
-            return obj
-
-        self.hydrate_collection_field(
-            packed,
-            builder=build_ct,
-            patients=self.patient_data,
-            item_type=PreviousTreatments,
-            skip_missing_patients=False,
-        )
-
-    def _process_treatment_cycle(self) -> None:
+    def _process_treatment_cycle(self) -> pl.DataFrame | None:
         treatment_cycle_cols = [
             "SubjectId",
             "TR_TRNAME",
@@ -1052,52 +1025,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         combined_end_dates = coalesce_cycle_ends(iv_cycle_end_dates)
         filtered = filter_parse_treatment_cycles(combined_end_dates)
 
-        # pack to structs grouped by SubjectId
-        packed = self.pack_structs(
-            filtered,
-            subject_col="SubjectId",
-            value_cols=filtered.select(pl.all().exclude("SubjectId")).columns,
-            order_by_cols=["TR_TRTNO", "TR_TRCNO1", "TR_TRC1_DT"],
-        )
+        return filtered
 
-        # build TreatmentCycle objects
-        def build_tc(pid: str, s: Mapping[str, Any]) -> TreatmentCycle:
-            obj = TreatmentCycle(pid)
-            # core
-            obj.cycle_type = s["treatment_type"]
-            obj.treatment_name = s["TR_TRNAME"]
-            obj.treatment_number = s["TR_TRTNO"]
-            obj.cycle_number = s["TR_TRCNO1"]
-            obj.start_date = s["cycle_start_date"]
-            obj.recieved_treatment_this_cycle = s["recieved_treatment_this_cycle"]
-            obj.was_total_dose_delivered = s["was_total_dose_delivered"]
-            obj.end_date = s["cycle_end"]
-
-            # iv
-            obj.iv_dose_prescribed = s["TR_TRIVDS1"]
-            obj.iv_dose_prescribed_unit = s["TR_TRIVU1"]
-
-            # oral
-            obj.was_dose_administered_to_spec = s["was_dose_administered_to_spec"]
-            obj.oral_dose_prescribed_per_day = s["TR_TRODSTOT"]
-            obj.oral_dose_unit = s["TR_TRODSU"]
-            obj.was_tablet_taken_to_prescription_in_previous_cycle = s["was_tablet_taken_to_prescription_in_previous_cycle"]
-            obj.reason_not_administered_to_spec = s["TR_TROREA"]
-            obj.reason_tablet_not_taken = s["TR_TROSPE"]
-            obj.number_of_days_tablet_not_taken = s["TR_TROTABNO"]
-
-            return obj
-
-        # hydrate to Patient class
-        self.hydrate_collection_field(
-            packed,
-            builder=build_tc,
-            patients=self.patient_data,
-            item_type=TreatmentCycle,
-            skip_missing_patients=False,
-        )
-
-    def _process_concomitant_medication(self) -> None:
+    def _process_concomitant_medication(self) -> pl.DataFrame | None:
         cm_base = self.data.select(
             "SubjectId",
             "CM_CMTRT",
@@ -1125,32 +1055,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         filtered = filter_concomitant_data(cm_base)
 
-        packed = self.pack_structs(
-            filtered,
-            subject_col="SubjectId",
-            value_cols=filtered.select(pl.all().exclude("SubjectId")).columns,
-            order_by_cols=["sequence_id", "start_date"],
-        )
-
-        def build_cm(pid: str, s: Mapping[str, Any]) -> ConcomitantMedication:
-            obj = ConcomitantMedication(pid)
-            obj.medication_name = s["medication_name"]
-            obj.medication_ongoing = s["medication_ongoing"]
-            obj.was_taken_due_to_medical_history_event = s["was_taken_due_to_medical_history_event"]
-            obj.was_taken_due_to_adverse_event = s["was_taken_due_to_adverse_event"]
-            obj.is_adverse_event_ongoing = s["is_adverse_event_ongoing"]
-            obj.start_date = s["start_date"]
-            obj.end_date = s["end_date"]
-            obj.sequence_id = s["sequence_id"]
-            return obj
-
-        self.hydrate_collection_field(
-            packed,
-            builder=build_cm,
-            patients=self.patient_data,
-            item_type=ConcomitantMedication,
-            skip_missing_patients=False,
-        )
+        return filtered
 
     def _process_adverse_events(self) -> pl.DataFrame | None:
         ae_base = self.data.select(
@@ -1260,11 +1165,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             "end_date": "end_date",
         }
 
-        coerced = coerce(annot).rename(_rename_map).filter(pl.col("term").is_not_null()).select("SubjectId", *AdverseEvent.CANONICAL_COLS)
+        coerced = coerce(annot).rename(_rename_map).filter(pl.col("term").is_not_null()).select("SubjectId", *AdverseEvent.data_fields())
 
         return None if coerced.is_empty() else coerced
 
-    def _process_baseline_tumor_assessment(self):
+    def _process_baseline_tumor_assessment(self) -> pl.DataFrame | None:
         """
         Get target lesion size at baseline, and off-target lesions.
 
@@ -1320,8 +1225,8 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .unique("SubjectId", keep="first")
                 .select(
                     "SubjectId",
-                    pl.col("vi_value").alias("tumor_assessment_vi"),
-                    pl.col("vi_date").alias("assessment_date_vi"),
+                    pl.col("vi_value").alias("assessment_type"),
+                    pl.col("vi_date").alias("assessment_date"),
                 )
             )
 
@@ -1375,7 +1280,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .unique("SubjectId", keep="first")
                 .select(
                     "SubjectId",
-                    pl.col("date_candidate").alias("assessment_date"),
+                    pl.col("date_candidate").alias("target_lesion_measurment_date"),
                     pl.col("size_candidate").alias("target_lesion_size"),
                     pl.col("nadir_candidate").alias("target_lesion_nadir"),
                     pl.when(pl.col("rnrsp_size").is_not_null()).then(pl.lit("RNRSP")).otherwise(pl.lit("RA")).alias("baseline_source"),
@@ -1397,21 +1302,28 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         # anchor join on subjects
         joined = subjects_with_any.join(ta, on="SubjectId", how="left").join(ntl, on="SubjectId", how="left").join(tl, on="SubjectId", how="left")
+        print(f"TA baseline: {joined.columns}")
 
-        def build_tumor_assessment_baseline(pid: str, row) -> TumorAssessmentBaseline:
-            tab = TumorAssessmentBaseline(pid)
-            tab.assessment_type = row["tumor_assessment_vi"]
-            tab.assessment_date = row["assessment_date_vi"]
-            tab.target_lesion_size = row["target_lesion_size"]
-            tab.target_lesion_nadir = row["target_lesion_nadir"]
-            tab.target_lesion_measurement_date = row["assessment_date"]
-            tab.number_off_target_lesions = row["off_target_lesions_number"]
-            tab.off_target_lesion_measurement_date = row["off_target_lesion_size_measurment_date"]
-            return tab
+        # "tumor_assessment_vi"
+        # "assessment_date_vi"
+        # "off_target_lesions_number"
+        # "off_target_lesion_size_measurment_date"
+        # "assessment_date",
+        #  "target_lesion_size"
+        #  "target_lesion_nadir"
+        #  "baseline_source",
 
-        self.hydrate_singleton(joined, builder=build_tumor_assessment_baseline, item_type=TumorAssessmentBaseline, patients=self.patient_data)
+        # "target_lesion_size",
+        # "target_lesion_nadir",
+        # "target_lesion_measurement_date",
+        # "number_off_target_lesions",
+        # "off_target_lesion_measurement_date",
 
-    def _process_tumor_assessments(self):
+        joined.rename()
+
+        return joined
+
+    def _process_tumor_assessments(self) -> pl.DataFrame | None:
         base = self.data.select(
             "SubjectId",
             "RA_RAASSESS1",
@@ -1508,43 +1420,16 @@ class ImpressHarmonizer(BaseHarmonizer):
                     "rano_response",
                     "recist_progression_date",
                     "irecist_progression_date",
-                    "event_id",
+                    "event_idd",
                 )
             )
 
             return _processed
 
-        processed = process(base)
-        packed = self.pack_structs(
-            df=processed,
-            value_cols=processed.select(pl.all().exclude("SubjectId")).columns,
-        )
-
-        def build_ta(pid: str, s: Mapping[str, Any]) -> TumorAssessment | None:
-            obj = TumorAssessment(pid)
-            obj.assessment_type = s["assessment_type"]
-            obj.target_lesion_change_from_baseline = s["target_lesion_change_from_baseline"]
-            obj.target_lesion_change_from_nadir = s["target_lesion_change_from_nadir"]
-            obj.was_new_lesions_registered_after_baseline = s["new_lesions_after_baseline"]
-            obj.date = s["date"]
-            obj.recist_response = s["recist_response"]
-            obj.irecist_response = s["irecist_response"]
-            obj.rano_response = s["rano_response"]
-            obj.recist_date_of_progression = s["recist_progression_date"]
-            obj.irecist_date_of_progression = s["irecist_progression_date"]
-            obj.event_id = s["event_id"]
-            return obj
-
-        self.hydrate_collection_field(
-            patients=self.patient_data,
-            packed=packed,
-            builder=build_ta,
-            skip_missing_patients=False,
-            item_type=TumorAssessment,
-        )
+        return process(base)
 
     # TODO: refactor to not use regex later
-    def _process_c30(self):
+    def _process_c30(self) -> pl.DataFrame | None:
         question_text_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)$")
         question_code_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)CD$")
 
@@ -1578,40 +1463,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             return out
 
         processed = process_c30(frame=base)
-        value_cols = processed.select(pl.all().exclude("SubjectId")).columns
-
-        packed = self.pack_structs(
-            df=processed,
-            subject_col="SubjectId",
-            value_cols=value_cols,
-            order_by_cols=["date"],
-            items_col="items",
-        )
-
-        def build_c30(pid: str, s: Mapping[str, Any]) -> C30 | None:
-            obj = C30(patient_id=pid)
-            obj.date = s["date"]
-            obj.event_name = s["event_name"]
-            for k, v in s.items():
-                m = question_text_re.search(k)
-                if m:
-                    qn = int(m.group(1))
-                    setattr(obj, f"q{qn}", v)
-                c = question_code_re.fullmatch(k)
-                if c:
-                    setattr(obj, f"q{int(c.group(1))}_code", v)
-            return obj
-
-        self.hydrate_collection_field(
-            patients=self.patient_data,
-            packed=packed,
-            builder=build_c30,
-            skip_missing_patients=False,
-            item_type=C30,
-        )
+        return processed
 
     # TODO: refactor to not use regex later
-    def _process_eq5d(self):
+    def _process_eq5d(self) -> pl.DataFrame | None:
         question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")
         question_code_re = re.compile(r"^(?:EQ5D_)?EQ5D([1-5])CD$")
 
@@ -1647,40 +1502,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             return out
 
         processed = process_eq5d(frame=base)
-        value_cols = processed.select(pl.all().exclude("SubjectId")).columns
+        return processed
 
-        packed = self.pack_structs(
-            df=processed,
-            subject_col="SubjectId",
-            value_cols=value_cols,
-            order_by_cols=["date"],
-            items_col="items",
-        )
-
-        def build_eq5d(pid: str, s: Mapping[str, Any]) -> EQ5D | None:
-            obj = EQ5D(patient_id=pid)
-            obj.date = s["date"]
-            obj.event_name = s["event_name"]
-            obj.qol_metric = s["qol_metric"]
-            for k, v in s.items():
-                m = question_col_re.search(k)
-                if m:
-                    qn = int(m.group(1))
-                    setattr(obj, f"q{qn}", v)
-                c = question_code_re.fullmatch(k)
-                if c:
-                    setattr(obj, f"q{int(c.group(1))}_code", v)
-            return obj
-
-        self.hydrate_collection_field(
-            patients=self.patient_data,
-            packed=packed,
-            builder=build_eq5d,
-            skip_missing_patients=False,
-            item_type=EQ5D,
-        )
-
-    def _process_best_overall_response(self):
+    def _process_best_overall_response(self) -> pl.DataFrame | None:
         """
         Takes the lowest value of the response code across all tumor assessments for each patient,
         i.e. selects the best response across entire treatment duration.
@@ -1759,31 +1583,22 @@ class ImpressHarmonizer(BaseHarmonizer):
                 )
                 .with_columns(
                     # coalesce with rano, parse final cols
-                    best_response_text=pl.coalesce("recist_text", "RNRSP_RNRSPCL").cast(pl.Utf8, strict=False).str.strip_chars(),
-                    best_response_code=pl.coalesce("recist_code", "RNRSP_RNRSPCLCD").cast(pl.Int64, strict=False),
-                    best_response_date=PolarsParsers.to_optional_date(pl.coalesce("RA_EventDate", "RNRSP_EventDate")),
+                    response=pl.coalesce("recist_text", "RNRSP_RNRSPCL").cast(pl.Utf8, strict=False).str.strip_chars(),
+                    code=pl.coalesce("recist_code", "RNRSP_RNRSPCLCD").cast(pl.Int64, strict=False),
+                    date=PolarsParsers.to_optional_date(pl.coalesce("RA_EventDate", "RNRSP_EventDate")),
                 )
-                .filter(pl.col("best_response_code").is_not_null())
-                .sort(["SubjectId", "best_response_code"])
+                .filter(pl.col("code").is_not_null())
+                .sort(["SubjectId", "code"])
                 .group_by("SubjectId", maintain_order=True)
                 .first()
                 .select(
                     "SubjectId",
-                    "best_response_text",
-                    "best_response_code",
-                    "best_response_date",
+                    "response",
+                    "code",
+                    "date",
                 )
             )
 
             return result
 
-        processed = process(base)
-
-        def build_best_overall_response(pid: str, row) -> BestOverallResponse:
-            bor = BestOverallResponse(pid)
-            bor.response = row["best_response_text"]
-            bor.code = row["best_response_code"]
-            bor.date = row["best_response_date"]
-            return bor
-
-        self.hydrate_singleton(processed, builder=build_best_overall_response, item_type=BestOverallResponse, patients=self.patient_data)
+        return process(base)
