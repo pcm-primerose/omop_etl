@@ -10,48 +10,65 @@ from typing import (
     Mapping,
     Any,
     ClassVar,
+    TYPE_CHECKING,
 )
 
 from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.patient import Patient
 
+if TYPE_CHECKING:
+    from typing import TypeAlias
+
 log = getLogger(__name__)
+
+# Processor function type: takes harmonizer instance, returns DataFrame or None
+ProcessorFn: "TypeAlias" = Callable[["BaseHarmonizer"], pl.DataFrame | None]
 
 
 @dataclass(frozen=True)
-class ProcessorSpec:
-    """
-    Metadata for a processor method:
-
-    Fields:
-    - name: processor spec method name suffix
-    - kind: singleton, collection, or scalar
-    - target_domain: target domain class (for singleton/collection)
-    - target_attr: Patient attribute name (for scalar)
-    - value_col: DataFrame column containing scalar value (for scalar)
-    - on_duplicate: duplication handling (singleton/scalar)
-    - order_by: order by key for collections
-    - require_order_by: flag to require collection ordering
-    - strict_schema: inherits from harmonizer
-    - skip_missing_patients: flag to skip missing patients before instantiating
-    - subject_col: subject column name
-    - items_col: name of data columns for packed collections
-    - mode: replace or extend (for collections)
-    """
+class SpecBase:
+    """Base class for all processor specs with common fields."""
 
     name: str
-    kind: Literal["singleton", "collection", "scalar"]
-    target_domain: type[DomainBase] | None = None  # Required for singleton/collection
-    target_attr: str | None = None  # Required for scalar (Patient attribute name)
-    value_col: str | None = None  # Required for scalar (DataFrame column with value)
+    process: ProcessorFn
+    strict_schema: bool | None = None
+    skip_missing_patients: bool = False
+    subject_col: str = "SubjectId"
+
+
+@dataclass(frozen=True)
+class ScalarSpec(SpecBase):
+    """Spec for scalar patient attributes (e.g., cohort_name, sex, age)."""
+
+    kind: Literal["scalar"] = "scalar"
+    target_attr: str = ""
+    value_col: str = ""
     on_duplicate: Literal["error", "first", "last"] = "error"
+
+
+@dataclass(frozen=True)
+class SingletonSpec(SpecBase):
+    """Spec for singleton domain objects (one per patient)."""
+
+    kind: Literal["singleton"] = "singleton"
+    target_domain: type[DomainBase] | None = None
+    on_duplicate: Literal["error", "first", "last"] = "error"
+
+
+@dataclass(frozen=True)
+class CollectionSpec(SpecBase):
+    """Spec for collection domain objects (multiple per patient)."""
+
+    kind: Literal["collection"] = "collection"
+    target_domain: type[DomainBase] | None = None
     mode: Literal["replace", "extend"] = "replace"
     order_by: tuple[str, ...] = ()
     require_order_by: bool = False
-    strict_schema: bool | None = True
-    skip_missing_patients: bool = False
-    subject_col: str = "SubjectId"
     items_col: str = "items"
+
+
+# Union type for all specs
+ProcessorSpec = ScalarSpec | SingletonSpec | CollectionSpec
 
 
 class BaseHarmonizer(ABC):
@@ -82,6 +99,10 @@ class BaseHarmonizer(ABC):
         self.patient_data: dict[str, Patient] = {}
         self._validate_specs()
 
+    def _has_columns(self, *cols: str) -> bool:
+        """Check if all specified columns exist in self.data."""
+        return all(col in self.data.columns for col in cols)
+
     def run(self) -> None:
         """
         Template method: executes harmonization pipeline in correct order.
@@ -102,7 +123,7 @@ class BaseHarmonizer(ABC):
 
     def _validate_specs(self) -> None:
         """
-        Validate ProcessorSpec registry at init time.
+        Validate ProcessorSpec registry (typed variants).
         """
         name_counts = Counter(s.name for s in self.SPECS)
         dupes = [n for n, count in name_counts.items() if count > 1]
@@ -113,27 +134,31 @@ class BaseHarmonizer(ABC):
             if not spec.subject_col:
                 raise ValueError(f"{spec.name}: subject_col cannot be empty")
 
-            if spec.kind == "scalar":
-                # scalar validation
+            if isinstance(spec, ScalarSpec):
                 if not spec.target_attr:
                     raise ValueError(f"{spec.name}: scalar requires target_attr")
                 if not spec.value_col:
                     raise ValueError(f"{spec.name}: scalar requires value_col")
                 if not hasattr(Patient, spec.target_attr):
                     raise ValueError(f"{spec.name}: Patient has no attribute '{spec.target_attr}'")
-            else:
-                # singleton/collection validation
+
+            elif isinstance(spec, SingletonSpec):
                 if not spec.target_domain:
-                    raise ValueError(f"{spec.name}: {spec.kind} requires target_domain")
+                    raise ValueError(f"{spec.name}: singleton requires target_domain")
+                try:
+                    Patient.get_attr_for_type(spec.target_domain)
+                except KeyError as e:
+                    raise ValueError(f"{spec.name}: {spec.target_domain.__name__} does not map to any Patient attribute") from e
+
+            elif isinstance(spec, CollectionSpec):
+                if not spec.target_domain:
+                    raise ValueError(f"{spec.name}: collection requires target_domain")
 
                 if spec.order_by:
                     canonical = set(spec.target_domain.data_fields())
                     invalid = set(spec.order_by) - canonical
                     if invalid:
                         raise ValueError(f"{spec.name}: order_by contains columns not in {spec.target_domain.__name__}.data_fields(): {invalid}")
-
-                if spec.kind == "singleton" and spec.mode != "replace":
-                    raise ValueError(f"{spec.name}: mode={spec.mode!r} is invalid for singleton (only 'replace' is meaningful)")
 
                 try:
                     Patient.get_attr_for_type(spec.target_domain)
@@ -144,7 +169,7 @@ class BaseHarmonizer(ABC):
         # unless all are collections with mode="extend"
         attr_to_specs: dict[str, list[ProcessorSpec]] = {}
         for spec in self.SPECS:
-            if spec.kind == "scalar":
+            if isinstance(spec, ScalarSpec):
                 attr = spec.target_attr
             else:
                 attr = Patient.get_attr_for_type(spec.target_domain)
@@ -152,94 +177,117 @@ class BaseHarmonizer(ABC):
 
         for attr, specs in attr_to_specs.items():
             if len(specs) > 1:
-                all_extend = all(s.kind == "collection" and s.mode == "extend" for s in specs)
+                all_extend = all(isinstance(s, CollectionSpec) and s.mode == "extend" for s in specs)
                 if not all_extend:
                     spec_names = [s.name for s in specs]
                     raise ValueError(
                         f"Multiple specs map to same Patient attribute '{attr}': {spec_names}. "
-                        f"This is only allowed when all are kind='collection' with mode='extend'."
+                        f"This is only allowed when all are CollectionSpec with mode='extend'."
                     )
 
     def _run_processors(self) -> None:
         """
         Run all registered processors with metrics logging.
+        Uses callable dispatch: spec.process(self) instead of getattr.
         """
-
         self._ensure_patients_initialized()
 
         for spec in self.SPECS:
-            processor = getattr(self, f"_process_{spec.name}", None)
-            if processor is None:
-                raise AttributeError(f"Processor _process_{spec.name} not found")
+            self._run_spec(spec)
 
-            df = processor()
-            if df is None or df.is_empty():
-                log.debug(f"{spec.name}: no data")
-                continue
+    def run_one(self, spec_name: str) -> None:
+        """
+        Execute a single spec by name (useful for testing).
 
-            try:
-                if spec.kind == "scalar":
-                    # scalar: minimal validation, direct attribute assignment
-                    if spec.subject_col not in df.columns:
-                        raise ValueError(f"Missing {spec.subject_col} in scalar processor output")
-                    if spec.value_col not in df.columns:
-                        raise ValueError(f"Missing {spec.value_col} in scalar processor output")
+        Args:
+            spec_name: The name of the spec to run.
 
-                    log.info(f"{spec.name}: {df.height} rows (scalar -> {spec.target_attr})")
+        Raises:
+            ValueError: If the spec name is not found in SPECS.
+        """
+        self._ensure_patients_initialized()
+        spec = next((s for s in self.SPECS if s.name == spec_name), None)
+        if spec is None:
+            raise ValueError(f"Unknown spec: {spec_name}")
+        self._run_spec(spec)
 
-                    self.hydrate_scalar(
-                        df,
-                        attr=spec.target_attr,
-                        value_col=spec.value_col,
-                        subject_col=spec.subject_col,
-                        skip_missing_patients=spec.skip_missing_patients,
-                        on_duplicate=spec.on_duplicate,
-                    )
-                elif spec.kind == "collection":
-                    # collection: validate, conform, pack, hydrate
-                    strict = self._get_strictness(spec)
-                    self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
-                    df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
-                    self._log_processor_metrics(spec, df)
+    def _run_spec(self, spec: ProcessorSpec) -> None:
+        """
+        Execute a single processor spec: call processor, validate, conform, hydrate.
 
-                    if spec.require_order_by and not spec.order_by:
-                        raise ValueError(f"{spec.name}: require_order_by=True but order_by is empty")
+        Args:
+            spec: The ProcessorSpec to execute.
+        """
+        df = spec.process(self)
+        if df is None or df.is_empty():
+            log.debug(f"{spec.name}: no data")
+            return
 
-                    packed = self.pack_structs(
-                        df,
-                        subject_col=spec.subject_col,
-                        value_cols=spec.target_domain.data_fields(),
-                        order_by_cols=spec.order_by or None,
-                        items_col=spec.items_col,
-                    )
-                    self.hydrate_collection_field(
-                        packed,
-                        item_type=spec.target_domain,
-                        patients=self.patient_data,
-                        subject_col=spec.subject_col,
-                        items_col=spec.items_col,
-                        skip_missing_patients=spec.skip_missing_patients,
-                        mode=spec.mode,
-                    )
-                else:
-                    # singleton: validate, conform, hydrate
-                    strict = self._get_strictness(spec)
-                    self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
-                    df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
-                    self._log_processor_metrics(spec, df)
+        try:
+            if isinstance(spec, ScalarSpec):
+                # scalar: minimal validation, direct attribute assignment
+                if spec.subject_col not in df.columns:
+                    raise ValueError(f"Missing {spec.subject_col} in scalar processor output")
+                if spec.value_col not in df.columns:
+                    raise ValueError(f"Missing {spec.value_col} in scalar processor output")
 
-                    self.hydrate_singleton(
-                        df,
-                        skip_missing_patients=spec.skip_missing_patients,
-                        subject_col=spec.subject_col,
-                        item_type=spec.target_domain,
-                        patients=self.patient_data,
-                        on_duplicate=spec.on_duplicate,
-                    )
+                log.info(f"{spec.name}: {df.height} rows (scalar -> {spec.target_attr})")
 
-            except Exception as e:
-                target = spec.target_attr if spec.kind == "scalar" else spec.target_domain.__name__
-                raise ValueError(f"{spec.name}: hydration failed for {target}: {e}") from e
+                self.hydrate_scalar(
+                    df,
+                    attr=spec.target_attr,
+                    value_col=spec.value_col,
+                    subject_col=spec.subject_col,
+                    skip_missing_patients=spec.skip_missing_patients,
+                    on_duplicate=spec.on_duplicate,
+                )
+
+            elif isinstance(spec, CollectionSpec):
+                # collection: validate, conform, pack, hydrate
+                strict = self._get_strictness(spec)
+                self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
+                df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
+                self._log_processor_metrics(spec, df)
+
+                if spec.require_order_by and not spec.order_by:
+                    raise ValueError(f"{spec.name}: require_order_by=True but order_by is empty")
+
+                packed = self.pack_structs(
+                    df,
+                    subject_col=spec.subject_col,
+                    value_cols=spec.target_domain.data_fields(),
+                    order_by_cols=spec.order_by or None,
+                    items_col=spec.items_col,
+                )
+                self.hydrate_collection_field(
+                    packed,
+                    item_type=spec.target_domain,
+                    patients=self.patient_data,
+                    subject_col=spec.subject_col,
+                    items_col=spec.items_col,
+                    skip_missing_patients=spec.skip_missing_patients,
+                    mode=spec.mode,
+                )
+
+            elif isinstance(spec, SingletonSpec):
+                # singleton: validate, conform, hydrate
+                strict = self._get_strictness(spec)
+                self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
+                df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
+                self._log_processor_metrics(spec, df)
+
+                self.hydrate_singleton(
+                    df,
+                    skip_missing_patients=spec.skip_missing_patients,
+                    subject_col=spec.subject_col,
+                    item_type=spec.target_domain,
+                    patients=self.patient_data,
+                    on_duplicate=spec.on_duplicate,
+                )
+
+        except Exception as e:
+            target = spec.target_attr if isinstance(spec, ScalarSpec) else spec.target_domain.__name__
+            raise ValueError(f"{spec.name}: hydration failed for {target}: {e}") from e
 
     def _get_strictness(self, spec: ProcessorSpec) -> bool:
         """Provided spec overrides harmonizer default."""

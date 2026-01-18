@@ -6,6 +6,11 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class EcogBaseline(DomainBase):
+    class Cols:
+        DESCRIPTION = "description"
+        GRADE = "grade"
+        DATE = "date"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._description: str | None = None

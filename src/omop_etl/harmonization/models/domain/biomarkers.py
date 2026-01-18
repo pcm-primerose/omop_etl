@@ -6,6 +6,13 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class Biomarkers(DomainBase):
+    class Cols:
+        GENE_AND_MUTATION = "gene_and_mutation"
+        GENE_AND_MUTATION_CODE = "gene_and_mutation_code"
+        COHORT_TARGET_NAME = "cohort_target_name"
+        COHORT_TARGET_MUTATION = "cohort_target_mutation"
+        DATE = "date"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._gene_and_mutation: str | None = None

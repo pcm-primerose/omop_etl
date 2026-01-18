@@ -8,17 +8,19 @@ class DomainBase(TrackedValidated, ABC):
     """
     Base class for all domain models with schema contract support.
 
-    data_fields() is derived lazily by scanning for public writable properties,
-    to support classes that dynamically generate properties after class definition.
+    Subclasses must define:
+    - `class Cols:` with string constants for canonical column names (wire schema)
+
+    Subclasses may optionally define:
+    - `MATERIAL_COLS` tuple referencing Cols constants for materiality filtering
     """
 
     # internal cache, use data_fields() method to access
     _data_fields: ClassVar[tuple[str, ...] | None] = None
     _schema_validated: ClassVar[bool] = False
 
-    # optional overrides
+    # optional
     MATERIAL_COLS: ClassVar[tuple[str, ...]] = ()
-    EXCLUDE_DATA_FIELDS: ClassVar[frozenset[str]] = frozenset({"updated_fields", "patient_id"})
 
     @abstractmethod
     def __init__(self, patient_id: str) -> None:
@@ -33,15 +35,17 @@ class DomainBase(TrackedValidated, ABC):
 
     @classmethod
     def _derive_data_fields(cls) -> tuple[str, ...]:
-        """Scan class for all public writable properties."""
+        """Derive data fields from Cols inner class string constants."""
+        cols_cls = getattr(cls, "Cols", None)
+        if cols_cls is None:
+            raise ValueError(f"{cls.__name__}: must define a Cols inner class")
         out: list[str] = []
-        for name in dir(cls):
-            if name.startswith("_") or name in cls.EXCLUDE_DATA_FIELDS:
+        for name, value in vars(cols_cls).items():
+            if name.startswith("_"):
                 continue
-            attr = getattr(cls, name, None)
-            if isinstance(attr, property) and attr.fset is not None:
-                out.append(name)
-        return tuple(sorted(out))
+            if isinstance(value, str):
+                out.append(value)
+        return tuple(out)
 
     @classmethod
     def _ensure_schema(cls) -> None:
@@ -49,19 +53,18 @@ class DomainBase(TrackedValidated, ABC):
         if cls._schema_validated:
             return
 
-        # derive expected fields from properties
         if cls._data_fields is None:
             cls._data_fields = cls._derive_data_fields()
 
         fields = cls._data_fields
         if not fields:
-            raise ValueError(f"{cls.__name__}: no data fields derived (no public writable properties found)")
+            raise ValueError(f"{cls.__name__}: Cols must define at least one string constant")
 
         if len(fields) != len(set(fields)):
             raise ValueError(f"{cls.__name__}.data_fields has duplicates")
 
         material = set(cls.MATERIAL_COLS)
-        if not material.issubset(set(fields)):
+        if material and not material.issubset(set(fields)):
             raise ValueError(f"{cls.__name__}.MATERIAL_COLS not subset of data_fields: {material - set(fields)}")
 
         cls._schema_validated = True

@@ -13,7 +13,22 @@ class RelatedStatus(str, Enum):
 
 
 class AdverseEvent(DomainBase):
-    MATERIAL_COLS = ("term",)
+    class Cols:
+        TERM = "term"
+        GRADE = "grade"
+        OUTCOME = "outcome"
+        START_DATE = "start_date"
+        END_DATE = "end_date"
+        WAS_SERIOUS = "was_serious"
+        TURNED_SERIOUS_DATE = "turned_serious_date"
+        RELATED_TO_TREATMENT_1_STATUS = "related_to_treatment_1_status"
+        TREATMENT_1_NAME = "treatment_1_name"
+        RELATED_TO_TREATMENT_2_STATUS = "related_to_treatment_2_status"
+        TREATMENT_2_NAME = "treatment_2_name"
+        WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_1 = "was_serious_grade_expected_treatment_1"
+        WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_2 = "was_serious_grade_expected_treatment_2"
+
+    MATERIAL_COLS = (Cols.TERM,)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id

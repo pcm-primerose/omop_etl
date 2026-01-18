@@ -5,6 +5,14 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorType(DomainBase):
+    class Cols:
+        ICD10_CODE = "icd10_code"
+        ICD10_DESCRIPTION = "icd10_description"
+        MAIN_TUMOR_TYPE = "main_tumor_type"
+        MAIN_TUMOR_TYPE_CODE = "main_tumor_type_code"
+        COHORT_TUMOR_TYPE = "cohort_tumor_type"
+        OTHER_TUMOR_TYPE = "other_tumor_type"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._icd10_code: str | None = None

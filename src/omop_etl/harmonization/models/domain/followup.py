@@ -6,6 +6,10 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class FollowUp(DomainBase):
+    class Cols:
+        LOST_TO_FOLLOWUP = "lost_to_followup"
+        DATE_LOST_TO_FOLLOWUP = "date_lost_to_followup"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._lost_to_followup: bool | None = None

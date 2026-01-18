@@ -9,6 +9,21 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 class EQ5D(DomainBase):
     Q_COUNT = 5
 
+    class Cols:
+        DATE = "date"
+        EVENT_NAME = "event_name"
+        QOL_METRIC = "qol_metric"
+        Q1 = "q1"
+        Q1_CODE = "q1_code"
+        Q2 = "q2"
+        Q2_CODE = "q2_code"
+        Q3 = "q3"
+        Q3_CODE = "q3_code"
+        Q4 = "q4"
+        Q4_CODE = "q4_code"
+        Q5 = "q5"
+        Q5_CODE = "q5_code"
+
     def __init__(self, patient_id: str):
         self.updated_fields: Set[str] = set()
         self._patient_id = patient_id

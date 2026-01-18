@@ -6,6 +6,16 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class ConcomitantMedication(DomainBase):
+    class Cols:
+        MEDICATION_NAME = "medication_name"
+        MEDICATION_ONGOING = "medication_ongoing"
+        WAS_TAKEN_DUE_TO_MEDICAL_HISTORY_EVENT = "was_taken_due_to_medical_history_event"
+        WAS_TAKEN_DUE_TO_ADVERSE_EVENT = "was_taken_due_to_adverse_event"
+        IS_ADVERSE_EVENT_ONGOING = "is_adverse_event_ongoing"
+        START_DATE = "start_date"
+        END_DATE = "end_date"
+        SEQUENCE_ID = "sequence_id"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._medication_name: str | None = None

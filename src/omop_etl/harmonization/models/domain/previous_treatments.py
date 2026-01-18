@@ -6,6 +6,14 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class PreviousTreatments(DomainBase):
+    class Cols:
+        TREATMENT = "treatment"
+        TREATMENT_CODE = "treatment_code"
+        TREATMENT_SEQUENCE_NUMBER = "treatment_sequence_number"
+        START_DATE = "start_date"
+        END_DATE = "end_date"
+        ADDITIONAL_TREATMENT = "additional_treatment"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._treatment: str | None = None

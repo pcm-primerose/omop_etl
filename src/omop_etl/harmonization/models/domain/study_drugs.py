@@ -5,6 +5,12 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class StudyDrugs(DomainBase):
+    class Cols:
+        PRIMARY_TREATMENT_DRUG = "primary_treatment_drug"
+        PRIMARY_TREATMENT_DRUG_CODE = "primary_treatment_drug_code"
+        SECONDARY_TREATMENT_DRUG = "secondary_treatment_drug"
+        SECONDARY_TREATMENT_DRUG_CODE = "secondary_treatment_drug_code"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._primary_treatment_drug: str | None = None

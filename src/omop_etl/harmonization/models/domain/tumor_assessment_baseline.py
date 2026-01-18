@@ -6,6 +6,15 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorAssessmentBaseline(DomainBase):
+    class Cols:
+        ASSESSMENT_TYPE = "assessment_type"
+        ASSESSMENT_DATE = "assessment_date"
+        TARGET_LESION_SIZE = "target_lesion_size"
+        TARGET_LESION_NADIR = "target_lesion_nadir"
+        TARGET_LESION_MEASUREMENT_DATE = "target_lesion_measurement_date"
+        OFF_TARGET_LESIONS_NUMBER = "off_target_lesions_number"
+        OFF_TARGET_LESION_MEASUREMENT_DATE = "off_target_lesion_measurement_date"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._assessment_type: str | None = None

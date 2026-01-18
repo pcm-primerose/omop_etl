@@ -6,6 +6,19 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorAssessment(DomainBase):
+    class Cols:
+        ASSESSMENT_TYPE = "assessment_type"
+        TARGET_LESION_CHANGE_FROM_BASELINE = "target_lesion_change_from_baseline"
+        TARGET_LESION_CHANGE_FROM_NADIR = "target_lesion_change_from_nadir"
+        WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE = "was_new_lesions_registered_after_baseline"
+        DATE = "date"
+        RECIST_RESPONSE = "recist_response"
+        IRECIST_RESPONSE = "irecist_response"
+        RANO_RESPONSE = "rano_response"
+        RECIST_DATE_OF_PROGRESSION = "recist_date_of_progression"
+        IRECIST_DATE_OF_PROGRESSION = "irecist_date_of_progression"
+        EVENT_ID = "event_id"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._assessment_type: str | None = None
