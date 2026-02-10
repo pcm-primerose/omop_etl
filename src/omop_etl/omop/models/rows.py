@@ -158,7 +158,7 @@ class DrugExposureRow:
     person_id: int
     drug_concept_id: int
     drug_exposure_start_date: dt.date
-    drug_exposure_end_date: dt.date 
+    drug_exposure_end_date: dt.date
     drug_type_concept_id: int
     drug_exposure_start_datetime: dt.datetime | None = None
     drug_exposure_end_datetime: dt.datetime | None = None
@@ -186,21 +186,21 @@ class ProcedureOcurrenceRow:
     """
 
     procedure_occurrence_id: int
-    person_id: int  
+    person_id: int
     procedure_concept_id: int
     procedure_date: dt.date
     procedure_type_concept_id: int
     procedure_datetime: dt.datetime | None = None
-    procedure_end_date: dt.date | None = None 
+    procedure_end_date: dt.date | None = None
     procedure_end_datetime: dt.datetime | None = None
-    modifier_concept_id: int | None = None 
+    modifier_concept_id: int | None = None
     quantity: int | None = None
     provider_id: int | None = None
     visit_occurrence_id: int | None = None
     visit_detail_id: int | None = None
     procedure_source_value: str | None = pd_field(None, max_length=50)
-    procedure_source_concept_id: int | None = None 
-    modifier_source_value: str | None = pd_field(None, max_length=50)  
+    procedure_source_concept_id: int | None = None
+    modifier_source_value: str | None = pd_field(None, max_length=50)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -209,25 +209,25 @@ class MeasurementRow:
     https://ohdsi.github.io/CommonDataModel/cdm54.html#measurement
     """
 
-    measurement_id: int 
+    measurement_id: int
     person_id: int
     measurement_concept_id: int
     measurement_date: dt.date
     measurement_datetime: dt.datetime | None = None
-    measurement_time: str | None = pd_field(None, max_length=10) 
-    measurement_type_concept_id: int 
+    measurement_time: str | None = pd_field(None, max_length=10)
+    measurement_type_concept_id: int
     operator_concept_id: int | None = None
-    value_as_number:  float | None = None
+    value_as_number: float | None = None
     value_as_concept_id: int | None = None
-    unit_concept_id: int | None = None 
+    unit_concept_id: int | None = None
     range_low: float | None = None
     range_high: float | None = None
     provider_id: int | None = None
     visit_occurrence_id: int | None = None
     visit_detail_id: int | None = None
-    measurement_source_value: str | None = pd_field(None, max_length=50)  
+    measurement_source_value: str | None = pd_field(None, max_length=50)
     measurement_source_concept_id: int | None = None
-    unit_source_value: str | None = pd_field(None, max_length=50)  
+    unit_source_value: str | None = pd_field(None, max_length=50)
     unit_source_concept_id: int | None = None
     value_source_value: str | None = pd_field(None, max_length=50)
     measurement_event_id: int | None = None
