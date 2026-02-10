@@ -3,7 +3,7 @@ name = "omop-etl"
 version = "0.1.0"
 description = "ETL for PRIME ROSE to OMOP CDM"
 authors = [{ name = "Gabriel B. Stav" }]
-requires-python = ">=3.14.2"
+requires-python = ">=3.14"
 readme = "README.md"
 
 dependencies = [

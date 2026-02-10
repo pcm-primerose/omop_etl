@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.config import IMPRESS_NON_V600
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -102,4 +103,4 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
 if __name__ == "__main__":
     configure_logger(level="DEBUG")
-    run_pipeline(preprocessing_input=Path(__file__).parent / ".data" / "synthetic" / "nonv600_cohorts", base_root=Path(__file__).parent / ".data")
+    run_pipeline(preprocessing_input=IMPRESS_NON_V600, base_root=Path(__file__).parent / ".data")
