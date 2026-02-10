@@ -13,13 +13,13 @@ from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
 
-# default resource paths
+# default resource paths: make dev defaults later
 RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"
 DEFAULT_STATIC_CSV = RESOURCES_DIR / "static_mapping.csv"
 DEFAULT_STRUCTURAL_CSV = RESOURCES_DIR / "structural_mapping.csv"
 
 
-def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> OmopTables:
+def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> int:
     """
     End-to-end run of OMOP ETL.
     """
@@ -52,13 +52,13 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         meta=_meta,
     )
 
-    # print(f"Harmonized: {harmonized_result.patients[0:40]}")
+    print(f"Harmonized: {harmonized_result.patients[0:10]}")
 
     # run semantic mapping
     semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
     semantic_result: SemanticMappingResult = semantic_mapper.run(
         trial=trial,
-        input_path=None,  # todo: test running from just harmonized files later
+        input_path=None,
         harmonized_data=harmonized_result,
         meta=_meta,
         write_output=True,
@@ -80,13 +80,26 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")
-    print(f"Tables: {tables}")
 
-    return tables
+    # just use a static default for testing locally
+    # todo: integrate later
+    dsn = "postgresql://omop:omop@localhost:5433/omop"
+    if not dsn:
+        raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
+
+    # print(
+    #     f"Tables: \n"
+    #     f"{tables.cdm_source} \n\n"
+    #     f"{tables.person[0]} \n\n"
+    #     f"{tables.observation_period[0]} \n\n"
+    #     f"{tables.visit_occurrence[0]} \n\n"
+    # )
+
+    # writer = PostgresOmopWriter(dsn=dsn, truncate_first=True)
+    # writer.write(tables)
+    return 0
 
 
 if __name__ == "__main__":
     configure_logger(level="DEBUG")
-    run_pipeline(
-        preprocessing_input=Path(__file__).parent / ".data" / "synthetic" / "nonv600_cohorts", base_root=Path(__file__).parent / ".data"
-    )
+    run_pipeline(preprocessing_input=Path(__file__).parent / ".data" / "synthetic" / "nonv600_cohorts", base_root=Path(__file__).parent / ".data")

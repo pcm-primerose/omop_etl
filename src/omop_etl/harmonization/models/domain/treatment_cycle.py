@@ -1,11 +1,30 @@
 from typing import Set
 import datetime as dt
 
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class TreatmentCycle(TrackedValidated):
+class TreatmentCycle(DomainBase):
+    class Cols:
+        TREATMENT_NAME = "treatment_name"
+        CYCLE_TYPE = "cycle_type"
+        TREATMENT_NUMBER = "treatment_number"
+        CYCLE_NUMBER = "cycle_number"
+        START_DATE = "start_date"
+        END_DATE = "end_date"
+        RECIEVED_TREATMENT_THIS_CYCLE = "recieved_treatment_this_cycle"
+        WAS_TOTAL_DOSE_DELIVERED = "was_total_dose_delivered"
+        IV_DOSE_PRESCRIBED = "iv_dose_prescribed"
+        IV_DOSE_PRESCRIBED_UNIT = "iv_dose_prescribed_unit"
+        WAS_DOSE_ADMINISTERED_TO_SPEC = "was_dose_administered_to_spec"
+        REASON_NOT_ADMINISTERED_TO_SPEC = "reason_not_administered_to_spec"
+        ORAL_DOSE_PRESCRIBED_PER_DAY = "oral_dose_prescribed_per_day"
+        ORAL_DOSE_UNIT = "oral_dose_unit"
+        NUMBER_OF_DAYS_TABLET_NOT_TAKEN = "number_of_days_tablet_not_taken"
+        REASON_TABLET_NOT_TAKEN = "reason_tablet_not_taken"
+        WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE = "was_tablet_taken_to_prescription_in_previous_cycle"
+
     def __init__(self, patient_id: str):
         # core
         self._patient_id = patient_id
@@ -27,7 +46,6 @@ class TreatmentCycle(TrackedValidated):
         self._reason_not_administered_to_spec: str | None = None
         self._oral_dose_prescribed_per_day: float | None = None
         self._oral_dose_unit: str | None = None
-        self._other_dose_unit: str | None = None
         self._number_of_days_tablet_not_taken: int | None = None
         self._reason_tablet_not_taken: str | None = None
         self._was_tablet_taken_to_prescription_in_previous_cycle: bool | None = None
@@ -208,18 +226,6 @@ class TreatmentCycle(TrackedValidated):
         )
 
     @property
-    def other_dose_unit(self) -> str | None:
-        return self._other_dose_unit
-
-    @other_dose_unit.setter
-    def other_dose_unit(self, value: str | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.other_dose_unit,
-            value=value,
-            validator=StrictValidators.validate_optional_str,
-        )
-
-    @property
     def number_of_days_tablet_not_taken(self) -> int | None:
         return self._number_of_days_tablet_not_taken
 
@@ -272,7 +278,6 @@ class TreatmentCycle(TrackedValidated):
             f"reason_not_administered_to_spec={self.reason_not_administered_to_spec!r}{delim} "
             f"oral_dose_prescribed_per_day={self.oral_dose_prescribed_per_day!r}{delim} "
             f"oral_dose_unit={self.oral_dose_unit!r}{delim} "
-            f"other_dose_unit={self.other_dose_unit!r}{delim} "
             f"number_of_days_tablet_not_taken={self.number_of_days_tablet_not_taken!r}{delim} "
             f"reason_tablet_not_taken={self.reason_tablet_not_taken!r}{delim} "
             f"was_tablet_taken_to_prescription_in_previous_cycle={self.was_tablet_taken_to_prescription_in_previous_cycle!r}"

@@ -2,8 +2,8 @@ from enum import Enum
 from typing import Set
 import datetime as dt
 
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class RelatedStatus(str, Enum):
@@ -12,7 +12,24 @@ class RelatedStatus(str, Enum):
     UNKNOWN = "unknown"  # code 2 & 3
 
 
-class AdverseEvent(TrackedValidated):
+class AdverseEvent(DomainBase):
+    class Cols:
+        TERM = "term"
+        GRADE = "grade"
+        OUTCOME = "outcome"
+        START_DATE = "start_date"
+        END_DATE = "end_date"
+        WAS_SERIOUS = "was_serious"
+        TURNED_SERIOUS_DATE = "turned_serious_date"
+        RELATED_TO_TREATMENT_1_STATUS = "related_to_treatment_1_status"
+        TREATMENT_1_NAME = "treatment_1_name"
+        RELATED_TO_TREATMENT_2_STATUS = "related_to_treatment_2_status"
+        TREATMENT_2_NAME = "treatment_2_name"
+        WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_1 = "was_serious_grade_expected_treatment_1"
+        WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_2 = "was_serious_grade_expected_treatment_2"
+
+    MATERIAL_COLS = (Cols.TERM,)
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._term: str | None = None
@@ -200,7 +217,6 @@ class AdverseEvent(TrackedValidated):
             f"grade={self.grade!r}{delim} "
             f"outcome={self.outcome!r}{delim} "
             f"start_date={self.start_date!r}{delim} "
-            f"end_date={self.end_date!r}{delim} "
             f"end_date={self.end_date!r}{delim} "
             f"was_serious={self.was_serious!r}{delim} "
             f"turned_serious_date={self.turned_serious_date!r}{delim} "

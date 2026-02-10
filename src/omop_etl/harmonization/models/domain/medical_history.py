@@ -1,11 +1,19 @@
 from typing import Set
 import datetime as dt
 
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class MedicalHistory(TrackedValidated):
+class MedicalHistory(DomainBase):
+    class Cols:
+        TERM = "term"
+        SEQUENCE_ID = "sequence_id"
+        START_DATE = "start_date"
+        END_DATE = "end_date"
+        STATUS = "status"
+        STATUS_CODE = "status_code"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._term: str | None = None

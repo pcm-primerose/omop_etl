@@ -119,7 +119,5 @@ def _schema_from_manifest(manifest_schema: dict[str, str]) -> pl.Schema:
         try:
             out[col] = NAME_TO_POLARS_DTYPE[type_name]  # todo: fix type warning
         except KeyError:
-            raise ValueError(
-                f"Unknown dtype name {type_name} for column {col} in manifest. Add it to NAME_TO_POLARS_DTYPE/POLARS_DTYPE_TO_NAME."
-            )
+            raise ValueError(f"Unknown dtype name {type_name} for column {col} in manifest. Add it to NAME_TO_POLARS_DTYPE/POLARS_DTYPE_TO_NAME.")
     return pl.Schema(out)

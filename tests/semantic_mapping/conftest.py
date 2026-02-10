@@ -108,16 +108,12 @@ def patients() -> List[Patient]:
     for mh in patient_2.medical_histories:
         mh.term = "medical_history_2"
 
-    print(f"patient 1: {patient_1}")
-
     return [patient_1, patient_2]
 
 
 @pytest.fixture
 def configs() -> List[FieldConfig]:
-    tumor_config = FieldConfig(
-        name="tumor type main", field_path=("tumor_type", "main_tumor_type"), target=QueryTarget([OmopDomain.CONDITION])
-    )
+    tumor_config = FieldConfig(name="tumor type main", field_path=("tumor_type", "main_tumor_type"), target=QueryTarget([OmopDomain.CONDITION]))
     medical_history_config = FieldConfig(
         name="medical histories", field_path=("medical_histories", "term"), target=QueryTarget([OmopDomain.CONDITION, OmopDomain.PROCEDURE])
     )

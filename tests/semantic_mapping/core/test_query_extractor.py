@@ -9,9 +9,7 @@ def test_query_extractor(patients, configs):
     for patient in patients:
         queries.extend(extract_queries(patient, configs))
 
-    assert len(queries) == 4, (
-        "Each instance of leaf classes (here TumorType and MedicalHistory, one instance per patient) creates one query"
-    )
+    assert len(queries) == 4, "Each instance of leaf classes (here TumorType and MedicalHistory, one instance per patient) creates one query"
 
     # assert TumorType singleton produces correct query
     patient_1_tumor_query = queries[0]

@@ -100,9 +100,7 @@ class FieldCoverage:
 class LookupResult:
     """Aggregated results from concept lookups during a run."""
 
-    matched: Dict[LookupType, List[tuple[str, str, MappedConcept]]] = field(
-        default_factory=lambda: {"static": [], "structural": [], "semantic": []}
-    )
+    matched: Dict[LookupType, List[tuple[str, str, MappedConcept]]] = field(default_factory=lambda: {"static": [], "structural": [], "semantic": []})
     missed: Dict[LookupType, List[MissedLookup]] = field(default_factory=lambda: {"static": [], "structural": [], "semantic": []})
 
     def record_match(

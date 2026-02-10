@@ -2,12 +2,27 @@ from typing import Set
 import datetime as dt
 
 from omop_etl.harmonization.core.make_validated_property import make_validated_property
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class EQ5D(TrackedValidated):
+class EQ5D(DomainBase):
     Q_COUNT = 5
+
+    class Cols:
+        DATE = "date"
+        EVENT_NAME = "event_name"
+        QOL_METRIC = "qol_metric"
+        Q1 = "q1"
+        Q1_CODE = "q1_code"
+        Q2 = "q2"
+        Q2_CODE = "q2_code"
+        Q3 = "q3"
+        Q3_CODE = "q3_code"
+        Q4 = "q4"
+        Q4_CODE = "q4_code"
+        Q5 = "q5"
+        Q5_CODE = "q5_code"
 
     def __init__(self, patient_id: str):
         self.updated_fields: Set[str] = set()
@@ -64,11 +79,7 @@ class EQ5D(TrackedValidated):
             f"qol_metric={self.qol_metric!r}",
         ]
         qs = [f"q{i}={getattr(self, f'q{i}')!r}" for i in range(1, self.Q_COUNT + 1) if getattr(self, f"q{i}", None) is not None]
-        qcs = [
-            f"q{i}_code={getattr(self, f'q{i}_code')!r}"
-            for i in range(1, self.Q_COUNT + 1)
-            if getattr(self, f"q{i}_code", None) is not None
-        ]
+        qcs = [f"q{i}_code={getattr(self, f'q{i}_code')!r}" for i in range(1, self.Q_COUNT + 1) if getattr(self, f"q{i}_code", None) is not None]
         return f"{self.__class__.__name__}({', '.join(base + qs + qcs)})"
 
 

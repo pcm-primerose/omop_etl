@@ -135,9 +135,7 @@ def validate_field_paths(
             _ = _get_nested_attr(sample_obj, tail) if tail else sample_obj
         except AttributeError:
             bad_leaf = tail[-1] if tail else "<empty>"
-            errors.append(
-                f"{cfg.name}: invalid field_path {cfg.field_path!r} – '{bad_leaf}' is not an attribute of {type(sample_obj).__name__}"
-            )
+            errors.append(f"{cfg.name}: invalid field_path {cfg.field_path!r} – '{bad_leaf}' is not an attribute of {type(sample_obj).__name__}")
 
         if errors:
             raise ValueError("Invalid FieldConfig field_paths:\n" + "\n".join(f"- {e}" for e in errors))

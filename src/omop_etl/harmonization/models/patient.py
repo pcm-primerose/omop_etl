@@ -1,4 +1,4 @@
-from typing import Set, Sequence
+from typing import ClassVar, Set, Sequence, Union, get_type_hints, get_origin, get_args
 import datetime as dt
 from logging import getLogger
 from typing import TypeVar
@@ -29,6 +29,8 @@ class Patient(TrackedValidated):
     """
     Stores all data for a patient
     """
+
+    _attr_cache: ClassVar[dict[type, str]] = {}
 
     def __init__(self, patient_id: str, trial_id: str):
         self.updated_fields: Set[str] = set()
@@ -543,6 +545,48 @@ class Patient(TrackedValidated):
 
         return tuple(items)
 
+    @classmethod
+    def get_attr_for_type(cls, item_type: type) -> str:
+        """
+        Find the attribute name that accepts the given type by inspecting property return type hints.
+        Results are cached for performance.
+
+        Works for both singletons (T | None) and collections (tuple[T, ...]).
+        """
+        if item_type in cls._attr_cache:
+            return cls._attr_cache[item_type]
+
+        for name in dir(cls):
+            if name.startswith("_"):
+                continue
+
+            attr = getattr(cls, name, None)
+            if not isinstance(attr, property) or attr.fget is None:
+                continue
+
+            hints = get_type_hints(attr.fget)
+            return_hint = hints.get("return")
+            if return_hint is None:
+                continue
+
+            origin = get_origin(return_hint)
+
+            # collections: tuple[T, ...]
+            if origin is tuple:
+                args = get_args(return_hint)
+                if args and args[0] is item_type:
+                    cls._attr_cache[item_type] = name
+                    return name
+
+            # singletons: T | None (Union[T, None])
+            if origin is Union:
+                args = get_args(return_hint)
+                if item_type in args:
+                    cls._attr_cache[item_type] = name
+                    return name
+
+        raise KeyError(f"No attribute found for type {item_type.__name__}")
+
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
 
@@ -556,27 +600,32 @@ class Patient(TrackedValidated):
         delim = ","
         return (
             f"{self.__class__.__name__}("
+            # sclalars
             f"patient_id={self.patient_id}{delim} "
             f"trial_id={self.trial_id}{delim} "
             f"cohort_name={self.cohort_name}{delim} "
             f"sex={self.sex}{delim} "
             f"age={self.age}{delim} "
-            f"tumor_type={self.tumor_type}{delim} "
-            f"study_drugs={self.study_drugs}{delim} "
-            f"biomarkers={self.biomarkers}{delim} "
+            f"date_of_birth={self.date_of_birth}{delim} "
+            f"treatment_start_last_cycle={self.treatment_start_last_cycle}{delim} "
             f"date_of_death={self.date_of_death}{delim} "
             f"has_any_adverse_events={self.has_any_adverse_events}{delim} "
             f"number_of_adverse_events={self.number_of_adverse_events}{delim} "
             f"number_of_serious_adverse_events={self.number_of_serious_adverse_events}{delim} "
-            f"lost_to_followup={self.lost_to_followup}{delim} "
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis}{delim} "
             f"treatment_start_date={self.treatment_start_date}{delim} "
             f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week16}{delim} "
             f"end_of_treatment_reason={self.end_of_treatment_reason}{delim} "
             f"end_of_treatment_date={self.end_of_treatment_date}{delim} "
-            f"ecog={self.ecog_baseline}{delim} "
+            # singletons
+            f"tumor_type={self.tumor_type}{delim} "
             f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
+            f"biomarkers={self.biomarkers}{delim} "
+            f"ecog={self.ecog_baseline}{delim} "
+            f"lost_to_followup={self.lost_to_followup}{delim} "
             f"best_overall_response={self.best_overall_response}{delim} "
+            # collections
+            f"study_drugs={self.study_drugs}{delim} "
             f"medical_histories={self.medical_histories}{delim} "
             f"previous_treatments={self.previous_treatments}{delim} "
             f"treatment_cycles={self.treatment_cycles}{delim} "

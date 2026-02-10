@@ -1,11 +1,20 @@
 from typing import Set
 import datetime as dt
 
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class TumorAssessmentBaseline(TrackedValidated):
+class TumorAssessmentBaseline(DomainBase):
+    class Cols:
+        ASSESSMENT_TYPE = "assessment_type"
+        ASSESSMENT_DATE = "assessment_date"
+        TARGET_LESION_SIZE = "target_lesion_size"
+        TARGET_LESION_NADIR = "target_lesion_nadir"
+        TARGET_LESION_MEASUREMENT_DATE = "target_lesion_measurement_date"
+        OFF_TARGET_LESIONS_NUMBER = "off_target_lesions_number"
+        OFF_TARGET_LESION_MEASUREMENT_DATE = "off_target_lesion_measurement_date"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._assessment_type: str | None = None
@@ -13,7 +22,7 @@ class TumorAssessmentBaseline(TrackedValidated):
         self._target_lesion_size: int | None = None
         self._target_lesion_nadir: int | None = None
         self._target_lesion_measurement_date: dt.date | None = None
-        self._number_off_target_lesions: int | None = None
+        self._off_target_lesions_number: int | None = None
         self._off_target_lesion_measurement_date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
@@ -82,13 +91,13 @@ class TumorAssessmentBaseline(TrackedValidated):
         )
 
     @property
-    def number_off_target_lesions(self) -> int | None:
-        return self._number_off_target_lesions
+    def off_target_lesions_number(self) -> int | None:
+        return self._off_target_lesions_number
 
-    @number_off_target_lesions.setter
-    def number_off_target_lesions(self, value: int | None) -> None:
+    @off_target_lesions_number.setter
+    def off_target_lesions_number(self, value: int | None) -> None:
         self._set_validated_prop(
-            prop=self.__class__.number_off_target_lesions,
+            prop=self.__class__.off_target_lesions_number,
             value=value,
             validator=StrictValidators.validate_optional_int,
         )
@@ -113,7 +122,7 @@ class TumorAssessmentBaseline(TrackedValidated):
             f"target_lesion_size={self.target_lesion_size!r}{delim} "
             f"target_lesion_nadir={self.target_lesion_nadir!r}{delim} "
             f"target_lesion_measurement_date={self.target_lesion_measurement_date!r}{delim} "
-            f"off_target_lesion_size={self.number_off_target_lesions!r}{delim} "
+            f"off_target_lesion_size={self.off_target_lesions_number!r}{delim} "
             f"off_target_lesion_measurement_date={self.off_target_lesion_measurement_date!r}"
             f")"
         )

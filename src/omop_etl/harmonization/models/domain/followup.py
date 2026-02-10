@@ -1,11 +1,15 @@
 from typing import Set
 import datetime as dt
 
-from omop_etl.harmonization.core.track_validated import TrackedValidated
 from omop_etl.harmonization.core.validators import StrictValidators
+from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class FollowUp(TrackedValidated):
+class FollowUp(DomainBase):
+    class Cols:
+        LOST_TO_FOLLOWUP = "lost_to_followup"
+        DATE_LOST_TO_FOLLOWUP = "date_lost_to_followup"
+
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._lost_to_followup: bool | None = None
@@ -41,8 +45,4 @@ class FollowUp(TrackedValidated):
         )
 
     def __repr__(self, delim=","):
-        return (
-            f"{self.__class__.__name__}("
-            f"lost_to_followup={self.lost_to_followup!r}{delim} "
-            f"date_lost_to_followup={self.date_lost_to_followup!r})"
-        )
+        return f"{self.__class__.__name__}(lost_to_followup={self.lost_to_followup!r}{delim} date_lost_to_followup={self.date_lost_to_followup!r})"

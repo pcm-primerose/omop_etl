@@ -4,7 +4,7 @@ import typing
 from typing import Any, Sequence, MutableSequence
 from functools import lru_cache
 import polars as pl
-from polars._typing import PolarsDataType as polars_data_type
+from polars._typing import PolarsDataType as polars_data_type  # noqa
 
 from omop_etl.infra.io.types import SerializeTypes
 from omop_etl.infra.utils.types import unwrap_optional
@@ -72,9 +72,9 @@ def to_normalized(df_nested: pl.DataFrame) -> dict[str, pl.DataFrame]:
 
     # patients
     base_cols = [col for col, dtype in df_nested.schema.items() if dtype not in (pl.Struct,) and not isinstance(dtype, pl.List)]
-    tables["patients"] = df_nested.select(
-        [*SerializeTypes.ID_COLUMNS, *[col for col in base_cols if col not in SerializeTypes.ID_COLUMNS]]
-    ).sort(pl.col("patient_id"))
+    tables["patients"] = df_nested.select([*SerializeTypes.ID_COLUMNS, *[col for col in base_cols if col not in SerializeTypes.ID_COLUMNS]]).sort(
+        pl.col("patient_id")
+    )
 
     # singletons
     for col_name, col_dtype in df_nested.schema.items():
@@ -167,6 +167,11 @@ def _py_to_pl(tp: Any) -> polars_data_type:
 
 def _unify_dtypes(dtype_a: polars_data_type, dtype_b: polars_data_type) -> polars_data_type:
     if dtype_a == dtype_b:
+        return dtype_a
+    # null doesn't change the other type
+    if dtype_a == pl.Null:
+        return dtype_b
+    if dtype_b == pl.Null:
         return dtype_a
     numeric_types: set[polars_data_type] = {pl.Int64, pl.Float64}
     if dtype_a in numeric_types and dtype_b in numeric_types:
@@ -261,11 +266,7 @@ def export_leaf_object(obj: Any, *, exclude: set[str] = SerializeTypes.IDENTITY_
     """
     props = _public_properties(obj.__class__)
     if props:
-        return {
-            prop_name: _to_polars_primitive(getattr(obj, prop_name))
-            for prop_name, prop in props.items()
-            if prop.fget and prop_name not in exclude
-        }
+        return {prop_name: _to_polars_primitive(getattr(obj, prop_name)) for prop_name, prop in props.items() if prop.fget and prop_name not in exclude}
     if hasattr(obj, "__dict__"):
         result: dict[str, Any] = {}
         for attr_name, attr_value in obj.__dict__.items():
@@ -337,38 +338,38 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
                 exported = export_leaf_object(value)
                 for field_name, field_value in exported.items():
                     inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
-                    fields[field_name] = (
-                        _unify_dtypes(fields.get(field_name, inferred_dtype), inferred_dtype) if field_name in fields else inferred_dtype
-                    )
+                    fields[field_name] = _unify_dtypes(fields.get(field_name, inferred_dtype), inferred_dtype) if field_name in fields else inferred_dtype
 
             if fields:
                 enriched_schema[prop_name] = pl.Struct(
                     {field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()}
                 )
 
-        # collections with empty inner struct: learn fields from data
+        # collections: enrich inner struct from data (handles dynamic properties like C30.q1-q30)
         current_dtype = enriched_schema.get(prop_name)
         if origin in (list, tuple, Sequence, MutableSequence) and isinstance(current_dtype, pl.List):
             inner = current_dtype.inner
-            if str(inner) == "Struct({})":
-                fields: dict[str, pl.DataType] = {}
-                for patient in patients:
-                    sequence = getattr(patient, prop_name, ()) or ()
-                    for item in sequence:
-                        exported = export_leaf_object(item)
-                        for field_name, field_value in exported.items():
-                            inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
-                            fields[field_name] = (
-                                _unify_dtypes(fields.get(field_name, inferred_dtype), inferred_dtype)
-                                if field_name in fields
-                                else inferred_dtype
-                            )
-                if fields:
-                    enriched_schema[prop_name] = pl.List(
-                        pl.Struct(
-                            {field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()}
-                        )
-                    )
+            # start with existing fields from class schema (if any)
+            fields: dict[str, pl.DataType] = {}
+            if isinstance(inner, pl.Struct):
+                fields.update(inner.to_schema())
+
+            # enrich with fields from actual data
+            for patient in patients:
+                sequence = getattr(patient, prop_name, ()) or ()
+                for item in sequence:
+                    exported = export_leaf_object(item)
+                    for field_name, field_value in exported.items():
+                        inferred_dtype = _py_to_pl(type(field_value)) if field_value is not None else pl.Null
+                        if field_name in fields:
+                            fields[field_name] = _unify_dtypes(fields[field_name], inferred_dtype)
+                        else:
+                            fields[field_name] = inferred_dtype
+
+            if fields:
+                enriched_schema[prop_name] = pl.List(
+                    pl.Struct({field_name: (pl.Utf8 if field_dtype == pl.Null else field_dtype) for field_name, field_dtype in fields.items()})
+                )
 
     enriched_schema.setdefault("patient_id", pl.Utf8)
     enriched_schema.setdefault("trial_id", pl.Utf8)
@@ -427,10 +428,7 @@ def _sort_wide(
         rank = {name: idx + 1 for idx, name in enumerate(collection_order)}
         wide = (
             wide.with_columns(
-                pl.when(pl.col("row_type") == "base")
-                .then(0)
-                .otherwise(pl.col("row_type").replace(rank, default=len(rank) + 1))
-                .alias("_rt_rank"),
+                pl.when(pl.col("row_type") == "base").then(0).otherwise(pl.col("row_type").replace(rank, default=len(rank) + 1)).alias("_rt_rank"),
             )
             .sort([*id_cols, "_rt_rank", "row_index"])
             .drop("_rt_rank")
