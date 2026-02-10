@@ -186,7 +186,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             name="concomitant_medication",
             process=lambda h: h._process_concomitant_medication(),
             target_domain=ConcomitantMedication,
-            order_by=("start_date",),
+            order_by=(
+                "sequence_id",
+                "start_date",
+            ),
             require_order_by=True,
         ),
         CollectionSpec(
