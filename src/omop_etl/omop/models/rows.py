@@ -213,9 +213,9 @@ class MeasurementRow:
     person_id: int
     measurement_concept_id: int
     measurement_date: dt.date
+    measurement_type_concept_id: int
     measurement_datetime: dt.datetime | None = None
     measurement_time: str | None = pd_field(None, max_length=10)
-    measurement_type_concept_id: int
     operator_concept_id: int | None = None
     value_as_number: float | None = None
     value_as_concept_id: int | None = None
