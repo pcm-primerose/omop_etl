@@ -9,7 +9,7 @@ class SubjectIdRow:
     SubjectId: str
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def subject_id_fixture() -> pl.DataFrame:
     rows: List[SubjectIdRow] = [
         SubjectIdRow("unique_1"),
@@ -31,7 +31,7 @@ class CohortNameRow:
     COH_COHORTNAME: str | None = None
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def cohort_name_fixture() -> pl.DataFrame:
     rows: List[CohortNameRow] = [
         CohortNameRow(
@@ -106,7 +106,7 @@ class GenderRow:
     DM_SEX: str | None = None
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def gender_fixture() -> pl.DataFrame:
     rows: List[GenderRow] = [
         GenderRow(

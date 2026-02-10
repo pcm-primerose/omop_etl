@@ -214,6 +214,7 @@ class BaseHarmonizer(ABC):
     def _run_spec(self, spec: ProcessorSpec) -> None:
         """
         Execute a single processor spec: call processor, validate, conform, hydrate.
+        Instantiates Patient object with data processed by processors in ProcessorSpec(s) provided.
 
         Args:
             spec: The ProcessorSpec to execute.

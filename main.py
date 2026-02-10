@@ -52,13 +52,13 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         meta=_meta,
     )
 
-    print(f"Harmonized: {harmonized_result.patients[0:40]}")
+    print(f"Harmonized: {harmonized_result.patients[0:10]}")
 
     # run semantic mapping
     semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
     semantic_result: SemanticMappingResult = semantic_mapper.run(
         trial=trial,
-        input_path=None,  # todo: test running from just harmonized files later
+        input_path=None,
         harmonized_data=harmonized_result,
         meta=_meta,
         write_output=True,

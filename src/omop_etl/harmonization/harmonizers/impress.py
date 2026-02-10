@@ -109,6 +109,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             process=lambda h: h._process_eot_reason(),
             target_attr="end_of_treatment_reason",
             value_col="end_of_treatment_reason",
+            on_duplicate="last",
         ),
         ScalarSpec(
             name="end_of_treatment_date",
