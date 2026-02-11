@@ -99,7 +99,7 @@ def main() -> int:
     parser.add_argument(
         "--dataset",
         default=None,
-        help=(f"Dataset name ({', '.join(SYNTHETIC_DATASETS)}) or explicit path. Falls back to SYNTHETIC_DATASET env var, then 'impress_150'."),
+        help=f"Dataset name ({', '.join(SYNTHETIC_DATASETS)}) or explicit path. Falls back to SYNTHETIC_DATASET env var, then 'impress_150'.",
     )
     args = parser.parse_args()
 
