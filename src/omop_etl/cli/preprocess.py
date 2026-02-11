@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Literal
 
 from omop_etl.config import (
-    IMPRESS_150,
+    ACTIVE_DATASET,
     DATA_ROOT,
 )
 from omop_etl.infra.io.types import Layout
@@ -47,7 +47,7 @@ def run_preprocessing(
 
 if __name__ == "__main__":
     run_preprocessing(
-        preprocessing_input=IMPRESS_150,
+        preprocessing_input=ACTIVE_DATASET,
         trial="IMPRESS",
         base_root=DATA_ROOT,
         output_format="csv",

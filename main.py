@@ -1,7 +1,7 @@
+import argparse
 from pathlib import Path
 
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.config import IMPRESS_NON_V600
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.run_context import RunMetadata
@@ -13,6 +13,7 @@ from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
+from omop_etl.config import ACTIVE_DATASET, SYNTHETIC_DATASETS, resolve_dataset, LOG_LEVEL
 
 # default resource paths: make dev defaults later
 RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"
@@ -88,19 +89,29 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     if not dsn:
         raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
 
-    # print(
-    #     f"Tables: \n"
-    #     f"{tables.cdm_source} \n\n"
-    #     f"{tables.person[0]} \n\n"
-    #     f"{tables.observation_period[0]} \n\n"
-    #     f"{tables.visit_occurrence[0]} \n\n"
-    # )
-
     # writer = PostgresOmopWriter(dsn=dsn, truncate_first=True)
     # writer.write(tables)
     return 0
 
 
+def main() -> int:
+    parser = argparse.ArgumentParser(description="OMOP ETL pipeline")
+    parser.add_argument(
+        "--dataset",
+        default=None,
+        help=f"Dataset name ({', '.join(SYNTHETIC_DATASETS)}) or explicit path. Falls back to SYNTHETIC_DATASET env var, then 'impress_150'.",
+    )
+    args = parser.parse_args()
+
+    dataset_path = resolve_dataset(args.dataset) if args.dataset else ACTIVE_DATASET
+    if not dataset_path.exists():
+        parser.error(f"Dataset path does not exist: {dataset_path}")
+    configure_logger(level=LOG_LEVEL)
+    return run_pipeline(
+        preprocessing_input=dataset_path,
+        base_root=Path(__file__).parent / ".data",
+    )
+
+
 if __name__ == "__main__":
-    configure_logger(level="DEBUG")
-    run_pipeline(preprocessing_input=IMPRESS_NON_V600, base_root=Path(__file__).parent / ".data")
+    raise SystemExit(main())
