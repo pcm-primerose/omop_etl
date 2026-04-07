@@ -18,12 +18,10 @@ from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
 
-# Processor function type: takes harmonizer instance, returns DataFrame or None
+# processor function type: takes harmonizer instance, returns DataFrame or None
 type ProcessorFn = Callable[["BaseHarmonizer"], pl.DataFrame | None]
 
-# Type-preserving decorator helper: lets @scalar/@singleton/@collection return
-# the original function type unchanged so callers (and pyright) still see a
-# bound method when accessing it through an instance.
+# lets @scalar/@singleton/@collection decorators return the original function type
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 
@@ -69,11 +67,11 @@ class CollectionSpec(SpecBase):
     items_col: str = "items"
 
 
-# Union type for all specs
+# union type for all specs
 ProcessorSpec = ScalarSpec | SingletonSpec | CollectionSpec
 
 
-# Sentinel attribute name used to attach a spec to a decorated processor method.
+# sentinel attribute name used to attach a spec to a decorated processor method.
 # __init_subclass__ on BaseHarmonizer scans class attributes for this marker and
 # collects the specs into the subclass's SPECS tuple in declaration order.
 _SPEC_ATTR = "__processor_spec__"

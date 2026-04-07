@@ -77,7 +77,7 @@ class TestProcessTumorTypeDF:
 
         from omop_etl.harmonization.models.domain.tumor_type import TumorType
 
-        # Should have SubjectId + all TumorType data fields
+        # should have SubjectId + all TumorType data fields
         expected_cols = {"SubjectId"} | set(TumorType.data_fields())
         assert set(df.columns) == expected_cols
 
