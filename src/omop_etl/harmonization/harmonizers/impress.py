@@ -4,7 +4,7 @@ import polars as pl
 from logging import getLogger
 
 from omop_etl.harmonization.core.parsers import PolarsParsers
-from omop_etl.harmonization.harmonizers.base import BaseHarmonizer, ScalarSpec, SingletonSpec, CollectionSpec
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer, scalar, singleton, collection
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -30,191 +30,6 @@ class ImpressHarmonizer(BaseHarmonizer):
     def __init__(self, data: pl.DataFrame, trial_id: str):
         super().__init__(data, trial_id)
 
-    SPECS = (
-        # scalars
-        ScalarSpec(
-            name="cohort_name",
-            process=lambda h: h._process_cohort_name(),
-            target_attr="cohort_name",
-            value_col="cohort_name",
-        ),
-        ScalarSpec(
-            name="sex",
-            process=lambda h: h._process_sex(),
-            target_attr="sex",
-            value_col="sex",
-        ),
-        ScalarSpec(
-            name="date_of_birth",
-            process=lambda h: h._process_date_of_birth(),
-            target_attr="date_of_birth",
-            value_col="date_of_birth",
-        ),
-        ScalarSpec(
-            name="age",
-            process=lambda h: h._process_age(),
-            target_attr="age",
-            value_col="age",
-        ),
-        ScalarSpec(
-            name="date_of_death",
-            process=lambda h: h._process_date_of_death(),
-            target_attr="date_of_death",
-            value_col="date_of_death",
-        ),
-        ScalarSpec(
-            name="has_any_adverse_events",
-            process=lambda h: h._process_has_any_adverse_events(),
-            target_attr="has_any_adverse_events",
-            value_col="has_any_adverse_events",
-        ),
-        ScalarSpec(
-            name="number_of_adverse_events",
-            process=lambda h: h._process_number_of_adverse_events(),
-            target_attr="number_of_adverse_events",
-            value_col="number_of_adverse_events",
-        ),
-        ScalarSpec(
-            name="number_of_serious_adverse_events",
-            process=lambda h: h._process_number_of_serious_adverse_events(),
-            target_attr="number_of_serious_adverse_events",
-            value_col="number_of_serious_adverse_events",
-        ),
-        ScalarSpec(
-            name="treatment_start_last_cycle",
-            process=lambda h: h._process_treatment_start_last_cycle(),
-            target_attr="treatment_start_last_cycle",
-            value_col="treatment_start_last_cycle",
-        ),
-        ScalarSpec(
-            name="treatment_start_date",
-            process=lambda h: h._process_treatment_start_date(),
-            target_attr="treatment_start_date",
-            value_col="treatment_start_date",
-        ),
-        ScalarSpec(
-            name="evaluable_for_efficacy_analysis",
-            process=lambda h: h._process_evaluable_for_efficacy_analysis(),
-            target_attr="evaluable_for_efficacy_analysis",
-            value_col="evaluable_for_efficacy_analysis",
-        ),
-        ScalarSpec(
-            name="clinical_benefit",
-            process=lambda h: h._process_clinical_benefit(),
-            target_attr="has_clinical_benefit_at_week16",
-            value_col="has_clinical_benefit_at_week16",
-        ),
-        ScalarSpec(
-            name="eot_reason",
-            process=lambda h: h._process_eot_reason(),
-            target_attr="end_of_treatment_reason",
-            value_col="end_of_treatment_reason",
-            on_duplicate="last",
-        ),
-        ScalarSpec(
-            name="end_of_treatment_date",
-            process=lambda h: h._process_end_of_treatment_date(),
-            target_attr="end_of_treatment_date",
-            value_col="end_of_treatment_date",
-        ),
-        # singletons
-        SingletonSpec(
-            name="study_drugs",
-            process=lambda h: h._process_study_drugs(),
-            target_domain=StudyDrugs,
-        ),
-        SingletonSpec(
-            name="best_overall_response",
-            process=lambda h: h._process_best_overall_response(),
-            target_domain=BestOverallResponse,
-        ),
-        SingletonSpec(
-            name="lost_to_followup",
-            process=lambda h: h._process_lost_to_followup(),
-            target_domain=FollowUp,
-        ),
-        SingletonSpec(
-            name="biomarkers",
-            process=lambda h: h._process_biomarkers(),
-            target_domain=Biomarkers,
-        ),
-        SingletonSpec(
-            name="baseline_tumor_assessment",
-            process=lambda h: h._process_baseline_tumor_assessment(),
-            target_domain=TumorAssessmentBaseline,
-        ),
-        SingletonSpec(
-            name="tumor_type",
-            process=lambda h: h._process_tumor_type(),
-            target_domain=TumorType,
-        ),
-        SingletonSpec(
-            name="ecog_baseline",
-            process=lambda h: h._process_ecog_baseline(),
-            target_domain=EcogBaseline,
-        ),
-        # collections
-        CollectionSpec(
-            name="adverse_events",
-            process=lambda h: h._process_adverse_events(),
-            target_domain=AdverseEvent,
-            order_by=("start_date",),
-            require_order_by=True,
-        ),
-        CollectionSpec(
-            name="previous_treatments",
-            process=lambda h: h._process_previous_treatments(),
-            target_domain=PreviousTreatments,
-            order_by=("start_date",),
-            require_order_by=True,
-        ),
-        CollectionSpec(
-            name="medical_histories",
-            process=lambda h: h._process_medical_histories(),
-            target_domain=MedicalHistory,
-            order_by=("start_date",),
-            require_order_by=True,
-        ),
-        CollectionSpec(
-            name="treatment_cycle",
-            process=lambda h: h._process_treatment_cycle(),
-            target_domain=TreatmentCycle,
-            order_by=("start_date",),
-            require_order_by=True,
-        ),
-        CollectionSpec(
-            name="concomitant_medication",
-            process=lambda h: h._process_concomitant_medication(),
-            target_domain=ConcomitantMedication,
-            order_by=(
-                "sequence_id",
-                "start_date",
-            ),
-            require_order_by=True,
-        ),
-        CollectionSpec(
-            name="tumor_assessments",
-            process=lambda h: h._process_tumor_assessments(),
-            target_domain=TumorAssessment,
-            order_by=("date",),
-            require_order_by=True,
-        ),
-        CollectionSpec(
-            name="c30",
-            process=lambda h: h._process_c30(),
-            target_domain=C30,
-            order_by=("date",),
-            require_order_by=True,
-        ),
-        CollectionSpec(
-            name="eq5d",
-            process=lambda h: h._process_eq5d(),
-            target_domain=EQ5D,
-            order_by=("date",),
-            require_order_by=True,
-        ),
-    )
-
     def _create_patients(self) -> None:
         """Create Patient instances from unique SubjectIds."""
         patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
@@ -229,12 +44,14 @@ class ImpressHarmonizer(BaseHarmonizer):
             trial_id=self.trial_id,
         )
 
+    @scalar()
     def _process_cohort_name(self) -> pl.DataFrame | None:
         return self.data.select(
             "SubjectId",
             cohort_name=PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")),
         ).filter(pl.col("cohort_name").is_not_null())
 
+    @scalar()
     def _process_sex(self) -> pl.DataFrame | None:
         return (
             self.data.select(
@@ -251,6 +68,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             .unique(subset=["SubjectId"], keep="first")
         )
 
+    @scalar()
     def _process_date_of_birth(self) -> pl.DataFrame | None:
         """Process date of birth and update patient objects"""
         return (
@@ -259,6 +77,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             .with_columns(date_of_birth=(PolarsParsers.to_optional_date(pl.col("birth_date"))))
         )
 
+    @scalar()
     def _process_age(self) -> pl.DataFrame | None:
         """Calculate age at treatment start and update patient object"""
         return (
@@ -278,6 +97,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
         )
 
+    @scalar()
     def _process_date_of_death(self) -> pl.DataFrame | None:
         death_df = (
             self.data.select(
@@ -295,6 +115,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return death_df
 
+    @scalar()
     def _process_has_any_adverse_events(self) -> pl.DataFrame | None:
         ae_status = (
             self.data.with_columns(
@@ -316,6 +137,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return ae_status
 
+    @scalar()
     def _process_number_of_adverse_events(self) -> pl.DataFrame | None:
         ae_num = (
             self.data.with_columns(
@@ -332,6 +154,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return ae_num
 
+    @scalar()
     def _process_number_of_serious_adverse_events(self) -> pl.DataFrame | None:
         sae_counts = (
             self.data.with_columns(
@@ -342,6 +165,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return sae_counts
 
+    @scalar(target_attr="has_clinical_benefit_at_week16", value_col="has_clinical_benefit_at_week16")
     def _process_clinical_benefit(self) -> pl.DataFrame | None:
         """
         Clinical benefit at W16 (visit 3).
@@ -374,6 +198,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return benefit
 
+    @scalar(target_attr="end_of_treatment_reason", value_col="end_of_treatment_reason", on_duplicate="last")
     def _process_eot_reason(self) -> pl.DataFrame | None:
         eot_reason = (
             self.data.select("SubjectId", "EOT_EOTREOT")
@@ -384,6 +209,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return eot_reason
 
+    @scalar()
     def _process_evaluable_for_efficacy_analysis(self) -> pl.DataFrame | None:
         """
         Filtering criteria:
@@ -516,6 +342,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return _merge_evaluability()
 
+    @scalar()
     def _process_treatment_start_date(self) -> pl.DataFrame | None:
         treatment_start_data = (
             self.data.lazy()
@@ -534,6 +361,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return treatment_start_data
 
+    @scalar()
     def _process_end_of_treatment_date(self) -> pl.DataFrame | None:
         treatment_stop_data = (
             self.data.select(
@@ -577,6 +405,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return treatment_stop_data
 
+    @scalar()
     def _process_treatment_start_last_cycle(self) -> pl.DataFrame | None:
         """
         Note: currently not filtering for valid cycles, just selecting latest treatment starts.
@@ -601,6 +430,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return last_cycle_data
 
+    @singleton(TumorType)
     def _process_tumor_type(self) -> pl.DataFrame:
         # COHTTYPE__3/CD is present in source, but has no data
         C = TumorType.Cols
@@ -662,6 +492,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return df
 
+    @singleton(StudyDrugs)
     def _process_study_drugs(self) -> pl.DataFrame:
         C = StudyDrugs.Cols
         df = (
@@ -735,6 +566,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return df
 
+    @singleton(Biomarkers)
     def _process_biomarkers(self) -> pl.DataFrame:
         C = Biomarkers.Cols
         df = (
@@ -763,6 +595,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return df
 
+    @singleton(FollowUp)
     def _process_lost_to_followup(self) -> pl.DataFrame:
         C = FollowUp.Cols
         lost_to_followup = (
@@ -782,6 +615,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return lost_to_followup
 
+    @singleton(EcogBaseline)
     def _process_ecog_baseline(self) -> pl.DataFrame:
         """
         Parses dates with defaults, strips description data, casts to correct types.
@@ -820,6 +654,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return labeled
 
+    @collection(MedicalHistory, order_by=("start_date",), require_order_by=True)
     def _process_medical_histories(self) -> pl.DataFrame | None:
         C = MedicalHistory.Cols
         mh_base = self.data.select(
@@ -860,6 +695,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return merged
 
+    @collection(PreviousTreatments, order_by=("start_date",), require_order_by=True)
     def _process_previous_treatments(self) -> pl.DataFrame | None:
         C = PreviousTreatments.Cols
         ct_base = self.data.select(
@@ -898,6 +734,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return merged
 
+    @collection(TreatmentCycle, order_by=("start_date",), require_order_by=True)
     def _process_treatment_cycle(self) -> pl.DataFrame | None:
         C = TreatmentCycle.Cols
         treatment_cycle_cols = [
@@ -1044,6 +881,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return filtered
 
+    @collection(ConcomitantMedication, order_by=("sequence_id", "start_date"), require_order_by=True)
     def _process_concomitant_medication(self) -> pl.DataFrame | None:
         C = ConcomitantMedication.Cols
         cm_base = self.data.select(
@@ -1085,6 +923,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return filtered
 
+    @collection(AdverseEvent, order_by=("start_date",), require_order_by=True)
     def _process_adverse_events(self) -> pl.DataFrame | None:
         C = AdverseEvent.Cols
         ae_base = self.data.select(
@@ -1202,6 +1041,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return None if coerced.is_empty() else coerced
 
+    @singleton(TumorAssessmentBaseline)
     def _process_baseline_tumor_assessment(self) -> pl.DataFrame | None:
         """
         Get target lesion size at baseline, and off-target lesions.
@@ -1360,6 +1200,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return joined
 
+    @collection(TumorAssessment, order_by=("date",), require_order_by=True)
     def _process_tumor_assessments(self) -> pl.DataFrame | None:
         C = TumorAssessment.Cols
         base = self.data.select(
@@ -1473,6 +1314,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         return process(base)
 
     # TODO: refactor to not use regex later
+    @collection(C30, order_by=("date",), require_order_by=True)
     def _process_c30(self) -> pl.DataFrame | None:
         C = C30.Cols
         question_text_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)$")
@@ -1521,6 +1363,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         return processed
 
     # TODO: refactor to not use regex later
+    @collection(EQ5D, order_by=("date",), require_order_by=True)
     def _process_eq5d(self) -> pl.DataFrame | None:
         C = EQ5D.Cols
         question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")
@@ -1567,6 +1410,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         processed = process_eq5d(frame=base)
         return processed
 
+    @singleton(BestOverallResponse)
     def _process_best_overall_response(self) -> pl.DataFrame | None:
         """
         Takes the lowest value of the response code across all tumor assessments for each patient,

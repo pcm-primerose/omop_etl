@@ -10,19 +10,21 @@ from typing import (
     Mapping,
     Any,
     ClassVar,
-    TYPE_CHECKING,
+    TypeVar,
 )
 
 from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.patient import Patient
 
-if TYPE_CHECKING:
-    from typing import TypeAlias
-
 log = getLogger(__name__)
 
 # Processor function type: takes harmonizer instance, returns DataFrame or None
-ProcessorFn: "TypeAlias" = Callable[["BaseHarmonizer"], pl.DataFrame | None]
+type ProcessorFn = Callable[["BaseHarmonizer"], pl.DataFrame | None]
+
+# Type-preserving decorator helper: lets @scalar/@singleton/@collection return
+# the original function type unchanged so callers (and pyright) still see a
+# bound method when accessing it through an instance.
+_F = TypeVar("_F", bound=Callable[..., Any])
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,127 @@ class CollectionSpec(SpecBase):
 ProcessorSpec = ScalarSpec | SingletonSpec | CollectionSpec
 
 
+# Sentinel attribute name used to attach a spec to a decorated processor method.
+# __init_subclass__ on BaseHarmonizer scans class attributes for this marker and
+# collects the specs into the subclass's SPECS tuple in declaration order.
+_SPEC_ATTR = "__processor_spec__"
+
+
+def _derived_name(fn: Callable[..., Any]) -> str:
+    """Strip the conventional `_process_` prefix to get the logical spec name."""
+    return fn.__name__.removeprefix("_process_")
+
+
+def scalar(
+    *,
+    name: str | None = None,
+    target_attr: str | None = None,
+    value_col: str | None = None,
+    on_duplicate: Literal["error", "first", "last"] = "error",
+    skip_missing_patients: bool = False,
+    subject_col: str = "SubjectId",
+    strict_schema: bool | None = None,
+) -> Callable[[_F], _F]:
+    """
+    Decorator: register a method as a scalar processor.
+
+    By default, `name`, `target_attr`, and `value_col` are derived from the method
+    name with the `_process_` prefix stripped, so `_process_sex` produces a spec
+    with name="sex" / target_attr="sex" / value_col="sex". Provide explicit kwargs
+    only when the method name doesn't match the desired Patient attribute or value
+    column.
+    """
+
+    def decorator(fn: _F) -> _F:
+        derived = _derived_name(fn)
+        spec = ScalarSpec(
+            name=name or derived,
+            process=fn,
+            target_attr=target_attr or derived,
+            value_col=value_col or derived,
+            on_duplicate=on_duplicate,
+            skip_missing_patients=skip_missing_patients,
+            subject_col=subject_col,
+            strict_schema=strict_schema,
+        )
+        setattr(fn, _SPEC_ATTR, spec)
+        return fn
+
+    return decorator
+
+
+def singleton(
+    target_domain: type[DomainBase],
+    *,
+    name: str | None = None,
+    on_duplicate: Literal["error", "first", "last"] = "error",
+    skip_missing_patients: bool = False,
+    subject_col: str = "SubjectId",
+    strict_schema: bool | None = None,
+) -> Callable[[_F], _F]:
+    """
+    Decorator: register a method as a singleton-domain processor.
+
+    `target_domain` is required. `name` defaults to the method name with the
+    `_process_` prefix stripped.
+    """
+
+    def decorator(fn: _F) -> _F:
+        derived = _derived_name(fn)
+        spec = SingletonSpec(
+            name=name or derived,
+            process=fn,
+            target_domain=target_domain,
+            on_duplicate=on_duplicate,
+            skip_missing_patients=skip_missing_patients,
+            subject_col=subject_col,
+            strict_schema=strict_schema,
+        )
+        setattr(fn, _SPEC_ATTR, spec)
+        return fn
+
+    return decorator
+
+
+def collection(
+    target_domain: type[DomainBase],
+    *,
+    name: str | None = None,
+    mode: Literal["replace", "extend"] = "replace",
+    order_by: tuple[str, ...] = (),
+    require_order_by: bool = False,
+    items_col: str = "items",
+    skip_missing_patients: bool = False,
+    subject_col: str = "SubjectId",
+    strict_schema: bool | None = None,
+) -> Callable[[_F], _F]:
+    """
+    Decorator: register a method as a collection-domain processor.
+
+    `target_domain` is required. `name` defaults to the method name with the
+    `_process_` prefix stripped.
+    """
+
+    def decorator(fn: _F) -> _F:
+        derived = _derived_name(fn)
+        spec = CollectionSpec(
+            name=name or derived,
+            process=fn,
+            target_domain=target_domain,
+            mode=mode,
+            order_by=order_by,
+            require_order_by=require_order_by,
+            items_col=items_col,
+            skip_missing_patients=skip_missing_patients,
+            subject_col=subject_col,
+            strict_schema=strict_schema,
+        )
+        setattr(fn, _SPEC_ATTR, spec)
+        return fn
+
+    return decorator
+
+
 class BaseHarmonizer(ABC):
     """
     Abstract base class for harmonizing source data into domain models.
@@ -93,11 +216,31 @@ class BaseHarmonizer(ABC):
     SPECS: ClassVar[tuple[ProcessorSpec, ...]] = ()
     strict_schema: bool = True
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """
+        Build SPECS from decorated processor methods at class-definition time.
+
+        Walks the class's own attributes (not inherited) for callables tagged with
+        a `__processor_spec__` marker (set by the @scalar/@singleton/@collection
+        decorators) and collects them into `cls.SPECS` in declaration order.
+
+        If no decorated methods are present, `cls.SPECS` is left as inherited (or
+        as whatever was set manually on the class). Validation runs against the
+        final SPECS, so typos and conflicts surface at import time rather than
+        instance construction.
+        """
+        super().__init_subclass__(**kwargs)
+
+        decorated_specs = tuple(getattr(attr, _SPEC_ATTR) for attr in vars(cls).values() if callable(attr) and hasattr(attr, _SPEC_ATTR))
+        if decorated_specs:
+            cls.SPECS = decorated_specs
+
+        cls._validate_specs(cls.SPECS)
+
     def __init__(self, data: pl.DataFrame, trial_id: str):
         self.data = data
         self.trial_id = trial_id
         self.patient_data: dict[str, Patient] = {}
-        self._validate_specs()
 
     def _has_columns(self, *cols: str) -> bool:
         """Check if all specified columns exist in self.data."""
@@ -121,16 +264,20 @@ class BaseHarmonizer(ABC):
         """
         ...
 
-    def _validate_specs(self) -> None:
+    @classmethod
+    def _validate_specs(cls, specs: tuple[ProcessorSpec, ...]) -> None:
         """
-        Validate ProcessorSpec registry (typed variants).
+        Validate a ProcessorSpec registry (typed variants).
+
+        Called from __init_subclass__ at class-definition time, so misconfigured
+        SPECS surface at import rather than at first instantiation.
         """
-        name_counts = Counter(s.name for s in self.SPECS)
+        name_counts = Counter(s.name for s in specs)
         dupes = [n for n, count in name_counts.items() if count > 1]
         if dupes:
             raise ValueError(f"Duplicate processor names in SPECS: {dupes}")
 
-        for spec in self.SPECS:
+        for spec in specs:
             if not spec.subject_col:
                 raise ValueError(f"{spec.name}: subject_col cannot be empty")
 
@@ -168,18 +315,18 @@ class BaseHarmonizer(ABC):
         # two specs should not map to same Patient attr,
         # unless all are collections with mode="extend"
         attr_to_specs: dict[str, list[ProcessorSpec]] = {}
-        for spec in self.SPECS:
+        for spec in specs:
             if isinstance(spec, ScalarSpec):
                 attr = spec.target_attr
             else:
                 attr = Patient.get_attr_for_type(spec.target_domain)
             attr_to_specs.setdefault(attr, []).append(spec)
 
-        for attr, specs in attr_to_specs.items():
-            if len(specs) > 1:
-                all_extend = all(isinstance(s, CollectionSpec) and s.mode == "extend" for s in specs)
+        for attr, mapped in attr_to_specs.items():
+            if len(mapped) > 1:
+                all_extend = all(isinstance(s, CollectionSpec) and s.mode == "extend" for s in mapped)
                 if not all_extend:
-                    spec_names = [s.name for s in specs]
+                    spec_names = [s.name for s in mapped]
                     raise ValueError(
                         f"Multiple specs map to same Patient attribute '{attr}': {spec_names}. "
                         f"This is only allowed when all are CollectionSpec with mode='extend'."
@@ -197,7 +344,7 @@ class BaseHarmonizer(ABC):
 
     def run_one(self, spec_name: str) -> None:
         """
-        Execute a single spec by name (useful for testing).
+        Execute a single spec by name.
 
         Args:
             spec_name: The name of the spec to run.
