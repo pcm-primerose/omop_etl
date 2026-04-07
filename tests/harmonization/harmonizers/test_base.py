@@ -58,7 +58,7 @@ class SimpleDomain(DomainBase):
         self._value = v
 
 
-class TestHarmonizer(BaseHarmonizer):
+class MinimalHarmonizer(BaseHarmonizer):
     """Minimal concrete harmonizer for testing base class methods."""
 
     SPECS: ClassVar[tuple] = ()
@@ -74,7 +74,7 @@ class TestCreatePatients:
     def test_creates_patient_for_each_unique_subject_id(self):
         """Each unique SubjectId should create one Patient."""
         data = pl.DataFrame({"SubjectId": ["p1", "p2", "p3"]})
-        harmonizer = TestHarmonizer(data=data, trial_id="TEST")
+        harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
 
         assert len(harmonizer.patient_data) == 3
@@ -83,7 +83,7 @@ class TestCreatePatients:
     def test_deduplicates_subject_ids(self):
         """Duplicate SubjectIds should result in single patient."""
         data = pl.DataFrame({"SubjectId": ["p1", "p1", "p2", "p2", "p2"]})
-        harmonizer = TestHarmonizer(data=data, trial_id="TEST")
+        harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
 
         assert len(harmonizer.patient_data) == 2
@@ -92,7 +92,7 @@ class TestCreatePatients:
     def test_patient_id_matches_key(self):
         """Each Patient.patient_id should match its dict key."""
         data = pl.DataFrame({"SubjectId": ["alpha", "beta", "gamma"]})
-        harmonizer = TestHarmonizer(data=data, trial_id="TEST")
+        harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
 
         for key, patient in harmonizer.patient_data.items():
@@ -101,7 +101,7 @@ class TestCreatePatients:
     def test_trial_id_propagation(self):
         """Each Patient should have the correct trial_id."""
         data = pl.DataFrame({"SubjectId": ["p1", "p2"]})
-        harmonizer = TestHarmonizer(data=data, trial_id="MY_TRIAL_123")
+        harmonizer = MinimalHarmonizer(data=data, trial_id="MY_TRIAL_123")
         harmonizer._create_patients()
 
         for patient in harmonizer.patient_data.values():
@@ -110,7 +110,7 @@ class TestCreatePatients:
     def test_empty_data_creates_no_patients(self):
         """Empty DataFrame should create no patients."""
         data = pl.DataFrame({"SubjectId": []})
-        harmonizer = TestHarmonizer(data=data, trial_id="TEST")
+        harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
 
         assert len(harmonizer.patient_data) == 0
@@ -130,7 +130,7 @@ class TestCreatePatients:
                 ]
             }
         )
-        harmonizer = TestHarmonizer(data=data, trial_id="IMPRESS_TEST")
+        harmonizer = MinimalHarmonizer(data=data, trial_id="IMPRESS_TEST")
         harmonizer._create_patients()
 
         # 6 unique IDs, duplicate_id appears twice but creates one patient
@@ -488,7 +488,7 @@ class TestHydrateCollectionField:
 class TestHydrateScalar:
     def test_sets_scalar_attribute(self):
         """Scalar value should be set on patient."""
-        harmonizer = TestHarmonizer(
+        harmonizer = MinimalHarmonizer(
             data=pl.DataFrame({"SubjectId": ["p1"]}),
             trial_id="test",
         )
@@ -502,7 +502,7 @@ class TestHydrateScalar:
 
     def test_skip_missing_patients(self):
         """skip_missing_patients=True should skip unknown subjects."""
-        harmonizer = TestHarmonizer(
+        harmonizer = MinimalHarmonizer(
             data=pl.DataFrame({"SubjectId": ["p1"]}),
             trial_id="test",
         )
@@ -516,7 +516,7 @@ class TestHydrateScalar:
 
     def test_duplicate_error(self):
         """on_duplicate='error' should raise on duplicates."""
-        harmonizer = TestHarmonizer(
+        harmonizer = MinimalHarmonizer(
             data=pl.DataFrame({"SubjectId": ["p1"]}),
             trial_id="test",
         )
