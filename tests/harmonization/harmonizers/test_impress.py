@@ -1877,19 +1877,14 @@ class TestTreatmentStartLastCycleRunOne:
         assert h.patient_data["one_invalid"].treatment_start_last_cycle == dt.date(1900, 1, 2)
 
 
-class TestPipelineImpressIntegration:
+class TestImpressSpecContracts:
     """
-    Contract-level test for ImpressHarmonizer specs.
+    Contract-level test for ImpressHarmonizer specs to hydration to Patient.
 
     For each spec in `ImpressHarmonizer.SPECS`, runs the spec on its matching
-    per-processor fixture via `run_one()` and asserts the spec populated its
-    declared target on at least one patient. Contract:
-      - scalar to at least one patient has non-None scalar value
-      - singleton to at least one patient has non-None domain object
-      - collection to at least one patient has non-empty collection
-
-    This is the only place in test_impress.py where the pipeline runs through
-    hydration.
+    per-processor fixture via `run_one()` and asserts each declared spec
+    executes through run_one() on its intended fixture and
+    populates the declared target on at least one patient.
     """
 
     # maps each spec name to the conftest.py
@@ -1945,6 +1940,8 @@ class TestPipelineImpressIntegration:
         h = ImpressHarmonizer(data=df, trial_id="T")
         h._create_patients()
         h.run_one(spec.name)
+
+        assert h.patient_data, f"{fixture_name} created no patients"
 
         if isinstance(spec, ScalarSpec):
             target = spec.target_attr
