@@ -1,0 +1,163 @@
+class,field,source_columns,transformation,description,data_type,required
+patients,patient_id,SubjectId,Direct copy,Unique patient identifier,String,mandatory
+patients,trial_id,(hardcoded),Set to trial identifier at runtime,Clinical trial identifier (e.g. IMPRESS),String,mandatory
+patients,age,"DM_BRTHDAT, TR_TRC1_DT","Calculated: (max(TR_TRC1_DT) - DM_BRTHDAT).days / 365.25, cast to integer",Age in years at latest treatment start date,Int64,optional
+patients,cohort_name,COH_COHORTNAME,"Direct copy, stripped of whitespace",Patient's assigned cohort name,String,optional
+patients,date_of_birth,DM_BRTHDAT,Parsed to Date; first non-null per patient,Date of birth,Date,optional
+patients,date_of_death,"EOS_DEATHDTC, FU_FUPDEDAT","max_horizontal of both dates, then max per patient; null if neither present",Date of death (latest known from end-of-study or follow-up records),Date,optional
+patients,end_of_treatment_date,"EOT_EOTDAT, TR_TROSTPDT, TR_TRC1_DT, TR_TRCYNCD","Precedence: EOT_EOTDAT > max valid oral stop (TR_TROSTPDT) > max valid IV start (TR_TRC1_DT); valid cycle = TR_TRCYNCD == 1",Date treatment ended,Date,optional
+patients,end_of_treatment_reason,EOT_EOTREOT,"Direct copy, stripped; last duplicate kept per patient",Reason for ending treatment (free text),String,optional
+patients,evaluable_for_efficacy_analysis,"TR_TRO_STDT, TR_TROSTPDT, TR_TRC1_DT, TR_TRTNO, TR_TRCYNCD","True if any oral cycle >= 28 days (stop - start) OR any IV cycle gap >= 21 days (next cycle start - current start); only valid cycles (TR_TRCYNCD == 1)",Whether patient had sufficient treatment duration for efficacy analysis,Boolean,optional
+patients,has_any_adverse_events,"AE_AECTCAET, AE_AESTDAT, AE_AETOXGRECD",True if any row for patient has non-empty AE text or date or grade,Whether patient has any recorded adverse events,Boolean,optional
+patients,has_clinical_benefit_at_week16,"RA_RATIMRESCD, RA_RAiMODCD, RNRSP_RNRSPCLCD, RA_EventId, RNRSP_EventId","True if any response code <= 3 at visit V03 (week 16); iRecist (RA_RAiMODCD) takes precedence over RECIST when both present",Clinical benefit at week 16 assessment,Boolean,optional
+patients,number_of_adverse_events,"AE_AECTCAET, AE_AESTDAT, AE_AETOXGRECD","Count of rows with any AE signal (non-empty text, date, or grade) per patient",Total number of adverse events for this patient,Int64,optional
+patients,number_of_serious_adverse_events,AE_AESERCD,Count of rows where AE_AESERCD == 1 per patient,Number of serious adverse events,Int64,optional
+patients,sex,DM_SEX,"Normalized: m/male -> 'male'; f/female -> 'female' (case-insensitive); first unique per patient",Patient's biological sex,String,optional
+patients,treatment_start_date,"TR_TRNAME, TR_TRC1_DT","Min of TR_TRC1_DT per patient; only rows where TR_TRNAME is non-empty",Earliest treatment start date across all treatment names,Date,optional
+patients,treatment_start_last_cycle,"TR_TRC1_DT, TR_TRCYNCD","Max of TR_TRC1_DT per patient across all cycles (valid or not, by default)",Start date of the most recent treatment cycle,Date,optional
+best_overall_response,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+best_overall_response,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+best_overall_response,best_overall_response.code,"RA_RATIMRESCD, RA_RAiMODCD, RNRSP_RNRSPCLCD","Best (lowest) response code across all assessments per patient; iRecist codes normalized to RECIST scale (iCPD=4 removed, iPD=5->4, iUPD=6->96); best of RECIST vs iRecist per row; then coalesced with RANO","Response code (lower = better response: 1=CR, 2=PR, 3=SD, 4=PD)",Int64,optional
+best_overall_response,best_overall_response.date,"RA_EventDate, RNRSP_EventDate","Coalesced date associated with the best response row",Date of best overall response assessment,Date,optional
+best_overall_response,best_overall_response.response,"RA_RATIMRES, RA_RAiMOD, RNRSP_RNRSPCL","Text label matching best response code; RECIST/iRecist text coalesced with RANO",Best overall response description (e.g. Complete Response),String,optional
+biomarkers,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+biomarkers,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+biomarkers,biomarkers.cohort_target_mutation,COH_COHTMN,"Direct copy, stripped",Target mutation for cohort assignment,String,optional
+biomarkers,biomarkers.cohort_target_name,COH_COHCTN,"Direct copy, stripped",Target gene name for cohort assignment,String,optional
+biomarkers,biomarkers.date,COH_EventDate,Parsed to Date; latest event per patient kept,Date of biomarker assessment,Date,optional
+biomarkers,biomarkers.gene_and_mutation,COH_GENMUT1,"Direct copy, stripped",Gene and mutation description,String,optional
+biomarkers,biomarkers.gene_and_mutation_code,COH_GENMUT1CD,Cast to Int64,Gene and mutation code,Int64,optional
+ecog_baseline,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+ecog_baseline,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+ecog_baseline,ecog_baseline.date,ECOG_ECOGDAT,"Parsed to Date; filtered to baseline visit (ECOG_EventId == V00); latest per patient",Date of baseline ECOG assessment,Date,optional
+ecog_baseline,ecog_baseline.description,ECOG_ECOGS,"Direct copy, stripped; baseline visit V00 only",ECOG performance status description,String,optional
+ecog_baseline,ecog_baseline.grade,ECOG_ECOGSCD,Cast to Int64; baseline visit V00 only,ECOG performance status grade (0-5 scale),Int64,optional
+lost_to_followup,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+lost_to_followup,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+lost_to_followup,lost_to_followup.date_lost_to_followup,"FU_FUPALDAT, FU_FUPSST","Parsed from FU_FUPALDAT; only when FU_FUPSST is not 'alive' or 'death' (case-insensitive); max date per patient",Date patient was lost to follow-up,Date,optional
+study_drugs,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+study_drugs,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+study_drugs,study_drugs.primary_treatment_drug,"COH_COHALLO1, COH_COHALLO1__2, COH_COHALLO1__3","Coalesce first non-null across 3 source slots; collision detection (>1 slot populated -> null); last per patient",Primary study drug name,String,optional
+study_drugs,study_drugs.primary_treatment_drug_code,"COH_COHALLO1CD, COH_COHALLO1__2CD, COH_COHALLO1__3CD","Coalesced code paired with selected drug name slot",Primary study drug code,Int64,optional
+study_drugs,study_drugs.secondary_treatment_drug,"COH_COHALLO2, COH_COHALLO2__2, COH_COHALLO2__3","Coalesce first non-null across 3 source slots; collision detection",Secondary study drug name,String,optional
+study_drugs,study_drugs.secondary_treatment_drug_code,"COH_COHALLO2CD, COH_COHALLO2__2CD, COH_COHALLO2__3CD","Coalesced code paired with selected drug name slot",Secondary study drug code,Int64,optional
+tumor_assessment_baseline,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+tumor_assessment_baseline,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+tumor_assessment_baseline,tumor_assessment_baseline.assessment_date,VI_EventDate,"Parsed to Date; baseline visit (VI_EventId == V00) only; first per patient",Date of baseline tumor assessment,Date,optional
+tumor_assessment_baseline,tumor_assessment_baseline.assessment_type,"VI_VITUMA, VI_VITUMA__2","Coalesced (VI_VITUMA first); baseline visit V00 only; first per patient",Type of tumor assessment at baseline,String,optional
+tumor_assessment_baseline,tumor_assessment_baseline.off_target_lesion_measurement_date,"RCNT_EventDate, RNTMNT_EventDate","Coalesced (RCNT first); baseline visit (V00 for both RCNT_EventId and RNTMNT_EventId); first per patient",Date of baseline off-target lesion measurement,Date,optional
+tumor_assessment_baseline,tumor_assessment_baseline.off_target_lesions_number,"RCNT_RCNTNOB, RNTMNT_RNTMNTNOB, RNTMNT_RNTMNTNO","Coalesced (RCNT_RCNTNOB first, then RNTMNT variants); baseline V00; cast to Int64",Number of off-target (non-target) lesions at baseline,Int64,optional
+tumor_assessment_baseline,tumor_assessment_baseline.target_lesion_measurement_date,"RNRSP_EventDate, RA_EventDate","Coalesced (RNRSP first); earliest assessment row with valid baseline size per patient",Date of baseline target lesion measurement,Date,optional
+tumor_assessment_baseline,tumor_assessment_baseline.target_lesion_nadir,"RNRSP_TERNAD, RA_RARECNAD","Coalesced; earliest row with valid baseline size per patient",Target lesion nadir measurement at baseline (mm),Int64,optional
+tumor_assessment_baseline,tumor_assessment_baseline.target_lesion_size,"RNRSP_TERNTBAS, RA_RARECBAS","Coalesced; earliest row with valid size per patient; cast to Int64",Sum of target lesion diameters at baseline (mm),Int64,optional
+tumor_type,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+tumor_type,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+tumor_type,tumor_type.cohort_tumor_type,COH_COHTT,"Direct copy, stripped",Cohort-specific tumor type classification,String,optional
+tumor_type,tumor_type.icd10_code,COH_ICD10COD,"Direct copy, stripped",ICD-10 diagnosis code,String,optional
+tumor_type,tumor_type.icd10_description,COH_ICD10DES,"Direct copy, stripped",ICD-10 diagnosis description,String,optional
+tumor_type,tumor_type.main_tumor_type,"COH_COHTTYPE, COH_COHTTYPE__2","First non-null complete pair (name+code) across 2 slots; collision detection (>1 complete pair -> null); last per patient",Main tumor type classification,String,optional
+tumor_type,tumor_type.main_tumor_type_code,"COH_COHTTYPECD, COH_COHTTYPE__2CD","Paired code with main_tumor_type slot; collision detection",Main tumor type code,Int64,optional
+tumor_type,tumor_type.other_tumor_type,COH_COHTTOSP,"Direct copy, stripped",Other tumor type specification (free text),String,optional
+adverse_events,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+adverse_events,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+adverse_events,row_index,(generated),Sequential index per patient; ordered by start_date,Row index within patient's adverse events,Int64,mandatory
+adverse_events,adverse_events.end_date,"AE_AEENDAT, FU_FUPDEDAT","Parsed to Date; if null and was_serious is true and patient deceased, falls back to FU_FUPDEDAT (death date)",End date of adverse event,Date,optional
+adverse_events,adverse_events.grade,AE_AETOXGRECD,Cast to Int64,CTCAE toxicity grade (1-5),Int64,optional
+adverse_events,adverse_events.outcome,AE_AEOUT,Cast to String,Adverse event outcome (e.g. resolved),String,optional
+adverse_events,adverse_events.related_to_treatment_1_status,AE_AEREL1CD,"Mapped from code: 4='related', 1='not_related', 2 or 3='unknown'; cast to enum","Relatedness of adverse event to primary treatment (related, not_related, unknown)",String,optional
+adverse_events,adverse_events.related_to_treatment_2_status,AE_AEREL2CD,"Mapped from code: 4='related', 1='not_related', 2 or 3='unknown'; cast to enum","Relatedness of adverse event to secondary treatment (related, not_related, unknown)",String,optional
+adverse_events,adverse_events.start_date,AE_AESTDAT,Parsed to Date,Start date of adverse event,Date,optional
+adverse_events,adverse_events.term,AE_AECTCAET,Cast to String; rows filtered to non-null term only,Adverse event term (CTCAE terminology),String,mandatory
+adverse_events,adverse_events.treatment_1_name,AE_AETRT1,Cast to String,Name of primary treatment associated with this AE,String,optional
+adverse_events,adverse_events.treatment_2_name,AE_AETRT2,Cast to String,Name of secondary treatment associated with this AE,String,optional
+adverse_events,adverse_events.turned_serious_date,AE_SAESTDAT,Parsed to Date,Date adverse event became serious,Date,optional
+adverse_events,adverse_events.was_serious,AE_AESERCD,"1=true, 0=false",Whether the adverse event was classified as serious,Boolean,optional
+adverse_events,adverse_events.was_serious_grade_expected_treatment_1,AE_SAEEXP1CD,"1=true, 2=false",Whether serious AE grade was expected for primary treatment,Boolean,optional
+adverse_events,adverse_events.was_serious_grade_expected_treatment_2,AE_SAEEXP2CD,"1=true, 2=false",Whether serious AE grade was expected for secondary treatment,Boolean,optional
+c30_collection,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+c30_collection,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+c30_collection,row_index,(generated),Sequential index per patient; ordered by date,Row index within patient's C30 assessments,Int64,mandatory
+c30_collection,c30_collection.date,C30_EventDate,Parsed to Date,Date of EORTC QLQ-C30 questionnaire completion,Date,optional
+c30_collection,c30_collection.event_name,C30_EventName,"Direct copy, stripped",Visit/event identifier (e.g. V01),String,optional
+c30_collection,c30_collection.q1,C30_C30_Q1,"Direct copy, stripped",Q1: Trouble doing strenuous activities,String,optional
+c30_collection,c30_collection.q1_code,C30_C30_Q1CD,Cast to Int64,Q1 response code,Int64,optional
+c30_collection,c30_collection.q2-q30,C30_C30_Q{2-30},"Direct copy, stripped (text); cast to Int64 (code)",Questions 2-30 follow same pattern as Q1,String/Int64,optional
+concomitant_medications,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+concomitant_medications,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+concomitant_medications,row_index,(generated),"Sequential index per patient; ordered by sequence_id, start_date",Row index within patient's concomitant medications,Int64,mandatory
+concomitant_medications,concomitant_medications.end_date,CM_CMENDAT,Parsed to Date,End date of medication,Date,optional
+concomitant_medications,concomitant_medications.is_adverse_event_ongoing,CM_CMONGOCD,"1=true, 0=false",Whether associated adverse event is ongoing,Boolean,optional
+concomitant_medications,concomitant_medications.medication_name,CM_CMTRT,"Cast to String, stripped; rows filtered to non-null only",Medication name,String,mandatory
+concomitant_medications,concomitant_medications.medication_ongoing,CM_CMONGOCD,"1=true, 0=false",Whether medication is currently ongoing,Boolean,optional
+concomitant_medications,concomitant_medications.sequence_id,CM_CMSPID,Cast to Int64,Sequence identifier for ordering,Int64,optional
+concomitant_medications,concomitant_medications.start_date,CM_CMSTDAT,Parsed to Date,Start date of medication,Date,optional
+concomitant_medications,concomitant_medications.was_taken_due_to_adverse_event,CM_CMAEYN,Parsed to Boolean (Yes/No text),Whether medication was prescribed due to an adverse event,Boolean,optional
+concomitant_medications,concomitant_medications.was_taken_due_to_medical_history_event,CM_CMMHYNCD,"1=true, 0=false",Whether medication was prescribed due to a medical history condition,Boolean,optional
+eq5d_collection,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+eq5d_collection,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+eq5d_collection,row_index,(generated),Sequential index per patient; ordered by date,Row index within patient's EQ-5D assessments,Int64,mandatory
+eq5d_collection,eq5d_collection.date,EQ5D_EventDate,Parsed to Date,Date of EQ-5D-5L questionnaire completion,Date,optional
+eq5d_collection,eq5d_collection.event_name,EQ5D_EventName,"Direct copy, stripped",Visit/event identifier,String,optional
+eq5d_collection,eq5d_collection.qol_metric,EQ5D_EQ5DVAS,Cast to Int64,Visual Analogue Scale (VAS) overall health score (0-100),Int64,optional
+eq5d_collection,eq5d_collection.q1,EQ5D_EQ5D1,"Direct copy, stripped",Mobility dimension response text,String,optional
+eq5d_collection,eq5d_collection.q1_code,EQ5D_EQ5D1CD,Cast to Int64,Mobility dimension response code (1-5),Int64,optional
+eq5d_collection,eq5d_collection.q2,EQ5D_EQ5D2,"Direct copy, stripped",Self-care dimension response text,String,optional
+eq5d_collection,eq5d_collection.q2_code,EQ5D_EQ5D2CD,Cast to Int64,Self-care dimension response code (1-5),Int64,optional
+eq5d_collection,eq5d_collection.q3,EQ5D_EQ5D3,"Direct copy, stripped",Usual activities dimension response text,String,optional
+eq5d_collection,eq5d_collection.q3_code,EQ5D_EQ5D3CD,Cast to Int64,Usual activities dimension response code (1-5),Int64,optional
+eq5d_collection,eq5d_collection.q4,EQ5D_EQ5D4,"Direct copy, stripped",Pain/discomfort dimension response text,String,optional
+eq5d_collection,eq5d_collection.q4_code,EQ5D_EQ5D4CD,Cast to Int64,Pain/discomfort dimension response code (1-5),Int64,optional
+eq5d_collection,eq5d_collection.q5,EQ5D_EQ5D5,"Direct copy, stripped",Anxiety/depression dimension response text,String,optional
+eq5d_collection,eq5d_collection.q5_code,EQ5D_EQ5D5CD,Cast to Int64,Anxiety/depression dimension response code (1-5),Int64,optional
+medical_histories,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+medical_histories,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+medical_histories,row_index,(generated),Sequential index per patient; ordered by start_date,Row index within patient's medical histories,Int64,mandatory
+medical_histories,medical_histories.end_date,MH_MHENDAT,Parsed to Date,End date of medical condition,Date,optional
+medical_histories,medical_histories.sequence_id,MH_MHSPID,Cast to Int64,Sequence identifier for ordering,Int64,optional
+medical_histories,medical_histories.start_date,MH_MHSTDAT,Parsed to Date,Start date of medical condition,Date,optional
+medical_histories,medical_histories.status,MH_MHONGO,"Direct copy, stripped","Condition status description (e.g. ongoing, resolved)",String,optional
+medical_histories,medical_histories.status_code,MH_MHONGOCD,Cast to Int64,Condition status code,Int64,optional
+medical_histories,medical_histories.term,MH_MHTERM,"Direct copy, stripped; rows filtered to non-null term only",Medical history term/condition name,String,mandatory
+previous_treatments,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+previous_treatments,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+previous_treatments,row_index,(generated),Sequential index per patient; ordered by start_date,Row index within patient's previous treatments,Int64,mandatory
+previous_treatments,previous_treatments.additional_treatment,CT_CTTYPESP,"Direct copy, stripped",Additional treatment specification (free text),String,optional
+previous_treatments,previous_treatments.end_date,CT_CTENDAT,Parsed to Date,End date of previous treatment,Date,optional
+previous_treatments,previous_treatments.start_date,CT_CTSTDAT,Parsed to Date,Start date of previous treatment,Date,optional
+previous_treatments,previous_treatments.treatment,CT_CTTYPE,"Direct copy, stripped; rows filtered to non-null only",Previous treatment name,String,mandatory
+previous_treatments,previous_treatments.treatment_code,CT_CTTYPECD,Cast to Int64,Previous treatment code,Int64,optional
+previous_treatments,previous_treatments.treatment_sequence_number,CT_CTSPID,Cast to Int64,Treatment line/sequence number,Int64,optional
+treatment_cycles,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+treatment_cycles,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+treatment_cycles,row_index,(generated),Sequential index per patient; ordered by start_date,Row index within patient's treatment cycles,Int64,mandatory
+treatment_cycles,treatment_cycles.cycle_number,TR_TRCNO1,Cast to Int64,Cycle number within treatment,Int64,optional
+treatment_cycles,treatment_cycles.cycle_type,"TR_TRO_YN, TR_TRODSTOT, TR_TRO_STDT, TR_TROSTPDT, TR_TRIVDS1, TR_TRIVU1, TR_TRIVDELYN1","Derived: 'oral' if any oral-specific columns have data; 'IV' if any IV-specific columns have data; null otherwise",Treatment cycle type (oral or IV),String,optional
+treatment_cycles,treatment_cycles.end_date,"TR_TROSTPDT, TR_TRC1_DT (next cycle)","Oral cycles: TR_TROSTPDT directly; IV cycles: next cycle's TR_TRC1_DT - 1 day (per SubjectId + treatment number); null if conflict or last IV cycle",End date of treatment cycle,Date,optional
+treatment_cycles,treatment_cycles.iv_dose_prescribed,TR_TRIVDS1,Cast to String,IV dose prescribed,String,optional
+treatment_cycles,treatment_cycles.iv_dose_prescribed_unit,TR_TRIVU1,Cast to String,Unit of IV dose prescribed,String,optional
+treatment_cycles,treatment_cycles.number_of_days_tablet_not_taken,TR_TROTABNO,Cast to Int64,Number of days oral tablet was not taken in this cycle,Int64,optional
+treatment_cycles,treatment_cycles.oral_dose_prescribed_per_day,TR_TRODSTOT,Cast to Float64,Oral dose prescribed per day,Float64,optional
+treatment_cycles,treatment_cycles.oral_dose_unit,TR_TRODSU,Cast to String,Unit of oral dose (e.g. mg),String,optional
+treatment_cycles,treatment_cycles.reason_not_administered_to_spec,TR_TROREA,Cast to String,Reason dose was not administered to specification,String,optional
+treatment_cycles,treatment_cycles.reason_tablet_not_taken,TR_TROSPE,Cast to String,Reason oral tablet was not taken,String,optional
+treatment_cycles,treatment_cycles.recieved_treatment_this_cycle,TR_TRCYNCD,"1=true, 0=false",Whether treatment was received in this cycle,Boolean,optional
+treatment_cycles,treatment_cycles.start_date,TR_TRC1_DT,Parsed to Date,Start date of treatment cycle,Date,optional
+treatment_cycles,treatment_cycles.treatment_name,TR_TRNAME,Cast to String; rows filtered to non-null TR_TRNAME only,Treatment drug name,String,mandatory
+treatment_cycles,treatment_cycles.treatment_number,TR_TRTNO,Cast to Int64,Treatment number (for multi-drug regimens),Int64,optional
+treatment_cycles,treatment_cycles.was_dose_administered_to_spec,TR_TRO_YNCD,"1=true, 0=false",Whether oral dose was administered to specification,Boolean,optional
+treatment_cycles,treatment_cycles.was_tablet_taken_to_prescription_in_previous_cycle,TR_TROTAKECD,"1=true, 0=false",Whether tablet was taken as prescribed in previous cycle,Boolean,optional
+treatment_cycles,treatment_cycles.was_total_dose_delivered,TR_TRIVDELYN1,Parsed to Boolean (Yes/No text),Whether total IV dose was delivered,String,optional
+tumor_assessments,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
+tumor_assessments,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
+tumor_assessments,row_index,(generated),Sequential index per patient; ordered by date,Row index within patient's tumor assessments,Int64,mandatory
+tumor_assessments,tumor_assessments.assessment_type,"RA_RAASSESS1, RA_RAASSESS2, RNRSP_TERNCFB","Derived: 'irecist' if RA_RAASSESS2 present; 'recist' if RA_RAASSESS1 present; 'rano' if RNRSP_TERNCFB present (mutually exclusive assumed)",Tumor assessment criteria type (recist / irecist / rano),String,optional
+tumor_assessments,tumor_assessments.date,"RA_EventDate, RNRSP_EventDate",Coalesced (RA first); parsed to Date,Date of tumor assessment,Date,optional
+tumor_assessments,tumor_assessments.event_id,"RA_EventId, RNRSP_EventId",Coalesced (RA first),Visit/event identifier (e.g. V03),String,optional
+tumor_assessments,tumor_assessments.irecist_date_of_progression,RA_RAiUNPDT,Parsed to Date,Date of progression per iRECIST criteria,Date,optional
+tumor_assessments,tumor_assessments.irecist_response,RA_RAiMOD,"Direct copy, stripped",iRECIST response assessment (e.g. iCR / iPR / iSD / iUPD / iCPD),String,optional
+tumor_assessments,tumor_assessments.rano_response,RNRSP_RNRSPCL,"Direct copy, stripped",RANO response assessment,String,optional
+tumor_assessments,tumor_assessments.recist_date_of_progression,RA_RAPROGDT,Parsed to Date,Date of progression per RECIST criteria,Date,optional
+tumor_assessments,tumor_assessments.recist_response,RA_RATIMRES,"Direct copy, stripped",RECIST response assessment (e.g. CR / PR / SD / PD),String,optional
+tumor_assessments,tumor_assessments.target_lesion_change_from_baseline,"RA_RABASECH, RNRSP_TERNCFB","Coalesced; source value is percentage, divided by 100 to fraction; zero preserved as 0","Target lesion size change from baseline (fraction, e.g. -0.30 = 30% decrease)",Float64,optional
+tumor_assessments,tumor_assessments.target_lesion_change_from_nadir,"RA_RARECCH, RNRSP_TERNCFN","Coalesced; source value is percentage, divided by 100 to fraction; zero preserved as 0","Target lesion size change from nadir (fraction, e.g. 0.20 = 20% increase)",Float64,optional
+tumor_assessments,tumor_assessments.was_new_lesions_registered_after_baseline,"RA_RANLBASECD, RNRSP_RNRSPNLCD","Coalesced; 1=true, 0=false",Whether new lesions were detected after baseline assessment,Boolean,optional
