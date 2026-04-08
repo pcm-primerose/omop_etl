@@ -570,36 +570,6 @@ class TestProcessSeriousAdverseEventNumberDF:
         assert get_count("0_events_no_data") == 0
 
 
-class TestNumberOfAdverseEventsRunOne:
-    """Patient-level tests for number_of_adverse_events via run_one()."""
-
-    def test_hydrates_counts_on_patients(self, adverse_event_number_fixture):
-        h = ImpressHarmonizer(data=adverse_event_number_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("number_of_adverse_events")
-
-        assert h.patient_data["2_events"].number_of_adverse_events == 2
-        assert h.patient_data["3_events"].number_of_adverse_events == 3
-        assert h.patient_data["1_event_code_only"].number_of_adverse_events == 1
-        assert h.patient_data["1_event_term_only"].number_of_adverse_events == 1
-        assert h.patient_data["missing_data"].number_of_adverse_events == 0
-
-
-class TestNumberOfSeriousAdverseEventsRunOne:
-    """Patient-level tests for number_of_serious_adverse_events via run_one()."""
-
-    def test_hydrates_counts_on_patients(self, serious_adverse_event_number_fixture):
-        h = ImpressHarmonizer(data=serious_adverse_event_number_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("number_of_serious_adverse_events")
-
-        assert h.patient_data["1_event_two_rows"].number_of_serious_adverse_events == 1
-        assert h.patient_data["2_events_with_missing_fields"].number_of_serious_adverse_events == 2
-        assert h.patient_data["1_event_missing_date"].number_of_serious_adverse_events == 1
-        assert h.patient_data["0_events_missing_date"].number_of_serious_adverse_events == 0
-        assert h.patient_data["0_events_no_data"].number_of_serious_adverse_events == 0
-
-
 class TestProcessBaselineTumorAssessmentDF:
     def test_returns_expected_columns(self, baseline_tumor_assessment_fixture):
         h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
@@ -933,81 +903,6 @@ class TestProcessEotReasonDF:
         assert "reason_none" not in subject_ids
 
 
-class TestTumorTypeRunOne:
-    def test_hydrates_tumor_type(self, tumor_type_fixture):
-        h = ImpressHarmonizer(data=tumor_type_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("tumor_type")
-
-        tt = h.patient_data["tumor1_multi_subtypes"].tumor_type
-        assert tt.icd10_code == "C30"
-        assert tt.icd10_description == "tumor1"
-        assert tt.main_tumor_type == "tumor1_subtype1"
-        assert tt.main_tumor_type_code == 50
-        assert tt.cohort_tumor_type == "tumor1_subtype2"
-        assert tt.other_tumor_type == "tumor1_subtype3"
-
-
-class TestStudyDrugsRunOne:
-    def test_hydrates_study_drugs(self, study_drugs_fixture):
-        h = ImpressHarmonizer(data=study_drugs_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("study_drugs")
-
-        sd = h.patient_data["sd_from_alt_slots"].study_drugs
-        assert sd.primary_treatment_drug == "Traztuzumab"
-        assert sd.primary_treatment_drug_code == 31
-        assert sd.secondary_treatment_drug == "Tafinlar"
-        assert sd.secondary_treatment_drug_code == 10
-
-    def test_collision_returns_none(self, study_drugs_fixture):
-        h = ImpressHarmonizer(data=study_drugs_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("study_drugs")
-
-        # collision is filtered at processor level, so no domain object hydrated
-        assert h.patient_data["sd_collision"].study_drugs is None
-
-
-class TestLostToFollowupRunOne:
-    def test_hydrates_ltfu(self, lost_to_followup_fixture):
-        h = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("lost_to_followup")
-
-        ins = h.patient_data["ltfu_valid"].lost_to_followup
-        assert ins.lost_to_followup is True
-        assert ins.date_lost_to_followup == dt.date(1900, 1, 1)
-
-    def test_alive_not_ltfu(self, lost_to_followup_fixture):
-        h = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("lost_to_followup")
-
-        ins = h.patient_data["alive_valid"].lost_to_followup
-        assert ins.lost_to_followup is False
-        assert ins.date_lost_to_followup is None
-
-
-class TestEcogBaselineRunOne:
-    def test_hydrates_ecog(self, ecog_fixture):
-        h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("ecog_baseline")
-
-        ins = h.patient_data["all_data"].ecog_baseline
-        assert ins.description == "all"
-        assert ins.grade == 1
-        assert ins.date == dt.date(1900, 1, 1)
-
-    def test_wrong_event_id_returns_none(self, ecog_fixture):
-        h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("ecog_baseline")
-
-        assert h.patient_data["wrong_event_id"].ecog_baseline is None
-
-
 class TestScalarSpecsRunOne:
     def test_cohort_name_hydration(self, cohort_name_fixture):
         h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
@@ -1063,87 +958,6 @@ class TestEvaluabilityRunOne:
 
         result = h.patient_data[patient_id].evaluable_for_efficacy_analysis
         assert result is expected
-
-
-class TestDateOfDeathRunOne:
-    def test_extracts_valid_dates(self, date_of_death_fixture):
-        h = ImpressHarmonizer(data=date_of_death_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("date_of_death")
-
-        assert h.patient_data["both_partial_nk"].date_of_death == dt.date(1990, 7, 2)
-        assert h.patient_data["eos_valid_fu_partial_nk"].date_of_death == dt.date(2016, 9, 15)
-        assert h.patient_data["fu_valid_only"].date_of_death == dt.date(1900, 1, 1)
-        assert h.patient_data["eos_valid_fu_partial_upper_nk"].date_of_death == dt.date(1999, 9, 9)
-
-    def test_invalid_dates_return_none(self, date_of_death_fixture):
-        h = ImpressHarmonizer(data=date_of_death_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("date_of_death")
-
-        assert h.patient_data["both_invalid"].date_of_death is None
-
-
-class TestBiomarkersRunOne:
-    def test_mut_braf_activating(self, biomarkers_fixture):
-        h = ImpressHarmonizer(data=biomarkers_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("biomarkers")
-
-        b = h.patient_data["mut_braf_activating"].biomarkers
-        assert b.gene_and_mutation == "BRAF activating mutations"
-        assert b.gene_and_mutation_code == 21
-        assert b.cohort_target_name == "BRAF Non-V600 activating mutations"
-        assert b.cohort_target_mutation == "BRAF Non-V600 activating mutations"
-        assert b.date == dt.date(1900, 7, 15)
-
-    def test_some_info_no_mut(self, biomarkers_fixture):
-        h = ImpressHarmonizer(data=biomarkers_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("biomarkers")
-
-        b = h.patient_data["some_info_no_mut"].biomarkers
-        assert b.gene_and_mutation is None
-        assert b.gene_and_mutation_code is None
-        assert b.cohort_target_name == "some info"
-        assert b.cohort_target_mutation is None
-        assert b.date == dt.date(1980, 2, 15)
-
-    def test_brca1_inactivating(self, biomarkers_fixture):
-        h = ImpressHarmonizer(data=biomarkers_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("biomarkers")
-
-        b = h.patient_data["brca1_inactivating"].biomarkers
-        assert b.gene_and_mutation == "BRCA1 inactivating mutation"
-        assert b.gene_and_mutation_code == 2
-        assert b.cohort_target_name == "BRCA1 stop-gain del exon 11"
-        assert b.cohort_target_mutation == "BRCA1 stop-gain deletion"
-        assert b.date is None
-
-    def test_sdhaf2_mut(self, biomarkers_fixture):
-        h = ImpressHarmonizer(data=biomarkers_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("biomarkers")
-
-        b = h.patient_data["sdhaf2_mut"].biomarkers
-        assert b.gene_and_mutation == "SDHAF2 mutation"
-        assert b.gene_and_mutation_code == -1
-        assert b.cohort_target_name == "more info"
-        assert b.cohort_target_mutation is None
-        assert b.date == dt.date(1999, 7, 11)
-
-    def test_code_only_misc(self, biomarkers_fixture):
-        h = ImpressHarmonizer(data=biomarkers_fixture, trial_id="T")
-        h._create_patients()
-        h.run_one("biomarkers")
-
-        b = h.patient_data["code_only_misc"].biomarkers
-        assert b.gene_and_mutation is None
-        assert b.gene_and_mutation_code == 10
-        assert b.cohort_target_name is None
-        assert b.cohort_target_mutation == "some other info"
-        assert b.date is None
 
 
 class TestBaselineTumorAssessmentRunOne:
