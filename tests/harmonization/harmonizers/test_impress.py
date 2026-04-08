@@ -1,8 +1,16 @@
 import datetime as dt
+from typing import ClassVar
+
 import pytest
 import polars as pl
 
+from omop_etl.harmonization.harmonizers.base import (
+    CollectionSpec,
+    ScalarSpec,
+    SingletonSpec,
+)
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
+from omop_etl.harmonization.models.patient import Patient
 
 
 class TestProcessSexDF:
@@ -1867,3 +1875,91 @@ class TestTreatmentStartLastCycleRunOne:
 
         # not enforcing valid cycles so includes invalid starts as well
         assert h.patient_data["one_invalid"].treatment_start_last_cycle == dt.date(1900, 1, 2)
+
+
+class TestPipelineImpressIntegration:
+    """
+    Contract-level test for ImpressHarmonizer specs.
+
+    For each spec in `ImpressHarmonizer.SPECS`, runs the spec on its matching
+    per-processor fixture via `run_one()` and asserts the spec populated its
+    declared target on at least one patient. Contract:
+      - scalar to at least one patient has non-None scalar value
+      - singleton to at least one patient has non-None domain object
+      - collection to at least one patient has non-empty collection
+
+    This is the only place in test_impress.py where the pipeline runs through
+    hydration.
+    """
+
+    # maps each spec name to the conftest.py
+    # fixture that provides input for that processor
+    SPEC_TO_FIXTURE: ClassVar[dict[str, str | None]] = {
+        # scalars
+        "cohort_name": "cohort_name_fixture",
+        "sex": "gender_fixture",
+        "date_of_birth": "age_fixture",
+        "age": "age_fixture",
+        "date_of_death": "date_of_death_fixture",
+        "has_any_adverse_events": "adverse_events_flag_fixture",
+        "number_of_adverse_events": "adverse_event_number_fixture",
+        "number_of_serious_adverse_events": "serious_adverse_event_number_fixture",
+        "treatment_start_last_cycle": "last_treatment_start_fixture",
+        "treatment_start_date": "treatment_start_fixture",
+        "evaluable_for_efficacy_analysis": "evaluability_fixture",
+        "clinical_benefit": "clinical_benefit_fixture",
+        "eot_reason": "eot_fixture",
+        "end_of_treatment_date": "treatment_stop_fixture",
+        # singletons
+        "tumor_type": "tumor_type_fixture",
+        "study_drugs": "study_drugs_fixture",
+        "biomarkers": "biomarkers_fixture",
+        "lost_to_followup": "lost_to_followup_fixture",
+        "ecog_baseline": "ecog_fixture",
+        "baseline_tumor_assessment": "baseline_tumor_assessment_fixture",
+        "best_overall_response": "best_overall_response_fixture",
+        # collections
+        "medical_histories": "medical_history_fixture",
+        "previous_treatments": "previous_treatment_fixture",
+        "treatment_cycle": "treatment_cycle_fixture",
+        "concomitant_medication": "concomitant_medication_fixture",
+        "adverse_events": "adverse_events_fixture",
+        "tumor_assessments": "tumor_assessments_fixture",
+        # TODO: c30 and eq5d have no per-processor fixtures yet:
+        "c30": None,
+        "eq5d": None,
+    }
+
+    @pytest.mark.parametrize("spec", ImpressHarmonizer.SPECS, ids=lambda s: s.name)
+    def test_spec_populates_target(self, spec, request):
+        if spec.name not in self.SPEC_TO_FIXTURE:
+            pytest.fail(
+                f"Spec {spec.name!r} has no entry in TestPipelineImpressIntegration.SPEC_TO_FIXTURE. Add an entry mapping it to a per-processor fixture"
+            )
+
+        fixture_name = self.SPEC_TO_FIXTURE[spec.name]
+        if fixture_name is None:
+            pytest.skip(f"Spec {spec.name!r} has no per-processor fixture (TODO)")
+
+        df = request.getfixturevalue(fixture_name)
+        h = ImpressHarmonizer(data=df, trial_id="T")
+        h._create_patients()
+        h.run_one(spec.name)
+
+        if isinstance(spec, ScalarSpec):
+            target = spec.target_attr
+            ok = any(getattr(p, target) is not None for p in h.patient_data.values())
+        elif isinstance(spec, SingletonSpec):
+            target = Patient.get_attr_for_type(spec.target_domain)
+            ok = any(getattr(p, target) is not None for p in h.patient_data.values())
+        elif isinstance(spec, CollectionSpec):
+            target = Patient.get_attr_for_type(spec.target_domain)
+            ok = any(len(getattr(p, target) or ()) > 0 for p in h.patient_data.values())
+        else:
+            raise AssertionError(f"Unknown spec type: {type(spec).__name__}")
+
+        assert ok, (
+            f"Spec {spec.name!r} did not populate {target!r} on any patient when "
+            f"run on {fixture_name}. Either the processor produced empty output "
+            f"for this fixture, or the spec is wired to the wrong target."
+        )
