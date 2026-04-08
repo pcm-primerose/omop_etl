@@ -270,6 +270,32 @@ class TestPackStructs:
         p1_items = result["items"].to_list()[0]
         assert [i["name"] for i in p1_items] == ["a", "b", "c"]
 
+    def test_order_by_multiple_cols(self):
+        df = pl.DataFrame(
+            {
+                "SubjectId": ["p1", "p1", "p1", "p1"],
+                "seq": [2, 1, 1, 2],
+                "date": ["2024-03-01", "2024-02-01", "2024-01-01", "2024-01-15"],
+                "label": ["d", "b", "a", "c"],
+            }
+        )
+        result = BaseHarmonizer.pack_structs(
+            df,
+            value_cols=["seq", "date", "label"],
+            order_by_cols=["seq", "date"],
+        )
+
+        p1_items = result["items"].to_list()[0]
+
+        assert [item["seq"] for item in p1_items] == [1, 1, 2, 2]
+        assert [item["date"] for item in p1_items] == [
+            "2024-01-01",
+            "2024-02-01",
+            "2024-01-15",
+            "2024-03-01",
+        ]
+        assert [item["label"] for item in p1_items] == ["a", "b", "c", "d"]
+
     def test_require_order_by_raises(self):
         """require_order_by=True without order_by_cols should raise."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["a"]})

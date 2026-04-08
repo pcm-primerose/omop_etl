@@ -13,6 +13,33 @@ from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
 from omop_etl.harmonization.models.patient import Patient
 
 
+class TestProcessCohortNameDF:
+    def test_returns_expected_columns(self, cohort_name_fixture):
+        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
+        df = h._process_cohort_name()
+
+        assert set(df.columns) == {"SubjectId", "cohort_name"}
+
+    def test_extracts_cohort_names(self, cohort_name_fixture):
+        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
+        df = h._process_cohort_name()
+
+        row = df.filter(pl.col("SubjectId") == "cohort_hit_1")
+        assert row.item(0, "cohort_name") == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
+
+        row = df.filter(pl.col("SubjectId") == "cohort_hit_2")
+        assert row.item(0, "cohort_name") == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
+
+    def test_empty_values_filtered_out(self, cohort_name_fixture):
+        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
+        df = h._process_cohort_name()
+
+        subject_ids = set(df["SubjectId"].to_list())
+        assert "cohort_empty_1" not in subject_ids  # explicit None
+        assert "cohort_empty_2" not in subject_ids  # empty string
+        assert "cohort_empty_3" not in subject_ids  # missing value
+
+
 class TestProcessSexDF:
     def test_returns_expected_columns(self, gender_fixture):
         h = ImpressHarmonizer(data=gender_fixture, trial_id="T")
