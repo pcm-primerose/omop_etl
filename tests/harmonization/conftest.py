@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field, make_dataclass
 from typing import List
 import pytest
 import polars as pl
@@ -1654,7 +1654,7 @@ class ClinicalBenefitRow:
 
 
 @pytest.fixture
-def clinical_benefit_fixture() -> pl.DataFrame:
+def has_clinical_benefit_at_week_16_fixture() -> pl.DataFrame:
     rows: List[ClinicalBenefitRow] = [
         ClinicalBenefitRow(
             "recist_le3",
@@ -1702,7 +1702,7 @@ class EOTRow:
 
 
 @pytest.fixture
-def eot_fixture() -> pl.DataFrame:
+def end_of_treatment_reason_fixture() -> pl.DataFrame:
     rows: List[EOTRow] = [
         EOTRow(
             "reason_trim",
@@ -1751,5 +1751,110 @@ def eot_fixture() -> pl.DataFrame:
         ),
     ]
 
+    records = [asdict(r) for r in rows]  # type: ignore
+    return pl.from_dicts(records)
+
+
+# --- C30 and EQ5D fixtures (for TestImpressSpecContracts smoke only) ---
+# These exist purely so the smoke test can exercise the C30 and EQ5D processors
+# at runtime (regex column matching, schema validation, hydration). The DF
+# tests for C30 and EQ5D are intentionally not added — see TEST_REFACTOR_PLAN.md
+# Step 10 for the rationale.
+
+
+@dataclass(frozen=True, slots=True)
+class Eq5dRow:
+    """
+    EQ5D source row. The processor expects all 5 question text + 5 question
+    code columns plus the QOL_METRIC and event columns. EQ5D's processor
+    final select references all 10 question outputs, so all 10 input columns
+    must be present (even if null).
+    """
+
+    SubjectId: str
+    EQ5D_EventName: str | None = None
+    EQ5D_EventDate: str | None = None
+    EQ5D_EQ5DVAS: str | None = None
+    EQ5D_EQ5D1: str | None = None
+    EQ5D_EQ5D2: str | None = None
+    EQ5D_EQ5D3: str | None = None
+    EQ5D_EQ5D4: str | None = None
+    EQ5D_EQ5D5: str | None = None
+    EQ5D_EQ5D1CD: str | None = None
+    EQ5D_EQ5D2CD: str | None = None
+    EQ5D_EQ5D3CD: str | None = None
+    EQ5D_EQ5D4CD: str | None = None
+    EQ5D_EQ5D5CD: str | None = None
+
+
+@pytest.fixture
+def eq5d_fixture() -> pl.DataFrame:
+    rows: List[Eq5dRow] = [
+        Eq5dRow(
+            "eq5d_full",
+            EQ5D_EventName="V01",
+            EQ5D_EventDate="2020-01-01",
+            EQ5D_EQ5DVAS="80",
+            EQ5D_EQ5D1="some pain",
+            EQ5D_EQ5D1CD="2",
+            EQ5D_EQ5D5="no anxiety",
+            EQ5D_EQ5D5CD="1",
+        ),
+        Eq5dRow(
+            "eq5d_partial",
+            EQ5D_EventName="V02",
+            EQ5D_EventDate="2020-02-01",
+        ),
+    ]
+    records = [asdict(r) for r in rows]  # type: ignore
+    return pl.from_dicts(records)
+
+
+# C30 has 30 questions = 60 input question columns + 3 base columns. A
+# hand-written 63-field dataclass would be repetitive; build it programmatically
+# via dataclasses.make_dataclass so the fixture can use the same row-dataclass
+# pattern as the others without 60 lines of typing.
+_C30_FIELDS = (
+    [
+        ("SubjectId", str),
+        ("C30_EventName", str | None, field(default=None)),
+        ("C30_EventDate", str | None, field(default=None)),
+    ]
+    + [(f"C30_C30_Q{i}", str | None, field(default=None)) for i in range(1, 31)]
+    + [(f"C30_C30_Q{i}CD", str | None, field(default=None)) for i in range(1, 31)]
+)
+
+C30Row = make_dataclass(
+    "C30Row",
+    _C30_FIELDS,
+    frozen=True,
+    slots=True,
+)
+
+
+@pytest.fixture
+def c30_fixture() -> pl.DataFrame:
+    rows = [
+        # full row: a couple of questions answered, plus the bookends
+        # (Q1, Q15, Q30) so any regex bug at the start/middle/end fails.
+        C30Row(
+            "c30_full",
+            C30_EventName="V01",
+            C30_EventDate="2020-01-01",
+            C30_C30_Q1="not at all",
+            C30_C30_Q1CD="1",
+            C30_C30_Q15="quite a bit",
+            C30_C30_Q15CD="3",
+            C30_C30_Q30="very good",
+            C30_C30_Q30CD="6",
+        ),
+        # partial row: only event metadata, exercises the
+        # `any_horizontal(...is_not_null())` filter path with no question data.
+        C30Row(
+            "c30_partial",
+            C30_EventName="V02",
+            C30_EventDate="2020-02-01",
+        ),
+    ]
     records = [asdict(r) for r in rows]  # type: ignore
     return pl.from_dicts(records)

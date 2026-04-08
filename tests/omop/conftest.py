@@ -107,7 +107,7 @@ def patient_complete() -> Patient:
     p.date_of_birth = dt.date(1980, 5, 15)
     p.sex = "M"
     p.treatment_start_date = dt.date(2023, 1, 1)
-    p.treatment_end_date = dt.date(2023, 6, 30)
+    p.end_of_treatment_date = dt.date(2023, 6, 30)
     return p
 
 
@@ -118,7 +118,7 @@ def patient_female() -> Patient:
     p.date_of_birth = dt.date(1990, 3, 20)
     p.sex = "F"
     p.treatment_start_date = dt.date(2023, 2, 1)
-    p.treatment_end_date = dt.date(2023, 7, 15)
+    p.end_of_treatment_date = dt.date(2023, 7, 15)
     return p
 
 
@@ -128,7 +128,7 @@ def patient_missing_dob() -> Patient:
     p = Patient(patient_id="P003", trial_id="TEST")
     p.sex = "M"
     p.treatment_start_date = dt.date(2023, 1, 1)
-    p.treatment_end_date = dt.date(2023, 6, 30)
+    p.end_of_treatment_date = dt.date(2023, 6, 30)
     return p
 
 

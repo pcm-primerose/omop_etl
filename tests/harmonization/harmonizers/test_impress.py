@@ -20,24 +20,23 @@ class TestProcessCohortName:
 
         assert set(df.columns) == {"SubjectId", "cohort_name"}
 
-    def test_extracts_cohort_names(self, cohort_name_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            ("cohort_hit_1", "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"),
+            ("cohort_hit_2", "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"),
+            pytest.param("cohort_empty_1", None, id="explicit None"),
+            pytest.param("cohort_empty_2", None, id="empty string"),
+            pytest.param("cohort_empty_3", None, id="missing value"),
+        ],
+    )
+    def test_cohort_name_values(self, cohort_name_fixture, sid, expected):
         h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
         df = h._process_cohort_name()
 
-        row = df.filter(pl.col("SubjectId") == "cohort_hit_1")
-        assert row.item(0, "cohort_name") == "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"
-
-        row = df.filter(pl.col("SubjectId") == "cohort_hit_2")
-        assert row.item(0, "cohort_name") == "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"
-
-    def test_empty_values_filtered_out(self, cohort_name_fixture):
-        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
-        df = h._process_cohort_name()
-
-        subject_ids = set(df["SubjectId"].to_list())
-        assert "cohort_empty_1" not in subject_ids  # explicit None
-        assert "cohort_empty_2" not in subject_ids  # empty string
-        assert "cohort_empty_3" not in subject_ids  # missing value
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "cohort_name")
+        assert actual == expected
 
 
 class TestProcessSex:
@@ -54,30 +53,26 @@ class TestProcessSex:
         values = set(df["sex"].to_list())
         assert values <= {"male", "female"}, "all values should be 'male' or 'female'"
 
-    def test_maps_variations_correctly(self, gender_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            ("female_titlecase", "female"),
+            ("male_titlecase", "male"),
+            ("female_short_f", "female"),
+            ("male_short_m", "male"),
+            ("female_lowercase", "female"),
+            ("male_lowercase", "male"),
+            pytest.param("invalid_value", None, id="invalid value filtered out"),
+            pytest.param("empty_value", None, id="empty string filtered out"),
+        ],
+    )
+    def test_sex_values(self, gender_fixture, sid, expected):
         h = ImpressHarmonizer(data=gender_fixture, trial_id="T")
         df = h._process_sex()
 
-        def get_sex(subject_id: str) -> str | None:
-            row = df.filter(pl.col("SubjectId") == subject_id)
-            if row.height == 0:
-                return None
-            return row.item(0, "sex")
-
-        assert get_sex("female_titlecase") == "female"
-        assert get_sex("male_titlecase") == "male"
-        assert get_sex("female_short_f") == "female"
-        assert get_sex("male_short_m") == "male"
-        assert get_sex("female_lowercase") == "female"
-        assert get_sex("male_lowercase") == "male"
-
-    def test_invalid_values_filtered_out(self, gender_fixture):
-        h = ImpressHarmonizer(data=gender_fixture, trial_id="T")
-        df = h._process_sex()
-
-        subject_ids = set(df["SubjectId"].to_list())
-        assert "invalid_value" not in subject_ids
-        assert "empty_value" not in subject_ids
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "sex")
+        assert actual == expected
 
 
 class TestProcessAge:
@@ -88,21 +83,23 @@ class TestProcessAge:
         assert "SubjectId" in df.columns
         assert "age" in df.columns
 
-    def test_calculates_age_correctly(self, age_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            ("birth_full_tx_full", 89),
+            ("birth_year_tx_full", 39),
+            ("birth_full_tx_full_recent", 20),
+            ("birth_year_tx_year", 30),
+            ("birth_full_tx_year_month", 9),
+        ],
+    )
+    def test_age_values(self, age_fixture, sid, expected):
         h = ImpressHarmonizer(data=age_fixture, trial_id="T")
         df = h._process_age()
 
-        def get_age(subject_id: str) -> int | None:
-            row = df.filter(pl.col("SubjectId") == subject_id)
-            if row.height == 0:
-                return None
-            return row.item(0, "age")
-
-        assert get_age("birth_full_tx_full") == 89
-        assert get_age("birth_year_tx_full") == 39
-        assert get_age("birth_full_tx_full_recent") == 20
-        assert get_age("birth_year_tx_year") == 30
-        assert get_age("birth_full_tx_year_month") == 9
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "age")
+        assert actual == expected
 
 
 class TestProcessTumorType:
@@ -222,27 +219,23 @@ class TestProcessDateOfDeath:
 
         assert set(df.columns) == {"SubjectId", "date_of_death"}
 
-    def test_extracts_death_dates(self, date_of_death_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            ("both_partial_nk", dt.date(1990, 7, 2)),
+            ("eos_valid_fu_partial_nk", dt.date(2016, 9, 15)),
+            ("fu_valid_only", dt.date(1900, 1, 1)),
+            ("eos_valid_fu_partial_upper_nk", dt.date(1999, 9, 9)),
+            pytest.param("both_invalid", None, id="both source dates invalid -> filtered out"),
+        ],
+    )
+    def test_date_of_death_values(self, date_of_death_fixture, sid, expected):
         h = ImpressHarmonizer(data=date_of_death_fixture, trial_id="T")
         df = h._process_date_of_death()
 
-        def get_date(subject_id: str) -> dt.date | None:
-            row = df.filter(pl.col("SubjectId") == subject_id)
-            if row.height == 0:
-                return None
-            return row.item(0, "date_of_death")
-
-        assert get_date("both_partial_nk") == dt.date(1990, 7, 2)
-        assert get_date("eos_valid_fu_partial_nk") == dt.date(2016, 9, 15)
-        assert get_date("fu_valid_only") == dt.date(1900, 1, 1)
-        assert get_date("eos_valid_fu_partial_upper_nk") == dt.date(1999, 9, 9)
-
-    def test_invalid_dates_filtered_out(self, date_of_death_fixture):
-        h = ImpressHarmonizer(data=date_of_death_fixture, trial_id="T")
-        df = h._process_date_of_death()
-
-        subject_ids = set(df["SubjectId"].to_list())
-        assert "both_invalid" not in subject_ids
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "date_of_death")
+        assert actual == expected
 
 
 class TestProcessBiomarkers:
@@ -403,7 +396,7 @@ class TestProcessEcogBaseline:
         h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
         df = h._process_ecog_baseline()
 
-        # Subjects without a valid baseline event_id should be filtered out
+        # subjects without a valid baseline event_id should be filtered out
         # entirely (so the eventual hydrated singleton is None on the patient).
         subject_ids = set(df["SubjectId"].to_list())
         assert "wrong_event_id" not in subject_ids
@@ -499,7 +492,7 @@ class TestProcessMedicalHistories:
 
     def test_ended_term_mismatch_status_past_no_end(self, medical_history_fixture):
         """
-        `ended_term_mismatch` has status="Past" with empty MH_MHENDAT — the
+        `ended_term_mismatch` has status="Past" with empty MH_MHENDAT, the
         end_date should be None despite the past status.
         """
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
@@ -516,8 +509,7 @@ class TestProcessMedicalHistories:
     def test_ended_code_mismatch_keeps_status_code_one(self, medical_history_fixture):
         """
         `ended_code_mismatch` has status="Past" but status_code=1 (Current/active).
-        The processor preserves both as-is — the mismatch is not corrected
-        at this layer.
+        The processor preserves both as-is, the mismatch is not corrected at this layer.
         """
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
         df = h._process_medical_histories()
@@ -539,33 +531,43 @@ class TestProcessAdverseEventNumber:
         assert "SubjectId" in df.columns
         assert "number_of_adverse_events" in df.columns
 
-    def test_counts_adverse_events(self, adverse_event_number_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            ("2_events", 2),
+            ("3_events", 3),
+            ("1_event_code_only", 1),
+            ("1_event_term_only", 1),
+            ("missing_data", 0),
+        ],
+    )
+    def test_number_of_adverse_events_values(self, adverse_event_number_fixture, sid, expected):
         h = ImpressHarmonizer(data=adverse_event_number_fixture, trial_id="T")
         df = h._process_number_of_adverse_events()
 
-        def get_count(sid: str) -> int:
-            return df.filter(pl.col("SubjectId") == sid).item(0, "number_of_adverse_events")
-
-        assert get_count("2_events") == 2
-        assert get_count("3_events") == 3
-        assert get_count("1_event_code_only") == 1
-        assert get_count("1_event_term_only") == 1
-        assert get_count("missing_data") == 0
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "number_of_adverse_events")
+        assert actual == expected
 
 
 class TestProcessSeriousAdverseEventNumber:
-    def test_counts_serious_events(self, serious_adverse_event_number_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            ("1_event_two_rows", 1),
+            ("2_events_with_missing_fields", 2),
+            ("1_event_missing_date", 1),
+            ("0_events_missing_date", 0),
+            ("0_events_no_data", 0),
+        ],
+    )
+    def test_number_of_serious_adverse_events_values(self, serious_adverse_event_number_fixture, sid, expected):
         h = ImpressHarmonizer(data=serious_adverse_event_number_fixture, trial_id="T")
         df = h._process_number_of_serious_adverse_events()
 
-        def get_count(sid: str) -> int:
-            return df.filter(pl.col("SubjectId") == sid).item(0, "number_of_serious_adverse_events")
-
-        assert get_count("1_event_two_rows") == 1
-        assert get_count("2_events_with_missing_fields") == 2
-        assert get_count("1_event_missing_date") == 1
-        assert get_count("0_events_missing_date") == 0
-        assert get_count("0_events_no_data") == 0
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "number_of_serious_adverse_events")
+        assert actual == expected
 
 
 class TestProcessBaselineTumorAssessment:
@@ -759,35 +761,23 @@ class TestProcessTreatmentStartDate:
         assert "SubjectId" in df.columns
         assert "treatment_start_date" in df.columns
 
-    def test_extracts_earliest_date(self, treatment_start_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            pytest.param("multirow", dt.date(1900, 1, 1), id="picks earliest of multiple rows"),
+            ("single_row", dt.date(1900, 1, 2)),
+            pytest.param("missing_treatment_none", None, id="TR_TRNAME=None -> filtered"),
+            pytest.param("missing_treatment_empty_str", None, id="TR_TRNAME='' -> filtered"),
+            pytest.param("empty", None, id="no rows -> filtered"),
+        ],
+    )
+    def test_treatment_start_date_values(self, treatment_start_fixture, sid, expected):
         h = ImpressHarmonizer(data=treatment_start_fixture, trial_id="T")
         df = h._process_treatment_start_date()
 
-        row = df.filter(pl.col("SubjectId") == "multirow")
-        assert row.item(0, "treatment_start_date") == dt.date(1900, 1, 1)
-
-        row = df.filter(pl.col("SubjectId") == "single_row")
-        assert row.item(0, "treatment_start_date") == dt.date(1900, 1, 2)
-
-    def test_missing_name_returns_null(self, treatment_start_fixture):
-        h = ImpressHarmonizer(data=treatment_start_fixture, trial_id="T")
-        df = h._process_treatment_start_date()
-
-        row = df.filter(pl.col("SubjectId") == "missing_treatment_none")
-        assert row.height == 0 or row.item(0, "treatment_start_date") is None
-
-    def test_filters_subjects_without_valid_start_date(self, treatment_start_fixture):
-        h = ImpressHarmonizer(data=treatment_start_fixture, trial_id="T")
-        df = h._process_treatment_start_date()
-
-        def date_for(sid: str):
-            row = df.filter(pl.col("SubjectId") == sid)
-            return None if row.height == 0 else row.item(0, "treatment_start_date")
-
-        # `empty` has no rows; `missing_treatment_empty_str` has empty TR_TRNAME
-        # — both should produce no valid date.
-        assert date_for("empty") is None
-        assert date_for("missing_treatment_empty_str") is None
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "treatment_start_date")
+        assert actual == expected
 
 
 class TestProcessEndOfTreatmentDate:
@@ -798,41 +788,28 @@ class TestProcessEndOfTreatmentDate:
         assert "SubjectId" in df.columns
         assert "end_of_treatment_date" in df.columns
 
-    def test_extracts_latest_date_with_precedence(self, treatment_stop_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            pytest.param("eot_precedence", dt.date(1900, 1, 2), id="EOT date wins over treatment-stop date"),
+            pytest.param("multirow", dt.date(1900, 1, 1), id="picks max date over multiple rows"),
+            pytest.param(
+                "invalid_row_doesnt_count",
+                dt.date(1900, 1, 1),
+                id="invalid row's date ignored even though later",
+            ),
+            pytest.param("empty", None, id="no rows -> filtered"),
+            pytest.param("missing_treatment_empty_str", None, id="empty TR_TROSTPDT -> filtered"),
+            pytest.param("missing_treatment_eot_empty_str", None, id="empty EOT_EOTDAT -> filtered"),
+        ],
+    )
+    def test_end_of_treatment_date_values(self, treatment_stop_fixture, sid, expected):
         h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
         df = h._process_end_of_treatment_date()
 
-        # EOT takes precedence
-        row = df.filter(pl.col("SubjectId") == "eot_precedence")
-        assert row.item(0, "end_of_treatment_date") == dt.date(1900, 1, 2)
-
-        # multirow picks max
-        row = df.filter(pl.col("SubjectId") == "multirow")
-        assert row.item(0, "end_of_treatment_date") == dt.date(1900, 1, 1)
-
-    def test_subjects_without_valid_end_date_have_null(self, treatment_stop_fixture):
-        h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
-        df = h._process_end_of_treatment_date()
-
-        def date_for(sid: str):
-            rows = df.filter(pl.col("SubjectId") == sid)
-            return None if rows.height == 0 else rows.item(0, "end_of_treatment_date")
-
-        assert date_for("empty") is None
-        assert date_for("missing_treatment_empty_str") is None
-        assert date_for("missing_treatment_eot_empty_str") is None
-
-    def test_invalid_row_doesnt_count_in_max(self, treatment_stop_fixture):
-        """
-        `invalid_row_doesnt_count` has two rows: one with TR_TROSTPDT="1900-01-02"
-        but TR_TRCYNCD missing (invalid), and one with "1900-01-01" + TR_TRCYNCD="1"
-        (valid). The valid row's date should win even though its date is earlier.
-        """
-        h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
-        df = h._process_end_of_treatment_date()
-
-        row = df.filter(pl.col("SubjectId") == "invalid_row_doesnt_count")
-        assert row.item(0, "end_of_treatment_date") == dt.date(1900, 1, 1)
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "end_of_treatment_date")
+        assert actual == expected
 
 
 class TestProcessTreatmentStartLastCycle:
@@ -843,33 +820,25 @@ class TestProcessTreatmentStartLastCycle:
         assert "SubjectId" in df.columns
         assert "treatment_start_last_cycle" in df.columns
 
-    def test_extracts_latest_cycle_start(self, last_treatment_start_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            pytest.param("two_rows_both_valid", dt.date(1900, 1, 2), id="picks latest cycle start"),
+            pytest.param(
+                "one_invalid",
+                dt.date(1900, 1, 2),
+                id="invalid cycle still counts (no enforcement)",
+            ),
+            pytest.param("empty", None, id="no rows -> filtered"),
+        ],
+    )
+    def test_treatment_start_last_cycle_values(self, last_treatment_start_fixture, sid, expected):
         h = ImpressHarmonizer(data=last_treatment_start_fixture, trial_id="T")
         df = h._process_treatment_start_last_cycle()
 
-        row = df.filter(pl.col("SubjectId") == "two_rows_both_valid")
-        assert row.item(0, "treatment_start_last_cycle") == dt.date(1900, 1, 2)
-
-    def test_empty_subject_has_null_date(self, last_treatment_start_fixture):
-        h = ImpressHarmonizer(data=last_treatment_start_fixture, trial_id="T")
-        df = h._process_treatment_start_last_cycle()
-
-        rows = df.filter(pl.col("SubjectId") == "empty")
-        # Subject may be present with null, or absent — either way, no valid date.
-        assert rows.height == 0 or rows.item(0, "treatment_start_last_cycle") is None
-
-    def test_one_invalid_includes_invalid_start(self, last_treatment_start_fixture):
-        """
-        `one_invalid` has two rows: one valid (TR_TRCYNCD="1") with start "1900-01-01"
-        and one invalid (TR_TRCYNCD="0") with start "1900-01-02". The processor
-        currently does NOT enforce valid cycles, so the later (invalid) start wins.
-        See impress.py::_process_treatment_start_last_cycle for the comment.
-        """
-        h = ImpressHarmonizer(data=last_treatment_start_fixture, trial_id="T")
-        df = h._process_treatment_start_last_cycle()
-
-        row = df.filter(pl.col("SubjectId") == "one_invalid")
-        assert row.item(0, "treatment_start_last_cycle") == dt.date(1900, 1, 2)
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "treatment_start_last_cycle")
+        assert actual == expected
 
 
 class TestProcessTreatmentCycle:
@@ -991,23 +960,17 @@ class TestProcessConcomitantMedication:
 
         subject_ids = set(df["SubjectId"].to_list())
         assert "drop_null_name" not in subject_ids
-        # `name_is_na` has CMTRT="Na" which is also treated as a null placeholder.
+        # `name_is_na` has CMTRT="Na", treated as a null
         assert "name_is_na" not in subject_ids
 
     def test_ordering_subject_emits_all_rows(self, concomitant_medication_fixture):
-        """
-        `ordering` has 3 rows. The processor must emit all of them; final
-        ordering on the hydrated Patient is by (sequence_id, start_date) and
-        is pinned by TestImpressSpecContracts::test_collection_specs_use_expected_order_by.
-        Here we verify each input row's values are present.
-        """
         h = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="T")
         df = h._process_concomitant_medication()
 
         rows = df.filter(pl.col("SubjectId") == "ordering")
         assert rows.height == 3
 
-        # Two rows with sequence_id=1 (Drug A), one with sequence_id=2 (Drug B)
+        # two rows with sequence_id=1 (Drug A), one with sequence_id=2 (Drug B)
         seq1 = rows.filter(pl.col("sequence_id") == 1)
         assert seq1.height == 2
         assert set(seq1["medication_name"].to_list()) == {"Drug A"}
@@ -1019,11 +982,6 @@ class TestProcessConcomitantMedication:
         assert seq2.item(0, "start_date") == dt.date(1899, 12, 12)
 
     def test_ongoing_none_subject_keeps_null_fields(self, concomitant_medication_fixture):
-        """
-        `ongoing_none` has CMONGOCD=None and various other empty fields.
-        The processor should emit the row but with null values for the
-        ongoing/AE flags. sequence_id is set explicitly in the fixture.
-        """
         h = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="T")
         df = h._process_concomitant_medication()
 
@@ -1046,36 +1004,26 @@ class TestProcessHasAnyAdverseEvents:
         assert "SubjectId" in df.columns
         assert "has_any_adverse_events" in df.columns
 
-    def test_detects_adverse_events(self, adverse_events_flag_fixture):
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            pytest.param("none_all_empty", False, id="negative: all empty"),
+            pytest.param("none_whitespace_only", False, id="negative: whitespace only"),
+            pytest.param("text_only", True, id="single signal: text"),
+            pytest.param("date_only", True, id="single signal: date"),
+            pytest.param("grade_only", True, id="single signal: grade"),
+            pytest.param("mixed", True, id="multi signal"),
+            pytest.param("multirow_any_true", True, id="multirow: any True wins"),
+            pytest.param("multirow_all_false", False, id="multirow: all False -> False"),
+        ],
+    )
+    def test_has_any_adverse_events_values(self, adverse_events_flag_fixture, sid, expected):
         h = ImpressHarmonizer(data=adverse_events_flag_fixture, trial_id="T")
         df = h._process_has_any_adverse_events()
 
-        def get_flag(sid: str) -> bool:
-            return df.filter(pl.col("SubjectId") == sid).item(0, "has_any_adverse_events")
-
-        # Negative cases
-        assert get_flag("none_all_empty") is False
-        assert get_flag("none_whitespace_only") is False
-        # Single-signal positive cases
-        assert get_flag("text_only") is True
-        assert get_flag("date_only") is True
-        assert get_flag("grade_only") is True
-        # Multi-signal positive case
-        assert get_flag("mixed") is True
-
-    def test_multirow_any_signal_wins(self, adverse_events_flag_fixture):
-        """
-        For subjects with multiple input rows, the flag is True if ANY row
-        has an AE signal, False if NO row does.
-        """
-        h = ImpressHarmonizer(data=adverse_events_flag_fixture, trial_id="T")
-        df = h._process_has_any_adverse_events()
-
-        def get_flag(sid: str) -> bool:
-            return df.filter(pl.col("SubjectId") == sid).item(0, "has_any_adverse_events")
-
-        assert get_flag("multirow_any_true") is True
-        assert get_flag("multirow_all_false") is False
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "has_any_adverse_events")
+        assert actual is expected
 
 
 class TestProcessAdverseEvents:
@@ -1126,12 +1074,6 @@ class TestProcessAdverseEvents:
         assert row.item(0, "was_serious_grade_expected_treatment_2") is True
 
     def test_multiple_events_per_patient(self, adverse_events_fixture):
-        """
-        The `multi` subject has two AE rows (Nausea + Vomiting). Both should
-        appear in the processor output with their respective fields. Final
-        ordering on the hydrated Patient is verified by the order_by spec
-        config test in TestImpressSpecContracts.
-        """
         h = ImpressHarmonizer(data=adverse_events_fixture, trial_id="T")
         df = h._process_adverse_events()
 
@@ -1211,8 +1153,6 @@ class TestProcessTumorAssessments:
         assert row.item(0, "event_id") == "V02"
 
     def test_collision_irecist_wins_over_recist(self, tumor_assessments_fixture):
-        """When a subject has both RECIST and iRECIST signals, iRECIST takes
-        precedence (more specific assessment)."""
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
 
@@ -1220,8 +1160,6 @@ class TestProcessTumorAssessments:
         assert row.item(0, "assessment_type") == "irecist"
 
     def test_recist_with_invalid_date_keeps_response(self, tumor_assessments_fixture):
-        """A RECIST row with an unparseable date should still produce the
-        response value but with a null date."""
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
 
@@ -1231,8 +1169,8 @@ class TestProcessTumorAssessments:
         assert row.item(0, "recist_response") == "SD"
         assert row.item(0, "event_id") == "V06"
 
-    def test_event_id_from_rnrsp_source(self, tumor_assessments_fixture):
-        """For subjects whose only signal comes from RNRSP, the event_id and
+    def test_event_id_from_rnrsp_source_only(self, tumor_assessments_fixture):
+        """For subjects with signlan only from RNRSP, the event_id and
         date should be picked up from the RNRSP fields."""
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
@@ -1285,9 +1223,6 @@ class TestProcessBestOverallResponse:
         assert row.item(0, "date") == dt.date(1900, 1, 5)
 
     def test_both_recist_and_irecist_picks_irecist(self, best_overall_response_fixture):
-        """When a subject has both RECIST and iRECIST, the more specific
-        iRECIST evaluation wins (matches the precedence in _process_clinical_benefit
-        and elsewhere)."""
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
 
@@ -1297,7 +1232,6 @@ class TestProcessBestOverallResponse:
         assert row.item(0, "date") == dt.date(1900, 2, 1)
 
     def test_irecist_unconfirmed_dropped_in_favor_of_recist(self, best_overall_response_fixture):
-        """An unconfirmed iRECIST response should not win over a valid RECIST."""
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
 
@@ -1316,8 +1250,7 @@ class TestProcessBestOverallResponse:
         assert row.item(0, "date") == dt.date(1900, 2, 1)
 
     def test_irecist_ne_maps_to_96(self, best_overall_response_fixture):
-        """iRECIST 'NE' (not evaluable) should map to code 96 / response 'SD'
-        per the impress mapping."""
+        """iRECIST 'NE' (not evaluable) should map to code 96 / response 'SD'."""
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
 
@@ -1327,76 +1260,67 @@ class TestProcessBestOverallResponse:
         assert row.item(0, "date") == dt.date(1900, 4, 1)
 
 
-class TestProcessClinicalBenefit:
-    def test_returns_expected_columns(self, clinical_benefit_fixture):
-        h = ImpressHarmonizer(data=clinical_benefit_fixture, trial_id="T")
-        df = h._process_clinical_benefit()
+class TestProcessClinicalBenefitAtWeek16:
+    def test_returns_expected_columns(self, has_clinical_benefit_at_week_16_fixture):
+        h = ImpressHarmonizer(data=has_clinical_benefit_at_week_16_fixture, trial_id="T")
+        df = h._process_has_clinical_benefit_at_week_16()
 
         assert "SubjectId" in df.columns
-        assert "has_clinical_benefit_at_week16" in df.columns
+        assert "has_clinical_benefit_at_week_16" in df.columns
 
-    def test_detects_clinical_benefit(self, clinical_benefit_fixture):
-        h = ImpressHarmonizer(data=clinical_benefit_fixture, trial_id="T")
-        df = h._process_clinical_benefit()
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            pytest.param("recist_le3", True, id="single criterion: RECIST <=3"),
+            pytest.param("recist_gt3", False, id="single criterion: RECIST >3"),
+            pytest.param("irecist_le3", True, id="single criterion: iRECIST <=3"),
+            pytest.param("rano_le3", True, id="single criterion: RANO <=3"),
+            pytest.param("both_present", True, id="multi criterion present"),
+            pytest.param("v03_no_codes", False, id="V03 visit but no benefit codes"),
+            pytest.param("not_v03", None, id="non-V03 visit -> filtered out"),
+        ],
+    )
+    def test_clinical_benefit__at_week_16_values(self, has_clinical_benefit_at_week_16_fixture, sid, expected):
+        h = ImpressHarmonizer(data=has_clinical_benefit_at_week_16_fixture, trial_id="T")
+        df = h._process_has_clinical_benefit_at_week_16()
 
-        def get_benefit(sid: str) -> bool | None:
-            row = df.filter(pl.col("SubjectId") == sid)
-            if row.height == 0:
-                return None
-            return row.item(0, "has_clinical_benefit_at_week16")
-
-        # Single-criterion positive/negative cases
-        assert get_benefit("recist_le3") is True
-        assert get_benefit("recist_gt3") is False
-        assert get_benefit("irecist_le3") is True
-        assert get_benefit("rano_le3") is True
-        # Multi-criterion positive
-        assert get_benefit("both_present") is True
-        # V03 visit but no benefit codes -> False
-        assert get_benefit("v03_no_codes") is False
-        # Subject without V03 visit is filtered out -> get_benefit returns None
-        # because the row is absent from the  .
-        assert get_benefit("not_v03") is None
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "has_clinical_benefit_at_week_16")
+        assert actual is expected
 
 
 class TestProcessEotReason:
-    def test_returns_expected_columns(self, eot_fixture):
-        h = ImpressHarmonizer(data=eot_fixture, trial_id="T")
-        df = h._process_eot_reason()
+    def test_returns_expected_columns(self, end_of_treatment_reason_fixture):
+        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
+        df = h._process_end_of_treatment_reason()
 
         assert "SubjectId" in df.columns
         assert "end_of_treatment_reason" in df.columns
 
-    def test_extracts_reason_with_trim(self, eot_fixture):
-        h = ImpressHarmonizer(data=eot_fixture, trial_id="T")
-        df = h._process_eot_reason()
+    @pytest.mark.parametrize(
+        "sid, expected",
+        [
+            pytest.param("reason_trim", "Progression", id="whitespace trimmed"),
+            pytest.param("reason_empty_string", None, id="empty string -> filtered"),
+            pytest.param("reason_whitespace_only", None, id="whitespace only -> filtered"),
+            pytest.param("reason_none", None, id="None -> filtered"),
+        ],
+    )
+    def test_eot_reason_values(self, end_of_treatment_reason_fixture, sid, expected):
+        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
+        df = h._process_end_of_treatment_reason()
 
-        row = df.filter(pl.col("SubjectId") == "reason_trim")
-        assert row.item(0, "end_of_treatment_reason") == "Progression"
+        row = df.filter(pl.col("SubjectId") == sid)
+        actual = None if row.height == 0 else row.item(0, "end_of_treatment_reason")
+        assert actual == expected
 
-    def test_empty_reasons_filtered(self, eot_fixture):
-        h = ImpressHarmonizer(data=eot_fixture, trial_id="T")
-        df = h._process_eot_reason()
-
-        subject_ids = set(df["SubjectId"].to_list())
-        assert "reason_empty_string" not in subject_ids
-        assert "reason_whitespace_only" not in subject_ids
-        assert "reason_none" not in subject_ids
-
-    def test_multi_row_subject_keeps_all_rows(self, eot_fixture):
-        """
-        For `reason_multi_overwrite` the fixture has two rows with different
-        reasons ("Toxicity" then "Patient decision"). The processor must
-        emit BOTH rows; the spec uses on_duplicate="last" so hydration picks
-        the last one. The on_duplicate="last" mechanism itself is covered
-        generically by test_base.py::TestHydrateScalar::test_duplicate_last.
-        """
-        h = ImpressHarmonizer(data=eot_fixture, trial_id="T")
-        df = h._process_eot_reason()
+    def test_multi_row_subject_keeps_all_rows(self, end_of_treatment_reason_fixture):
+        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
+        df = h._process_end_of_treatment_reason()
 
         rows = df.filter(pl.col("SubjectId") == "reason_multi_overwrite")
         assert rows.height == 2
-        # Insertion order preserved: first row "Toxicity", last row "Patient decision"
+
         reasons = rows["end_of_treatment_reason"].to_list()
         assert reasons == ["Toxicity", "Patient decision"]
 
@@ -1426,8 +1350,8 @@ class TestImpressSpecContracts:
         "treatment_start_last_cycle": "last_treatment_start_fixture",
         "treatment_start_date": "treatment_start_fixture",
         "evaluable_for_efficacy_analysis": "evaluability_fixture",
-        "clinical_benefit": "clinical_benefit_fixture",
-        "eot_reason": "eot_fixture",
+        "has_clinical_benefit_at_week_16": "has_clinical_benefit_at_week_16_fixture",
+        "end_of_treatment_reason": "end_of_treatment_reason_fixture",
         "end_of_treatment_date": "treatment_stop_fixture",
         # singletons
         "tumor_type": "tumor_type_fixture",
@@ -1444,9 +1368,8 @@ class TestImpressSpecContracts:
         "concomitant_medication": "concomitant_medication_fixture",
         "adverse_events": "adverse_events_fixture",
         "tumor_assessments": "tumor_assessments_fixture",
-        # TODO: c30 and eq5d have no per-processor fixtures yet:
-        "c30": None,
-        "eq5d": None,
+        "c30": "c30_fixture",
+        "eq5d": "eq5d_fixture",
     }
 
     @pytest.mark.parametrize("spec", ImpressHarmonizer.SPECS, ids=lambda s: s.name)
@@ -1487,55 +1410,15 @@ class TestImpressSpecContracts:
 
     def test_eot_reason_uses_on_duplicate_last(self):
         """
-        eot_reason is the only impress scalar with a non-default `on_duplicate`.
-        Source rows for the same subject are emitted in order; the last one
-        wins. Pin this so a refactor that changes it back to the default
-        ("error") or to "first" fails loudly here instead of silently shipping.
-        The on_duplicate="last" mechanism itself is covered by
-        test_base.py::TestHydrateScalar::test_duplicate_last.
+        eot_reason is the only impress scalar with a non-default `on_duplicate`,
+        since the scalar can have colissions across multiple sheets,
+        source rows for the same subject are emitted in order where the last one wins.
         """
-        spec = next((s for s in ImpressHarmonizer.SPECS if s.name == "eot_reason"), None)
-        assert spec is not None, "eot_reason spec missing from ImpressHarmonizer.SPECS"
+        spec = next((s for s in ImpressHarmonizer.SPECS if s.name == "end_of_treatment_reason"), None)
+        assert spec is not None, "end_of_treatment_reason spec missing from ImpressHarmonizer.SPECS"
         assert isinstance(spec, ScalarSpec)
         assert spec.on_duplicate == "last", (
             f"eot_reason must use on_duplicate='last' (got {spec.on_duplicate!r}). "
-            "The eot_fixture has multiple rows per subject; the last value is "
-            "authoritative. If this is intentionally changing, update "
-            "TestProcessEotReason ::test_multi_row_subject_keeps_all_rows too."
+            "If this is intentionally changing, update: "
+            "TestProcessEotReason::test_multi_row_subject_keeps_all_rows too."
         )
-
-    def test_collection_specs_use_expected_order_by(self):
-        """
-        Pin the order_by tuple for each collection spec. This is the
-        impress-specific configuration that determines the final order of
-        items on the hydrated Patient. The pack_structs ordering MECHANISM
-        is covered by test_base.py::TestPackStructs (single + multi column);
-        this verifies each impress collection is configured to use it correctly.
-
-        Adding a new collection without an entry here fails loudly so the
-        author has to consciously decide on its order_by.
-        """
-        expected: dict[str, tuple[str, ...]] = {
-            "adverse_events": ("start_date",),
-            "previous_treatments": ("start_date",),
-            "medical_histories": ("start_date",),
-            "treatment_cycle": ("start_date",),
-            "concomitant_medication": ("sequence_id", "start_date"),
-            "tumor_assessments": ("date",),
-            "c30": ("date",),
-            "eq5d": ("date",),
-        }
-        for spec in ImpressHarmonizer.SPECS:
-            if not isinstance(spec, CollectionSpec):
-                continue
-            assert spec.name in expected, (
-                f"New collection spec {spec.name!r} has no entry in "
-                f"test_collection_specs_use_expected_order_by. Add one (with the "
-                f"expected order_by tuple) before deleting any related RunOne tests."
-            )
-            assert spec.order_by == expected[spec.name], (
-                f"{spec.name}: expected order_by={expected[spec.name]}, "
-                f"got {spec.order_by}. Ordering on the hydrated Patient depends "
-                f"on this; if changing intentionally, update the expected map."
-            )
-            assert spec.require_order_by is True, f"{spec.name}: require_order_by must be True so an empty order_by fails loudly at import"

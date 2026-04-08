@@ -72,7 +72,6 @@ class TestCreatePatients:
     """Tests for _create_patients() behavior from SubjectIds."""
 
     def test_creates_patient_for_each_unique_subject_id(self):
-        """Each unique SubjectId should create one Patient."""
         data = pl.DataFrame({"SubjectId": ["p1", "p2", "p3"]})
         harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
@@ -81,7 +80,6 @@ class TestCreatePatients:
         assert set(harmonizer.patient_data.keys()) == {"p1", "p2", "p3"}
 
     def test_deduplicates_subject_ids(self):
-        """Duplicate SubjectIds should result in single patient."""
         data = pl.DataFrame({"SubjectId": ["p1", "p1", "p2", "p2", "p2"]})
         harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
@@ -90,7 +88,6 @@ class TestCreatePatients:
         assert set(harmonizer.patient_data.keys()) == {"p1", "p2"}
 
     def test_patient_id_matches_key(self):
-        """Each Patient.patient_id should match its dict key."""
         data = pl.DataFrame({"SubjectId": ["alpha", "beta", "gamma"]})
         harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
@@ -99,7 +96,6 @@ class TestCreatePatients:
             assert patient.patient_id == key
 
     def test_trial_id_propagation(self):
-        """Each Patient should have the correct trial_id."""
         data = pl.DataFrame({"SubjectId": ["p1", "p2"]})
         harmonizer = MinimalHarmonizer(data=data, trial_id="MY_TRIAL_123")
         harmonizer._create_patients()
@@ -108,7 +104,6 @@ class TestCreatePatients:
             assert patient.trial_id == "MY_TRIAL_123"
 
     def test_empty_data_creates_no_patients(self):
-        """Empty DataFrame should create no patients."""
         data = pl.DataFrame({"SubjectId": []})
         harmonizer = MinimalHarmonizer(data=data, trial_id="TEST")
         harmonizer._create_patients()
@@ -116,7 +111,6 @@ class TestCreatePatients:
         assert len(harmonizer.patient_data) == 0
 
     def test_preserves_all_subject_id_variants(self):
-        """Different SubjectId strings should create separate patients."""
         data = pl.DataFrame(
             {
                 "SubjectId": [
@@ -145,37 +139,29 @@ class TestCreatePatients:
 
 class TestValidateSchemaSubset:
     def test_valid_subset(self):
-        """Processor output with subset of data_fields() should pass."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"]})
-        # should not raise
-        BaseHarmonizer.validate_schema_subset(df, SimpleDomain)
+        (BaseHarmonizer.validate_schema_subset(df, SimpleDomain),)  # shouldn't raise
 
     def test_full_schema(self):
-        """Processor output with all data_fields() should pass."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"], "value": [42]})
         BaseHarmonizer.validate_schema_subset(df, SimpleDomain)
 
     def test_missing_subject_col_raises(self):
-        """Missing subject column should raise ValueError."""
         df = pl.DataFrame({"name": ["foo"], "value": [42]})
         with pytest.raises(ValueError, match="Missing subject_col"):
             BaseHarmonizer.validate_schema_subset(df, SimpleDomain)
 
     def test_unknown_columns_strict_raises(self):
-        """Unknown columns with strict_unknown=True should raise ValueError."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"], "unknown_col": [1]})
         with pytest.raises(ValueError, match="unknown columns"):
             BaseHarmonizer.validate_schema_subset(df, SimpleDomain, strict_unknown=True)
 
     def test_unknown_columns_lenient_warns(self, caplog):
-        """Unknown columns with strict_unknown=False should log warning."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"], "unknown_col": [1]})
         BaseHarmonizer.validate_schema_subset(df, SimpleDomain, strict_unknown=False)
         assert "unknown columns" in caplog.text.lower()
 
     def test_subject_col_in_data_fields_raises(self):
-        """Subject column should not be in data_fields()."""
-
         class BadDomain(DomainBase):
             class Cols:
                 SUBJECT_ID = "SubjectId"
@@ -204,7 +190,6 @@ class TestValidateSchemaSubset:
 
 class TestConformSchema:
     def test_fills_missing_columns_with_null(self):
-        """Missing columns should be filled with null."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"]})
         result = BaseHarmonizer.conform_schema(df, SimpleDomain)
 
@@ -212,7 +197,6 @@ class TestConformSchema:
         assert result["value"].to_list() == [None]
 
     def test_preserves_existing_values(self):
-        """Existing values should be preserved."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"], "value": [42]})
         result = BaseHarmonizer.conform_schema(df, SimpleDomain)
 
@@ -220,7 +204,6 @@ class TestConformSchema:
         assert result["value"].to_list() == [42]
 
     def test_drops_extra_columns(self):
-        """Extra columns should be dropped."""
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"], "extra": ["drop"]})
         result = BaseHarmonizer.conform_schema(df, SimpleDomain)
 
@@ -228,7 +211,6 @@ class TestConformSchema:
         assert result.columns == ["SubjectId", "name", "value"]
 
     def test_column_order_matches_data_fields(self):
-        """Output column order should be [subject_col, *data_fields()]."""
         df = pl.DataFrame({"value": [42], "SubjectId": ["p1"], "name": ["foo"]})
         result = BaseHarmonizer.conform_schema(df, SimpleDomain)
 
@@ -395,7 +377,6 @@ class TestHydrateSingleton:
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         df = pl.DataFrame({"SubjectId": ["p1", "p1"], "name": ["foo", "bar"], "value": [1, 2]})
 
-        # use a builder that just returns without setting on Patient
         def noop_builder(pid, row):
             return SimpleDomain.from_row(pid, row)
 
@@ -460,7 +441,6 @@ class TestHydrateCollectionField:
         """Each patient should get a list of domain objects."""
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
 
-        # create packed data
         packed = pl.DataFrame(
             {
                 "SubjectId": ["p1"],
@@ -582,7 +562,6 @@ class TestHydrateScalar:
         assert harmonizer.patient_data["p1"].cohort_name == "second_value"
 
 
-# dummy processor for tests
 def _noop_processor(h) -> None:  # noqa
     return None
 
@@ -595,7 +574,6 @@ class TestValidateSpecs:
     """
 
     def test_duplicate_spec_names_raises(self):
-        """Duplicate processor names should raise ValueError."""
         with pytest.raises(ValueError, match="Duplicate processor names"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -608,7 +586,6 @@ class TestValidateSpecs:
                     pass
 
     def test_scalar_requires_target_attr(self):
-        """Scalar spec without target_attr should raise."""
         with pytest.raises(ValueError, match="scalar requires target_attr"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -618,7 +595,6 @@ class TestValidateSpecs:
                     pass
 
     def test_scalar_requires_value_col(self):
-        """Scalar spec without value_col should raise."""
         with pytest.raises(ValueError, match="scalar requires value_col"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -628,7 +604,6 @@ class TestValidateSpecs:
                     pass
 
     def test_singleton_requires_target_domain(self):
-        """Singleton spec without target_domain should raise."""
         with pytest.raises(ValueError, match="singleton requires target_domain"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -638,7 +613,6 @@ class TestValidateSpecs:
                     pass
 
     def test_collection_requires_target_domain(self):
-        """Collection spec without target_domain should raise."""
         with pytest.raises(ValueError, match="collection requires target_domain"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -648,7 +622,6 @@ class TestValidateSpecs:
                     pass
 
     def test_empty_subject_col_raises(self):
-        """Empty subject_col should raise."""
         with pytest.raises(ValueError, match="subject_col cannot be empty"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -658,7 +631,6 @@ class TestValidateSpecs:
                     pass
 
     def test_singleton_decorator_on_collection_domain_raises(self):
-        """@singleton with a domain Patient maps as a collection should raise at import time."""
         with pytest.raises(ValueError, match=r"@singleton used with .* but Patient maps it to a collection"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -668,7 +640,6 @@ class TestValidateSpecs:
                     pass
 
     def test_collection_decorator_on_singleton_domain_raises(self):
-        """@collection with a domain Patient maps as a singleton should raise at import time."""
         with pytest.raises(ValueError, match=r"@collection used with .* but Patient maps it to a singleton"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
@@ -680,7 +651,6 @@ class TestValidateSpecs:
 
 class TestRunTemplateMethod:
     def test_run_calls_processors_in_order(self):
-        """run() should call _create_patients then all processors."""
         call_order = []
 
         class TrackedHarmonizer(BaseHarmonizer):
@@ -706,8 +676,6 @@ class TestRunTemplateMethod:
         assert harmonizer.patient_data["p1"].sex == "b"
 
     def test_run_with_empty_patient_data_raises(self):
-        """run() should raise if _create_patients doesn't populate patient_data."""
-
         class EmptyHarmonizer(BaseHarmonizer):
             SPECS = ()
 
@@ -720,8 +688,6 @@ class TestRunTemplateMethod:
             harmonizer.run()
 
     def test_processor_returning_none_is_skipped(self):
-        """Processor returning None should be skipped without error."""
-
         class SkipHarmonizer(BaseHarmonizer):
             def _create_patients(self) -> None:
                 self.patient_data["p1"] = Patient(patient_id="p1", trial_id=self.trial_id)
@@ -731,25 +697,15 @@ class TestRunTemplateMethod:
                 return None
 
         harmonizer = SkipHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
-        harmonizer.run()  # should not raise
+        harmonizer.run()  # shouldn't raise
 
         assert harmonizer.patient_data["p1"].cohort_name is None
-
-
-# --- E2E pipeline test ---
-#
-# Uses REAL domain classes (FollowUp singleton, MedicalHistory collection) instead
-# of test doubles, so no monkey-patching of Patient is needed. The row-dataclass
-# fixture pattern mirrors the style used in conftest.py for test_impress.py.
 
 
 @dataclass(frozen=True, slots=True)
 class E2ERawRow:
     """
     One row of denormalized raw input for the e2e test harmonizer.
-
-    Each column represents a source field the processors will pick up. A single
-    SubjectId can appear across many rows (e.g. multiple medical-history entries).
     """
 
     SubjectId: str
@@ -771,10 +727,8 @@ def _rows_to_df(rows: list[E2ERawRow]) -> pl.DataFrame:
 
 class E2EHarmonizer(BaseHarmonizer):
     """
-    Tiny concrete harmonizer covering one of each spec kind with real domains:
-      - scalar     -> Patient.cohort_name
-      - singleton  -> Patient.lost_to_followup (FollowUp)
-      - collection -> Patient.medical_histories (MedicalHistory)
+    Small concrete harmonizer covering one type of spec with real domains
+    for scalar, singleeton and collection to Patient domain.
     """
 
     def _create_patients(self) -> None:
@@ -821,8 +775,7 @@ class E2EHarmonizer(BaseHarmonizer):
 
 class TestEndToEndPipeline:
     """
-    E2E test that verifies the full harmonization pipeline:
-    raw data to run() to verify Patient objects have correct scalar, singleton, and collection domains.
+    Small E2E to verify raw data to run() for scalar, singleton and collection processors to instantiated Patient model.
     """
 
     def test_full_pipeline_two_patients(self):
@@ -913,13 +866,11 @@ class TestEndToEndPipeline:
 
 class TestDecoratorRegistration:
     """
-    Tests for @scalar / @singleton / @collection decorators and the
-    __init_subclass__ machinery that collects them into SPECS.
+    Tests for @scalar, @singleton and @collection decorators and the
+    __init_subclass__ method that creates SPECS.
     """
 
     def test_scalar_default_name_from_method(self):
-        """@scalar() with no kwargs derives name/target_attr/value_col from method name."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -937,8 +888,6 @@ class TestDecoratorRegistration:
         assert spec.on_duplicate == "error"
 
     def test_scalar_explicit_overrides_win(self):
-        """Explicit kwargs override the method-name defaults."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -954,8 +903,6 @@ class TestDecoratorRegistration:
         assert spec.on_duplicate == "last"
 
     def test_scalar_partial_override_keeps_other_defaults(self):
-        """Overriding target_attr only should still default name/value_col from method name."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -970,8 +917,6 @@ class TestDecoratorRegistration:
         assert spec.value_col == "cohort_name"  # default from method name
 
     def test_specs_collected_in_declaration_order(self):
-        """SPECS should preserve declaration order of decorated methods."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -990,9 +935,7 @@ class TestDecoratorRegistration:
 
         assert [s.name for s in H.SPECS] == ["sex", "cohort_name", "age"]
 
-    def test_undecorated_methods_are_ignored(self):
-        """Helper methods without a decorator should not become specs."""
-
+    def test_undecorated_methods_are_ignored_from_specs(self):
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -1011,8 +954,6 @@ class TestDecoratorRegistration:
         assert H.SPECS[0].name == "sex"
 
     def test_subclass_with_no_decorated_methods_has_empty_specs(self):
-        """Subclass without any decorated methods inherits empty SPECS from base."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -1020,7 +961,6 @@ class TestDecoratorRegistration:
         assert H.SPECS == ()
 
     def test_validation_fires_at_class_definition_time_via_decorator(self):
-        """A decorator with a target_attr that doesn't exist on Patient should raise during the class statement."""
         with pytest.raises(ValueError, match="Patient has no attribute"):
 
             class H(BaseHarmonizer):  # noqa
@@ -1032,8 +972,6 @@ class TestDecoratorRegistration:
                     return None
 
     def test_decorated_method_remains_callable(self):
-        """The decorator should return the original function so it's still usable as a method."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 self.patient_data["p1"] = Patient(patient_id="p1", trial_id=self.trial_id)
@@ -1049,8 +987,6 @@ class TestDecoratorRegistration:
         assert result["sex"].to_list() == ["male"]
 
     def test_singleton_decorator_attaches_spec(self):
-        """@singleton(target_domain) should produce a SingletonSpec with name from method."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -1066,8 +1002,6 @@ class TestDecoratorRegistration:
         assert spec.target_domain is FollowUp
 
     def test_collection_decorator_attaches_spec(self):
-        """@collection(target_domain, ...) should produce a CollectionSpec with name from method."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass
@@ -1085,8 +1019,6 @@ class TestDecoratorRegistration:
         assert spec.require_order_by is True
 
     def test_mixed_spec_types_collected_in_declaration_order(self):
-        """Declaration order is preserved across spec types."""
-
         class H(BaseHarmonizer):
             def _create_patients(self) -> None:
                 pass

@@ -32,6 +32,23 @@ class Patient(TrackedValidated):
 
     _attr_cache: ClassVar[dict[type, str]] = {}
 
+    class Cols:
+        # used to map col names in processors to properties
+        COHORT_NAME = "cohort_name"
+        AGE = "age"
+        DATE_OF_BIRTH = "date_of_birth"
+        SEX = "sex"
+        EVALUABLE_FOR_EFFICACY_ANALYSIS = "evaluable_for_efficacy_analysis"
+        TREATMENT_START_DATE = "treatment_start_date"
+        TREATMENT_START_LAST_CYCLE = "treatment_start_last_cycle"
+        DATE_OF_DEATH = "date_of_death"
+        HAS_ANY_ADVERSE_EVENTS = "has_any_adverse_events"
+        NUMBER_OF_ADVERSE_EVENTS = "number_of_adverse_events"
+        NUMBER_OF_SERIOUS_ADVERSE_EVENTS = "number_of_serious_adverse_events"
+        HAS_CLINICAL_BENEFIT_AT_WEEK_16 = "has_clinical_benefit_at_week_16"
+        END_OF_TREATMENT_REASON = "end_of_treatment_reason"
+        END_OF_TREATMENT_DATE = "end_of_treatment_date"
+
     def __init__(self, patient_id: str, trial_id: str):
         self.updated_fields: Set[str] = set()
 
@@ -44,13 +61,12 @@ class Patient(TrackedValidated):
         self._sex: str | None = None
         self._evaluable_for_efficacy_analysis: bool | None = None
         self._treatment_start_date: dt.date | None = None
-        self._treatment_end_date: dt.date | None = None
         self._treatment_start_last_cycle: dt.date | None = None
         self._date_of_death: dt.date | None = None
         self._has_any_adverse_events: bool | None = None
         self._number_of_adverse_events: int | None = None
         self._number_of_serious_adverse_events: int | None = None
-        self._has_clinical_benefit_at_week16: bool | None = None
+        self._has_clinical_benefit_at_week_16: bool | None = None
         self._end_of_treatment_reason: str | None = None
         self._end_of_treatment_date: dt.date | None = None
 
@@ -183,18 +199,6 @@ class Patient(TrackedValidated):
         )
 
     @property
-    def treatment_end_date(self) -> dt.date | None:
-        return self._treatment_end_date
-
-    @treatment_end_date.setter
-    def treatment_end_date(self, value: dt.date | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.treatment_end_date,
-            value=value,
-            validator=StrictValidators.validate_optional_date,
-        )
-
-    @property
     def treatment_start_last_cycle(self) -> dt.date | None:
         return self._treatment_start_last_cycle
 
@@ -243,13 +247,13 @@ class Patient(TrackedValidated):
         )
 
     @property
-    def has_clinical_benefit_at_week16(self) -> bool | None:
-        return self._has_clinical_benefit_at_week16
+    def has_clinical_benefit_at_week_16(self) -> bool | None:
+        return self._has_clinical_benefit_at_week_16
 
-    @has_clinical_benefit_at_week16.setter
-    def has_clinical_benefit_at_week16(self, value: bool | None) -> None:
+    @has_clinical_benefit_at_week_16.setter
+    def has_clinical_benefit_at_week_16(self, value: bool | None) -> None:
         self._set_validated_prop(
-            prop=self.__class__.has_clinical_benefit_at_week16,
+            prop=self.__class__.has_clinical_benefit_at_week_16,
             value=value,
             validator=StrictValidators.validate_optional_bool,
         )
@@ -631,7 +635,7 @@ class Patient(TrackedValidated):
             f"number_of_serious_adverse_events={self.number_of_serious_adverse_events}{delim} "
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis}{delim} "
             f"treatment_start_date={self.treatment_start_date}{delim} "
-            f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week16}{delim} "
+            f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week_16}{delim} "
             f"end_of_treatment_reason={self.end_of_treatment_reason}{delim} "
             f"end_of_treatment_date={self.end_of_treatment_date}{delim} "
             # singletons
