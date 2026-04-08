@@ -294,6 +294,8 @@ class BaseHarmonizer(ABC):
                     Patient.get_attr_for_type(spec.target_domain)
                 except KeyError as e:
                     raise ValueError(f"{spec.name}: {spec.target_domain.__name__} does not map to any Patient attribute") from e
+                if Patient.get_kind_for_type(spec.target_domain) != "singleton":
+                    raise ValueError(f"{spec.name}: @singleton used with {spec.target_domain.__name__}, but Patient maps it to a collection attribute")
 
             elif isinstance(spec, CollectionSpec):
                 if not spec.target_domain:
@@ -304,6 +306,8 @@ class BaseHarmonizer(ABC):
                     invalid = set(spec.order_by) - canonical
                     if invalid:
                         raise ValueError(f"{spec.name}: order_by contains columns not in {spec.target_domain.__name__}.data_fields(): {invalid}")
+                if Patient.get_kind_for_type(spec.target_domain) != "collection":
+                    raise ValueError(f"{spec.name}: @collection used with {spec.target_domain.__name__}, but Patient maps it to a singleton attribute")
 
                 try:
                     Patient.get_attr_for_type(spec.target_domain)

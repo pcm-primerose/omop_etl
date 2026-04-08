@@ -631,6 +631,26 @@ class TestValidateSpecs:
                 def _create_patients(self) -> None:
                     pass
 
+    def test_singleton_decorator_on_collection_domain_raises(self):
+        """@singleton with a domain Patient maps as a collection should raise at import time."""
+        with pytest.raises(ValueError, match=r"@singleton used with .* but Patient maps it to a collection"):
+
+            class BadHarmonizer(BaseHarmonizer):  # noqa
+                SPECS = (SingletonSpec(name="foo", process=_noop_processor, target_domain=MedicalHistory),)
+
+                def _create_patients(self) -> None:
+                    pass
+
+    def test_collection_decorator_on_singleton_domain_raises(self):
+        """@collection with a domain Patient maps as a singleton should raise at import time."""
+        with pytest.raises(ValueError, match=r"@collection used with .* but Patient maps it to a singleton"):
+
+            class BadHarmonizer(BaseHarmonizer):  # noqa
+                SPECS = (CollectionSpec(name="foo", process=_noop_processor, target_domain=FollowUp),)
+
+                def _create_patients(self) -> None:
+                    pass
+
 
 class TestRunTemplateMethod:
     def test_run_calls_processors_in_order(self):

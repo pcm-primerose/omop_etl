@@ -1,4 +1,4 @@
-from typing import ClassVar, Set, Sequence, Union, get_type_hints, get_origin, get_args
+from typing import ClassVar, Literal, Set, Sequence, Union, get_type_hints, get_origin, get_args
 import datetime as dt
 from logging import getLogger
 from typing import TypeVar
@@ -586,6 +586,23 @@ class Patient(TrackedValidated):
                     return name
 
         raise KeyError(f"No attribute found for type {item_type.__name__}")
+
+    @classmethod
+    def get_kind_for_type(cls, item_type: type) -> Literal["singleton", "collection"]:
+        """
+        Returns whether the Patient attribute for `item_type` is a singleton
+        (`T | None`) or a collection (`tuple[T, ...]`).
+
+        Reuses `get_attr_for_type` to find the property, then inspects its return
+        type origin. Raises `KeyError` (via `get_attr_for_type`) if no matching
+        attribute exists.
+        """
+        attr_name = cls.get_attr_for_type(item_type)
+        prop = getattr(cls, attr_name)
+        return_hint = get_type_hints(prop.fget)["return"]
+        if get_origin(return_hint) is tuple:
+            return "collection"
+        return "singleton"
 
     def get_updated_fields(self) -> Set[str]:
         return self.updated_fields
