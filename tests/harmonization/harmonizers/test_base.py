@@ -527,6 +527,34 @@ class TestHydrateScalar:
         with pytest.raises(ValueError, match="Duplicate scalar"):
             harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="error")
 
+    def test_duplicate_first(self):
+        """on_duplicate='first' should keep the first value seen for a subject."""
+        harmonizer = MinimalHarmonizer(
+            data=pl.DataFrame({"SubjectId": ["p1"]}),
+            trial_id="test",
+        )
+        harmonizer._create_patients()
+
+        df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["first_value", "second_value"]})
+
+        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="first")
+
+        assert harmonizer.patient_data["p1"].cohort_name == "first_value"
+
+    def test_duplicate_last(self):
+        """on_duplicate='last' should overwrite with the last value seen for a subject."""
+        harmonizer = MinimalHarmonizer(
+            data=pl.DataFrame({"SubjectId": ["p1"]}),
+            trial_id="test",
+        )
+        harmonizer._create_patients()
+
+        df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["first_value", "second_value"]})
+
+        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="last")
+
+        assert harmonizer.patient_data["p1"].cohort_name == "second_value"
+
 
 # dummy processor for tests
 def _noop_processor(h) -> None:  # noqa
