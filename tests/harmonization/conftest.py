@@ -5,27 +5,6 @@ import polars as pl
 
 
 @dataclass(frozen=True, slots=True)
-class SubjectIdRow:
-    SubjectId: str
-
-
-@pytest.fixture(scope="class")
-def subject_id_fixture() -> pl.DataFrame:
-    rows: List[SubjectIdRow] = [
-        SubjectIdRow("unique_1"),
-        SubjectIdRow("unique_2"),
-        SubjectIdRow("unique_3"),
-        SubjectIdRow("unique_4"),
-        SubjectIdRow("duplicate_id"),
-        SubjectIdRow("duplicate_id"),
-        SubjectIdRow("duplicate_variant"),
-    ]
-
-    records = [asdict(r) for r in rows]  # type: ignore
-    return pl.from_dicts(records)
-
-
-@dataclass(frozen=True, slots=True)
 class CohortNameRow:
     SubjectId: str
     COH_COHORTNAME: str | None = None
