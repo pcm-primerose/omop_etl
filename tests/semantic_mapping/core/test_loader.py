@@ -121,6 +121,6 @@ class TestLoadSemanticsDefaultPath:
         try:
             loader = LoadSemantics(path=None)
             assert loader.path is not None
-        except (FileNotFoundError, ValueError):
+        except FileNotFoundError, ValueError:
             # expected if no default semantic file exists in resources
             pytest.skip("No default semantic mapping file in resources")
