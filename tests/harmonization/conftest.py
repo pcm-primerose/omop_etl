@@ -1755,20 +1755,11 @@ def end_of_treatment_reason_fixture() -> pl.DataFrame:
     return pl.from_dicts(records)
 
 
-# --- C30 and EQ5D fixtures (for TestImpressSpecContracts smoke only) ---
-# These exist purely so the smoke test can exercise the C30 and EQ5D processors
-# at runtime (regex column matching, schema validation, hydration). The DF
-# tests for C30 and EQ5D are intentionally not added — see TEST_REFACTOR_PLAN.md
-# Step 10 for the rationale.
-
-
 @dataclass(frozen=True, slots=True)
 class Eq5dRow:
     """
     EQ5D source row. The processor expects all 5 question text + 5 question
-    code columns plus the QOL_METRIC and event columns. EQ5D's processor
-    final select references all 10 question outputs, so all 10 input columns
-    must be present (even if null).
+    code columns plus the QOL_METRIC and event columns.
     """
 
     SubjectId: str
@@ -1810,10 +1801,6 @@ def eq5d_fixture() -> pl.DataFrame:
     return pl.from_dicts(records)
 
 
-# C30 has 30 questions = 60 input question columns + 3 base columns. A
-# hand-written 63-field dataclass would be repetitive; build it programmatically
-# via dataclasses.make_dataclass so the fixture can use the same row-dataclass
-# pattern as the others without 60 lines of typing.
 _C30_FIELDS = (
     [
         ("SubjectId", str),
@@ -1835,8 +1822,6 @@ C30Row = make_dataclass(
 @pytest.fixture
 def c30_fixture() -> pl.DataFrame:
     rows = [
-        # full row: a couple of questions answered, plus the bookends
-        # (Q1, Q15, Q30) so any regex bug at the start/middle/end fails.
         C30Row(
             "c30_full",
             C30_EventName="V01",
