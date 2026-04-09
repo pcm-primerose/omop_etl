@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OmopTables:
     """
-    Container for built OMOP tables.
+    Container for built OMOP tables...
 
     Supports dynamic table building via extend/add methods,
     with typed property accessors for known tables.
