@@ -7,6 +7,8 @@ from omop_etl.omop.models.rows import (
     ObservationPeriodRow,
     CdmSourceRow,
     VisitOccurrenceRow,
+    ConditionOccurrenceRow,
+    DrugExposureRow
 )
 
 logger = logging.getLogger(__name__)
@@ -101,3 +103,11 @@ class OmopTables:
     @property
     def visit_occurrence(self) -> list[VisitOccurrenceRow] | None:
         return self._tables.get("visit_occurrence", [])
+
+    @property
+    def drug_exposure(self) -> list[DrugExposureRow] | None:
+        return self._tables.get("drug_exposure", [])
+
+    @property
+    def drug_exposure(self) -> list[ConditionOccurrenceRow] | None:
+        return self._tables.get("drug_exposure", [])

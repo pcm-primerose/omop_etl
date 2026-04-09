@@ -1,12 +1,12 @@
 import datetime as dt
 
-from omop_etl.omop.builders.condition_occurrence_builder import ConditionOccurrenceBuilder
+from omop_etl.omop.builders.drug_exposure_builder import DrugExposureBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 
 
-class TestConditionOcurrenceBuilder:
-    def test_condition_ocurrence(self, mock_concepts, patient_complete):
-        builder = ConditionOccurrenceBuilder(mock_concepts)
+class TestDrugExposureBuilder:
+    def test_builds_drug_exposure(self, mock_concepts, patient_complete):
+        builder = DrugExposureBuilder(mock_concepts)
         person_id = sha1_bigint("person", patient_complete.patient_id)
 
         rows = builder.build(patient_complete, person_id)
@@ -22,7 +22,7 @@ class TestConditionOcurrenceBuilder:
         """
         Tests treatment start date is not empty
         """
-        builder = ConditionOccurrenceBuilder(mock_concepts)
+        builder = DrugExposureBuilder(mock_concepts)
         person_id = sha1_bigint("person", patient_missing_treatment_start.patient_id)
 
         rows = builder.build(patient_missing_treatment_start, person_id)
@@ -33,7 +33,7 @@ class TestConditionOcurrenceBuilder:
         """
         Tests treatment end date is not empty
         """
-        builder = ConditionOccurrenceBuilder(mock_concepts)
+        builder = DrugExposureBuilder(mock_concepts)
         person_id = sha1_bigint("person", patient_minimal.patient_id)
 
         rows = builder.build(patient_minimal, person_id)
@@ -45,9 +45,9 @@ class TestConditionOcurrenceBuilder:
         """
         Tests table name
         """
-        builder = ConditionOccurrenceBuilder(mock_concepts)
+        builder = DrugExposureBuilder(mock_concepts)
         assert builder.table_name == "drug_exposure"
-        
+
         """
         Add more tests
         """
