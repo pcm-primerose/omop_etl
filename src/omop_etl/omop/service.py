@@ -7,6 +7,7 @@ from omop_etl.omop.builders.person_builder import PersonBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
 from omop_etl.omop.builders.visit_occurrence_builder import VisitOccurrenceBuilder
+from omop_etl.omop.builders.drug_exposure_builder import DrugExposureBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 from omop_etl.omop.models.tables import OmopTables
 
@@ -25,6 +26,7 @@ class OmopService:
             PersonBuilder(concepts),
             ObservationPeriodBuilder(concepts),
             VisitOccurrenceBuilder(concepts),
+            DrugExposureBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
