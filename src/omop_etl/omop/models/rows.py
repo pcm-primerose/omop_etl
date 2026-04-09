@@ -137,7 +137,7 @@ class ConditionOccurrenceRow:
     condition_type_concept_id: int
     condition_start_datetime: dt.datetime | None = None
     condition_end_date: dt.date | None = None
-    condition_end_datetime: dt.datetime | None = None
+    condition_end_datetime: dt.date | None = None
     condition_status_concept_id: int | None = None
     stop_reason: str | None = pd_field(None, max_length=20)
     provider_id: int | None = None

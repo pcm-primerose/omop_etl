@@ -1,4 +1,5 @@
 from typing import Set
+import datetime as dt
 
 from omop_etl.harmonization.core.validators import StrictValidators
 from omop_etl.harmonization.models.domain.base import DomainBase
@@ -12,6 +13,7 @@ class TumorType(DomainBase):
         MAIN_TUMOR_TYPE_CODE = "main_tumor_type_code"
         COHORT_TUMOR_TYPE = "cohort_tumor_type"
         OTHER_TUMOR_TYPE = "other_tumor_type"
+        START_DATE = "start_date"
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -21,6 +23,7 @@ class TumorType(DomainBase):
         self._main_tumor_type_code: int | None = None
         self._cohort_tumor_type: str | None = None
         self._other_tumor_type: str | None = None
+        self._start_date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
     @property
@@ -96,6 +99,18 @@ class TumorType(DomainBase):
             validator=StrictValidators.validate_optional_str,
         )
 
+    @property
+    def start_date(self) -> dt.date | None:
+        return self._start_date
+
+    @start_date.setter
+    def start_date(self, value: dt.date | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.start_date,
+            value=value,
+            validator=StrictValidators.validate_optional_date,
+        )
+
     def __repr__(self, delim=",") -> str:
         return (
             f"{self.__class__.__name__}("
@@ -104,6 +119,7 @@ class TumorType(DomainBase):
             f"main_tumor_type={self.main_tumor_type!r}{delim} "
             f"main_tumor_type_code={self.main_tumor_type_code!r}{delim} "
             f"other_tumor_type={self.other_tumor_type!r}{delim} "
-            f"cohort_tumor_type={self.cohort_tumor_type!r}"
+            f"cohort_tumor_type={self.cohort_tumor_type!r}{delim}"
+            f"start_date={self.start_date!r}"
             f")"
         )

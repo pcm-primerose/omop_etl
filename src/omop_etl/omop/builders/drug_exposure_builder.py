@@ -4,7 +4,6 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
-from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.models.rows import DrugExposureRow
 from logging import getLogger
@@ -131,7 +130,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         return rows
 
     def _build_previous_treatment_row(
-        self, patient: Patient, person_id: int, prev_treatment: PreviousTreatments, index: int, route: Optional[TreatmentCycle] = None
+        self, patient: Patient, person_id: int, prev_treatment: PreviousTreatments, index: int, route: Optional[str] = None
     ) -> list[DrugExposureRow]:
         """Build a row for a previous treatment."""
         # need a start date

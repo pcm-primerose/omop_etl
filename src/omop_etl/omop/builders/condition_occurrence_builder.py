@@ -21,8 +21,8 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             condition_occurrence_id=condition_ocurrence_id,
             person_id=person_id,
             condition_concept_id=tumor_type_concept_id,
-            condition_start_date=dt.date,
-            condition_type_concept_id=32809,  # Case Report Form
+            condition_start_date=dt.date(1999, 1, 1),  # placeholder
+            condition_type_concept_id=ecrf.concept_id,  # Case Report Form
             condition_start_datetime=None,
             condition_end_date=None,
             condition_end_datetime=None,
