@@ -14,7 +14,7 @@ class TestDrugExposureBuilder:
         assert len(rows) == 1
         row = rows[0]
         assert row.person_id == person_id
-        assert row.drug_exposure_start_date == dt.date(2024, 8, 20) # Exposure during one cycle with 28 days 
+        assert row.drug_exposure_start_date == dt.date(2024, 8, 20)  # Exposure during one cycle with 28 days
         assert row.drug_exposure_end_date == dt.date(2024, 9, 16)
         assert row.drug_type_concept_id == 32809  # Case report form
 

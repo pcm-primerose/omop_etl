@@ -48,7 +48,7 @@ fix = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W"]
-ignore = ["E203", "E501", "F841", "COM812"]
+ignore = ["E203", "E501", "F841", "COM812", "W291"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

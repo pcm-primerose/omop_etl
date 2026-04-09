@@ -2,14 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from omop_etl.omop.models.rows import (
-    PersonRow,
-    ObservationPeriodRow,
-    CdmSourceRow,
-    VisitOccurrenceRow,
-    ConditionOccurrenceRow,
-    DrugExposureRow
-)
+from omop_etl.omop.models.rows import PersonRow, ObservationPeriodRow, CdmSourceRow, VisitOccurrenceRow, ConditionOccurrenceRow, DrugExposureRow
 
 logger = logging.getLogger(__name__)
 
@@ -109,5 +102,5 @@ class OmopTables:
         return self._tables.get("drug_exposure", [])
 
     @property
-    def drug_exposure(self) -> list[ConditionOccurrenceRow] | None:
+    def condition_ocurrence(self) -> list[ConditionOccurrenceRow] | None:
         return self._tables.get("drug_exposure", [])
