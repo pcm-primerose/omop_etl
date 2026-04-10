@@ -1,7 +1,9 @@
 import pytest
 from typing import List
 
+from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.harmonized import HarmonizedData
+from omop_etl.harmonization.models.patient import Patient
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.semantic_mapping.core.pipeline import SemanticLookupPipeline
 from omop_etl.semantic_mapping.core.models import (
@@ -31,7 +33,7 @@ def custom_configs() -> List[FieldConfig]:
     return [
         FieldConfig(
             name="custom.field",
-            field_path=("tumor_type", "main_tumor_type"),
+            field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
             target=QueryTarget(domains={OmopDomain.CONDITION}),
             tags={"custom", "test"},
         ),

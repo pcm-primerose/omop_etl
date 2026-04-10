@@ -62,7 +62,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         # Primary treatment drug (Study Drug 1)
         if study_drugs.primary_treatment_drug:
             exposure_id = self.generate_row_id(patient.patient_id)
-            mapped_concepts = self._concepts.lookup_semantic(patient.patient_id, ("study_drugs", "primary_treatment_drug"), None)
+            mapped_concepts = self._concepts.lookup_semantic(
+                patient.patient_id, (Patient.Singletons.STUDY_DRUGS, StudyDrugs.Fields.PRIMARY_TREATMENT_DRUG), None
+            )
             concept_id = mapped_concepts[0].concept_id if mapped_concepts else 0
             drug_source_value = f"Study Drug 1: {study_drugs.primary_treatment_drug}"
 
@@ -96,7 +98,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         # Secondary treatment drug (Study Drug 2)
         if study_drugs.secondary_treatment_drug:
             exposure_id = self.generate_row_id(patient.patient_id)
-            mapped_concepts = self._concepts.lookup_semantic(patient.patient_id, ("study_drugs", "secondary_treatment_drug"), None)
+            mapped_concepts = self._concepts.lookup_semantic(
+                patient.patient_id, (Patient.Singletons.STUDY_DRUGS, StudyDrugs.Fields.SECONDARY_TREATMENT_DRUG), None
+            )
             concept_id = mapped_concepts[0].concept_id if mapped_concepts else 0
             drug_source_value = f"Study Drug 2: {study_drugs.secondary_treatment_drug}"
 
@@ -139,7 +143,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         exposure_id = self.generate_row_id(patient.patient_id)
-        mapped_concepts = self._concepts.lookup_semantic(patient.patient_id, ("previous_treatments", "treatment"), index)
+        mapped_concepts = self._concepts.lookup_semantic(
+            patient.patient_id, (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT), index
+        )
         concept_id = mapped_concepts[0].concept_id if mapped_concepts else 0
 
         row = DrugExposureRow(
@@ -176,7 +182,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         exposure_id = self.generate_row_id(patient.patient_id)
-        mapped_concepts = self._concepts.lookup_semantic(patient.patient_id, ("concomitant_medications", "medication_name"), index)
+        mapped_concepts = self._concepts.lookup_semantic(
+            patient.patient_id, (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME), index
+        )
         concept_id = mapped_concepts[0].concept_id if mapped_concepts else 0
 
         row = DrugExposureRow(

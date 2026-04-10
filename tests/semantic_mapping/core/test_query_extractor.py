@@ -1,5 +1,8 @@
 from typing import List
 
+from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
+from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.patient import Patient
 from omop_etl.semantic_mapping.core.models import Query
 from omop_etl.semantic_mapping.core.query_extractor import extract_queries
 
@@ -15,12 +18,12 @@ def test_query_extractor(patients, configs):
     patient_1_tumor_query = queries[0]
     assert patient_1_tumor_query.query == "tumor_1"
     assert patient_1_tumor_query.patient_id == "1"
-    assert patient_1_tumor_query.field_path == ("tumor_type", "main_tumor_type")
+    assert patient_1_tumor_query.field_path == (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE)
     assert patient_1_tumor_query.id == "fbf4cbe6fb9df353"
 
     # assert MedicalHistories collection produces correct query
     patient_2_medical_history_query = queries[3]
     assert patient_2_medical_history_query.query == "medical_history_2"
     assert patient_2_medical_history_query.patient_id == "2"
-    assert patient_2_medical_history_query.field_path == ("medical_histories", "term")
+    assert patient_2_medical_history_query.field_path == (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM)
     assert patient_2_medical_history_query.id == "4734158dcbb58615"
