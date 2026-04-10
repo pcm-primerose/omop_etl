@@ -25,11 +25,11 @@ class SimpleDomain(DomainBase):
     Simple domain for testing with two fields: name and value.
     """
 
-    class Cols:
+    class Fields:
         NAME = "name"
         VALUE = "value"
 
-    MATERIAL_COLS = (Cols.NAME,)
+    MATERIAL_FIELDS = (Fields.NAME,)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -163,7 +163,7 @@ class TestValidateSchemaSubset:
 
     def test_subject_col_in_data_fields_raises(self):
         class BadDomain(DomainBase):
-            class Cols:
+            class Fields:
                 SUBJECT_ID = "SubjectId"
 
             def __init__(self, patient_id: str):
@@ -751,23 +751,23 @@ class E2EHarmonizer(BaseHarmonizer):
             .filter(pl.col("raw_lost").is_not_null())
             .rename(
                 {
-                    "raw_lost": FollowUp.Cols.LOST_TO_FOLLOWUP,
-                    "raw_lost_date": FollowUp.Cols.DATE_LOST_TO_FOLLOWUP,
+                    "raw_lost": FollowUp.Fields.LOST_TO_FOLLOWUP,
+                    "raw_lost_date": FollowUp.Fields.DATE_LOST_TO_FOLLOWUP,
                 }
             )
             .unique(subset=["SubjectId"], keep="first")
         )
 
-    @collection(MedicalHistory, order_by=(MedicalHistory.Cols.START_DATE,), require_order_by=True)
+    @collection(MedicalHistory, order_by=(MedicalHistory.Fields.START_DATE,), require_order_by=True)
     def _process_medical_histories(self) -> pl.DataFrame | None:
         return (
             self.data.select("SubjectId", "raw_mh_term", "raw_mh_start", "raw_mh_end")
             .filter(pl.col("raw_mh_term").is_not_null())
             .rename(
                 {
-                    "raw_mh_term": MedicalHistory.Cols.TERM,
-                    "raw_mh_start": MedicalHistory.Cols.START_DATE,
-                    "raw_mh_end": MedicalHistory.Cols.END_DATE,
+                    "raw_mh_term": MedicalHistory.Fields.TERM,
+                    "raw_mh_start": MedicalHistory.Fields.START_DATE,
+                    "raw_mh_end": MedicalHistory.Fields.END_DATE,
                 }
             )
         )

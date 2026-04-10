@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class ConcomitantMedication(DomainBase):
-    class Cols:
+    class Fields:
         MEDICATION_NAME = "medication_name"
         MEDICATION_ONGOING = "medication_ongoing"
         WAS_TAKEN_DUE_TO_MEDICAL_HISTORY_EVENT = "was_taken_due_to_medical_history_event"

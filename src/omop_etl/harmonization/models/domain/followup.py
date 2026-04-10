@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class FollowUp(DomainBase):
-    class Cols:
+    class Fields:
         LOST_TO_FOLLOWUP = "lost_to_followup"
         DATE_LOST_TO_FOLLOWUP = "date_lost_to_followup"
 

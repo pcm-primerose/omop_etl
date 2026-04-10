@@ -9,7 +9,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 class C30(DomainBase):
     Q_COUNT = 30
 
-    class Cols:
+    class Fields:
         DATE = "date"
         EVENT_NAME = "event_name"
         Q1 = "q1"

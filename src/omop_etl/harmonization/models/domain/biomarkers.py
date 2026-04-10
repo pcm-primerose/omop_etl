@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class Biomarkers(DomainBase):
-    class Cols:
+    class Fields:
         GENE_AND_MUTATION = "gene_and_mutation"
         GENE_AND_MUTATION_CODE = "gene_and_mutation_code"
         COHORT_TARGET_NAME = "cohort_target_name"

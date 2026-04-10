@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorAssessment(DomainBase):
-    class Cols:
+    class Fields:
         ASSESSMENT_TYPE = "assessment_type"
         TARGET_LESION_CHANGE_FROM_BASELINE = "target_lesion_change_from_baseline"
         TARGET_LESION_CHANGE_FROM_NADIR = "target_lesion_change_from_nadir"

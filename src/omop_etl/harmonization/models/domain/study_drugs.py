@@ -5,7 +5,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class StudyDrugs(DomainBase):
-    class Cols:
+    class Fields:
         PRIMARY_TREATMENT_DRUG = "primary_treatment_drug"
         PRIMARY_TREATMENT_DRUG_CODE = "primary_treatment_drug_code"
         SECONDARY_TREATMENT_DRUG = "secondary_treatment_drug"

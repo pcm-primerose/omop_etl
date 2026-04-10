@@ -444,7 +444,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     @singleton(TumorType)
     def _process_tumor_type(self) -> pl.DataFrame:
         # COHTTYPE__3/CD is present in source, but has no data
-        cols = TumorType.Cols
+        cols = TumorType.Fields
         df = (
             self.data.with_row_index("_row")
             .select(
@@ -516,7 +516,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @singleton(StudyDrugs)
     def _process_study_drugs(self) -> pl.DataFrame:
-        cols = StudyDrugs.Cols
+        cols = StudyDrugs.Fields
         df = (
             self.data.with_row_index("_row")
             .select(
@@ -592,7 +592,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @singleton(Biomarkers)
     def _process_biomarkers(self) -> pl.DataFrame:
-        cols = Biomarkers.Cols
+        cols = Biomarkers.Fields
         df = (
             self.data.select(
                 "SubjectId",
@@ -621,7 +621,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @singleton(FollowUp)
     def _process_lost_to_followup(self) -> pl.DataFrame:
-        cols = FollowUp.Cols
+        cols = FollowUp.Fields
         lost_to_followup = (
             self.data.select("SubjectId", "FU_FUPSST", "FU_FUPALDAT")
             .with_columns(fu_status=PolarsParsers.to_optional_utf8("FU_FUPSST"))
@@ -645,7 +645,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Parses dates with defaults, strips description data, casts to correct types.
         Only select one baseline ECOG event per patient, using latest available date.
         """
-        cols = EcogBaseline.Cols
+        cols = EcogBaseline.Fields
 
         ecog_base = self.data.select("SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD", "ECOG_ECOGDAT").filter(
             pl.col("ECOG_EventId") == "V00",
@@ -680,7 +680,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(MedicalHistory, order_by=("start_date",), require_order_by=True)
     def _process_medical_histories(self) -> pl.DataFrame | None:
-        cols = MedicalHistory.Cols
+        cols = MedicalHistory.Fields
         mh_base = self.data.select(
             "SubjectId",
             "MH_MHSPID",
@@ -721,7 +721,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(PreviousTreatments, order_by=("start_date",), require_order_by=True)
     def _process_previous_treatments(self) -> pl.DataFrame | None:
-        cols = PreviousTreatments.Cols
+        cols = PreviousTreatments.Fields
         ct_base = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -762,7 +762,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(TreatmentCycle, order_by=("start_date",), require_order_by=True)
     def _process_treatment_cycle(self) -> pl.DataFrame | None:
-        cols = TreatmentCycle.Cols
+        cols = TreatmentCycle.Fields
         treatment_cycle_cols = [
             "SubjectId",
             "TR_TRNAME",
@@ -909,7 +909,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(ConcomitantMedication, order_by=("sequence_id", "start_date"), require_order_by=True)
     def _process_concomitant_medication(self) -> pl.DataFrame | None:
-        cols = ConcomitantMedication.Cols
+        cols = ConcomitantMedication.Fields
         cm_base = self.data.select(
             "SubjectId",
             "CM_CMTRT",
@@ -951,7 +951,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(AdverseEvent, order_by=("start_date",), require_order_by=True)
     def _process_adverse_events(self) -> pl.DataFrame | None:
-        cols = AdverseEvent.Cols
+        cols = AdverseEvent.Fields
         ae_base = self.data.select(
             "SubjectId",
             "AE_AECTCAET",
@@ -1083,7 +1083,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         For the target lesions there are no separate entries for baseline evals, the earliest assessment with valid date + baseline size
         is selected.
         """
-        cols = TumorAssessmentBaseline.Cols
+        cols = TumorAssessmentBaseline.Fields
 
         base = self.data.select(
             [
@@ -1228,7 +1228,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(TumorAssessment, order_by=("date",), require_order_by=True)
     def _process_tumor_assessments(self) -> pl.DataFrame | None:
-        cols = TumorAssessment.Cols
+        cols = TumorAssessment.Fields
         base = self.data.select(
             "SubjectId",
             "RA_RAASSESS1",
@@ -1342,7 +1342,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     # TODO: refactor to not use regex later
     @collection(C30, order_by=("date",), require_order_by=True)
     def _process_c30(self) -> pl.DataFrame | None:
-        cols = C30.Cols
+        cols = C30.Fields
         question_text_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)$")
         question_code_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)CD$")
 
@@ -1368,7 +1368,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                     return f"q{m.group(1)}_code"
                 return col
 
-            # Build column list using Cols constants
+            # Build column list using Fields constants
             q_text_cols = [getattr(cols, f"Q{i}") for i in range(1, C30.Q_COUNT + 1)]
             q_code_cols = [getattr(cols, f"Q{i}_CODE") for i in range(1, C30.Q_COUNT + 1)]
 
@@ -1391,11 +1391,11 @@ class ImpressHarmonizer(BaseHarmonizer):
     # TODO: refactor to not use regex later
     @collection(EQ5D, order_by=("date",), require_order_by=True)
     def _process_eq5d(self) -> pl.DataFrame | None:
-        cols = EQ5D.Cols
+        cols = EQ5D.Fields
         question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")
         question_code_re = re.compile(r"^(?:EQ5D_)?EQ5D([1-5])CD$")
 
-        # Build column lists using Cols constants
+        # Build column lists using Fields constants
         q_text_cols = [getattr(cols, f"Q{i}") for i in range(1, EQ5D.Q_COUNT + 1)]
         q_code_cols = [getattr(cols, f"Q{i}_CODE") for i in range(1, EQ5D.Q_COUNT + 1)]
 
@@ -1445,7 +1445,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Removes unconfirmed iRecist responses, and takes best response across Recist and iRecist when
         rows have both evaluations.
         """
-        cols = BestOverallResponse.Cols
+        cols = BestOverallResponse.Fields
         base = self.data.select(
             "SubjectId",
             "RA_RATIMRES",

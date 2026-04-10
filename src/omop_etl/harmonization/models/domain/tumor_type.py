@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorType(DomainBase):
-    class Cols:
+    class Fields:
         ICD10_CODE = "icd10_code"
         ICD10_DESCRIPTION = "icd10_description"
         MAIN_TUMOR_TYPE = "main_tumor_type"
