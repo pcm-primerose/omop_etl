@@ -32,8 +32,7 @@ class Patient(TrackedValidated):
 
     _attr_cache: ClassVar[dict[type, str]] = {}
 
-    class Cols:
-        # used to map col names in processors to properties
+    class Scalars:
         COHORT_NAME = "cohort_name"
         AGE = "age"
         DATE_OF_BIRTH = "date_of_birth"
@@ -48,6 +47,25 @@ class Patient(TrackedValidated):
         HAS_CLINICAL_BENEFIT_AT_WEEK_16 = "has_clinical_benefit_at_week_16"
         END_OF_TREATMENT_REASON = "end_of_treatment_reason"
         END_OF_TREATMENT_DATE = "end_of_treatment_date"
+
+    class Singletons:
+        TUMOR_TYPE = "tumor_type"
+        STUDY_DRUGS = "study_drugs"
+        BIOMARKERS = "biomarkers"
+        LOST_TO_FOLLOWUP = "lost_to_followup"
+        ECOG_BASELINE = "ecog_baseline"
+        TUMOR_ASSESSMENT_BASELINE = "tumor_assessment_baseline"
+        BEST_OVERALL_RESPONSE = "best_overall_response"
+
+    class Collections:
+        MEDICAL_HISTORIES = "medical_histories"
+        PREVIOUS_TREATMENTS = "previous_treatments"
+        TREATMENT_CYCLES = "treatment_cycles"
+        CONCOMITANT_MEDICATIONS = "concomitant_medications"
+        ADVERSE_EVENTS = "adverse_events"
+        TUMOR_ASSESSMENTS = "tumor_assessments"
+        C30_COLLECTION = "c30_collection"
+        EQ5D_COLLECTION = "eq5d_collection"
 
     def __init__(self, patient_id: str, trial_id: str):
         self.updated_fields: Set[str] = set()
@@ -657,3 +675,17 @@ class Patient(TrackedValidated):
             f"C30={self.c30_collection}"
             f")"
         )
+
+
+def _validate_patient_schema() -> None:
+    """Import-time guard: every constant must match a Patient property."""
+    for section in (Patient.Scalars, Patient.Singletons, Patient.Collections):
+        for name, value in vars(section).items():
+            if name.startswith("_") or not isinstance(value, str):
+                continue
+            if not hasattr(Patient, value):
+                raise TypeError(f"Patient.{section.__name__}.{name} = {value!r} but Patient has no property '{value}'")
+
+
+_validate_patient_schema()
+del _validate_patient_schema

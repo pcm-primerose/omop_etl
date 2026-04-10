@@ -46,7 +46,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_cohort_name(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.COHORT_NAME
+        colname = Patient.Scalars.COHORT_NAME
         return self.data.select(
             "SubjectId",
             PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).alias(colname),
@@ -54,7 +54,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_sex(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.SEX
+        colname = Patient.Scalars.SEX
         return (
             self.data.select(
                 "SubjectId",
@@ -72,7 +72,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_date_of_birth(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.DATE_OF_BIRTH
+        colname = Patient.Scalars.DATE_OF_BIRTH
         return (
             self.data.group_by("SubjectId")
             .agg(pl.col("DM_BRTHDAT").drop_nulls().first().alias("birth_date"))
@@ -81,7 +81,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_age(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.AGE
+        colname = Patient.Scalars.AGE
         return (
             self.data.group_by("SubjectId")
             .agg(
@@ -101,7 +101,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_date_of_death(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.DATE_OF_DEATH
+        colname = Patient.Scalars.DATE_OF_DEATH
         death_df = (
             self.data.select(
                 "SubjectId",
@@ -119,7 +119,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_has_any_adverse_events(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.HAS_ANY_ADVERSE_EVENTS
+        colname = Patient.Scalars.HAS_ANY_ADVERSE_EVENTS
         ae_status = (
             self.data.with_columns(
                 ae_text_present=PolarsParsers.to_optional_utf8("AE_AECTCAET").str.len_chars().fill_null(0) > 0,
@@ -142,7 +142,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_number_of_adverse_events(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.NUMBER_OF_ADVERSE_EVENTS
+        colname = Patient.Scalars.NUMBER_OF_ADVERSE_EVENTS
         ae_num = (
             self.data.with_columns(
                 ae_num=pl.any_horizontal(
@@ -160,7 +160,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_number_of_serious_adverse_events(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.NUMBER_OF_SERIOUS_ADVERSE_EVENTS
+        colname = Patient.Scalars.NUMBER_OF_SERIOUS_ADVERSE_EVENTS
         sae_counts = (
             self.data.with_columns(
                 is_serious=(PolarsParsers.to_optional_int64("AE_AESERCD") == 1).fill_null(False),
@@ -177,7 +177,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Note: If patient has iRecist *and* Recist at same assessment,
         iRecist evaluation takes precedence as it's a more specific assessment.
         """
-        colname = Patient.Cols.HAS_CLINICAL_BENEFIT_AT_WEEK_16
+        colname = Patient.Scalars.HAS_CLINICAL_BENEFIT_AT_WEEK_16
         timepoint = "V03"
 
         benefit = (
@@ -207,7 +207,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar(on_duplicate="last")
     def _process_end_of_treatment_reason(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.END_OF_TREATMENT_REASON
+        colname = Patient.Scalars.END_OF_TREATMENT_REASON
         end_of_treatment_reason = (
             self.data.select("SubjectId", "EOT_EOTREOT")
             .with_columns(
@@ -240,7 +240,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 - tumor assessment after week 4 (patient has any tumor assessment with EventId==V04 in RA, RCNT, RTNTMNT, RNRSP)
                 - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
         """
-        colname = Patient.Cols.EVALUABLE_FOR_EFFICACY_ANALYSIS
+        colname = Patient.Scalars.EVALUABLE_FOR_EFFICACY_ANALYSIS
         evaluability_data = self.data.select(
             "SubjectId",
             "TR_TROSTPDT",
@@ -353,7 +353,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_treatment_start_date(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.TREATMENT_START_DATE
+        colname = Patient.Scalars.TREATMENT_START_DATE
         treatment_start_data = (
             self.data.lazy()
             .select(["SubjectId", "TR_TRNAME", "TR_TRC1_DT"])
@@ -373,7 +373,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_end_of_treatment_date(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.END_OF_TREATMENT_DATE
+        colname = Patient.Scalars.END_OF_TREATMENT_DATE
         treatment_stop_data = (
             self.data.select(
                 "SubjectId",
@@ -423,7 +423,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Set enforce_valid=True if TR_TRCYNCD must be 1 (i.e. filtering for valid cycles only)
         """
         enforce_valid = False
-        colname = Patient.Cols.TREATMENT_START_LAST_CYCLE
+        colname = Patient.Scalars.TREATMENT_START_LAST_CYCLE
 
         last_cycle_data = (
             self.data.select("SubjectId", "TR_TRC1_DT", "TR_TRCYNCD")
