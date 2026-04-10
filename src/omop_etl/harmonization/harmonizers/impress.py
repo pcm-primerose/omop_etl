@@ -450,6 +450,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             .select(
                 "_row",
                 "SubjectId",
+                PolarsParsers.to_optional_date(pl.col("COH_EventDate")).alias("event_date"),
                 PolarsParsers.to_optional_utf8(pl.col("COH_ICD10COD")).str.strip_chars().alias(cols.ICD10_CODE),
                 PolarsParsers.to_optional_utf8(pl.col("COH_ICD10DES")).str.strip_chars().alias(cols.ICD10_DESCRIPTION),
                 PolarsParsers.to_optional_utf8(pl.col("COH_COHTT")).str.strip_chars().alias(cols.COHORT_TUMOR_TYPE),
@@ -497,6 +498,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             # last write wins per SubjectId
             .sort("_row")
+            .rename({"event_date": cols.DATE})
             .unique(subset=["SubjectId"], keep="last")
             .select(
                 "SubjectId",
@@ -506,6 +508,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 cols.MAIN_TUMOR_TYPE_CODE,
                 cols.COHORT_TUMOR_TYPE,
                 cols.OTHER_TUMOR_TYPE,
+                cols.DATE,
             )
         )
 

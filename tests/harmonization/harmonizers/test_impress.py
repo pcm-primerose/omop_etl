@@ -124,6 +124,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 50
         assert row.item(0, "cohort_tumor_type") == "tumor1_subtype2"
         assert row.item(0, "other_tumor_type") == "tumor1_subtype3"
+        assert row.item(0, "date") == dt.date(2020, 3, 15)
 
         # crc_subtype_slot2
         row = df.filter(pl.col("SubjectId") == "crc_subtype_slot2")
@@ -133,6 +134,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 40
         assert row.item(0, "cohort_tumor_type") is None
         assert row.item(0, "other_tumor_type") is None
+        assert row.item(0, "date") == dt.date(2019, 7, 15)
 
         # tumor2_dual_subtypes
         row = df.filter(pl.col("SubjectId") == "tumor2_dual_subtypes")
@@ -142,6 +144,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 70
         assert row.item(0, "cohort_tumor_type") == "tumor2_subtype2"
         assert row.item(0, "other_tumor_type") is None
+        assert row.item(0, "date") is None
 
         # tumor3_sp_subtype
         row = df.filter(pl.col("SubjectId") == "tumor3_sp_subtype")
@@ -151,6 +154,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 10
         assert row.item(0, "cohort_tumor_type") is None
         assert row.item(0, "other_tumor_type") == "tumor3_subtype2"
+        assert row.item(0, "date") is None
 
         # tumor4_slot2_and_sp
         row = df.filter(pl.col("SubjectId") == "tumor4_slot2_and_sp")
@@ -160,6 +164,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 30
         assert row.item(0, "cohort_tumor_type") is None
         assert row.item(0, "other_tumor_type") == "tumor4_subtype2"
+        assert row.item(0, "date") == dt.date(2021, 6, 1)
 
 
 class TestProcessStudyDrugs:

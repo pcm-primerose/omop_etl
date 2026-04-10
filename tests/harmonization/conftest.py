@@ -137,6 +137,7 @@ class TumorTypeRow:
     COH_COHTTYPE__2CD: int | None = None
     COH_COHTT: str | None = None
     COH_COHTTOSP: str | None = None
+    COH_EventDate: str | None = None
 
 
 @pytest.fixture
@@ -150,6 +151,7 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPECD=50,
             COH_COHTT="tumor1_subtype2",
             COH_COHTTOSP="tumor1_subtype3",
+            COH_EventDate="2020-03-15",
         ),
         TumorTypeRow(
             "crc_subtype_slot2",
@@ -158,6 +160,7 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPECD=None,
             COH_COHTTYPE__2="CRC_subtype",
             COH_COHTTYPE__2CD=40,
+            COH_EventDate="2019-nk-nk",
         ),
         TumorTypeRow(
             "tumor2_dual_subtypes",
@@ -166,6 +169,7 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPE="tumor2_subtype1",
             COH_COHTTYPECD=70,
             COH_COHTT="tumor2_subtype2",
+            COH_EventDate="not a date",
         ),
         TumorTypeRow(
             "tumor3_sp_subtype",
@@ -183,6 +187,7 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPE__2="tumor4_subtype1",
             COH_COHTTYPE__2CD=30,
             COH_COHTTOSP="tumor4_subtype2",
+            COH_EventDate="2021-06-01",
         ),
     ]
 
