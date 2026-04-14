@@ -50,11 +50,20 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             log.warning("Skipping treatment cycle %d for %s: missing start_date", index, patient.patient_id)
             return None
 
-        mapped = self._concepts.lookup_semantic(
-            patient.patient_id,
-            (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-            index,
-        )
+        # ingredient_name lookup for parseable names (including combination components),
+        # source_treatment_name fallback for plain unparseable names only
+        if cycle.ingredient_name:
+            mapped = self._concepts.lookup_semantic(
+                patient.patient_id,
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
+                index,
+            )
+        else:
+            mapped = self._concepts.lookup_semantic(
+                patient.patient_id,
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                index,
+            )
         drug_concept_id = int(mapped[0].concept_id) if mapped else 0
 
         # dose fields depend on cycle type (IV vs oral)

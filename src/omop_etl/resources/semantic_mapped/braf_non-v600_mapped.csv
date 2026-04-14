@@ -258,5 +258,7 @@ efaf1bd0-8bc1-5f1a-9e12-8e454e97da95,MH_MHTERM,Esophagitis,1,30753,16761005,Esop
 e2df0b9b-4acf-516f-81bf-93728a8bcbec,MH_MHTERM,Toxic gastroenteritis and colitis,1,197596,71583005,Toxic gastroenteritis,Disorder,Standard,Valid,Condition,SNOMED
 071905c4-24a2-5991-ac79-b960f7226030,TR_TRNAME,Mekinist (Trametinib),13,43532497,1425099,trametinib,Ingredient,Standard,Valid,Drug,RxNorm
 bf4fb12f-07d3-57c6-b40c-b0cb7363ce3c,TR_TRNAME,Tafinlar (Dabrafenib),13,43532299,1424911,dabrafenib,Ingredient,Standard,Valid,Drug,RxNorm
+071905c4-24a2-5991-ac79-b960f7226030-1,TR_TRNAME,Trametinib,13,43532497,1425099,trametinib,Ingredient,Standard,Valid,Drug,RxNorm
+bf4fb12f-07d3-57c6-b40c-b0cb7363ce3c-1,TR_TRNAME,Dabrafenib,13,43532299,1424911,dabrafenib,Ingredient,Standard,Valid,Drug,RxNorm
 need-to-re-run,DM_DMSEX,male,1,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
 need-to-re-run,DM_DMSEX,female,1,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender

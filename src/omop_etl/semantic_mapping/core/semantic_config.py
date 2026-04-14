@@ -86,7 +86,13 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
         name="treatment_cycles.source_treatment_name",
         field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
         target=QueryTarget(domains={OmopDomain.DRUG, OmopDomain.DEVICE}),
-        tags={"treatment_cycle", "drug"},
+        tags={"treatment_cycle", "drug", "source"},
+    ),
+    FieldConfig(
+        name="treatment_cycles.ingredient_name",
+        field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
+        target=QueryTarget(domains={OmopDomain.DRUG, OmopDomain.DEVICE}),
+        tags={"treatment_cycle", "drug", "ingredient"},
     ),
     # tumor
     FieldConfig(
