@@ -75,14 +75,24 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         if cycle.cycle_type and cycle.cycle_type == "iv":
             quantity = cycle.iv_dose_prescribed
             dose_unit = cycle.iv_dose_prescribed_unit
-            route_concept_id = self.concepts.lookup_structural("iv").concept_id
+            iv_route = self.concepts.lookup_structural("iv")
+            route_concept_id = iv_route.concept_id if iv_route else None
         elif cycle.cycle_type and cycle.cycle_type == "oral":
             quantity = cycle.oral_dose_prescribed_per_day
             dose_unit = cycle.oral_dose_unit
-            route_concept_id = self.concepts.lookup_structural("oral").concept_id
+            oral_route = self.concepts.lookup_structural("oral")
+            route_concept_id = oral_route.concept_id if oral_route else None
+
+        row_id = self.generate_row_id(
+            patient.patient_id,
+            Patient.Collections.TREATMENT_CYCLES,
+            str(cycle.cycle_number),
+            str(cycle.treatment_number),
+            str(cycle.component_index),
+        )
 
         return DrugExposureRow(
-            drug_exposure_id=self.generate_row_id(patient.patient_id, Patient.Collections.TREATMENT_CYCLES, str(index)),
+            drug_exposure_id=row_id,
             person_id=person_id,
             drug_concept_id=drug_concept_id,
             drug_exposure_start_date=cycle.start_date,
@@ -114,8 +124,14 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         )
         drug_concept_id = int(mapped[0].concept_id) if mapped else 0
 
+        row_id = self.generate_row_id(
+            patient.patient_id,
+            Patient.Collections.PREVIOUS_TREATMENTS,
+            str(prev.treatment_sequence_number),
+        )
+
         return DrugExposureRow(
-            drug_exposure_id=self.generate_row_id(patient.patient_id, Patient.Collections.PREVIOUS_TREATMENTS, str(index)),
+            drug_exposure_id=row_id,
             person_id=person_id,
             drug_concept_id=drug_concept_id,
             drug_exposure_start_date=prev.start_date,
@@ -143,8 +159,14 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         )
         drug_concept_id = int(mapped[0].concept_id) if mapped else 0
 
+        row_id = self.generate_row_id(
+            patient.patient_id,
+            Patient.Collections.CONCOMITANT_MEDICATIONS,
+            str(concom.sequence_id),
+        )
+
         return DrugExposureRow(
-            drug_exposure_id=self.generate_row_id(patient.patient_id, Patient.Collections.CONCOMITANT_MEDICATIONS, str(index)),
+            drug_exposure_id=row_id,
             person_id=person_id,
             drug_concept_id=drug_concept_id,
             drug_exposure_start_date=concom.start_date,

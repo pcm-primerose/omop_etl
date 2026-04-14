@@ -41,12 +41,13 @@ class OmopBuilder(ABC, Generic[T]):
         """
         Deterministic row ID from key parts, using SHA1 hashing with builder's
         namespace to create a reproducible 63-bit integer ID.
-        Namespace defaults to the table_name.
+        Namespace defaults to the table_name. None parts are filtered out.
 
         Example:
             self.generate_row_id(patient.patient_id)
-            self.generate_row_id(patient.patient_id, str(index))
+            self.generate_row_id(patient.patient_id, str(cycle_number))
         """
         namespace = self.id_namespace or self.table_name
-        composite_key = ":".join(key_parts)
+        filtered = [str(p) for p in key_parts if p is not None]
+        composite_key = ":".join(filtered)
         return sha1_bigint(namespace, composite_key)

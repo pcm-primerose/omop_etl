@@ -10,11 +10,11 @@ class CdmSourceBuilder:
     """
 
     def __init__(self, concepts: ConceptLookupService):
-        self._concepts = concepts
+        self.concepts = concepts
 
     def build(self) -> CdmSourceRow:
-        cdm_version_concept = self._concepts.lookup_structural("cdm").concept_id
-        cdm_vocabulary_version = str(self._concepts.lookup_structural("vocab").concept_id)
+        cdm_version_concept = self.concepts.lookup_structural("cdm").concept_id
+        cdm_vocabulary_version = str(self.concepts.lookup_structural("vocab").concept_id)
 
         return CdmSourceRow(
             cdm_source_name="test ETL",
