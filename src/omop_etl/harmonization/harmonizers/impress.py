@@ -866,7 +866,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         def coerce_types(frame: pl.DataFrame) -> pl.DataFrame:
             """Cast non-processed cols"""
             _coerced = frame.with_columns(
-                pl.col("TR_TRNAME").cast(pl.Utf8).alias(cols.TREATMENT_NAME),
+                pl.col("TR_TRNAME").cast(pl.Utf8).alias(cols.SOURCE_TREATMENT_NAME),
                 pl.col("TR_TRTNO").cast(pl.Int64).alias(cols.TREATMENT_NUMBER),
                 pl.col("TR_TRCNO1").cast(pl.Int64).alias(cols.CYCLE_NUMBER),
                 pl.col("TR_TRIVDS1").cast(pl.Utf8).alias(cols.IV_DOSE_PRESCRIBED),
@@ -880,13 +880,84 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             return _coerced
 
+        def parse_treatment_names(frame: pl.DataFrame) -> pl.DataFrame:
+            """
+            Parse treatment names into source_treatment_name, ingredient_name, and brand_name.
+            Split combination drugs into per-ingredient rows with individual doses.
+
+            source_treatment_name is always the raw source value (invariant).
+            ingredient_name and brand_name are only populated when parseable from parens-data.
+
+            Handles three formats:
+            - "Brand (Ing1 and Ing2)" + "dose1/dose2": 2 rows, component_index 0/1
+            - "Brand (Ingredient)": 1 row, brand + ingredient extracted
+            - "Plain Name": 1 row, ingredient_name=None, brand_name=None
+            """
+            has_parens = pl.col(cols.SOURCE_TREATMENT_NAME).str.contains(r"\(")
+            is_combo = pl.col(cols.SOURCE_TREATMENT_NAME).str.contains(r"\(.*\band\b.*\)") & pl.col(cols.IV_DOSE_PRESCRIBED).cast(
+                pl.Utf8, strict=False
+            ).str.contains("/")
+
+            combo = frame.filter(is_combo)
+            non_combo = frame.filter(~is_combo)
+
+            # non-combination rows retained as one row
+            non_combo = non_combo.with_columns(
+                pl.when(has_parens)
+                .then(pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"^(.+?)\s*\(", 1).str.strip_chars())
+                .otherwise(None)
+                .alias(cols.BRAND_NAME),
+                pl.when(has_parens)
+                .then(pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"\((.+)\)", 1).str.strip_chars())
+                .otherwise(None)
+                .alias(cols.INGREDIENT_NAME),
+                pl.lit(None, dtype=pl.Int64).alias(cols.COMPONENT_INDEX),
+                pl.col(cols.IV_DOSE_PRESCRIBED).cast(pl.Float64, strict=False),
+            )
+
+            if combo.height == 0:
+                return non_combo
+
+            # combination IV rows parsed to separate rows
+            split = (
+                combo.with_columns(
+                    pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"^(.+?)\s*\(", 1).str.strip_chars().alias(cols.BRAND_NAME),
+                    pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"\((.+)\)", 1).str.split(" and ").alias("_ingredients"),
+                    pl.col(cols.IV_DOSE_PRESCRIBED).cast(pl.Utf8).str.split("/").alias("_doses"),
+                )
+                .with_columns(
+                    pl.col("_ingredients").list.len().alias("_n_ingredients"),
+                )
+                .with_columns(
+                    pl.when(pl.col("_n_ingredients") == pl.col("_doses").list.len())
+                    .then(pl.int_ranges(pl.lit(0), pl.col("_n_ingredients")))
+                    .otherwise(pl.lit(None))
+                    .alias("_component_indices"),
+                )
+                .explode("_ingredients", "_doses", "_component_indices")
+                .with_columns(
+                    pl.col("_ingredients").str.strip_chars().alias(cols.INGREDIENT_NAME),
+                    pl.col("_doses").cast(pl.Float64, strict=False).alias(cols.IV_DOSE_PRESCRIBED),
+                    pl.col("_component_indices").cast(pl.Int64).alias(cols.COMPONENT_INDEX),
+                )
+                .drop("_ingredients", "_doses", "_component_indices", "_n_ingredients")
+            )
+
+            return pl.concat([non_combo, split], how="align")
+
         coerced = coerce_types(cycle_base)
         cycle_typed = add_cycle_type(coerced)
         iv_cycle_end_dates = add_iv_cycle_stop_dates(cycle_typed)
         combined_end_dates = coalesce_cycle_ends(iv_cycle_end_dates)
-        filtered = filter_parse_treatment_cycles(combined_end_dates).select(
+        filtered = filter_parse_treatment_cycles(combined_end_dates)
+        parsed = parse_treatment_names(filtered)
+
+        return parsed.select(
             "SubjectId",
-            cols.TREATMENT_NAME,
+            cols.SOURCE_TREATMENT_NAME,
+            cols.INGREDIENT_NAME,
+            cols.BRAND_NAME,
+            cols.COMPONENT_INDEX,
             cols.CYCLE_TYPE,
             cols.TREATMENT_NUMBER,
             cols.CYCLE_NUMBER,
@@ -904,8 +975,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             cols.REASON_TABLET_NOT_TAKEN,
             cols.WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE,
         )
-
-        return filtered
 
     @collection(ConcomitantMedication, order_by=("sequence_id", "start_date"), require_order_by=True)
     def _process_concomitant_medication(self) -> pl.DataFrame | None:

@@ -1270,9 +1270,45 @@ def treatment_cycle_fixture() -> pl.DataFrame:
             TR_TRIVDELYN1="Yes",
             TR_TRO_YNCD=1,
         ),
+        # combination drug: two ingredients, equal doses
+        TreatmentCycleRow(
+            "combo_equal_dose",
+            TR_TRNAME="Phesgo (Pertuzumab and Trastuzumab)",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="2023-01-01",
+            TR_TRIVDS1="600/600",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD=1,
+        ),
+        # combination drug: two ingredients, different doses
+        TreatmentCycleRow(
+            "combo_diff_dose",
+            TR_TRNAME="Phesgo (Pertuzumab and Trastuzumab)",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="2023-02-01",
+            TR_TRIVDS1="1200/600",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD=1,
+        ),
+        # single drug with brand name and paranthetical ingredient
+        TreatmentCycleRow(
+            "single_branded",
+            TR_TRNAME="Tecentriq (Atezolizumab)",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="2023-03-01",
+            TR_TRIVDS1="1200",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD=1,
+        ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 

@@ -52,7 +52,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         mapped = self._concepts.lookup_semantic(
             patient.patient_id,
-            (Patient.Collections.TREATMENT_CYCLES, TreatmentCycle.Fields.TREATMENT_NAME),
+            (Patient.Collections.TREATMENT_CYCLES, TreatmentCycle.Fields.SOURCE_TREATMENT_NAME),
             index,
         )
         drug_concept_id = int(mapped[0].concept_id) if mapped else 0
@@ -79,7 +79,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             quantity=quantity,
             route_source_value=route_source,
             dose_unit_source_value=dose_unit,
-            drug_source_value=cycle.treatment_name,
+            drug_source_value=cycle.source_treatment_name,
         )
 
     def _build_previous_treatment_row(

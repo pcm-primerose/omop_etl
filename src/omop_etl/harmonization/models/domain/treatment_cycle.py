@@ -7,7 +7,10 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 class TreatmentCycle(DomainBase):
     class Fields:
-        TREATMENT_NAME = "treatment_name"
+        SOURCE_TREATMENT_NAME = "source_treatment_name"
+        INGREDIENT_NAME = "ingredient_name"
+        BRAND_NAME = "brand_name"
+        COMPONENT_INDEX = "component_index"
         CYCLE_TYPE = "cycle_type"
         TREATMENT_NUMBER = "treatment_number"
         CYCLE_NUMBER = "cycle_number"
@@ -28,7 +31,10 @@ class TreatmentCycle(DomainBase):
     def __init__(self, patient_id: str):
         # core
         self._patient_id = patient_id
-        self._treatment_name: str | None = None
+        self._source_treatment_name: str | None = None
+        self._ingredient_name: str | None = None
+        self._brand_name: str | None = None
+        self._component_index: int | None = None
         self._cycle_type: str | None = None
         self._treatment_number: int | None = None
         self._cycle_number: int | None = None
@@ -57,15 +63,51 @@ class TreatmentCycle(DomainBase):
         return self._patient_id
 
     @property
-    def treatment_name(self) -> str:
-        return self._treatment_name
+    def source_treatment_name(self) -> str | None:
+        return self._source_treatment_name
 
-    @treatment_name.setter
-    def treatment_name(self, value: str | None) -> None:
+    @source_treatment_name.setter
+    def source_treatment_name(self, value: str | None) -> None:
         self._set_validated_prop(
-            prop=self.__class__.treatment_name,
+            prop=self.__class__.source_treatment_name,
             value=value,
             validator=StrictValidators.validate_optional_str,
+        )
+
+    @property
+    def ingredient_name(self) -> str | None:
+        return self._ingredient_name
+
+    @ingredient_name.setter
+    def ingredient_name(self, value: str | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.ingredient_name,
+            value=value,
+            validator=StrictValidators.validate_optional_str,
+        )
+
+    @property
+    def brand_name(self) -> str | None:
+        return self._brand_name
+
+    @brand_name.setter
+    def brand_name(self, value: str | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.brand_name,
+            value=value,
+            validator=StrictValidators.validate_optional_str,
+        )
+
+    @property
+    def component_index(self) -> int | None:
+        return self._component_index
+
+    @component_index.setter
+    def component_index(self, value: int | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.component_index,
+            value=value,
+            validator=StrictValidators.validate_optional_int,
         )
 
     @property
@@ -265,6 +307,10 @@ class TreatmentCycle(DomainBase):
         return (
             f"{self.__class__.__name__}("
             f"patient_id={self.patient_id!r}{delim} "
+            f"source_treatment_name={self.source_treatment_name!r}{delim} "
+            f"ingredient_name={self.ingredient_name!r}{delim} "
+            f"brand_name={self.brand_name!r}{delim} "
+            f"component_index={self.component_index!r}{delim} "
             f"cycle_type={self.cycle_type!r}{delim} "
             f"treatment_number={self.treatment_number!r}{delim} "
             f"cycle_number={self.cycle_number!r}{delim} "
