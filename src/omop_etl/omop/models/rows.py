@@ -171,9 +171,9 @@ class DrugExposureRow:
     route_concept_id: int | None = None
     lot_number: str | None = pd_field(None, max_length=50)
     provider_id: int | None = None
-    visit_ocurrence_id: int | None = None
+    visit_occurrence_id: int | None = None
     visit_detail_id: int | None = None
-    drug_source_value: int | None = None
+    drug_source_value: str | None = pd_field(None, max_length=50)
     drug_source_concept_id: int | None = None
     route_source_value: str | None = pd_field(None, max_length=50)
     dose_unit_source_value: str | None = pd_field(None, max_length=50)

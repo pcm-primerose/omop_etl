@@ -140,8 +140,8 @@ aa12b98c-57e5-5469-9138-35dcc4740611,CM_CMTRT,Klyx,1,941258,82003,docusate,Ingre
 aa12b98c-57e5-5469-9138-35dcc4740611,CM_CMTRT,Klyx,1,970011,9945,sorbitol,Ingredient,Standard,Valid,Drug,RxNorm
 73a86d56-78b8-5284-ac19-ed87d92c72b2,CM_CMTRT,Mycostatin,1,922570,7597,nystatin,Ingredient,Standard,Valid,Drug,RxNorm
 440c80f4-3cc0-5285-94d8-61bff1db73ec,CM_CMTRT,Albyl-E,1,1112807,1191,aspirin,Ingredient,Standard,Valid,Drug,RxNorm
-bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam ,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
-bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam ,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
+bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
+bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
 549659be-5a1e-57b0-a046-a9c68800f2bc,CM_CMTRT,Lyrica,1,734354,187832,pregabalin,Ingredient,Standard,Valid,Drug,RxNorm
 29ae70b2-cc39-542e-8ac8-70cdf4a3214f,CM_CMTRT,Apocillin,1,1729720,7984,penicillin V,Ingredient,Standard,Valid,Drug,RxNorm
 564a0647-a182-581e-af33-470fd43a221a,CM_CMTRT,Ringer-Acetat,1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension

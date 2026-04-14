@@ -38,7 +38,7 @@ class TreatmentCycle(DomainBase):
 
         # iv only
         self._was_total_dose_delivered: bool | None = None
-        self._iv_dose_prescribed: str | None = None
+        self._iv_dose_prescribed: float | None = None
         self._iv_dose_prescribed_unit: str | None = None
 
         # oral only
@@ -153,15 +153,15 @@ class TreatmentCycle(DomainBase):
         )
 
     @property
-    def iv_dose_prescribed(self) -> str | None:
+    def iv_dose_prescribed(self) -> float | None:
         return self._iv_dose_prescribed
 
     @iv_dose_prescribed.setter
-    def iv_dose_prescribed(self, value: str | None) -> None:
+    def iv_dose_prescribed(self, value: float | None) -> None:
         self._set_validated_prop(
             prop=self.__class__.iv_dose_prescribed,
             value=value,
-            validator=StrictValidators.validate_optional_str,
+            validator=StrictValidators.validate_optional_float,
         )
 
     @property

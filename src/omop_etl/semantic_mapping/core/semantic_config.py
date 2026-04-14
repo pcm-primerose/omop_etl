@@ -5,6 +5,7 @@ from omop_etl.harmonization.models.domain.concomitant_medication import Concomit
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
+from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.semantic_mapping.core.models import (
     FieldConfig,
@@ -79,6 +80,13 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
         field_path=(Patient.Singletons.STUDY_DRUGS, StudyDrugs.Fields.SECONDARY_TREATMENT_DRUG),
         target=QueryTarget(domains={OmopDomain.DRUG, OmopDomain.DEVICE}),
         tags={"study_drug", "secondary"},
+    ),
+    # treatment cycles
+    FieldConfig(
+        name="treatment_cycles.treatment_name",
+        field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycle.Fields.TREATMENT_NAME),
+        target=QueryTarget(domains={OmopDomain.DRUG, OmopDomain.DEVICE}),
+        tags={"treatment_cycle", "drug"},
     ),
     # tumor
     FieldConfig(
