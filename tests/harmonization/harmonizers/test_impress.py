@@ -867,7 +867,7 @@ class TestProcessTreatmentCycle:
 
         rows = df.filter(pl.col("SubjectId") == "iv_two_cycles")
         assert rows.height == 2
-        assert set(rows["cycle_type"].to_list()) == {"IV"}
+        assert set(rows["cycle_type"].to_list()) == {"iv"}
 
         cycle_1 = rows.filter(pl.col("start_date") == dt.date(1900, 1, 1))
         assert cycle_1.item(0, "end_date") == dt.date(1900, 1, 9)
@@ -906,9 +906,9 @@ class TestProcessTreatmentCycle:
 
         rows = df.filter(pl.col("SubjectId") == "both_modalities")
         assert rows.height == 2
-        assert set(rows["cycle_type"].to_list()) == {"IV", "oral"}
+        assert set(rows["cycle_type"].to_list()) == {"iv", "oral"}
 
-        iv = rows.filter(pl.col("cycle_type") == "IV")
+        iv = rows.filter(pl.col("cycle_type") == "iv")
         assert iv.item(0, "end_date") is None
 
         oral = rows.filter(pl.col("cycle_type") == "oral")
@@ -983,7 +983,7 @@ class TestProcessTreatmentCycle:
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
 
-        # iv_two_cycles uses "IV Drug" (no parenthetical) — should have no brand
+        # iv_two_cycles uses "iv Drug" (no parenthetical) — should have no brand
         rows = df.filter(pl.col("SubjectId") == "iv_two_cycles")
         assert rows[0, "brand_name"] is None
         assert rows[0, "ingredient_name"] is None

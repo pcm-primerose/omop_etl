@@ -794,7 +794,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         def add_cycle_type(frame: pl.DataFrame) -> pl.DataFrame:
             """
-            If any bytes in any oral-only cols, set to `oral`, if any in iv-only cols, set to `IV` else `None`.
+            If any bytes in any oral-only cols, set to `oral`, if any in iv-only cols, set to `iv` else `None`.
             """
 
             oral_only_cols = ["TR_TRO_YN", "TR_TRODSTOT", "TR_TRO_STDT", "TR_TROSTPDT"]
@@ -813,7 +813,13 @@ class ImpressHarmonizer(BaseHarmonizer):
             has_iv = row_has_any(iv_cols)
 
             return frame.with_columns(
-                pl.when(has_oral).then(pl.lit("oral")).when(has_iv).then(pl.lit("IV")).otherwise(pl.lit(None, dtype=pl.Utf8)).alias(cols.CYCLE_TYPE),
+                pl.when(has_oral)
+                .then(pl.lit("oral"))
+                .when(has_iv)
+                .then(pl.lit("iv"))
+                .otherwise(pl.lit(None, dtype=pl.Utf8))
+                .alias(cols.CYCLE_TYPE)
+                .str.to_lowercase(),
             )
 
         def add_iv_cycle_stop_dates(frame: pl.DataFrame) -> pl.DataFrame:
@@ -825,7 +831,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .sort(["SubjectId", "TR_TRTNO", "start"])
                 .with_columns(
                     # apply shift to IV rows, others get None
-                    next_start=pl.when(pl.col(cols.CYCLE_TYPE) == "IV").then(pl.col("start").shift(-1).over(["SubjectId", "TR_TRTNO"])).otherwise(None),
+                    next_start=pl.when(pl.col(cols.CYCLE_TYPE) == "iv").then(pl.col("start").shift(-1).over(["SubjectId", "TR_TRTNO"])).otherwise(None),
                 )
                 .with_columns(
                     # calculate end date where next_start exists

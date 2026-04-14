@@ -21,7 +21,7 @@ class OmopBuilder(ABC, Generic[T]):
     id_namespace: ClassVar[str | None] = None
 
     def __init__(self, concepts: ConceptLookupService):
-        self._concepts = concepts
+        self.concepts = concepts
 
     @abstractmethod
     def build(self, patient: Patient, person_id: int) -> list[T]:

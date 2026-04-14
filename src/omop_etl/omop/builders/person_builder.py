@@ -15,7 +15,7 @@ class PersonBuilder(OmopBuilder[PersonRow]):
 
         mapped = None
         if sex_raw is not None:
-            mapped = self._concepts.lookup_static("sex", sex_raw)
+            mapped = self.concepts.lookup_static("sex", sex_raw)
 
         if sex_raw is not None and mapped is None:
             raise ValueError(f"Unknown sex mapping for value={sex_raw!r} on patient={patient.patient_id}")
