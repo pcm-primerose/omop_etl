@@ -851,9 +851,9 @@ class TestProcessTreatmentCycle:
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
 
-        from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+        from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 
-        expected_cols = {"SubjectId"} | set(TreatmentCycle.data_fields())
+        expected_cols = {"SubjectId"} | set(TreatmentCycleComponent.data_fields())
         assert set(df.columns) == expected_cols
 
     def test_extracts_iv_cycle(self, treatment_cycle_fixture):

@@ -16,7 +16,7 @@ from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
-from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -760,9 +760,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return merged
 
-    @collection(TreatmentCycle, order_by=("start_date",), require_order_by=True)
+    @collection(TreatmentCycleComponent, order_by=("start_date",), require_order_by=True)
     def _process_treatment_cycle(self) -> pl.DataFrame | None:
-        cols = TreatmentCycle.Fields
+        cols = TreatmentCycleComponent.Fields
         treatment_cycle_cols = [
             "SubjectId",
             "TR_TRNAME",

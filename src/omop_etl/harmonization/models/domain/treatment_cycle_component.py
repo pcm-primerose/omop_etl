@@ -5,7 +5,7 @@ from omop_etl.harmonization.core.validators import StrictValidators
 from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class TreatmentCycle(DomainBase):
+class TreatmentCycleComponent(DomainBase):
     class Fields:
         SOURCE_TREATMENT_NAME = "source_treatment_name"
         INGREDIENT_NAME = "ingredient_name"
@@ -27,6 +27,8 @@ class TreatmentCycle(DomainBase):
         NUMBER_OF_DAYS_TABLET_NOT_TAKEN = "number_of_days_tablet_not_taken"
         REASON_TABLET_NOT_TAKEN = "reason_tablet_not_taken"
         WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE = "was_tablet_taken_to_prescription_in_previous_cycle"
+
+    INVARIANT_FIELDS = (Fields.SOURCE_TREATMENT_NAME,)
 
     def __init__(self, patient_id: str):
         # core

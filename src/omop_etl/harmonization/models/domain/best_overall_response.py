@@ -11,7 +11,7 @@ class BestOverallResponse(DomainBase):
         CODE = "code"
         DATE = "date"
 
-    MATERIAL_FIELDS = (Fields.RESPONSE,)
+    INVARIANT_FIELDS = (Fields.RESPONSE,)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id

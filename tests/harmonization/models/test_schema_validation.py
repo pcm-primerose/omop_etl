@@ -16,7 +16,7 @@ from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
-from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -75,7 +75,7 @@ ALL_DOMAIN_CLASSES = [
     MedicalHistory,
     PreviousTreatments,
     StudyDrugs,
-    TreatmentCycle,
+    TreatmentCycleComponent,
     TumorAssessment,
     TumorAssessmentBaseline,
     TumorType,

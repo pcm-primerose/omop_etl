@@ -16,7 +16,7 @@ from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
-from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -100,7 +100,7 @@ class Patient(TrackedValidated):
         # collections
         self._medical_histories: tuple[MedicalHistory, ...] = ()
         self._previous_treatments: tuple[PreviousTreatments, ...] = ()
-        self._treatment_cycles: tuple[TreatmentCycle, ...] = ()
+        self._treatment_cycles: tuple[TreatmentCycleComponent, ...] = ()
         self._concomitant_medications: tuple[ConcomitantMedication, ...] = ()
         self._adverse_events: tuple[AdverseEvent, ...] = ()
         self._tumor_assessments: tuple[TumorAssessment, ...] = ()
@@ -423,13 +423,13 @@ class Patient(TrackedValidated):
         self.updated_fields.add(self.__class__.previous_treatments.fset.__name__)
 
     @property
-    def treatment_cycles(self) -> tuple[TreatmentCycle, ...]:
+    def treatment_cycles(self) -> tuple[TreatmentCycleComponent, ...]:
         return self._treatment_cycles
 
     @treatment_cycles.setter
-    def treatment_cycles(self, value: Sequence[TreatmentCycle] | None) -> None:
+    def treatment_cycles(self, value: Sequence[TreatmentCycleComponent] | None) -> None:
         self._treatment_cycles = self.validate_collection(
-            value, item_type=TreatmentCycle, patient_id=self._patient_id, field_name=self.__class__.treatment_cycles.fset.__name__
+            value, item_type=TreatmentCycleComponent, patient_id=self._patient_id, field_name=self.__class__.treatment_cycles.fset.__name__
         )
         self.updated_fields.add(self.__class__.treatment_cycles.fset.__name__)
 

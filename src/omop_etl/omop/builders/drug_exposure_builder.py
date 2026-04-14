@@ -2,7 +2,7 @@ from typing import ClassVar
 from logging import getLogger
 
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.omop.builders.base import OmopBuilder
@@ -42,7 +42,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         self,
         patient: Patient,
         person_id: int,
-        cycle: TreatmentCycle,
+        cycle: TreatmentCycleComponent,
         index: int,
         drug_type_concept_id: int,
     ) -> DrugExposureRow | None:
@@ -52,7 +52,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         mapped = self._concepts.lookup_semantic(
             patient.patient_id,
-            (Patient.Collections.TREATMENT_CYCLES, TreatmentCycle.Fields.SOURCE_TREATMENT_NAME),
+            (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
             index,
         )
         drug_concept_id = int(mapped[0].concept_id) if mapped else 0

@@ -5,7 +5,7 @@ from omop_etl.harmonization.models.domain.concomitant_medication import Concomit
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
-from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.semantic_mapping.core.models import (
     FieldConfig,
@@ -84,7 +84,7 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     # treatment cycles
     FieldConfig(
         name="treatment_cycles.source_treatment_name",
-        field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycle.Fields.SOURCE_TREATMENT_NAME),
+        field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
         target=QueryTarget(domains={OmopDomain.DRUG, OmopDomain.DEVICE}),
         tags={"treatment_cycle", "drug"},
     ),

@@ -29,7 +29,7 @@ class SimpleDomain(DomainBase):
         NAME = "name"
         VALUE = "value"
 
-    MATERIAL_FIELDS = (Fields.NAME,)
+    INVARIANT_FIELDS = (Fields.NAME,)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id

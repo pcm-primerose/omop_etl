@@ -12,7 +12,7 @@ class DomainBase(TrackedValidated, ABC):
     - `class Fields:` with string constants for canonical field names (wire schema)
 
     Subclasses may optionally define:
-    - `MATERIAL_FIELDS` tuple referencing Fields constants for materiality filtering
+    - INVARIANT_FIELDS` tuple referencing Fields constants for materiality (the domains' invariants) filtering
     """
 
     # internal cache, use data_fields() method to access
@@ -20,7 +20,7 @@ class DomainBase(TrackedValidated, ABC):
     _schema_validated: ClassVar[bool] = False
 
     # optional
-    MATERIAL_FIELDS: ClassVar[tuple[str, ...]] = ()
+    INVARIANT_FIELDS: ClassVar[tuple[str, ...]] = ()
 
     @abstractmethod
     def __init__(self, patient_id: str) -> None:
@@ -63,9 +63,9 @@ class DomainBase(TrackedValidated, ABC):
         if len(fields) != len(set(fields)):
             raise ValueError(f"{cls.__name__}.data_fields has duplicates")
 
-        material = set(cls.MATERIAL_FIELDS)
-        if material and not material.issubset(set(fields)):
-            raise ValueError(f"{cls.__name__}.MATERIAL_FIELDS not subset of data_fields: {material - set(fields)}")
+        invariant = set(cls.INVARIANT_FIELDS)
+        if invariant and not invariant.issubset(set(fields)):
+            raise ValueError(f"{cls.__name__}.INVARIANT_FIELDS not subset of data_fields: {invariant - set(fields)}")
 
         # validate every Fields value matches an actual property on the class
         fields_cls = getattr(cls, "Fields", None)
