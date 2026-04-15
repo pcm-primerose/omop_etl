@@ -1,4 +1,3 @@
-from dataclasses import field
 from pydantic.dataclasses import dataclass as pd_dataclass
 from pydantic import Field as pd_field
 import datetime as dt
@@ -34,9 +33,6 @@ class PersonRow:
     race_source_value: str | None = None
     ethnicity_source_value: str | None = None
 
-    # provenance tracking (excluded from comparison/hash)
-    _source_field: str | None = field(default=None, compare=False, hash=False, repr=False)
-
     def natural_key(self) -> tuple:
         return tuple(getattr(self, f) for f in self.natural_key_fields)
 
@@ -61,9 +57,6 @@ class ObservationPeriodRow:
     observation_period_start_date: dt.date
     observation_period_end_date: dt.date
     period_type_concept_id: int
-
-    # provenance tracking (excluded from comparison/hash)
-    _source_field: str | None = field(default=None, compare=False, hash=False, repr=False)
 
     def natural_key(self) -> tuple:
         return tuple(getattr(self, f) for f in self.natural_key_fields)
@@ -123,6 +116,9 @@ class VisitOccurrenceRow:
     discharged_to_source_value: str | None = None
     preceding_visit_occurrence_id: int | None = None
 
+    def validate(self):
+        validate_required_fields(self)
+
 
 @pd_dataclass(frozen=True, slots=True)
 class ConditionOccurrenceRow:
@@ -146,6 +142,9 @@ class ConditionOccurrenceRow:
     condition_source_value: str | None = pd_field(None, max_length=50)
     condition_source_concept_id: int | None = None
     condition_status_source_value: str | None = pd_field(None, max_length=50)
+
+    def validate(self):
+        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -178,6 +177,9 @@ class DrugExposureRow:
     route_source_value: str | None = pd_field(None, max_length=50)
     dose_unit_source_value: str | None = pd_field(None, max_length=50)
 
+    def validate(self):
+        validate_required_fields(self)
+
 
 @pd_dataclass(frozen=True, slots=True)
 class ProcedureOcurrenceRow:
@@ -201,6 +203,9 @@ class ProcedureOcurrenceRow:
     procedure_source_value: str | None = pd_field(None, max_length=50)
     procedure_source_concept_id: int | None = None
     modifier_source_value: str | None = pd_field(None, max_length=50)
+
+    def validate(self):
+        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -232,3 +237,6 @@ class MeasurementRow:
     value_source_value: str | None = pd_field(None, max_length=50)
     measurement_event_id: int | None = None
     meas_event_field_concept_id: int | None = None
+
+    def validate(self):
+        validate_required_fields(self)

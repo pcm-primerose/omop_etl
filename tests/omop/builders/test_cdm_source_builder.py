@@ -10,7 +10,7 @@ class TestCdmSourceBuilder:
 
         row = builder.build()
 
-        assert row.cdm_source_name == "test ETL"
+        assert row.cdm_source_name == "PRIME-ROSE OMOP ETL"
         assert row.cdm_holder == "PRIME-ROSE"
         assert row.cdm_version == "v5.4"
         assert row.cdm_version_concept_id == 756265

@@ -17,8 +17,8 @@ class CdmSourceBuilder:
         cdm_vocabulary_version = str(self.concepts.lookup_structural("vocab").concept_id)
 
         return CdmSourceRow(
-            cdm_source_name="test ETL",
-            cdm_source_abbreviation="test ETL",
+            cdm_source_name="PRIME-ROSE OMOP ETL",
+            cdm_source_abbreviation="PR-OMOP-ETL",
             cdm_holder="PRIME-ROSE",
             source_description="PRIME-ROSE OMOP ETL",
             source_documentation_reference="PRIME-ROSE github",
