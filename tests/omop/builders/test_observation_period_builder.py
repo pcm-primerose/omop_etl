@@ -1,6 +1,6 @@
 import datetime as dt
 
-from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
+from omop_etl.omop.builders.observation_period import ObservationPeriodBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 
 

@@ -1,7 +1,7 @@
 import datetime as dt
 
 
-from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
+from omop_etl.omop.builders.cdm_source import CdmSourceBuilder
 
 
 class TestCdmSourceBuilder:

@@ -1,4 +1,4 @@
-from omop_etl.omop.builders.person_builder import PersonBuilder
+from omop_etl.omop.builders.person import PersonBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 
 
