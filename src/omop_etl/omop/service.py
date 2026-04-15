@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.condition_occurrence_builder import ConditionOccurrenceBuilder
 from omop_etl.omop.builders.person_builder import PersonBuilder
 from omop_etl.omop.builders.observation_period_builder import ObservationPeriodBuilder
 from omop_etl.omop.builders.cdm_source_builder import CdmSourceBuilder
@@ -29,7 +30,7 @@ class OmopService:
             ObservationPeriodBuilder(concepts),
             VisitOccurrenceBuilder(concepts),
             DrugExposureBuilder(concepts),
-            # ConditionOccurrenceBuilder(concepts),
+            ConditionOccurrenceBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
