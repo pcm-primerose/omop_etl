@@ -30,17 +30,18 @@ class StaticConcept:
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StaticConcept:
+        # case-normalize and strip, see SemanticRow.
         return cls(
-            value_set=row["value_set"],
-            local_value=row["local_value"],
-            concept_id=row["omop_concept_id"],
-            concept_code=row["omop_concept_code"],
-            concept_name=row["omop_concept_name"],
-            concept_class=row["omop_class"],
-            concept_category=row["omop_concept_category"],
-            valid_flag=row["omop_valid_flag"],
-            domain_id=row["omop_domain"],
-            vocabulary_id=row["omop_vocab"],
+            value_set=row["value_set"].lower().strip(),
+            local_value=row["local_value"].lower().strip(),
+            concept_id=row["omop_concept_id"].lower().strip(),
+            concept_code=row["omop_concept_code"].lower().strip(),
+            concept_name=row["omop_concept_name"].lower().strip(),
+            concept_class=row["omop_class"].lower().strip(),
+            concept_category=row["omop_concept_category"].lower().strip(),
+            valid_flag=row["omop_valid_flag"].lower().strip(),
+            domain_id=row["omop_domain"].lower().strip(),
+            vocabulary_id=row["omop_vocab"].lower().strip(),
         )
 
 
@@ -59,16 +60,17 @@ class StructuralConcept:
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
+        # case-normalize and strip, see StaticConcept
         return cls(
-            value_set=row["value_set"],
-            concept_id=row["omop_concept_id"],
-            concept_code=row["omop_concept_code"],
-            concept_name=row["omop_concept_name"],
-            concept_class=row["omop_class"],
-            concept_category=row["omop_concept_category"],
-            valid_flag=row["omop_valid_flag"],
-            domain_id=row["omop_domain"],
-            vocabulary_id=row["omop_vocab"],
+            value_set=row["value_set"].lower().strip(),
+            concept_id=row["omop_concept_id"].lower().strip(),
+            concept_code=row["omop_concept_code"].lower().strip(),
+            concept_name=row["omop_concept_name"].lower().strip(),
+            concept_class=row["omop_class"].lower().strip(),
+            concept_category=row["omop_concept_category"].lower().strip(),
+            valid_flag=row["omop_valid_flag"].lower().strip(),
+            domain_id=row["omop_domain"].lower().strip(),
+            vocabulary_id=row["omop_vocab"].lower().strip(),
         )
 
     def __iter__(self):

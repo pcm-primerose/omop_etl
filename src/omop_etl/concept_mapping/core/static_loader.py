@@ -18,6 +18,6 @@ class StaticMapLoader:
     def as_index(self) -> dict[tuple[str, str], StaticConcept]:
         idx: dict[tuple[str, str], StaticConcept] = {}
         for r in self.as_rows():
-            key = (r.value_set, str(r.local_value))
+            key = (r.value_set.lower().strip(), str(r.local_value).lower().strip())
             idx[key] = r
         return idx

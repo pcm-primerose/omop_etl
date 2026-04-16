@@ -49,7 +49,8 @@ def static_concepts() -> list[StaticConcept]:
 
 @pytest.fixture
 def static_index(static_concepts) -> dict[tuple[str, str], StaticConcept]:
-    return {(c.value_set, c.local_value): c for c in static_concepts}
+    # mirror StaticMapLoader.as_index() normalization
+    return {(c.value_set.lower().strip(), c.local_value.lower().strip()): c for c in static_concepts}
 
 
 @pytest.fixture
@@ -71,7 +72,8 @@ def structural_concepts() -> list[StructuralConcept]:
 
 @pytest.fixture
 def structural_index(structural_concepts) -> dict[str, StructuralConcept]:
-    return {c.value_set: c for c in structural_concepts}
+    # mirror StructuralMapLoader.as_index() normalization.
+    return {c.value_set.lower().strip(): c for c in structural_concepts}
 
 
 @pytest.fixture

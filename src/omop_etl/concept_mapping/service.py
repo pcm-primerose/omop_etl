@@ -22,11 +22,6 @@ from omop_etl.concept_mapping.core.models import (
 from omop_etl.semantic_mapping.core.models import BatchQueryResult, OmopDomain
 
 
-def _norm(v: OmopDomain | str) -> str:
-    """Lowercase-normalize an OmopDomain or raw string for case-insensitive comparison."""
-    return (v.value if isinstance(v, OmopDomain) else v).lower()
-
-
 def _concept_matches_filter(
     concept: MappedConcept,
     domains: Collection[OmopDomain | str] | None,
@@ -41,7 +36,7 @@ def _concept_matches_filter(
     like "Gender", "Visit", "Route", "Type Concept", "Metadata").
     """
     if domains is not None:
-        wanted = {_norm(d) for d in domains}
+        wanted = {d.lower() for d in domains}
         if (concept.domain_id or "").lower() not in wanted:
             return False
     if vocabs is not None:
@@ -135,11 +130,14 @@ class ConceptLookupService:
         """
         Lookup a static mapping and track the result.
 
+        Inputs are lowercased and stripped before index access.
+
         Optional filters narrow the returned concept by OMOP domain, vocabulary,
         or standard flag. If the mapped concept does not match the filters,
         returns None and records a miss.
         """
-        c = self._static_index.get((value_set, str(local_value)))
+        key = (value_set.lower().strip(), str(local_value).lower().strip())
+        c = self._static_index.get(key)
         if c is None:
             self._result.record_miss("static", value_set, local_value)
             return None
@@ -172,11 +170,12 @@ class ConceptLookupService:
 
         Optional filters validate that the mapped concept belongs to the expected
         OMOP domain, vocabulary, or standard flag. If the concept fails the
-        filter, returns None and records a miss -- useful as a defensive check
-        against a misconfigured structural mapping (e.g. a "route" value_set
-        that accidentally points at a Procedure concept).
+        filter, returns None and records a miss.
+
+        `value_set` is lowercased and stripped before index access for case-insensitive lookups.
         """
-        c = self._structural_index.get(value_set)
+        key = value_set.lower().strip()
+        c = self._structural_index.get(key)
         if c is None:
             self._result.record_miss("structural", value_set, "")
             return None

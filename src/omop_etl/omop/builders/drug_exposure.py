@@ -120,9 +120,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             log.warning("Skipping previous treatment %d for %s: missing start_date", index, patient.patient_id)
             return None
 
-        # previous_treatments.treatment only maps to Procedure domain (Surgery, Chemotherapy, etc.)
-        # so it's not a drug exposure source. additional_treatment (CT_CTTYPESP) occasionally holds
-        # a specific drug name (e.g. Zometa -> zoledronic acid, Drug domain) -- that's the drug row.
+        # previous_treatments.treatment only maps to Procedure domain (currently),
+        # additional_treatment in IMPRESS (CT_CTTYPESP) occasionally holds
+        # a specific drug name (e.g. Zometa, mapes to zoledronic acid).
         mapped = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),

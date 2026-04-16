@@ -16,8 +16,9 @@ class StructuralMapLoader:
         return rows
 
     def as_index(self) -> dict[str, StructuralConcept]:
+        # key lowercased and stripped to match normalized values from from_csv_row
         idx: dict[str, StructuralConcept] = {}
         for r in self.as_rows():
-            key = r.value_set
+            key = r.value_set.lower().strip()
             idx[key] = r
         return idx
