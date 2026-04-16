@@ -1,4 +1,4 @@
-term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_name,omop_class,omop_concept,omop_validity,omop_domain,omop_vocab
+term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_name,omop_class,omop_concept_category,omop_validity,omop_domain,omop_vocab
 a40acda4-5ce3-58e9-ace6-82861740d18a,AE_AECTCAET,Fever,3,437663,386661006,Fever,Clinical Finding,Standard,Valid,Condition,SNOMED
 fbd67699-0581-5e17-8403-f7eb290b9124,AE_AECTCAET,Pancreatitis,1,4192640,75694006,Pancreatitis,Disorder,Standard,Valid,Condition,SNOMED
 cba0153e-317a-5a35-9ad4-efcec032533a,AE_AECTCAET,Dyspnea,1,312437,267036007,Dyspnea,Clinical Finding,Standard,Valid,Condition,SNOMED

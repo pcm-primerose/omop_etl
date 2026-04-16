@@ -39,14 +39,14 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     FieldConfig(
         name="previous_treatments.additional_treatment",
         field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
-        target=QueryTarget(domains={OmopDomain.PROCEDURE}),
+        target=QueryTarget(domains={OmopDomain.PROCEDURE, OmopDomain.DRUG}),
         tags={"previous_treatments", "additional_term"},
     ),
     # medical history
     FieldConfig(
         name="medical_history.term",
         field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
+        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.PROCEDURE}),
         tags={"medical_history", "term"},
     ),
     # biomarkers

@@ -17,8 +17,8 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
 
     def build(self, patient: Patient, person_id: int) -> list[VisitOccurrenceRow]:
         rows: list[VisitOccurrenceRow] = []
-        outpatient = self.concepts.lookup_structural("outpatient_visit")
-        ecrf = self.concepts.lookup_structural("ecrf")
+        outpatient = self.concepts.lookup_structural("outpatient_visit", domains={"Visit"})
+        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
         visit_concept_id = outpatient.concept_id if outpatient else 0
         visit_type_concept_id = ecrf.concept_id if ecrf else 0
 

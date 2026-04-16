@@ -78,7 +78,7 @@ def mock_concepts(
 ) -> Mock:
     mock = Mock(spec=ConceptLookupService)
 
-    def lookup_static(value_set: str, value: str):
+    def lookup_static(value_set: str, value: str, **kwargs):
         if value_set == "sex":
             if value == "M":
                 return male_concept
@@ -86,7 +86,7 @@ def mock_concepts(
                 return female_concept
         return None
 
-    def lookup_structural(value_set: str):
+    def lookup_structural(value_set: str, **kwargs):
         if value_set == "ecrf":
             return ecrf_type_concept
         if value_set == "cdm":
@@ -183,7 +183,7 @@ def mock_concepts_visit(
     """Mock ConceptLookupService for visit occurrence builder."""
     mock = Mock(spec=ConceptLookupService)
 
-    def lookup_static(value_set: str, value: str):
+    def lookup_static(value_set: str, value: str, **kwargs):
         if value_set == "sex":
             if value == "M":
                 return male_concept
@@ -191,7 +191,7 @@ def mock_concepts_visit(
                 return female_concept
         return None
 
-    def lookup_structural(name: str):
+    def lookup_structural(name: str, **kwargs):
         if name == "outpatient_visit":
             return outpatient_visit_concept
         if name == "ecrf":

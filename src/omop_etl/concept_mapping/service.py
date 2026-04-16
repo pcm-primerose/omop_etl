@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Mapping, List
+from typing import Mapping, List, Collection
 
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
@@ -19,7 +19,40 @@ from omop_etl.concept_mapping.core.models import (
     StructuralConcept,
     LookupResult,
 )
-from omop_etl.semantic_mapping.core.models import BatchQueryResult
+from omop_etl.semantic_mapping.core.models import BatchQueryResult, OmopDomain
+
+
+def _norm(v: OmopDomain | str) -> str:
+    """Lowercase-normalize an OmopDomain or raw string for case-insensitive comparison."""
+    return (v.value if isinstance(v, OmopDomain) else v).lower()
+
+
+def _concept_matches_filter(
+    concept: MappedConcept,
+    domains: Collection[OmopDomain | str] | None,
+    vocabs: Collection[str] | None,
+    standard_flags: Collection[str] | None,
+) -> bool:
+    """
+    Case-insensitive filter check against a MappedConcept's attributes.
+
+    `domains` accepts both OmopDomain enum members (clinical domains used by the
+    semantic-mapping configs) and raw strings (for non-clinical/admin domains
+    like "Gender", "Visit", "Route", "Type Concept", "Metadata").
+    """
+    if domains is not None:
+        wanted = {_norm(d) for d in domains}
+        if (concept.domain_id or "").lower() not in wanted:
+            return False
+    if vocabs is not None:
+        wanted_v = {v.lower() for v in vocabs}
+        if (concept.vocabulary_id or "").lower() not in wanted_v:
+            return False
+    if standard_flags is not None:
+        wanted_s = {s.lower() for s in standard_flags}
+        if (concept.standard_flag or "").lower() not in wanted_s:
+            return False
+    return True
 
 
 class ConceptLookupService:
@@ -90,8 +123,22 @@ class ConceptLookupService:
         """Access the accumulated lookup results."""
         return self._result
 
-    def lookup_static(self, value_set: str, local_value: str) -> MappedConcept | None:
-        """Lookup a static mapping and track the result."""
+    def lookup_static(
+        self,
+        value_set: str,
+        local_value: str,
+        *,
+        domains: Collection[OmopDomain | str] | None = None,
+        vocabs: Collection[str] | None = None,
+        standard_flags: Collection[str] | None = None,
+    ) -> MappedConcept | None:
+        """
+        Lookup a static mapping and track the result.
+
+        Optional filters narrow the returned concept by OMOP domain, vocabulary,
+        or standard flag. If the mapped concept does not match the filters,
+        returns None and records a miss.
+        """
         c = self._static_index.get((value_set, str(local_value)))
         if c is None:
             self._result.record_miss("static", value_set, local_value)
@@ -105,11 +152,30 @@ class ConceptLookupService:
             vocabulary_id=c.vocabulary_id,
             standard_flag=c.valid_flag,
         )
+        if not _concept_matches_filter(concept, domains, vocabs, standard_flags):
+            self._result.record_miss("static", value_set, local_value)
+            return None
+
         self._result.record_match("static", value_set, local_value, concept)
         return concept
 
-    def lookup_structural(self, value_set: str) -> MappedConcept | None:
-        """Lookup a structural mapping and track the result."""
+    def lookup_structural(
+        self,
+        value_set: str,
+        *,
+        domains: Collection[OmopDomain | str] | None = None,
+        vocabs: Collection[str] | None = None,
+        standard_flags: Collection[str] | None = None,
+    ) -> MappedConcept | None:
+        """
+        Lookup a structural mapping and track the result.
+
+        Optional filters validate that the mapped concept belongs to the expected
+        OMOP domain, vocabulary, or standard flag. If the concept fails the
+        filter, returns None and records a miss -- useful as a defensive check
+        against a misconfigured structural mapping (e.g. a "route" value_set
+        that accidentally points at a Procedure concept).
+        """
         c = self._structural_index.get(value_set)
         if c is None:
             self._result.record_miss("structural", value_set, "")
@@ -123,6 +189,10 @@ class ConceptLookupService:
             vocabulary_id=c.vocabulary_id,
             standard_flag=c.valid_flag,
         )
+        if not _concept_matches_filter(concept, domains, vocabs, standard_flags):
+            self._result.record_miss("structural", value_set, "")
+            return None
+
         self._result.record_match("structural", value_set, "", concept)
         return concept
 
@@ -131,8 +201,19 @@ class ConceptLookupService:
         patient_id: str,
         field_path: tuple[str, ...],
         leaf_index: int | None,
+        *,
+        domains: Collection[OmopDomain | str] | None = None,
+        vocabs: Collection[str] | None = None,
+        standard_flags: Collection[str] | None = None,
     ) -> tuple[MappedConcept, ...]:
-        """Lookup semantic mappings for a patient field location."""
+        """
+        Lookup semantic mappings for a patient field location.
+
+        Optional filters narrow the returned concepts by OMOP domain, vocabulary,
+        or standard flag. Filtering happens after lookup, so the semantic index
+        remains field-centric while each call site (builder) decides which
+        domains/vocabs it trusts for its OMOP table.
+        """
         if self._semantic_index is None:
             return ()
 
@@ -146,16 +227,16 @@ class ConceptLookupService:
 
         mapped: list[MappedConcept] = []
         for row in qr.results:
-            mapped.append(
-                MappedConcept(
-                    concept_id=int(row.omop_concept_id),
-                    concept_code=row.omop_concept_code,
-                    concept_name=row.omop_name,
-                    domain_id=row.omop_domain,
-                    vocabulary_id=row.omop_vocab,
-                    standard_flag=row.omop_validity,
-                )
+            concept = MappedConcept(
+                concept_id=int(row.omop_concept_id),
+                concept_code=row.omop_concept_code,
+                concept_name=row.omop_name,
+                domain_id=row.omop_domain,
+                vocabulary_id=row.omop_vocab,
+                standard_flag=row.omop_validity,
             )
+            if _concept_matches_filter(concept, domains, vocabs, standard_flags):
+                mapped.append(concept)
         return tuple(mapped)
 
     def export(

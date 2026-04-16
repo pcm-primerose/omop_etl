@@ -7,6 +7,7 @@ from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.models.rows import ConditionOccurrenceRow
+from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
 
@@ -18,7 +19,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
 
     def build(self, patient: Patient, person_id: int) -> list[ConditionOccurrenceRow]:
         rows: list[ConditionOccurrenceRow] = []
-        ecrf = self.concepts.lookup_structural("ecrf")
+        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
         condition_type_concept_id = ecrf.concept_id if ecrf else 0
 
         # tumor type singleton: one condition row for the cancer diagnosis
@@ -52,6 +53,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 patient.patient_id,
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
                 None,
+                domains={OmopDomain.CONDITION},
             )
             source_value = tumor.icd10_code
         elif tumor.main_tumor_type:
@@ -59,6 +61,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 patient.patient_id,
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
                 None,
+                domains={OmopDomain.CONDITION},
             )
             source_value = tumor.main_tumor_type
         else:
@@ -102,6 +105,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             patient.patient_id,
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
             index,
+            domains={OmopDomain.CONDITION},
         )
         condition_concept_id = int(mapped[0].concept_id) if mapped else 0
 
@@ -137,6 +141,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             patient.patient_id,
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
             index,
+            domains={OmopDomain.CONDITION},
         )
         condition_concept_id = int(mapped[0].concept_id) if mapped else 0
 
