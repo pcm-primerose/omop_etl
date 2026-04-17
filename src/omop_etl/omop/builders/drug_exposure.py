@@ -28,9 +28,17 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 rows.append(row)
 
         for idx, prev in enumerate(patient.previous_treatments):
-            row = self._build_previous_treatment_row(patient, person_id, prev, idx, drug_type_concept_id)
-            if row is not None:
-                rows.append(row)
+            if prev.start_date is None:
+                log.warning("Skipping previous treatment %d for %s: missing start_date", idx, patient.patient_id)
+                continue
+            if prev.treatment:
+                row = self._build_previous_treatment_main_row(patient, person_id, prev, idx, drug_type_concept_id)
+                if row is not None:
+                    rows.append(row)
+            if prev.additional_treatment:
+                row = self._build_previous_treatment_additional_row(patient, person_id, prev, idx, drug_type_concept_id)
+                if row is not None:
+                    rows.append(row)
 
         for idx, concom in enumerate(patient.concomitant_medications):
             row = self._build_concomitant_medication_row(patient, person_id, concom, idx, drug_type_concept_id)
@@ -108,7 +116,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             route_concept_id=route_concept_id,
         )
 
-    def _build_previous_treatment_row(
+    def _build_previous_treatment_main_row(
         self,
         patient: Patient,
         person_id: int,
@@ -116,13 +124,40 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         index: int,
         drug_type_concept_id: int,
     ) -> DrugExposureRow | None:
-        if prev.start_date is None:
-            log.warning("Skipping previous treatment %d for %s: missing start_date", index, patient.patient_id)
+        mapped = self.concepts.lookup_semantic(
+            patient.patient_id,
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+            index,
+            domains={OmopDomain.DRUG},
+        )
+        if not mapped:
             return None
 
-        # previous_treatments.treatment only maps to Procedure domain (currently),
-        # additional_treatment in IMPRESS (CT_CTTYPESP) occasionally holds
-        # a specific drug name (e.g. Zometa, mapes to zoledronic acid).
+        row_id = self.generate_row_id(
+            patient.patient_id,
+            Patient.Collections.PREVIOUS_TREATMENTS,
+            str(prev.treatment_sequence_number),
+            PreviousTreatments.Fields.TREATMENT,
+        )
+
+        return DrugExposureRow(
+            drug_exposure_id=row_id,
+            person_id=person_id,
+            drug_concept_id=int(mapped.concept_id),
+            drug_exposure_start_date=prev.start_date,
+            drug_exposure_end_date=prev.end_date or prev.start_date,
+            drug_type_concept_id=drug_type_concept_id,
+            drug_source_value=prev.treatment,
+        )
+
+    def _build_previous_treatment_additional_row(
+        self,
+        patient: Patient,
+        person_id: int,
+        prev: PreviousTreatments,
+        index: int,
+        drug_type_concept_id: int,
+    ) -> DrugExposureRow | None:
         mapped = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
@@ -131,22 +166,22 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         )
         if not mapped:
             return None
-        drug_concept_id = int(mapped.concept_id)
 
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Collections.PREVIOUS_TREATMENTS,
             str(prev.treatment_sequence_number),
+            PreviousTreatments.Fields.ADDITIONAL_TREATMENT,
         )
 
         return DrugExposureRow(
             drug_exposure_id=row_id,
             person_id=person_id,
-            drug_concept_id=drug_concept_id,
+            drug_concept_id=int(mapped.concept_id),
             drug_exposure_start_date=prev.start_date,
             drug_exposure_end_date=prev.end_date or prev.start_date,
             drug_type_concept_id=drug_type_concept_id,
-            drug_source_value=prev.additional_treatment or prev.treatment,
+            drug_source_value=prev.additional_treatment,
         )
 
     def _build_concomitant_medication_row(

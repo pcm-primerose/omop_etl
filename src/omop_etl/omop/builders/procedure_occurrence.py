@@ -22,9 +22,17 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         procedure_type_concept_id = ecrf.concept_id if ecrf else 0
 
         for idx, prev in enumerate(patient.previous_treatments):
-            row = self._build_previous_treatment_row(patient, person_id, prev, idx, procedure_type_concept_id)
-            if row is not None:
-                rows.append(row)
+            if prev.start_date is None:
+                log.warning("Skipping previous treatment %d for %s: missing start_date", idx, patient.patient_id)
+                continue
+            if prev.treatment:
+                row = self._build_previous_treatment_main_row(patient, person_id, prev, idx, procedure_type_concept_id)
+                if row is not None:
+                    rows.append(row)
+            if prev.additional_treatment:
+                row = self._build_previous_treatment_additional_row(patient, person_id, prev, idx, procedure_type_concept_id)
+                if row is not None:
+                    rows.append(row)
 
         # medical history terms that mapped to Procedure domain (past surgeries, etc.)
         for idx, mh in enumerate(patient.medical_histories):
@@ -34,7 +42,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
 
         return rows
 
-    def _build_previous_treatment_row(
+    def _build_previous_treatment_main_row(
         self,
         patient: Patient,
         person_id: int,
@@ -42,10 +50,6 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         index: int,
         procedure_type_concept_id: int,
     ) -> ProcedureOcurrenceRow | None:
-        if prev.start_date is None:
-            log.warning("Skipping previous treatment %d for %s: missing start_date", index, patient.patient_id)
-            return None
-
         mapped = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
@@ -54,22 +58,56 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         )
         if not mapped:
             return None
-        procedure_concept_id = int(mapped.concept_id)
 
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Collections.PREVIOUS_TREATMENTS,
             str(prev.treatment_sequence_number),
+            PreviousTreatments.Fields.TREATMENT,
         )
 
         return ProcedureOcurrenceRow(
             procedure_occurrence_id=row_id,
             person_id=person_id,
-            procedure_concept_id=procedure_concept_id,
+            procedure_concept_id=int(mapped.concept_id),
             procedure_date=prev.start_date,
             procedure_end_date=prev.end_date,
             procedure_type_concept_id=procedure_type_concept_id,
             procedure_source_value=prev.treatment,
+        )
+
+    def _build_previous_treatment_additional_row(
+        self,
+        patient: Patient,
+        person_id: int,
+        prev: PreviousTreatments,
+        index: int,
+        procedure_type_concept_id: int,
+    ) -> ProcedureOcurrenceRow | None:
+        mapped = self.concepts.lookup_semantic(
+            patient.patient_id,
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+            index,
+            domains={OmopDomain.PROCEDURE},
+        )
+        if not mapped:
+            return None
+
+        row_id = self.generate_row_id(
+            patient.patient_id,
+            Patient.Collections.PREVIOUS_TREATMENTS,
+            str(prev.treatment_sequence_number),
+            PreviousTreatments.Fields.ADDITIONAL_TREATMENT,
+        )
+
+        return ProcedureOcurrenceRow(
+            procedure_occurrence_id=row_id,
+            person_id=person_id,
+            procedure_concept_id=int(mapped.concept_id),
+            procedure_date=prev.start_date,
+            procedure_end_date=prev.end_date,
+            procedure_type_concept_id=procedure_type_concept_id,
+            procedure_source_value=prev.additional_treatment,
         )
 
     def _build_medical_history_row(

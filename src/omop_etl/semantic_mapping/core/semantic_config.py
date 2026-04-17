@@ -33,7 +33,7 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     FieldConfig(
         name="previous_treatments.treatment",
         field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
-        target=QueryTarget(domains={OmopDomain.PROCEDURE}),
+        target=QueryTarget(domains={OmopDomain.PROCEDURE, OmopDomain.DRUG}),
         tags={"previous_treatments", "term"},
     ),
     FieldConfig(
