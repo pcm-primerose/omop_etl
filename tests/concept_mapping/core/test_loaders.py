@@ -1,3 +1,5 @@
+import logging
+
 from omop_etl.concept_mapping.core.static_loader import StaticMapLoader
 from omop_etl.concept_mapping.core.structural_loader import StructuralMapLoader
 
@@ -48,3 +50,38 @@ class TestStructuralMapLoader:
 
         assert "ecrf" in idx
         assert idx["ecrf"].concept_name == "ehr encounter record"
+
+
+class TestMalformedCsvRows:
+    def test_static_loader_warns_on_missing_columns(self, tmp_path, caplog):
+        """A row with fewer values than columns logs a warning with file + line context."""
+        csv = tmp_path / "bad.csv"
+        csv.write_text(
+            "value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,"
+            "omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab\n"
+            "sex,m,8507,M,MALE,Gender,Standard,Valid,Gender\n"  # 9 values, 10 columns
+        )
+
+        with caplog.at_level(logging.WARNING):
+            rows = StaticMapLoader(csv).as_rows()
+
+        assert len(rows) == 1
+        assert rows[0].vocabulary_id == ""  # None → empty string via _norm
+        assert "Malformed row" in caplog.text
+        assert "omop_vocab" in caplog.text
+        assert "line 2" in caplog.text
+
+    def test_static_loader_does_not_crash_on_none_values(self, tmp_path):
+        """Malformed rows produce empty-string fields, not crashes."""
+        csv = tmp_path / "bad.csv"
+        csv.write_text(
+            "value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,"
+            "omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab\n"
+            "sex,m,8507,M,MALE,Gender,Standard,Valid,Gender\n"
+        )
+
+        rows = StaticMapLoader(csv).as_rows()
+        idx = StaticMapLoader(csv).as_index()
+
+        assert ("sex", "m") in idx
+        assert idx[("sex", "m")].vocabulary_id == ""

@@ -16,7 +16,7 @@ def test_semantic_index(semantic_file, queries):
     assert match.patient_id == "A"
     for match in results.matches:
         for results in match.results:
-            assert results.omop_name == "acute myeloid leukemia"
+            assert results.omop_concept_name == "acute myeloid leukemia"
         assert match.query.query == "aml"
 
     assert missing.patient_id == "B"

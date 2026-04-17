@@ -16,7 +16,7 @@ def male_concept() -> MappedConcept:
         concept_name="Male",
         domain_id="Gender",
         vocabulary_id="Gender",
-        standard_flag="S",
+        validity="S",
     )
 
 
@@ -28,7 +28,7 @@ def female_concept() -> MappedConcept:
         concept_name="Female",
         domain_id="Gender",
         vocabulary_id="Gender",
-        standard_flag="S",
+        validity="S",
     )
 
 
@@ -40,7 +40,7 @@ def ecrf_type_concept() -> MappedConcept:
         concept_name="EHR encounter record",
         domain_id="Type Concept",
         vocabulary_id="Type Concept",
-        standard_flag="S",
+        validity="S",
     )
 
 
@@ -52,7 +52,7 @@ def cdm_version_concept() -> MappedConcept:
         concept_name="CDM v5.4",
         domain_id="Metadata",
         vocabulary_id="CDM",
-        standard_flag="S",
+        validity="S",
     )
 
 
@@ -64,7 +64,7 @@ def vocab_version_concept() -> MappedConcept:
         concept_name="Vocabulary v5.0",
         domain_id="Metadata",
         vocabulary_id="Vocabulary",
-        standard_flag="S",
+        validity="S",
     )
 
 
@@ -167,7 +167,7 @@ def outpatient_visit_concept() -> MappedConcept:
         concept_name="Outpatient Visit",
         domain_id="Visit",
         vocabulary_id="Visit",
-        standard_flag="S",
+        validity="S",
     )
 
 

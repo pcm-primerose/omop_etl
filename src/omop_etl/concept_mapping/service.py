@@ -32,7 +32,7 @@ def _concept_matches_filter(
     concept: MappedConcept,
     domains: Collection[OmopDomain | str] | None,
     vocabs: Collection[str] | None,
-    standard_flags: Collection[str] | None,
+    validity: Collection[str] | None,
 ) -> bool:
     """
     Case-insensitive filter check against a MappedConcept's attributes.
@@ -49,9 +49,9 @@ def _concept_matches_filter(
         wanted_v = {v.lower() for v in vocabs}
         if (concept.vocabulary_id or "").lower() not in wanted_v:
             return False
-    if standard_flags is not None:
-        wanted_s = {s.lower() for s in standard_flags}
-        if (concept.standard_flag or "").lower() not in wanted_s:
+    if validity is not None:
+        wanted_s = {s.lower() for s in validity}
+        if (concept.validity or "").lower() not in wanted_s:
             return False
     return True
 
@@ -131,7 +131,7 @@ class ConceptLookupService:
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
-        standard_flags: Collection[str] | None = None,
+        validity: Collection[str] | None = None,
     ) -> MappedConcept | None:
         """
         Lookup a static mapping and track the result.
@@ -154,9 +154,9 @@ class ConceptLookupService:
             concept_name=c.concept_name,
             domain_id=c.domain_id,
             vocabulary_id=c.vocabulary_id,
-            standard_flag=c.valid_flag,
+            validity=c.validity,
         )
-        if not _concept_matches_filter(concept, domains, vocabs, standard_flags):
+        if not _concept_matches_filter(concept, domains, vocabs, validity):
             self._result.record_miss("static", value_set, local_value)
             return None
 
@@ -169,7 +169,7 @@ class ConceptLookupService:
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
-        standard_flags: Collection[str] | None = None,
+        validity: Collection[str] | None = None,
     ) -> MappedConcept | None:
         """
         Lookup a structural mapping and track the result.
@@ -192,9 +192,9 @@ class ConceptLookupService:
             concept_name=c.concept_name,
             domain_id=c.domain_id,
             vocabulary_id=c.vocabulary_id,
-            standard_flag=c.valid_flag,
+            validity=c.validity,
         )
-        if not _concept_matches_filter(concept, domains, vocabs, standard_flags):
+        if not _concept_matches_filter(concept, domains, vocabs, validity):
             self._result.record_miss("structural", value_set, "")
             return None
 
@@ -209,7 +209,7 @@ class ConceptLookupService:
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
-        standard_flags: Collection[str] | None = None,
+        validity: Collection[str] | None = None,
     ) -> MappedConcept | None:
         """
         Lookup a single semantic mapping for a patient field location.
@@ -224,25 +224,31 @@ class ConceptLookupService:
             leaf_index,
             domains=domains,
             vocabs=vocabs,
-            standard_flags=standard_flags,
+            validity=validity,
         )
         if not matches:
             return None
-        if len(matches) == 1:
-            return matches[0]
+
+        # deduplicate by concept_id (same concept appearing twice in mapping file
+        # is not ambiguity, just a duplicate row)
+        seen: dict[int | str, MappedConcept] = {}
+        for m in matches:
+            seen.setdefault(m.concept_id, m)
+        unique = list(seen.values())
+
+        if len(unique) == 1:
+            return unique[0]
 
         path_str = ".".join(field_path)
-        concept_ids = [m.concept_id for m in matches]
+        details = [(m.concept_id, m.concept_name, m.domain_id) for m in matches]
         log.error(
-            "Ambiguous semantic mapping: patient_id=%s, field_path=%s, leaf_index=%s, matched concept_ids=%s",
+            "Ambiguous semantic mapping: patient_id=%s, field_path=%s, leaf_index=%s, matched concepts (id, name, domain)=%s",
             patient_id,
             path_str,
             leaf_index,
-            concept_ids,
+            details,
         )
-        raise RuntimeError(
-            f"Ambiguous semantic mapping: patient_id={patient_id}, field_path={path_str}, leaf_index={leaf_index}, matched concept_ids={concept_ids}"
-        )
+        raise RuntimeError(f"Ambiguous semantic mapping: patient_id={patient_id}, field_path={path_str}, leaf_index={leaf_index}, matched concepts={details}")
 
     def lookup_semantic_multiple(
         self,
@@ -252,7 +258,7 @@ class ConceptLookupService:
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
-        standard_flags: Collection[str] | None = None,
+        validity: Collection[str] | None = None,
     ) -> tuple[MappedConcept, ...]:
         """
         Lookup semantic mappings for a patient field location, returning all
@@ -275,12 +281,12 @@ class ConceptLookupService:
             concept = MappedConcept(
                 concept_id=int(row.omop_concept_id),
                 concept_code=row.omop_concept_code,
-                concept_name=row.omop_name,
+                concept_name=row.omop_concept_name,
                 domain_id=row.omop_domain,
                 vocabulary_id=row.omop_vocab,
-                standard_flag=row.omop_validity,
+                validity=row.omop_validity,
             )
-            if _concept_matches_filter(concept, domains, vocabs, standard_flags):
+            if _concept_matches_filter(concept, domains, vocabs, validity):
                 mapped.append(concept)
         return tuple(mapped)
 

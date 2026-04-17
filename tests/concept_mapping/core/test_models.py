@@ -14,7 +14,7 @@ class TestLookupResult:
             concept_name="Male",
             domain_id="Gender",
             vocabulary_id="Gender",
-            standard_flag="Valid",
+            validity="Valid",
         )
 
         result.record_match("static", "sex", "M", concept)

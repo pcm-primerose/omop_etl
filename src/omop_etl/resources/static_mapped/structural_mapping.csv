@@ -1,4 +1,4 @@
-value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept_category,omop_valid_flag,omop_domain,omop_vocab
+value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 ecog,36305384,89247-1,ECOG Performance Status score,Clinical Observation,Standard,Valid,Measurement,LOINC
 tumor_assessment_baseline,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED
 tumor_assessment_baseline,4085855,246206008,Number of lesions,Observable Entity,Standard,Valid,Observation,SNOMED

@@ -54,7 +54,7 @@ class TestLoadSemantics:
     def test_index_groups_duplicate_terms(self, tmp_path):
         # CSV with duplicate source_terms
         csv_content = """\
-term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_name,omop_class,omop_concept,omop_validity,omop_domain,omop_vocab
+term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 t1,col,cancer,1,100,C100,cancer type 1,cls,S,Valid,condition,SNOMED
 t2,col,cancer,2,200,C200,cancer type 2,cls,S,Valid,condition,ICD10
 t3,col,other,1,300,C300,other thing,cls,S,Valid,condition,SNOMED
@@ -84,9 +84,9 @@ t3,col,other,1,300,C300,other thing,cls,S,Valid,condition,SNOMED
                 frequency=1,
                 omop_concept_id="1",
                 omop_concept_code="C1",
-                omop_name="name1",
-                omop_class="cls",
-                omop_concept="S",
+                omop_concept_name="name1",
+                omop_concept_class="cls",
+                omop_standard_concept="S",
                 omop_validity="valid",
                 omop_domain="condition",
                 omop_vocab="SNOMED",
@@ -98,9 +98,9 @@ t3,col,other,1,300,C300,other thing,cls,S,Valid,condition,SNOMED
                 frequency=2,
                 omop_concept_id="2",
                 omop_concept_code="C2",
-                omop_name="name2",
-                omop_class="cls",
-                omop_concept="S",
+                omop_concept_name="name2",
+                omop_concept_class="cls",
+                omop_standard_concept="S",
                 omop_validity="valid",
                 omop_domain="condition",
                 omop_vocab="ICD10",

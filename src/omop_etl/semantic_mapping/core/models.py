@@ -20,6 +20,11 @@ class OutputPaths:
     format: str | None
 
 
+def _norm(v: str | None) -> str:
+    """Lowercase + strip a CSV value, defaulting None to empty string."""
+    return (v or "").lower().strip()
+
+
 @dataclass(frozen=True, slots=True)
 class SemanticRow:
     term_id: str
@@ -28,9 +33,9 @@ class SemanticRow:
     frequency: int
     omop_concept_id: str
     omop_concept_code: str
-    omop_name: str
-    omop_class: str
-    omop_concept: str  # todo: rename in source
+    omop_concept_name: str
+    omop_concept_class: str
+    omop_standard_concept: str
     omop_validity: str
     omop_domain: str
     omop_vocab: str
@@ -38,18 +43,18 @@ class SemanticRow:
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> "SemanticRow":
         return cls(
-            term_id=row["term_id"].lower().strip(),
-            source_col=row["source_col"].lower().strip(),
-            source_term=row["source_term"].lower().strip(),
-            frequency=int(row["frequency"]),
-            omop_concept_id=row["omop_concept_id"].lower().strip(),
-            omop_concept_code=row["omop_concept_code"].lower().strip(),
-            omop_name=row["omop_name"].lower().strip(),
-            omop_class=row["omop_class"].lower().strip(),
-            omop_concept=row["omop_concept"].lower().strip(),
-            omop_validity=row["omop_validity"].lower().strip(),
-            omop_domain=row["omop_domain"].lower().strip(),
-            omop_vocab=row["omop_vocab"].lower().strip(),
+            term_id=_norm(row["term_id"]),
+            source_col=_norm(row["source_col"]),
+            source_term=_norm(row["source_term"]),
+            frequency=int(row.get("frequency") or 0),
+            omop_concept_id=_norm(row["omop_concept_id"]),
+            omop_concept_code=_norm(row["omop_concept_code"]),
+            omop_concept_name=_norm(row["omop_concept_name"]),
+            omop_concept_class=_norm(row["omop_concept_class"]),
+            omop_standard_concept=_norm(row["omop_standard_concept"]),
+            omop_validity=_norm(row["omop_validity"]),
+            omop_domain=_norm(row["omop_domain"]),
+            omop_vocab=_norm(row["omop_vocab"]),
         )
 
 
@@ -157,9 +162,9 @@ class BatchQueryResult:
                         "frequency": sem_row.frequency,
                         "omop_concept_id": sem_row.omop_concept_id,
                         "omop_concept_code": sem_row.omop_concept_code,
-                        "omop_name": sem_row.omop_name,
-                        "omop_class": sem_row.omop_class,
-                        "omop_concept": sem_row.omop_concept,
+                        "omop_concept_name": sem_row.omop_concept_name,
+                        "omop_concept_class": sem_row.omop_concept_class,
+                        "omop_standard_concept": sem_row.omop_standard_concept,
                         "omop_validity": sem_row.omop_validity,
                         "omop_domain": sem_row.omop_domain,
                         "omop_vocab": sem_row.omop_vocab,
@@ -202,9 +207,9 @@ class BatchQueryResult:
                         "frequency": sem_row.frequency,
                         "omop_concept_id": sem_row.omop_concept_id,
                         "omop_concept_code": sem_row.omop_concept_code,
-                        "omop_name": sem_row.omop_name,
-                        "omop_class": sem_row.omop_class,
-                        "omop_concept": sem_row.omop_concept,
+                        "omop_concept_name": sem_row.omop_concept_name,
+                        "omop_concept_class": sem_row.omop_concept_class,
+                        "omop_standard_concept": sem_row.omop_standard_concept,
                         "omop_validity": sem_row.omop_validity,
                         "omop_domain": sem_row.omop_domain,
                         "omop_vocab": sem_row.omop_vocab,
