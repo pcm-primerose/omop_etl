@@ -68,7 +68,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping tumor type for %s: no icd10_code or main_tumor_type", patient.patient_id)
             return None
 
-        condition_concept_id = int(mapped[0].concept_id) if mapped else 0
+        condition_concept_id = int(mapped.concept_id) if mapped else 0
 
         date = tumor.date or patient.treatment_start_date
         if date is None:
@@ -107,7 +107,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             index,
             domains={OmopDomain.CONDITION},
         )
-        condition_concept_id = int(mapped[0].concept_id) if mapped else 0
+        condition_concept_id = int(mapped.concept_id) if mapped else 0
 
         row_id = self.generate_row_id(
             patient.patient_id,
@@ -143,7 +143,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             index,
             domains={OmopDomain.CONDITION},
         )
-        condition_concept_id = int(mapped[0].concept_id) if mapped else 0
+        condition_concept_id = int(mapped.concept_id) if mapped else 0
 
         row_id = self.generate_row_id(
             patient.patient_id,

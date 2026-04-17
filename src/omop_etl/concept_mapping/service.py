@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Mapping, List, Collection
+from logging import getLogger
 
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
@@ -19,7 +20,12 @@ from omop_etl.concept_mapping.core.models import (
     StructuralConcept,
     LookupResult,
 )
-from omop_etl.semantic_mapping.core.models import BatchQueryResult, OmopDomain
+from omop_etl.semantic_mapping.core.models import (
+    BatchQueryResult,
+    OmopDomain,
+)
+
+log = getLogger(__name__)
 
 
 def _concept_matches_filter(
@@ -204,14 +210,54 @@ class ConceptLookupService:
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
         standard_flags: Collection[str] | None = None,
+    ) -> MappedConcept | None:
+        """
+        Lookup a single semantic mapping for a patient field location.
+
+        Returns a single MappedConcept or None. Raises RuntimeError if multiple
+        concepts match after filtering: this indicates upstream mapping
+        ambiguity (one query to multiple concepts) and should be resolved in the mapping files.
+        """
+        matches = self.lookup_semantic_multiple(
+            patient_id,
+            field_path,
+            leaf_index,
+            domains=domains,
+            vocabs=vocabs,
+            standard_flags=standard_flags,
+        )
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+
+        path_str = ".".join(field_path)
+        concept_ids = [m.concept_id for m in matches]
+        log.error(
+            "Ambiguous semantic mapping: patient_id=%s, field_path=%s, leaf_index=%s, matched concept_ids=%s",
+            patient_id,
+            path_str,
+            leaf_index,
+            concept_ids,
+        )
+        raise RuntimeError(
+            f"Ambiguous semantic mapping: patient_id={patient_id}, field_path={path_str}, leaf_index={leaf_index}, matched concept_ids={concept_ids}"
+        )
+
+    def lookup_semantic_multiple(
+        self,
+        patient_id: str,
+        field_path: tuple[str, ...],
+        leaf_index: int | None,
+        *,
+        domains: Collection[OmopDomain | str] | None = None,
+        vocabs: Collection[str] | None = None,
+        standard_flags: Collection[str] | None = None,
     ) -> tuple[MappedConcept, ...]:
         """
-        Lookup semantic mappings for a patient field location.
-
-        Optional filters narrow the returned concepts by OMOP domain, vocabulary,
-        or standard flag. Filtering happens after lookup, so the semantic index
-        remains field-centric while each call site (builder) decides which
-        domains/vocabs it trusts for its OMOP table.
+        Lookup semantic mappings for a patient field location, returning all
+        matches after filtering. Use when multiple results are expected.
+        For builder call sites, prefer lookup_semantic() which enforces a single result.
         """
         if self._semantic_index is None:
             return ()

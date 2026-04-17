@@ -54,7 +54,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         )
         if not mapped:
             return None
-        procedure_concept_id = int(mapped[0].concept_id)
+        procedure_concept_id = int(mapped.concept_id)
 
         row_id = self.generate_row_id(
             patient.patient_id,
@@ -91,7 +91,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         )
         if not mapped:
             return None
-        procedure_concept_id = int(mapped[0].concept_id)
+        procedure_concept_id = int(mapped.concept_id)
 
         row_id = self.generate_row_id(
             patient.patient_id,

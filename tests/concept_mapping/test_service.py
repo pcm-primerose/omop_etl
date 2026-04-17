@@ -1,4 +1,13 @@
+import pytest
+
+from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.semantic_mapping.core.models import (
+    Query,
+    QueryResult,
+    BatchQueryResult,
+    SemanticRow,
+)
 
 
 class TestConceptLookupService:
@@ -115,3 +124,132 @@ class TestCaseInsensitiveLookups:
 
         assert result is None
         assert len(service.result.missed["static"]) == 1
+
+
+def _make_semantic_row(concept_id: str, domain: str = "condition", name: str = "test") -> SemanticRow:
+    return SemanticRow(
+        term_id="t1",
+        source_col="col",
+        source_term="term",
+        frequency=1,
+        omop_concept_id=concept_id,
+        omop_concept_code="code",
+        omop_name=name,
+        omop_class="class",
+        omop_concept="concept",
+        omop_validity="standard",
+        omop_domain=domain,
+        omop_vocab="snomed",
+    )
+
+
+def _make_query(patient_id: str = "P1", field_path: tuple[str, ...] = ("collection", "field"), leaf_index: int = 0) -> Query:
+    return Query(patient_id=patient_id, id="q1", query="test", field_path=field_path, raw_value="test", leaf_index=leaf_index)
+
+
+def _build_semantic_index(*query_results: QueryResult) -> SemanticResultIndex:
+    return SemanticResultIndex.from_batch(BatchQueryResult(results=tuple(query_results)))
+
+
+class TestSemanticLookupSingleResult:
+    """lookup_semantic returns MappedConcept | None and raises on multi-match."""
+
+    def test_single_match_returns_concept(self, static_index):
+        query = _make_query()
+        qr = QueryResult(patient_id="P1", query=query, results=[_make_semantic_row("12345")])
+        idx = _build_semantic_index(qr)
+
+        service = ConceptLookupService(static_index=static_index, semantic_index=idx)
+        result = service.lookup_semantic("P1", ("collection", "field"), 0)
+
+        assert result is not None
+        assert result.concept_id == 12345
+
+    def test_zero_match_returns_none(self, static_index):
+        idx = _build_semantic_index()  # empty
+
+        service = ConceptLookupService(static_index=static_index, semantic_index=idx)
+        result = service.lookup_semantic("P1", ("collection", "field"), 0)
+
+        assert result is None
+
+    def test_multi_match_raises(self, static_index):
+        query = _make_query()
+        qr = QueryResult(
+            patient_id="P1",
+            query=query,
+            results=[_make_semantic_row("111"), _make_semantic_row("222")],
+        )
+        idx = _build_semantic_index(qr)
+
+        service = ConceptLookupService(static_index=static_index, semantic_index=idx)
+        with pytest.raises(RuntimeError, match="Ambiguous semantic mapping"):
+            service.lookup_semantic("P1", ("collection", "field"), 0)
+
+    def test_multi_match_filtered_to_one_does_not_raise(self, static_index):
+        """If domain filter narrows multi-match to 1 concept, no error."""
+        query = _make_query()
+        qr = QueryResult(
+            patient_id="P1",
+            query=query,
+            results=[
+                _make_semantic_row("111", domain="condition"),
+                _make_semantic_row("222", domain="procedure"),
+            ],
+        )
+        idx = _build_semantic_index(qr)
+
+        service = ConceptLookupService(static_index=static_index, semantic_index=idx)
+        result = service.lookup_semantic("P1", ("collection", "field"), 0, domains={"condition"})
+
+        assert result is not None
+        assert result.concept_id == 111
+
+    def test_no_semantic_index_returns_none(self, static_index):
+        service = ConceptLookupService(static_index=static_index, semantic_index=None)
+
+        result = service.lookup_semantic("P1", ("collection", "field"), 0)
+
+        assert result is None
+
+
+class TestSemanticLookupMultiple:
+    """lookup_semantic_multiple returns the raw tuple without enforcement."""
+
+    def test_returns_all_matches(self, static_index):
+        query = _make_query()
+        qr = QueryResult(
+            patient_id="P1",
+            query=query,
+            results=[_make_semantic_row("111"), _make_semantic_row("222")],
+        )
+        idx = _build_semantic_index(qr)
+
+        service = ConceptLookupService(static_index=static_index, semantic_index=idx)
+        result = service.lookup_semantic_multiple("P1", ("collection", "field"), 0)
+
+        assert len(result) == 2
+        assert {m.concept_id for m in result} == {111, 222}
+
+    def test_respects_domain_filter(self, static_index):
+        query = _make_query()
+        qr = QueryResult(
+            patient_id="P1",
+            query=query,
+            results=[
+                _make_semantic_row("111", domain="condition"),
+                _make_semantic_row("222", domain="procedure"),
+            ],
+        )
+        idx = _build_semantic_index(qr)
+
+        service = ConceptLookupService(static_index=static_index, semantic_index=idx)
+        result = service.lookup_semantic_multiple(
+            "P1",
+            ("collection", "field"),
+            0,
+            domains={"procedure"},
+        )
+
+        assert len(result) == 1
+        assert result[0].concept_id == 222

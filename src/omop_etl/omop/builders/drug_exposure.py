@@ -67,7 +67,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 index,
                 domains={OmopDomain.DRUG},
             )
-        drug_concept_id = int(mapped[0].concept_id) if mapped else 0
+        drug_concept_id = int(mapped.concept_id) if mapped else 0
 
         # dose fields depend on cycle type (IV vs oral)
         quantity: float | None = None
@@ -131,7 +131,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         )
         if not mapped:
             return None
-        drug_concept_id = int(mapped[0].concept_id)
+        drug_concept_id = int(mapped.concept_id)
 
         row_id = self.generate_row_id(
             patient.patient_id,
@@ -167,7 +167,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             index,
             domains={OmopDomain.DRUG},
         )
-        drug_concept_id = int(mapped[0].concept_id) if mapped else 0
+        drug_concept_id = int(mapped.concept_id) if mapped else 0
 
         row_id = self.generate_row_id(
             patient.patient_id,
