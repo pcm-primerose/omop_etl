@@ -12,7 +12,12 @@ log = getLogger(__name__)
 
 
 class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
-    """Builds procedure_occurrence rows from previous treatments and medical histories."""
+    """Builds procedure_occurrence rows from previous treatments and medical histories.
+
+    CDM policy: only records whose source values map to standard concepts with a domain
+    of "Procedure" should go in this table (CDM 5.4 procedure_occurrence ETL conventions).
+    No rows emitted for unmapped source values.
+    """
 
     table_name: ClassVar[str] = "procedure_occurrence"
 
@@ -26,123 +31,121 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
                 log.warning("Skipping previous treatment %d for %s: missing start_date", idx, patient.patient_id)
                 continue
             if prev.treatment:
-                row = self._build_previous_treatment_main_row(patient, person_id, prev, idx, procedure_type_concept_id)
-                if row is not None:
-                    rows.append(row)
+                rows.extend(self._build_previous_treatment_main_rows(patient, person_id, prev, idx, procedure_type_concept_id))
             if prev.additional_treatment:
-                row = self._build_previous_treatment_additional_row(patient, person_id, prev, idx, procedure_type_concept_id)
-                if row is not None:
-                    rows.append(row)
+                rows.extend(self._build_previous_treatment_additional_rows(patient, person_id, prev, idx, procedure_type_concept_id))
 
-        # medical history terms that mapped to Procedure domain (past surgeries, etc.)
         for idx, mh in enumerate(patient.medical_histories):
-            row = self._build_medical_history_row(patient, person_id, mh, idx, procedure_type_concept_id)
-            if row is not None:
-                rows.append(row)
+            rows.extend(self._build_medical_history_rows(patient, person_id, mh, idx, procedure_type_concept_id))
 
         return rows
 
-    def _build_previous_treatment_main_row(
+    def _build_previous_treatment_main_rows(
         self,
         patient: Patient,
         person_id: int,
         prev: PreviousTreatments,
         index: int,
         procedure_type_concept_id: int,
-    ) -> ProcedureOcurrenceRow | None:
-        mapped = self.concepts.lookup_semantic(
+    ) -> list[ProcedureOcurrenceRow]:
+        matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
             index,
             domains={OmopDomain.PROCEDURE},
         )
-        if not mapped:
-            return None
+        if not matches:
+            return []
 
-        row_id = self.generate_row_id(
-            patient.patient_id,
-            Patient.Collections.PREVIOUS_TREATMENTS,
-            str(prev.treatment_sequence_number),
-            PreviousTreatments.Fields.TREATMENT,
-        )
+        return [
+            ProcedureOcurrenceRow(
+                procedure_occurrence_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.PREVIOUS_TREATMENTS,
+                    str(prev.treatment_sequence_number),
+                    PreviousTreatments.Fields.TREATMENT,
+                    str(concept.concept_id),
+                ),
+                person_id=person_id,
+                procedure_concept_id=int(concept.concept_id),
+                procedure_date=prev.start_date,
+                procedure_end_date=prev.end_date,
+                procedure_type_concept_id=procedure_type_concept_id,
+                procedure_source_value=prev.treatment,
+            )
+            for concept in matches
+        ]
 
-        return ProcedureOcurrenceRow(
-            procedure_occurrence_id=row_id,
-            person_id=person_id,
-            procedure_concept_id=int(mapped.concept_id),
-            procedure_date=prev.start_date,
-            procedure_end_date=prev.end_date,
-            procedure_type_concept_id=procedure_type_concept_id,
-            procedure_source_value=prev.treatment,
-        )
-
-    def _build_previous_treatment_additional_row(
+    def _build_previous_treatment_additional_rows(
         self,
         patient: Patient,
         person_id: int,
         prev: PreviousTreatments,
         index: int,
         procedure_type_concept_id: int,
-    ) -> ProcedureOcurrenceRow | None:
-        mapped = self.concepts.lookup_semantic(
+    ) -> list[ProcedureOcurrenceRow]:
+        matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
             index,
             domains={OmopDomain.PROCEDURE},
         )
-        if not mapped:
-            return None
+        if not matches:
+            return []
 
-        row_id = self.generate_row_id(
-            patient.patient_id,
-            Patient.Collections.PREVIOUS_TREATMENTS,
-            str(prev.treatment_sequence_number),
-            PreviousTreatments.Fields.ADDITIONAL_TREATMENT,
-        )
+        return [
+            ProcedureOcurrenceRow(
+                procedure_occurrence_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.PREVIOUS_TREATMENTS,
+                    str(prev.treatment_sequence_number),
+                    PreviousTreatments.Fields.ADDITIONAL_TREATMENT,
+                    str(concept.concept_id),
+                ),
+                person_id=person_id,
+                procedure_concept_id=int(concept.concept_id),
+                procedure_date=prev.start_date,
+                procedure_end_date=prev.end_date,
+                procedure_type_concept_id=procedure_type_concept_id,
+                procedure_source_value=prev.additional_treatment,
+            )
+            for concept in matches
+        ]
 
-        return ProcedureOcurrenceRow(
-            procedure_occurrence_id=row_id,
-            person_id=person_id,
-            procedure_concept_id=int(mapped.concept_id),
-            procedure_date=prev.start_date,
-            procedure_end_date=prev.end_date,
-            procedure_type_concept_id=procedure_type_concept_id,
-            procedure_source_value=prev.additional_treatment,
-        )
-
-    def _build_medical_history_row(
+    def _build_medical_history_rows(
         self,
         patient: Patient,
         person_id: int,
         mh: MedicalHistory,
         index: int,
         procedure_type_concept_id: int,
-    ) -> ProcedureOcurrenceRow | None:
+    ) -> list[ProcedureOcurrenceRow]:
         if mh.start_date is None:
-            return None
+            return []
 
-        mapped = self.concepts.lookup_semantic(
+        matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
             index,
             domains={OmopDomain.PROCEDURE},
         )
-        if not mapped:
-            return None
-        procedure_concept_id = int(mapped.concept_id)
+        if not matches:
+            return []
 
-        row_id = self.generate_row_id(
-            patient.patient_id,
-            Patient.Collections.MEDICAL_HISTORIES,
-            str(mh.sequence_id),
-        )
-
-        return ProcedureOcurrenceRow(
-            procedure_occurrence_id=row_id,
-            person_id=person_id,
-            procedure_concept_id=procedure_concept_id,
-            procedure_date=mh.start_date,
-            procedure_end_date=mh.end_date,
-            procedure_type_concept_id=procedure_type_concept_id,
-            procedure_source_value=mh.term,
-        )
+        return [
+            ProcedureOcurrenceRow(
+                procedure_occurrence_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.MEDICAL_HISTORIES,
+                    str(mh.sequence_id),
+                    str(concept.concept_id),
+                ),
+                person_id=person_id,
+                procedure_concept_id=int(concept.concept_id),
+                procedure_date=mh.start_date,
+                procedure_end_date=mh.end_date,
+                procedure_type_concept_id=procedure_type_concept_id,
+                procedure_source_value=mh.term,
+            )
+            for concept in matches
+        ]

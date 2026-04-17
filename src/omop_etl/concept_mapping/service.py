@@ -210,60 +210,16 @@ class ConceptLookupService:
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
         validity: Collection[str] | None = None,
-    ) -> MappedConcept | None:
-        """
-        Lookup a single semantic mapping for a patient field location.
-
-        Returns a single MappedConcept or None. Raises RuntimeError if multiple
-        concepts match after filtering: this indicates upstream mapping
-        ambiguity (one query to multiple concepts) and should be resolved in the mapping files.
-        """
-        matches = self.lookup_semantic_multiple(
-            patient_id,
-            field_path,
-            leaf_index,
-            domains=domains,
-            vocabs=vocabs,
-            validity=validity,
-        )
-        if not matches:
-            return None
-
-        # deduplicate by concept_id (same concept appearing twice in mapping file
-        # is not ambiguity, just a duplicate row)
-        seen: dict[int | str, MappedConcept] = {}
-        for m in matches:
-            seen.setdefault(m.concept_id, m)
-        unique = list(seen.values())
-
-        if len(unique) == 1:
-            return unique[0]
-
-        path_str = ".".join(field_path)
-        details = [(m.concept_id, m.concept_name, m.domain_id) for m in matches]
-        log.error(
-            "Ambiguous semantic mapping: patient_id=%s, field_path=%s, leaf_index=%s, matched concepts (id, name, domain)=%s",
-            patient_id,
-            path_str,
-            leaf_index,
-            details,
-        )
-        raise RuntimeError(f"Ambiguous semantic mapping: patient_id={patient_id}, field_path={path_str}, leaf_index={leaf_index}, matched concepts={details}")
-
-    def lookup_semantic_multiple(
-        self,
-        patient_id: str,
-        field_path: tuple[str, ...],
-        leaf_index: int | None,
-        *,
-        domains: Collection[OmopDomain | str] | None = None,
-        vocabs: Collection[str] | None = None,
-        validity: Collection[str] | None = None,
     ) -> tuple[MappedConcept, ...]:
         """
-        Lookup semantic mappings for a patient field location, returning all
-        matches after filtering. Use when multiple results are expected.
-        For builder call sites, prefer lookup_semantic() which enforces a single result.
+        Lookup semantic mappings for a patient field location.
+
+        Returns all matched concepts after filtering, as a tuple (may be empty).
+        Raises RuntimeError if duplicate concept_ids are found (same concept
+        mapped twice = mapping file issue that must be resolved).
+        Legitimate multi-concept mappings (e.g. combination drugs with multiple
+        ingredients) return multiple unique concepts — builders iterate and
+        emit one row per concept.
         """
         if self._semantic_index is None:
             return ()
@@ -288,6 +244,28 @@ class ConceptLookupService:
             )
             if _concept_matches_filter(concept, domains, vocabs, validity):
                 mapped.append(concept)
+
+        # detect duplicate concept_ids (mapping file issue, not legitimate multi-concept)
+        seen_ids: set[int | str] = set()
+        for m in mapped:
+            if m.concept_id in seen_ids:
+                path_str = ".".join(field_path)
+                details = [(c.concept_id, c.concept_name, c.domain_id) for c in mapped]
+                log.error(
+                    "Duplicate concept_id %s in semantic mapping: patient_id=%s, field_path=%s, leaf_index=%s, all matches=%s",
+                    m.concept_id,
+                    patient_id,
+                    path_str,
+                    leaf_index,
+                    details,
+                )
+                raise RuntimeError(
+                    f"Duplicate concept_id {m.concept_id} in semantic mapping: "
+                    f"patient_id={patient_id}, field_path={path_str}, "
+                    f"leaf_index={leaf_index}, all matches={details}"
+                )
+            seen_ids.add(m.concept_id)
+
         return tuple(mapped)
 
     def export(
