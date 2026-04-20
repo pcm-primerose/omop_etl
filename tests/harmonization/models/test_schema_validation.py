@@ -113,18 +113,18 @@ def _get_property_kind(prop_name: str) -> str:
 
     origin = get_origin(return_hint)
 
-    # tuple[T, ...] → collection
+    # tuple[T, ...] to collection
     if origin is tuple:
         return "collection"
 
-    # T | None (Union[T, None]) → check if T is a domain class or a scalar
+    # T | None (Union[T, None]) to check if T is a domain class or a scalar
     if origin is Union:
         args = [a for a in get_args(return_hint) if a is not type(None)]
         if args and issubclass(args[0], DomainBase):
             return "singleton"
         return "scalar"
 
-    # bare type (no Optional) — scalar
+    # bare type, no Optional: scalar
     if isinstance(return_hint, type) and issubclass(return_hint, SCALAR_TYPES):
         return "scalar"
 

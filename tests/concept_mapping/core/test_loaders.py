@@ -66,7 +66,7 @@ class TestMalformedCsvRows:
             rows = StaticMapLoader(csv).as_rows()
 
         assert len(rows) == 1
-        assert rows[0].vocabulary_id == ""  # None → empty string via _norm
+        assert rows[0].vocabulary_id == ""  # None to empty string via _norm
         assert "Malformed row" in caplog.text
         assert "omop_vocab" in caplog.text
         assert "line 2" in caplog.text

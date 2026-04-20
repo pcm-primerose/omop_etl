@@ -125,6 +125,39 @@ class TestCaseInsensitiveLookups:
         assert result is None
         assert len(service.result.missed["static"]) == 1
 
+    def test_vocab_filter_matches(self, static_index):
+        service = ConceptLookupService(static_index=static_index)
+
+        result = service.lookup_static("sex", "M", vocabs={"Gender"})
+        assert result is not None
+
+    def test_vocab_filter_misses(self, static_index):
+        service = ConceptLookupService(static_index=static_index)
+
+        result = service.lookup_static("sex", "M", vocabs={"SNOMED"})
+        assert result is None
+
+    def test_validity_filter_matches(self, static_index):
+        service = ConceptLookupService(static_index=static_index)
+
+        result = service.lookup_static("sex", "M", validity={"Valid"})
+        assert result is not None
+
+    def test_validity_filter_misses(self, static_index):
+        service = ConceptLookupService(static_index=static_index)
+
+        result = service.lookup_static("sex", "M", validity={"Deleted"})
+        assert result is None
+
+    def test_combined_filters(self, static_index):
+        service = ConceptLookupService(static_index=static_index)
+
+        result = service.lookup_static("sex", "M", domains={"Gender"}, vocabs={"Gender"}, validity={"Valid"})
+        assert result is not None
+
+        result = service.lookup_static("sex", "M", domains={"Gender"}, vocabs={"SNOMED"})
+        assert result is None
+
 
 def _make_semantic_row(concept_id: str, domain: str = "condition", name: str = "test") -> SemanticRow:
     return SemanticRow(

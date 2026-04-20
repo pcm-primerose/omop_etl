@@ -44,3 +44,17 @@ class TestConceptLookupExporter:
         manifest = json.loads(ctx["csv"].manifest_path.read_text())
         assert "coverage_by_field" in manifest["options"]
         assert "sex" in manifest["options"]["coverage_by_field"]
+
+    def test_export_includes_all_lookup_types(self, tmp_path, run_meta):
+        """Missed export should include static and structural misses."""
+        exporter = ConceptLookupExporter(base_out=tmp_path)
+        result = LookupResult()
+        result.record_miss("static", "sex", "X")
+        result.record_miss("structural", "unknown_concept", "")
+
+        ctx = exporter.export(result, run_meta, formats=["json"])
+
+        missed_file = list(ctx["json"].base_dir.glob("missed_*.json"))[0]
+        data = json.loads(missed_file.read_text())
+        lookup_types = {d["lookup_type"] for d in data}
+        assert lookup_types == {"static", "structural"}
