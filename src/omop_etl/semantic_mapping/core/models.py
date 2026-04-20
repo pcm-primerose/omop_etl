@@ -21,7 +21,7 @@ class OutputPaths:
 
 
 def _norm(v: str | None) -> str:
-    """Lowercase + strip a CSV value, defaulting None to empty string."""
+    """Lowercase and strip a csv value, defaulting None to empty string."""
     return (v or "").lower().strip()
 
 
