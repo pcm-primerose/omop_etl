@@ -1,3 +1,4 @@
+import datetime as dt
 from typing import ClassVar
 from logging import getLogger
 
@@ -28,15 +29,16 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             if row is not None:
                 rows.append(row)
 
-        # assessment collection: dedup by event_id (one visit per physical encounter)
-        seen_event_ids: set[str] = set()
-        for idx, assessment in enumerate(patient.tumor_assessments):
-            if assessment.event_id is not None and assessment.event_id in seen_event_ids:
+        # grouping by date: multiple assessment rows from the same physical encounter,
+        # e.g. target and non-target lesion measurements, or same visit recorded with
+        # different event_ids like "V04" and "W00" produce one visit_occurrence row.
+        seen_dates: set[dt.date] = set()
+        for assessment in patient.tumor_assessments:
+            if assessment.date is not None and assessment.date in seen_dates:
                 continue
             row = self._build_assessment_row(patient, person_id, assessment, visit_concept_id, visit_type_concept_id)
             if row is not None:
-                if assessment.event_id is not None:
-                    seen_event_ids.add(assessment.event_id)
+                seen_dates.add(assessment.date)
                 rows.append(row)
 
         return rows
@@ -85,7 +87,6 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Collections.TUMOR_ASSESSMENTS,
-            str(assessment.event_id),
             str(assessment.date),
         )
 
