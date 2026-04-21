@@ -6,12 +6,12 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class BestOverallResponse(DomainBase):
-    class Cols:
+    class Fields:
         RESPONSE = "response"
         CODE = "code"
         DATE = "date"
 
-    MATERIAL_COLS = (Cols.RESPONSE,)
+    INVARIANT_FIELDS = (Fields.RESPONSE,)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id

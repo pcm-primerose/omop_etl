@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from omop_etl.harmonization.models import HarmonizedData
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.types import Layout
 from omop_etl.infra.utils.find_latest_run import find_latest_run_output
 from omop_etl.infra.utils.run_context import RunMetadata

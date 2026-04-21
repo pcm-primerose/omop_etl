@@ -34,7 +34,7 @@ def cohort_name_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -75,7 +75,7 @@ def age_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -122,7 +122,7 @@ def gender_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -137,6 +137,7 @@ class TumorTypeRow:
     COH_COHTTYPE__2CD: int | None = None
     COH_COHTT: str | None = None
     COH_COHTTOSP: str | None = None
+    COH_EventDate: str | None = None
 
 
 @pytest.fixture
@@ -150,6 +151,7 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPECD=50,
             COH_COHTT="tumor1_subtype2",
             COH_COHTTOSP="tumor1_subtype3",
+            COH_EventDate="2020-03-15",
         ),
         TumorTypeRow(
             "crc_subtype_slot2",
@@ -158,6 +160,7 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPECD=None,
             COH_COHTTYPE__2="CRC_subtype",
             COH_COHTTYPE__2CD=40,
+            COH_EventDate="2019-nk-nk",
         ),
         TumorTypeRow(
             "tumor2_dual_subtypes",
@@ -166,6 +169,7 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPE="tumor2_subtype1",
             COH_COHTTYPECD=70,
             COH_COHTT="tumor2_subtype2",
+            COH_EventDate="not a date",
         ),
         TumorTypeRow(
             "tumor3_sp_subtype",
@@ -183,10 +187,11 @@ def tumor_type_fixture() -> pl.DataFrame:
             COH_COHTTYPE__2="tumor4_subtype1",
             COH_COHTTYPE__2CD=30,
             COH_COHTTOSP="tumor4_subtype2",
+            COH_EventDate="2021-06-01",
         ),
     ]
 
-    recrods = [asdict(r) for r in rows]  # type: ignore
+    recrods = [asdict(r) for r in rows]
     return pl.from_dicts(recrods)
 
 
@@ -251,7 +256,7 @@ def study_drugs_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -310,7 +315,7 @@ def biomarkers_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -351,7 +356,7 @@ def date_of_death_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -400,7 +405,7 @@ def lost_to_followup_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -563,7 +568,7 @@ def evaluability_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -630,7 +635,7 @@ def ecog_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -696,7 +701,7 @@ def medical_history_fixture():
         MedicalHistoryRow("missing"),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -761,7 +766,7 @@ def adverse_event_number_fixture():
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -813,7 +818,7 @@ def serious_adverse_event_number_fixture():
         SeriousAdverseEventNumberRow("0_events_no_data", AE_AESERCD="", AE_SAESTDAT=""),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -954,7 +959,7 @@ def baseline_tumor_assessment_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1004,7 +1009,7 @@ def previous_treatment_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1051,7 +1056,7 @@ def treatment_start_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1108,7 +1113,7 @@ def treatment_stop_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1147,7 +1152,7 @@ def last_treatment_start_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1265,9 +1270,45 @@ def treatment_cycle_fixture() -> pl.DataFrame:
             TR_TRIVDELYN1="Yes",
             TR_TRO_YNCD=1,
         ),
+        # combination drug: two ingredients, equal doses
+        TreatmentCycleRow(
+            "combo_equal_dose",
+            TR_TRNAME="Phesgo (Pertuzumab and Trastuzumab)",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="2023-01-01",
+            TR_TRIVDS1="600/600",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD=1,
+        ),
+        # combination drug: two ingredients, different doses
+        TreatmentCycleRow(
+            "combo_diff_dose",
+            TR_TRNAME="Phesgo (Pertuzumab and Trastuzumab)",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="2023-02-01",
+            TR_TRIVDS1="1200/600",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD=1,
+        ),
+        # single drug with brand name and paranthetical ingredient
+        TreatmentCycleRow(
+            "single_branded",
+            TR_TRNAME="Tecentriq (Atezolizumab)",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="2023-03-01",
+            TR_TRIVDS1="1200",
+            TR_TRIVU1="mg",
+            TR_TRIVDELYN1="Yes",
+            TR_TRCYNCD=1,
+        ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1346,7 +1387,7 @@ def concomitant_medication_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1393,7 +1434,7 @@ def adverse_events_flag_fixture() -> pl.DataFrame:
         AdverseEventsFlagRow("multirow_all_false"),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1481,7 +1522,7 @@ def adverse_events_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1563,7 +1604,7 @@ def tumor_assessments_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1639,7 +1680,7 @@ def best_overall_response_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1690,7 +1731,7 @@ def has_clinical_benefit_at_week_16_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
@@ -1751,24 +1792,15 @@ def end_of_treatment_reason_fixture() -> pl.DataFrame:
         ),
     ]
 
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
-
-
-# --- C30 and EQ5D fixtures (for TestImpressSpecContracts smoke only) ---
-# These exist purely so the smoke test can exercise the C30 and EQ5D processors
-# at runtime (regex column matching, schema validation, hydration). The DF
-# tests for C30 and EQ5D are intentionally not added — see TEST_REFACTOR_PLAN.md
-# Step 10 for the rationale.
 
 
 @dataclass(frozen=True, slots=True)
 class Eq5dRow:
     """
     EQ5D source row. The processor expects all 5 question text + 5 question
-    code columns plus the QOL_METRIC and event columns. EQ5D's processor
-    final select references all 10 question outputs, so all 10 input columns
-    must be present (even if null).
+    code columns plus the QOL_METRIC and event columns.
     """
 
     SubjectId: str
@@ -1806,14 +1838,10 @@ def eq5d_fixture() -> pl.DataFrame:
             EQ5D_EventDate="2020-02-01",
         ),
     ]
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
 
-# C30 has 30 questions = 60 input question columns + 3 base columns. A
-# hand-written 63-field dataclass would be repetitive; build it programmatically
-# via dataclasses.make_dataclass so the fixture can use the same row-dataclass
-# pattern as the others without 60 lines of typing.
 _C30_FIELDS = (
     [
         ("SubjectId", str),
@@ -1835,8 +1863,6 @@ C30Row = make_dataclass(
 @pytest.fixture
 def c30_fixture() -> pl.DataFrame:
     rows = [
-        # full row: a couple of questions answered, plus the bookends
-        # (Q1, Q15, Q30) so any regex bug at the start/middle/end fails.
         C30Row(
             "c30_full",
             C30_EventName="V01",
@@ -1856,5 +1882,5 @@ def c30_fixture() -> pl.DataFrame:
             C30_EventDate="2020-02-01",
         ),
     ]
-    records = [asdict(r) for r in rows]  # type: ignore
+    records = [asdict(r) for r in rows]
     return pl.from_dicts(records)

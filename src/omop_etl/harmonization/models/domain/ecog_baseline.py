@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class EcogBaseline(DomainBase):
-    class Cols:
+    class Fields:
         DESCRIPTION = "description"
         GRADE = "grade"
         DATE = "date"

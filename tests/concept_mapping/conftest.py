@@ -27,8 +27,8 @@ def static_concepts() -> list[StaticConcept]:
             concept_code="M",
             concept_name="Male",
             concept_class="Gender",
-            concept_category="Standard",
-            valid_flag="Valid",
+            standard_concept="Standard",
+            validity="Valid",
             domain_id="Gender",
             vocabulary_id="Gender",
         ),
@@ -39,8 +39,8 @@ def static_concepts() -> list[StaticConcept]:
             concept_code="F",
             concept_name="Female",
             concept_class="Gender",
-            concept_category="Standard",
-            valid_flag="Valid",
+            standard_concept="Standard",
+            validity="Valid",
             domain_id="Gender",
             vocabulary_id="Gender",
         ),
@@ -49,7 +49,8 @@ def static_concepts() -> list[StaticConcept]:
 
 @pytest.fixture
 def static_index(static_concepts) -> dict[tuple[str, str], StaticConcept]:
-    return {(c.value_set, c.local_value): c for c in static_concepts}
+    # mirror StaticMapLoader.as_index() normalization
+    return {(c.value_set.lower().strip(), c.local_value.lower().strip()): c for c in static_concepts}
 
 
 @pytest.fixture
@@ -62,22 +63,23 @@ def structural_concepts() -> list[StructuralConcept]:
             concept_name="EHR encounter record",
             domain_id="Type Concept",
             vocabulary_id="Type Concept",
-            valid_flag="Valid",
+            validity="Valid",
             concept_class="Obs Type",
-            concept_category="Standard",
+            standard_concept="Standard",
         ),
     ]
 
 
 @pytest.fixture
 def structural_index(structural_concepts) -> dict[str, StructuralConcept]:
-    return {c.value_set: c for c in structural_concepts}
+    # mirror StructuralMapLoader.as_index() normalization.
+    return {c.value_set.lower().strip(): c for c in structural_concepts}
 
 
 @pytest.fixture
 def static_csv_content() -> str:
     return """\
-value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept_category,omop_valid_flag,omop_domain,omop_vocab
+value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 sex,M,8507,M,Male,Gender,Standard,Valid,Gender,Gender
 sex,F,8532,F,Female,Gender,Standard,Valid,Gender,Gender
 """
@@ -93,7 +95,7 @@ def static_csv_file(tmp_path, static_csv_content) -> Path:
 @pytest.fixture
 def structural_csv_content() -> str:
     return """\
-value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_class,omop_concept_category,omop_valid_flag,omop_domain,omop_vocab
+value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 ecrf,32817,OMOP4822053,EHR encounter record,Obs Type,Standard,Valid,Type Concept,Type Concept
 """
 

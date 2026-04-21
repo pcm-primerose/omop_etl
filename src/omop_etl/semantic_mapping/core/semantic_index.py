@@ -51,9 +51,9 @@ class SemanticIndex:
                 continue
             if vocabs is not None and row.omop_vocab not in vocabs:
                 continue
-            if classes is not None and row.omop_class not in classes:
+            if classes is not None and row.omop_concept_class not in classes:
                 continue
-            if standard is not None and row.omop_concept not in standard:
+            if standard is not None and row.omop_standard_concept not in standard:
                 continue
             if validity is not None and row.omop_validity not in validity:
                 continue

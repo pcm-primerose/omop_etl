@@ -5,6 +5,11 @@ from typing import Literal, Dict, List
 LookupType = Literal["static", "structural", "semantic"]
 
 
+def _norm(v: str | None) -> str:
+    """Lowercase + strip a CSV value, defaulting None to empty string."""
+    return (v or "").lower().strip()
+
+
 @dataclass(frozen=True, slots=True)
 class MappedConcept:
     concept_id: int | str
@@ -12,7 +17,7 @@ class MappedConcept:
     concept_name: str
     domain_id: str
     vocabulary_id: str
-    standard_flag: str
+    validity: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,24 +28,24 @@ class StaticConcept:
     concept_code: str
     concept_name: str
     concept_class: str
-    concept_category: str
-    valid_flag: str
+    standard_concept: str
+    validity: str
     domain_id: str
     vocabulary_id: str
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StaticConcept:
         return cls(
-            value_set=row["value_set"],
-            local_value=row["local_value"],
-            concept_id=row["omop_concept_id"],
-            concept_code=row["omop_concept_code"],
-            concept_name=row["omop_concept_name"],
-            concept_class=row["omop_class"],
-            concept_category=row["omop_concept_category"],
-            valid_flag=row["omop_valid_flag"],
-            domain_id=row["omop_domain"],
-            vocabulary_id=row["omop_vocab"],
+            value_set=_norm(row["value_set"]),
+            local_value=_norm(row["local_value"]),
+            concept_id=_norm(row["omop_concept_id"]),
+            concept_code=_norm(row["omop_concept_code"]),
+            concept_name=_norm(row["omop_concept_name"]),
+            concept_class=_norm(row["omop_concept_class"]),
+            standard_concept=_norm(row["omop_standard_concept"]),
+            validity=_norm(row["omop_validity"]),
+            domain_id=_norm(row["omop_domain"]),
+            vocabulary_id=_norm(row["omop_vocab"]),
         )
 
 
@@ -52,23 +57,23 @@ class StructuralConcept:
     concept_name: str
     domain_id: str
     vocabulary_id: str
-    valid_flag: str
+    validity: str
     concept_class: str
-    concept_category: str
+    standard_concept: str
     table_name: str | None = None
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
         return cls(
-            value_set=row["value_set"],
-            concept_id=row["omop_concept_id"],
-            concept_code=row["omop_concept_code"],
-            concept_name=row["omop_concept_name"],
-            concept_class=row["omop_class"],
-            concept_category=row["omop_concept_category"],
-            valid_flag=row["omop_valid_flag"],
-            domain_id=row["omop_domain"],
-            vocabulary_id=row["omop_vocab"],
+            value_set=_norm(row["value_set"]),
+            concept_id=_norm(row["omop_concept_id"]),
+            concept_code=_norm(row["omop_concept_code"]),
+            concept_name=_norm(row["omop_concept_name"]),
+            concept_class=_norm(row["omop_concept_class"]),
+            standard_concept=_norm(row["omop_standard_concept"]),
+            validity=_norm(row["omop_validity"]),
+            domain_id=_norm(row["omop_domain"]),
+            vocabulary_id=_norm(row["omop_vocab"]),
         )
 
     def __iter__(self):

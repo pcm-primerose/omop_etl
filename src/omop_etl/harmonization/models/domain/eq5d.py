@@ -9,7 +9,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 class EQ5D(DomainBase):
     Q_COUNT = 5
 
-    class Cols:
+    class Fields:
         DATE = "date"
         EVENT_NAME = "event_name"
         QOL_METRIC = "qol_metric"

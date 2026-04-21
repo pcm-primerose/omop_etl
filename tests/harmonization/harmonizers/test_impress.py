@@ -124,6 +124,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 50
         assert row.item(0, "cohort_tumor_type") == "tumor1_subtype2"
         assert row.item(0, "other_tumor_type") == "tumor1_subtype3"
+        assert row.item(0, "date") == dt.date(2020, 3, 15)
 
         # crc_subtype_slot2
         row = df.filter(pl.col("SubjectId") == "crc_subtype_slot2")
@@ -133,6 +134,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 40
         assert row.item(0, "cohort_tumor_type") is None
         assert row.item(0, "other_tumor_type") is None
+        assert row.item(0, "date") == dt.date(2019, 7, 15)
 
         # tumor2_dual_subtypes
         row = df.filter(pl.col("SubjectId") == "tumor2_dual_subtypes")
@@ -142,6 +144,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 70
         assert row.item(0, "cohort_tumor_type") == "tumor2_subtype2"
         assert row.item(0, "other_tumor_type") is None
+        assert row.item(0, "date") is None
 
         # tumor3_sp_subtype
         row = df.filter(pl.col("SubjectId") == "tumor3_sp_subtype")
@@ -151,6 +154,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 10
         assert row.item(0, "cohort_tumor_type") is None
         assert row.item(0, "other_tumor_type") == "tumor3_subtype2"
+        assert row.item(0, "date") is None
 
         # tumor4_slot2_and_sp
         row = df.filter(pl.col("SubjectId") == "tumor4_slot2_and_sp")
@@ -160,6 +164,7 @@ class TestProcessTumorType:
         assert row.item(0, "main_tumor_type_code") == 30
         assert row.item(0, "cohort_tumor_type") is None
         assert row.item(0, "other_tumor_type") == "tumor4_subtype2"
+        assert row.item(0, "date") == dt.date(2021, 6, 1)
 
 
 class TestProcessStudyDrugs:
@@ -846,9 +851,9 @@ class TestProcessTreatmentCycle:
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
 
-        from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+        from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 
-        expected_cols = {"SubjectId"} | set(TreatmentCycle.data_fields())
+        expected_cols = {"SubjectId"} | set(TreatmentCycleComponent.data_fields())
         assert set(df.columns) == expected_cols
 
     def test_extracts_iv_cycle(self, treatment_cycle_fixture):
@@ -862,12 +867,12 @@ class TestProcessTreatmentCycle:
 
         rows = df.filter(pl.col("SubjectId") == "iv_two_cycles")
         assert rows.height == 2
-        assert set(rows["cycle_type"].to_list()) == {"IV"}
+        assert set(rows["cycle_type"].to_list()) == {"iv"}
 
         cycle_1 = rows.filter(pl.col("start_date") == dt.date(1900, 1, 1))
         assert cycle_1.item(0, "end_date") == dt.date(1900, 1, 9)
         assert cycle_1.item(0, "was_total_dose_delivered") is True
-        assert cycle_1.item(0, "iv_dose_prescribed") == "100"
+        assert cycle_1.item(0, "iv_dose_prescribed") == 100.0
         assert cycle_1.item(0, "iv_dose_prescribed_unit") == "mg"
 
         cycle_2 = rows.filter(pl.col("start_date") == dt.date(1900, 1, 10))
@@ -901,9 +906,9 @@ class TestProcessTreatmentCycle:
 
         rows = df.filter(pl.col("SubjectId") == "both_modalities")
         assert rows.height == 2
-        assert set(rows["cycle_type"].to_list()) == {"IV", "oral"}
+        assert set(rows["cycle_type"].to_list()) == {"iv", "oral"}
 
-        iv = rows.filter(pl.col("cycle_type") == "IV")
+        iv = rows.filter(pl.col("cycle_type") == "iv")
         assert iv.item(0, "end_date") is None
 
         oral = rows.filter(pl.col("cycle_type") == "oral")
@@ -928,6 +933,93 @@ class TestProcessTreatmentCycle:
 
         subject_ids = set(df["SubjectId"].to_list())
         assert "drop_no_name" not in subject_ids
+
+    def test_combination_equal_dose_splits_into_two_rows(self, treatment_cycle_fixture):
+        """'Phesgo (Pertuzumab and Trastuzumab)' with '600/600' splits into two rows."""
+        h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
+        df = h._process_treatment_cycle()
+
+        rows = df.filter(pl.col("SubjectId") == "combo_equal_dose")
+        assert rows.height == 2
+
+        names = sorted(rows["ingredient_name"].to_list())
+        assert names == ["Pertuzumab", "Trastuzumab"]
+
+        doses = sorted(rows["iv_dose_prescribed"].to_list())
+        assert doses == [600.0, 600.0]
+
+        # both rows share the same cycle metadata
+        assert rows["cycle_number"].unique().to_list() == [1]
+        assert rows["start_date"].unique().to_list() == [dt.date(2023, 1, 1)]
+        assert rows["iv_dose_prescribed_unit"].unique().to_list() == ["mg"]
+
+        # brand and raw name preserved
+        assert rows["brand_name"].unique().to_list() == ["Phesgo"]
+        assert rows["source_treatment_name"].unique().to_list() == ["Phesgo (Pertuzumab and Trastuzumab)"]
+
+        # component_index tracks position
+        indices = sorted(rows["component_index"].to_list())
+        assert indices == [0, 1]
+
+    def test_combination_different_doses_maps_correctly(self, treatment_cycle_fixture):
+        """'1200/600' maps first dose to first drug, second dose to second drug."""
+        h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
+        df = h._process_treatment_cycle()
+
+        rows = df.filter(pl.col("SubjectId") == "combo_diff_dose").sort("ingredient_name")
+        assert rows.height == 2
+
+        pertuzumab = rows.filter(pl.col("ingredient_name") == "Pertuzumab")
+        trastuzumab = rows.filter(pl.col("ingredient_name") == "Trastuzumab")
+
+        assert pertuzumab.item(0, "iv_dose_prescribed") == 1200.0
+        assert pertuzumab.item(0, "component_index") == 0
+
+        assert trastuzumab.item(0, "iv_dose_prescribed") == 600.0
+        assert trastuzumab.item(0, "component_index") == 1
+
+    def test_single_drug_with_brand_extracts_ingredient(self, treatment_cycle_fixture):
+        """Non-combination 'Brand (Ingredient)' rows extract brand and ingredient."""
+        h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
+        df = h._process_treatment_cycle()
+
+        # iv_two_cycles uses "iv Drug" (no parenthetical) — should have no brand
+        rows = df.filter(pl.col("SubjectId") == "iv_two_cycles")
+        assert rows[0, "brand_name"] is None
+        assert rows[0, "ingredient_name"] is None
+        assert rows[0, "source_treatment_name"] == "IV Drug"
+        assert rows[0, "component_index"] is None
+
+    def test_single_branded_drug_extracts_brand_and_ingredient(self, treatment_cycle_fixture):
+        """'Tecentriq (Atezolizumab)' extracts brand and ingredient, no component_index."""
+        h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
+        df = h._process_treatment_cycle()
+
+        row = df.filter(pl.col("SubjectId") == "single_branded")
+        assert row.height == 1
+        assert row.item(0, "ingredient_name") == "Atezolizumab"
+        assert row.item(0, "brand_name") == "Tecentriq"
+        assert row.item(0, "source_treatment_name") == "Tecentriq (Atezolizumab)"
+        assert row.item(0, "component_index") is None
+        assert row.item(0, "iv_dose_prescribed") == 1200.0
+
+    def test_no_parens_treatment_has_no_brand(self, treatment_cycle_fixture):
+        """Plain treatment names without parenthetical have no brand, name unchanged."""
+        h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
+        df = h._process_treatment_cycle()
+
+        row = df.filter(pl.col("SubjectId") == "oral_single")
+        assert row.item(0, "brand_name") is None
+        assert row.item(0, "ingredient_name") is None
+        assert row.item(0, "source_treatment_name") == "Oral Drug"
+        assert row.item(0, "component_index") is None
+
+    def test_iv_dose_prescribed_is_float(self, treatment_cycle_fixture):
+        """All iv_dose_prescribed values are float after processing (not strings)."""
+        h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
+        df = h._process_treatment_cycle()
+
+        assert df["iv_dose_prescribed"].dtype == pl.Float64
 
 
 class TestProcessConcomitantMedication:

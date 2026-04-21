@@ -1,4 +1,4 @@
-term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_name,omop_class,omop_concept,omop_validity,omop_domain,omop_vocab
+term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 a40acda4-5ce3-58e9-ace6-82861740d18a,AE_AECTCAET,Fever,3,437663,386661006,Fever,Clinical Finding,Standard,Valid,Condition,SNOMED
 fbd67699-0581-5e17-8403-f7eb290b9124,AE_AECTCAET,Pancreatitis,1,4192640,75694006,Pancreatitis,Disorder,Standard,Valid,Condition,SNOMED
 cba0153e-317a-5a35-9ad4-efcec032533a,AE_AECTCAET,Dyspnea,1,312437,267036007,Dyspnea,Clinical Finding,Standard,Valid,Condition,SNOMED
@@ -140,8 +140,8 @@ aa12b98c-57e5-5469-9138-35dcc4740611,CM_CMTRT,Klyx,1,941258,82003,docusate,Ingre
 aa12b98c-57e5-5469-9138-35dcc4740611,CM_CMTRT,Klyx,1,970011,9945,sorbitol,Ingredient,Standard,Valid,Drug,RxNorm
 73a86d56-78b8-5284-ac19-ed87d92c72b2,CM_CMTRT,Mycostatin,1,922570,7597,nystatin,Ingredient,Standard,Valid,Drug,RxNorm
 440c80f4-3cc0-5285-94d8-61bff1db73ec,CM_CMTRT,Albyl-E,1,1112807,1191,aspirin,Ingredient,Standard,Valid,Drug,RxNorm
-bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam ,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
-bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam ,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
+bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam,1,1746114,8339,piperacillin,Ingredient,Standard,Valid,Drug,RxNorm
+bc41a07f-5a8d-5339-be9f-9a1c601432d3,CM_CMTRT,Piperacillin/Tazobactam,1,1741122,37617,tazobactam,Ingredient,Standard,Valid,Drug,RxNorm
 549659be-5a1e-57b0-a046-a9c68800f2bc,CM_CMTRT,Lyrica,1,734354,187832,pregabalin,Ingredient,Standard,Valid,Drug,RxNorm
 29ae70b2-cc39-542e-8ac8-70cdf4a3214f,CM_CMTRT,Apocillin,1,1729720,7984,penicillin V,Ingredient,Standard,Valid,Drug,RxNorm
 564a0647-a182-581e-af33-470fd43a221a,CM_CMTRT,Ringer-Acetat,1,967823,9863,sodium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
@@ -258,5 +258,7 @@ efaf1bd0-8bc1-5f1a-9e12-8e454e97da95,MH_MHTERM,Esophagitis,1,30753,16761005,Esop
 e2df0b9b-4acf-516f-81bf-93728a8bcbec,MH_MHTERM,Toxic gastroenteritis and colitis,1,197596,71583005,Toxic gastroenteritis,Disorder,Standard,Valid,Condition,SNOMED
 071905c4-24a2-5991-ac79-b960f7226030,TR_TRNAME,Mekinist (Trametinib),13,43532497,1425099,trametinib,Ingredient,Standard,Valid,Drug,RxNorm
 bf4fb12f-07d3-57c6-b40c-b0cb7363ce3c,TR_TRNAME,Tafinlar (Dabrafenib),13,43532299,1424911,dabrafenib,Ingredient,Standard,Valid,Drug,RxNorm
+071905c4-24a2-5991-ac79-b960f7226030-1,TR_TRNAME,Trametinib,13,43532497,1425099,trametinib,Ingredient,Standard,Valid,Drug,RxNorm
+bf4fb12f-07d3-57c6-b40c-b0cb7363ce3c-1,TR_TRNAME,Dabrafenib,13,43532299,1424911,dabrafenib,Ingredient,Standard,Valid,Drug,RxNorm
 need-to-re-run,DM_DMSEX,male,1,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
 need-to-re-run,DM_DMSEX,female,1,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender

@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class PreviousTreatments(DomainBase):
-    class Cols:
+    class Fields:
         TREATMENT = "treatment"
         TREATMENT_CODE = "treatment_code"
         TREATMENT_SEQUENCE_NUMBER = "treatment_sequence_number"

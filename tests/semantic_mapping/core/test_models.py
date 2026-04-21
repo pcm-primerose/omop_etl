@@ -21,9 +21,9 @@ def semantic_rows() -> List[SemanticRow]:
             frequency=10,
             omop_concept_id="123",
             omop_concept_code="C123",
-            omop_name="acute myeloid leukemia",
-            omop_class="disorder",
-            omop_concept="S",
+            omop_concept_name="acute myeloid leukemia",
+            omop_concept_class="disorder",
+            omop_standard_concept="S",
             omop_validity="valid",
             omop_domain="condition",
             omop_vocab="SNOMED",
@@ -35,9 +35,9 @@ def semantic_rows() -> List[SemanticRow]:
             frequency=5,
             omop_concept_id="456",
             omop_concept_code="C456",
-            omop_name="aml variant",
-            omop_class="disorder",
-            omop_concept="S",
+            omop_concept_name="aml variant",
+            omop_concept_class="disorder",
+            omop_standard_concept="S",
             omop_validity="valid",
             omop_domain="condition",
             omop_vocab="ICD10",
@@ -128,9 +128,9 @@ class TestBatchQueryResult:
             "frequency",
             "omop_concept_id",
             "omop_concept_code",
-            "omop_name",
-            "omop_class",
-            "omop_concept",
+            "omop_concept_name",
+            "omop_concept_class",
+            "omop_standard_concept",
             "omop_validity",
             "omop_domain",
             "omop_vocab",
@@ -239,9 +239,9 @@ class TestCoverageByFieldPath:
             frequency=1,
             omop_concept_id="1",
             omop_concept_code="C1",
-            omop_name="test",
-            omop_class="cls",
-            omop_concept="S",
+            omop_concept_name="test",
+            omop_concept_class="cls",
+            omop_standard_concept="S",
             omop_validity="valid",
             omop_domain="condition",
             omop_vocab="SNOMED",
@@ -274,9 +274,9 @@ class TestSemanticRow:
             "frequency": "10",
             "omop_concept_id": "123",
             "omop_concept_code": "C123",
-            "omop_name": "Acute Myeloid Leukemia",
-            "omop_class": "Disorder",
-            "omop_concept": "S",
+            "omop_concept_name": "Acute Myeloid Leukemia",
+            "omop_concept_class": "Disorder",
+            "omop_standard_concept": "S",
             "omop_validity": "Valid",
             "omop_domain": "Condition",
             "omop_vocab": "SNOMED",
@@ -287,7 +287,7 @@ class TestSemanticRow:
         # values should be lowercased and stripped
         assert semantic_row.term_id == "t1"
         assert semantic_row.source_term == "aml"
-        assert semantic_row.omop_name == "acute myeloid leukemia"
+        assert semantic_row.omop_concept_name == "acute myeloid leukemia"
         assert semantic_row.frequency == 10
 
 

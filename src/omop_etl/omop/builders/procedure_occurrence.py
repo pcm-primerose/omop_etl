@@ -1,0 +1,153 @@
+from typing import ClassVar
+from logging import getLogger
+
+from omop_etl.harmonization.models.patient import Patient
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
+from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.models.rows import ProcedureOccurrenceRow
+from omop_etl.semantic_mapping.core.models import OmopDomain
+
+log = getLogger(__name__)
+
+
+class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
+    """Builds procedure_occurrence rows from previous treatments and medical histories.
+
+    CDM policy: only records whose source values map to standard concepts with a domain
+    of "Procedure" should go in this table (CDM 5.4 procedure_occurrence ETL conventions).
+    No rows emitted for unmapped source values.
+    """
+
+    table_name: ClassVar[str] = "procedure_occurrence"
+
+    def build(self, ctx: BuildContext) -> list[ProcedureOccurrenceRow]:
+        patient = ctx.patient
+        person_id = ctx.person_id
+        rows: list[ProcedureOccurrenceRow] = []
+        ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
+        procedure_type_concept_id = ecrf.concept_id if ecrf else 0
+
+        for idx, prev in enumerate(patient.previous_treatments):
+            if prev.start_date is None:
+                log.warning("Skipping previous treatment %d for %s: missing start_date", idx, patient.patient_id)
+                continue
+            if prev.treatment:
+                rows.extend(self._build_previous_treatment_main_rows(patient, person_id, prev, idx, procedure_type_concept_id))
+            if prev.additional_treatment:
+                rows.extend(self._build_previous_treatment_additional_rows(patient, person_id, prev, idx, procedure_type_concept_id))
+
+        for idx, mh in enumerate(patient.medical_histories):
+            rows.extend(self._build_medical_history_rows(patient, person_id, mh, idx, procedure_type_concept_id))
+
+        return rows
+
+    def _build_previous_treatment_main_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        prev: PreviousTreatments,
+        index: int,
+        procedure_type_concept_id: int,
+    ) -> list[ProcedureOccurrenceRow]:
+        matches = self.concepts.lookup_semantic(
+            patient.patient_id,
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+            index,
+            domains={OmopDomain.PROCEDURE},
+        )
+        if not matches:
+            return []
+
+        return [
+            ProcedureOccurrenceRow(
+                procedure_occurrence_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.PREVIOUS_TREATMENTS,
+                    str(prev.treatment_sequence_number),
+                    PreviousTreatments.Fields.TREATMENT,
+                    str(concept.concept_id),
+                ),
+                person_id=person_id,
+                procedure_concept_id=int(concept.concept_id),
+                procedure_date=prev.start_date,
+                procedure_end_date=prev.end_date,
+                procedure_type_concept_id=procedure_type_concept_id,
+                procedure_source_value=prev.treatment,
+            )
+            for concept in matches
+        ]
+
+    def _build_previous_treatment_additional_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        prev: PreviousTreatments,
+        index: int,
+        procedure_type_concept_id: int,
+    ) -> list[ProcedureOccurrenceRow]:
+        matches = self.concepts.lookup_semantic(
+            patient.patient_id,
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+            index,
+            domains={OmopDomain.PROCEDURE},
+        )
+        if not matches:
+            return []
+
+        return [
+            ProcedureOccurrenceRow(
+                procedure_occurrence_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.PREVIOUS_TREATMENTS,
+                    str(prev.treatment_sequence_number),
+                    PreviousTreatments.Fields.ADDITIONAL_TREATMENT,
+                    str(concept.concept_id),
+                ),
+                person_id=person_id,
+                procedure_concept_id=int(concept.concept_id),
+                procedure_date=prev.start_date,
+                procedure_end_date=prev.end_date,
+                procedure_type_concept_id=procedure_type_concept_id,
+                procedure_source_value=prev.additional_treatment,
+            )
+            for concept in matches
+        ]
+
+    def _build_medical_history_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        mh: MedicalHistory,
+        index: int,
+        procedure_type_concept_id: int,
+    ) -> list[ProcedureOccurrenceRow]:
+        if mh.start_date is None:
+            return []
+
+        matches = self.concepts.lookup_semantic(
+            patient.patient_id,
+            (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+            index,
+            domains={OmopDomain.PROCEDURE},
+        )
+        if not matches:
+            return []
+
+        return [
+            ProcedureOccurrenceRow(
+                procedure_occurrence_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.MEDICAL_HISTORIES,
+                    str(mh.sequence_id),
+                    str(concept.concept_id),
+                ),
+                person_id=person_id,
+                procedure_concept_id=int(concept.concept_id),
+                procedure_date=mh.start_date,
+                procedure_end_date=mh.end_date,
+                procedure_type_concept_id=procedure_type_concept_id,
+                procedure_source_value=mh.term,
+            )
+            for concept in matches
+        ]

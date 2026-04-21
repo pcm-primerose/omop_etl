@@ -7,6 +7,9 @@ from omop_etl.omop.models.rows import (
     ObservationPeriodRow,
     CdmSourceRow,
     VisitOccurrenceRow,
+    DrugExposureRow,
+    ConditionOccurrenceRow,
+    ProcedureOccurrenceRow,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,7 +27,6 @@ class OmopTables:
     Rows with duplicate natural keys are logged and skipped.
 
     A field of a given row used to build tables is considered required if not optional.
-    This does not reflect the OMOP CDM spec but
     """
 
     _tables: dict[str, list[Any]] = field(default_factory=dict)
@@ -99,5 +101,17 @@ class OmopTables:
         return rows[0] if rows else None
 
     @property
-    def visit_occurrence(self) -> list[VisitOccurrenceRow] | None:
+    def visit_occurrence(self) -> list[VisitOccurrenceRow]:
         return self._tables.get("visit_occurrence", [])
+
+    @property
+    def drug_exposure(self) -> list[DrugExposureRow]:
+        return self._tables.get("drug_exposure", [])
+
+    @property
+    def condition_occurrence(self) -> list[ConditionOccurrenceRow]:
+        return self._tables.get("condition_occurrence", [])
+
+    @property
+    def procedure_occurrence(self) -> list[ProcedureOccurrenceRow]:
+        return self._tables.get("procedure_occurrence", [])

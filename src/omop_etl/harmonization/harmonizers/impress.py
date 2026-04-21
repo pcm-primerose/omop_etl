@@ -16,7 +16,7 @@ from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
-from omop_etl.harmonization.models.domain.treatment_cycle import TreatmentCycle
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -46,7 +46,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_cohort_name(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.COHORT_NAME
+        colname = Patient.Scalars.COHORT_NAME
         return self.data.select(
             "SubjectId",
             PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).alias(colname),
@@ -54,7 +54,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_sex(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.SEX
+        colname = Patient.Scalars.SEX
         return (
             self.data.select(
                 "SubjectId",
@@ -72,7 +72,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_date_of_birth(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.DATE_OF_BIRTH
+        colname = Patient.Scalars.DATE_OF_BIRTH
         return (
             self.data.group_by("SubjectId")
             .agg(pl.col("DM_BRTHDAT").drop_nulls().first().alias("birth_date"))
@@ -81,7 +81,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_age(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.AGE
+        colname = Patient.Scalars.AGE
         return (
             self.data.group_by("SubjectId")
             .agg(
@@ -101,7 +101,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_date_of_death(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.DATE_OF_DEATH
+        colname = Patient.Scalars.DATE_OF_DEATH
         death_df = (
             self.data.select(
                 "SubjectId",
@@ -119,7 +119,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_has_any_adverse_events(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.HAS_ANY_ADVERSE_EVENTS
+        colname = Patient.Scalars.HAS_ANY_ADVERSE_EVENTS
         ae_status = (
             self.data.with_columns(
                 ae_text_present=PolarsParsers.to_optional_utf8("AE_AECTCAET").str.len_chars().fill_null(0) > 0,
@@ -142,7 +142,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_number_of_adverse_events(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.NUMBER_OF_ADVERSE_EVENTS
+        colname = Patient.Scalars.NUMBER_OF_ADVERSE_EVENTS
         ae_num = (
             self.data.with_columns(
                 ae_num=pl.any_horizontal(
@@ -160,7 +160,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_number_of_serious_adverse_events(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.NUMBER_OF_SERIOUS_ADVERSE_EVENTS
+        colname = Patient.Scalars.NUMBER_OF_SERIOUS_ADVERSE_EVENTS
         sae_counts = (
             self.data.with_columns(
                 is_serious=(PolarsParsers.to_optional_int64("AE_AESERCD") == 1).fill_null(False),
@@ -177,7 +177,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Note: If patient has iRecist *and* Recist at same assessment,
         iRecist evaluation takes precedence as it's a more specific assessment.
         """
-        colname = Patient.Cols.HAS_CLINICAL_BENEFIT_AT_WEEK_16
+        colname = Patient.Scalars.HAS_CLINICAL_BENEFIT_AT_WEEK_16
         timepoint = "V03"
 
         benefit = (
@@ -207,7 +207,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar(on_duplicate="last")
     def _process_end_of_treatment_reason(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.END_OF_TREATMENT_REASON
+        colname = Patient.Scalars.END_OF_TREATMENT_REASON
         end_of_treatment_reason = (
             self.data.select("SubjectId", "EOT_EOTREOT")
             .with_columns(
@@ -240,7 +240,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 - tumor assessment after week 4 (patient has any tumor assessment with EventId==V04 in RA, RCNT, RTNTMNT, RNRSP)
                 - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
         """
-        colname = Patient.Cols.EVALUABLE_FOR_EFFICACY_ANALYSIS
+        colname = Patient.Scalars.EVALUABLE_FOR_EFFICACY_ANALYSIS
         evaluability_data = self.data.select(
             "SubjectId",
             "TR_TROSTPDT",
@@ -353,7 +353,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_treatment_start_date(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.TREATMENT_START_DATE
+        colname = Patient.Scalars.TREATMENT_START_DATE
         treatment_start_data = (
             self.data.lazy()
             .select(["SubjectId", "TR_TRNAME", "TR_TRC1_DT"])
@@ -373,7 +373,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @scalar()
     def _process_end_of_treatment_date(self) -> pl.DataFrame | None:
-        colname = Patient.Cols.END_OF_TREATMENT_DATE
+        colname = Patient.Scalars.END_OF_TREATMENT_DATE
         treatment_stop_data = (
             self.data.select(
                 "SubjectId",
@@ -423,7 +423,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Set enforce_valid=True if TR_TRCYNCD must be 1 (i.e. filtering for valid cycles only)
         """
         enforce_valid = False
-        colname = Patient.Cols.TREATMENT_START_LAST_CYCLE
+        colname = Patient.Scalars.TREATMENT_START_LAST_CYCLE
 
         last_cycle_data = (
             self.data.select("SubjectId", "TR_TRC1_DT", "TR_TRCYNCD")
@@ -444,12 +444,13 @@ class ImpressHarmonizer(BaseHarmonizer):
     @singleton(TumorType)
     def _process_tumor_type(self) -> pl.DataFrame:
         # COHTTYPE__3/CD is present in source, but has no data
-        cols = TumorType.Cols
+        cols = TumorType.Fields
         df = (
             self.data.with_row_index("_row")
             .select(
                 "_row",
                 "SubjectId",
+                PolarsParsers.to_optional_date(pl.col("COH_EventDate")).alias("event_date"),
                 PolarsParsers.to_optional_utf8(pl.col("COH_ICD10COD")).str.strip_chars().alias(cols.ICD10_CODE),
                 PolarsParsers.to_optional_utf8(pl.col("COH_ICD10DES")).str.strip_chars().alias(cols.ICD10_DESCRIPTION),
                 PolarsParsers.to_optional_utf8(pl.col("COH_COHTT")).str.strip_chars().alias(cols.COHORT_TUMOR_TYPE),
@@ -497,6 +498,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
             # last write wins per SubjectId
             .sort("_row")
+            .rename({"event_date": cols.DATE})
             .unique(subset=["SubjectId"], keep="last")
             .select(
                 "SubjectId",
@@ -506,6 +508,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 cols.MAIN_TUMOR_TYPE_CODE,
                 cols.COHORT_TUMOR_TYPE,
                 cols.OTHER_TUMOR_TYPE,
+                cols.DATE,
             )
         )
 
@@ -513,7 +516,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @singleton(StudyDrugs)
     def _process_study_drugs(self) -> pl.DataFrame:
-        cols = StudyDrugs.Cols
+        cols = StudyDrugs.Fields
         df = (
             self.data.with_row_index("_row")
             .select(
@@ -589,7 +592,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @singleton(Biomarkers)
     def _process_biomarkers(self) -> pl.DataFrame:
-        cols = Biomarkers.Cols
+        cols = Biomarkers.Fields
         df = (
             self.data.select(
                 "SubjectId",
@@ -618,7 +621,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @singleton(FollowUp)
     def _process_lost_to_followup(self) -> pl.DataFrame:
-        cols = FollowUp.Cols
+        cols = FollowUp.Fields
         lost_to_followup = (
             self.data.select("SubjectId", "FU_FUPSST", "FU_FUPALDAT")
             .with_columns(fu_status=PolarsParsers.to_optional_utf8("FU_FUPSST"))
@@ -642,7 +645,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Parses dates with defaults, strips description data, casts to correct types.
         Only select one baseline ECOG event per patient, using latest available date.
         """
-        cols = EcogBaseline.Cols
+        cols = EcogBaseline.Fields
 
         ecog_base = self.data.select("SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD", "ECOG_ECOGDAT").filter(
             pl.col("ECOG_EventId") == "V00",
@@ -677,7 +680,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(MedicalHistory, order_by=("start_date",), require_order_by=True)
     def _process_medical_histories(self) -> pl.DataFrame | None:
-        cols = MedicalHistory.Cols
+        cols = MedicalHistory.Fields
         mh_base = self.data.select(
             "SubjectId",
             "MH_MHSPID",
@@ -718,7 +721,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(PreviousTreatments, order_by=("start_date",), require_order_by=True)
     def _process_previous_treatments(self) -> pl.DataFrame | None:
-        cols = PreviousTreatments.Cols
+        cols = PreviousTreatments.Fields
         ct_base = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -757,9 +760,9 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return merged
 
-    @collection(TreatmentCycle, order_by=("start_date",), require_order_by=True)
+    @collection(TreatmentCycleComponent, order_by=("start_date",), require_order_by=True)
     def _process_treatment_cycle(self) -> pl.DataFrame | None:
-        cols = TreatmentCycle.Cols
+        cols = TreatmentCycleComponent.Fields
         treatment_cycle_cols = [
             "SubjectId",
             "TR_TRNAME",
@@ -791,7 +794,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         def add_cycle_type(frame: pl.DataFrame) -> pl.DataFrame:
             """
-            If any bytes in any oral-only cols, set to `oral`, if any in iv-only cols, set to `IV` else `None`.
+            If any bytes in any oral-only cols, set to `oral`, if any in iv-only cols, set to `iv` else `None`.
             """
 
             oral_only_cols = ["TR_TRO_YN", "TR_TRODSTOT", "TR_TRO_STDT", "TR_TROSTPDT"]
@@ -810,7 +813,13 @@ class ImpressHarmonizer(BaseHarmonizer):
             has_iv = row_has_any(iv_cols)
 
             return frame.with_columns(
-                pl.when(has_oral).then(pl.lit("oral")).when(has_iv).then(pl.lit("IV")).otherwise(pl.lit(None, dtype=pl.Utf8)).alias(cols.CYCLE_TYPE),
+                pl.when(has_oral)
+                .then(pl.lit("oral"))
+                .when(has_iv)
+                .then(pl.lit("iv"))
+                .otherwise(pl.lit(None, dtype=pl.Utf8))
+                .alias(cols.CYCLE_TYPE)
+                .str.to_lowercase(),
             )
 
         def add_iv_cycle_stop_dates(frame: pl.DataFrame) -> pl.DataFrame:
@@ -822,7 +831,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .sort(["SubjectId", "TR_TRTNO", "start"])
                 .with_columns(
                     # apply shift to IV rows, others get None
-                    next_start=pl.when(pl.col(cols.CYCLE_TYPE) == "IV").then(pl.col("start").shift(-1).over(["SubjectId", "TR_TRTNO"])).otherwise(None),
+                    next_start=pl.when(pl.col(cols.CYCLE_TYPE) == "iv").then(pl.col("start").shift(-1).over(["SubjectId", "TR_TRTNO"])).otherwise(None),
                 )
                 .with_columns(
                     # calculate end date where next_start exists
@@ -863,7 +872,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         def coerce_types(frame: pl.DataFrame) -> pl.DataFrame:
             """Cast non-processed cols"""
             _coerced = frame.with_columns(
-                pl.col("TR_TRNAME").cast(pl.Utf8).alias(cols.TREATMENT_NAME),
+                pl.col("TR_TRNAME").cast(pl.Utf8).alias(cols.SOURCE_TREATMENT_NAME),
                 pl.col("TR_TRTNO").cast(pl.Int64).alias(cols.TREATMENT_NUMBER),
                 pl.col("TR_TRCNO1").cast(pl.Int64).alias(cols.CYCLE_NUMBER),
                 pl.col("TR_TRIVDS1").cast(pl.Utf8).alias(cols.IV_DOSE_PRESCRIBED),
@@ -877,13 +886,84 @@ class ImpressHarmonizer(BaseHarmonizer):
 
             return _coerced
 
+        def parse_treatment_names(frame: pl.DataFrame) -> pl.DataFrame:
+            """
+            Parse treatment names into source_treatment_name, ingredient_name, and brand_name.
+            Split combination drugs into per-ingredient rows with individual doses.
+
+            source_treatment_name is always the raw source value (invariant).
+            ingredient_name and brand_name are only populated when parseable from parens-data.
+
+            Handles three formats:
+            - "Brand (Ing1 and Ing2)" + "dose1/dose2": 2 rows, component_index 0/1
+            - "Brand (Ingredient)": 1 row, brand + ingredient extracted
+            - "Plain Name": 1 row, ingredient_name=None, brand_name=None
+            """
+            has_parens = pl.col(cols.SOURCE_TREATMENT_NAME).str.contains(r"\(")
+            is_combo = pl.col(cols.SOURCE_TREATMENT_NAME).str.contains(r"\(.*\band\b.*\)") & pl.col(cols.IV_DOSE_PRESCRIBED).cast(
+                pl.Utf8, strict=False
+            ).str.contains("/")
+
+            combo = frame.filter(is_combo)
+            non_combo = frame.filter(~is_combo)
+
+            # non-combination rows retained as one row
+            non_combo = non_combo.with_columns(
+                pl.when(has_parens)
+                .then(pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"^(.+?)\s*\(", 1).str.strip_chars())
+                .otherwise(None)
+                .alias(cols.BRAND_NAME),
+                pl.when(has_parens)
+                .then(pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"\((.+)\)", 1).str.strip_chars())
+                .otherwise(None)
+                .alias(cols.INGREDIENT_NAME),
+                pl.lit(None, dtype=pl.Int64).alias(cols.COMPONENT_INDEX),
+                pl.col(cols.IV_DOSE_PRESCRIBED).cast(pl.Float64, strict=False),
+            )
+
+            if combo.height == 0:
+                return non_combo
+
+            # combination IV rows parsed to separate rows
+            split = (
+                combo.with_columns(
+                    pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"^(.+?)\s*\(", 1).str.strip_chars().alias(cols.BRAND_NAME),
+                    pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"\((.+)\)", 1).str.split(" and ").alias("_ingredients"),
+                    pl.col(cols.IV_DOSE_PRESCRIBED).cast(pl.Utf8).str.split("/").alias("_doses"),
+                )
+                .with_columns(
+                    pl.col("_ingredients").list.len().alias("_n_ingredients"),
+                )
+                .with_columns(
+                    pl.when(pl.col("_n_ingredients") == pl.col("_doses").list.len())
+                    .then(pl.int_ranges(pl.lit(0), pl.col("_n_ingredients")))
+                    .otherwise(pl.lit(None))
+                    .alias("_component_indices"),
+                )
+                .explode("_ingredients", "_doses", "_component_indices")
+                .with_columns(
+                    pl.col("_ingredients").str.strip_chars().alias(cols.INGREDIENT_NAME),
+                    pl.col("_doses").cast(pl.Float64, strict=False).alias(cols.IV_DOSE_PRESCRIBED),
+                    pl.col("_component_indices").cast(pl.Int64).alias(cols.COMPONENT_INDEX),
+                )
+                .drop("_ingredients", "_doses", "_component_indices", "_n_ingredients")
+            )
+
+            return pl.concat([non_combo, split], how="align")
+
         coerced = coerce_types(cycle_base)
         cycle_typed = add_cycle_type(coerced)
         iv_cycle_end_dates = add_iv_cycle_stop_dates(cycle_typed)
         combined_end_dates = coalesce_cycle_ends(iv_cycle_end_dates)
-        filtered = filter_parse_treatment_cycles(combined_end_dates).select(
+        filtered = filter_parse_treatment_cycles(combined_end_dates)
+        parsed = parse_treatment_names(filtered)
+
+        return parsed.select(
             "SubjectId",
-            cols.TREATMENT_NAME,
+            cols.SOURCE_TREATMENT_NAME,
+            cols.INGREDIENT_NAME,
+            cols.BRAND_NAME,
+            cols.COMPONENT_INDEX,
             cols.CYCLE_TYPE,
             cols.TREATMENT_NUMBER,
             cols.CYCLE_NUMBER,
@@ -902,11 +982,9 @@ class ImpressHarmonizer(BaseHarmonizer):
             cols.WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE,
         )
 
-        return filtered
-
     @collection(ConcomitantMedication, order_by=("sequence_id", "start_date"), require_order_by=True)
     def _process_concomitant_medication(self) -> pl.DataFrame | None:
-        cols = ConcomitantMedication.Cols
+        cols = ConcomitantMedication.Fields
         cm_base = self.data.select(
             "SubjectId",
             "CM_CMTRT",
@@ -948,7 +1026,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(AdverseEvent, order_by=("start_date",), require_order_by=True)
     def _process_adverse_events(self) -> pl.DataFrame | None:
-        cols = AdverseEvent.Cols
+        cols = AdverseEvent.Fields
         ae_base = self.data.select(
             "SubjectId",
             "AE_AECTCAET",
@@ -1080,7 +1158,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         For the target lesions there are no separate entries for baseline evals, the earliest assessment with valid date + baseline size
         is selected.
         """
-        cols = TumorAssessmentBaseline.Cols
+        cols = TumorAssessmentBaseline.Fields
 
         base = self.data.select(
             [
@@ -1225,7 +1303,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @collection(TumorAssessment, order_by=("date",), require_order_by=True)
     def _process_tumor_assessments(self) -> pl.DataFrame | None:
-        cols = TumorAssessment.Cols
+        cols = TumorAssessment.Fields
         base = self.data.select(
             "SubjectId",
             "RA_RAASSESS1",
@@ -1339,7 +1417,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     # TODO: refactor to not use regex later
     @collection(C30, order_by=("date",), require_order_by=True)
     def _process_c30(self) -> pl.DataFrame | None:
-        cols = C30.Cols
+        cols = C30.Fields
         question_text_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)$")
         question_code_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)CD$")
 
@@ -1365,7 +1443,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                     return f"q{m.group(1)}_code"
                 return col
 
-            # Build column list using Cols constants
+            # Build column list using Fields constants
             q_text_cols = [getattr(cols, f"Q{i}") for i in range(1, C30.Q_COUNT + 1)]
             q_code_cols = [getattr(cols, f"Q{i}_CODE") for i in range(1, C30.Q_COUNT + 1)]
 
@@ -1388,11 +1466,11 @@ class ImpressHarmonizer(BaseHarmonizer):
     # TODO: refactor to not use regex later
     @collection(EQ5D, order_by=("date",), require_order_by=True)
     def _process_eq5d(self) -> pl.DataFrame | None:
-        cols = EQ5D.Cols
+        cols = EQ5D.Fields
         question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")
         question_code_re = re.compile(r"^(?:EQ5D_)?EQ5D([1-5])CD$")
 
-        # Build column lists using Cols constants
+        # Build column lists using Fields constants
         q_text_cols = [getattr(cols, f"Q{i}") for i in range(1, EQ5D.Q_COUNT + 1)]
         q_code_cols = [getattr(cols, f"Q{i}_CODE") for i in range(1, EQ5D.Q_COUNT + 1)]
 
@@ -1442,7 +1520,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         Removes unconfirmed iRecist responses, and takes best response across Recist and iRecist when
         rows have both evaluations.
         """
-        cols = BestOverallResponse.Cols
+        cols = BestOverallResponse.Fields
         base = self.data.select(
             "SubjectId",
             "RA_RATIMRES",

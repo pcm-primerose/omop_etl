@@ -19,7 +19,16 @@ class LoadSemantics:
     def as_rows(self) -> list[SemanticRow]:
         rows: list[SemanticRow] = []
         with open(self.path, "r", newline="") as f:
-            for row in csv.DictReader(f):
+            for line_no, row in enumerate(csv.DictReader(f), start=2):
+                none_cols = [k for k, v in row.items() if v is None]
+                if none_cols:
+                    log.warning(
+                        "Malformed row in %s line %d: missing columns %s (row: %s)",
+                        self.path,
+                        line_no,
+                        none_cols,
+                        dict(row),
+                    )
                 rows.append(SemanticRow.from_csv_row(row))
         return rows
 
@@ -31,11 +40,29 @@ class LoadSemantics:
 
     @staticmethod
     def _index(rows: List[SemanticRow]) -> dict[str, List[SemanticRow]]:
-        idx: dict[str, list[SemanticRow]] = defaultdict(list)
+        # group by normalized source_term, then dedup by concept_id within each group
+        # e.g. collapse "OxyNorm" and "Oxynorm" both mapping to oxycodone
+        raw: dict[str, list[SemanticRow]] = defaultdict(list)
         for row in rows:
             key = row.source_term.lower().strip()
-            idx[key].append(row)
-        return dict(idx)
+            raw[key].append(row)
+
+        idx: dict[str, list[SemanticRow]] = {}
+        for key, candidates in raw.items():
+            seen: dict[str, SemanticRow] = {}
+            for row in candidates:
+                if row.omop_concept_id in seen:
+                    log.info(
+                        "Collapsing duplicate concept_id %s for source_term '%s' "
+                        "can be caused by case-normalization colission, consider updating mapping file.",
+                        row.omop_concept_id,
+                        key,
+                    )
+                else:
+                    seen[row.omop_concept_id] = row
+            idx[key] = list(seen.values())
+
+        return idx
 
 
 def _resolve_base(base: Traversable) -> Traversable:
