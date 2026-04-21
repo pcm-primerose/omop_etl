@@ -39,16 +39,56 @@ class TestOmopServiceOrchestration:
     def test_all_builders_produce_output(self, static_index, structural_index):
         """A fully-populated patient with semantic entries produces rows in all tables."""
         semantic = create_semantic_index(
-            SemanticEntry("p1", (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE), None, 4000, "neoplasm", "condition"),
-            SemanticEntry("p1", (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM), 0, 316866, "hypertension", "condition"),
-            SemanticEntry("p1", (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM), 0, 437663, "fever", "condition"),
             SemanticEntry(
-                "p1", (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME), 0, 1234, "trametinib", "drug", "rxnorm"
+                "p1",
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                None,
+                4000,
+                "neoplasm",
+                "condition",
             ),
             SemanticEntry(
-                "p1", (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME), 0, 1124957, "oxycodone", "drug", "rxnorm"
+                "p1",
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                0,
+                316866,
+                "hypertension",
+                "condition",
             ),
-            SemanticEntry("p1", (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT), 0, 4301351, "surgery", "procedure"),
+            SemanticEntry(
+                "p1",
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                0,
+                437663,
+                "fever",
+                "condition",
+            ),
+            SemanticEntry(
+                "p1",
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                0,
+                1234,
+                "trametinib",
+                "drug",
+                "rxnorm",
+            ),
+            SemanticEntry(
+                "p1",
+                (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
+                0,
+                1124957,
+                "oxycodone",
+                "drug",
+                "rxnorm",
+            ),
+            SemanticEntry(
+                "p1",
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                0,
+                4301351,
+                "surgery",
+                "procedure",
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
 
@@ -111,10 +151,20 @@ class TestMultiPatient:
     def test_multiple_patients(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         p1 = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 5, 15), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 5, 15),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
         p2 = create_patient(
-            "p2", "test", sex="f", date_of_birth=dt.date(1990, 3, 20), treatment_start_date=dt.date(2023, 2, 1), end_of_treatment_date=dt.date(2023, 7, 15)
+            "p2",
+            "test",
+            sex="f",
+            date_of_birth=dt.date(1990, 3, 20),
+            treatment_start_date=dt.date(2023, 2, 1),
+            end_of_treatment_date=dt.date(2023, 7, 15),
         )
 
         tables = OmopService(concepts).build([p1, p2])
@@ -125,10 +175,20 @@ class TestMultiPatient:
     def test_person_ids_are_unique_across_patients(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         p1 = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 1, 1),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
         p2 = create_patient(
-            "p2", "test", sex="f", date_of_birth=dt.date(1990, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p2",
+            "test",
+            sex="f",
+            date_of_birth=dt.date(1990, 1, 1),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
 
         tables = OmopService(concepts).build([p1, p2])
@@ -139,7 +199,12 @@ class TestMultiPatient:
     def test_person_ids_are_deterministic(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 1, 1),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
 
         t1 = OmopService(concepts).build([patient])
@@ -152,9 +217,20 @@ class TestSkipBehavior:
     def test_missing_dob_skips_person_but_not_observation_period(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         p_ok = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 1, 1),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
-        p_no_dob = create_patient("p2", "test", sex="m", treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30))
+        p_no_dob = create_patient(
+            "p2",
+            "test",
+            sex="m",
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
+        )
 
         tables = OmopService(concepts).build([p_ok, p_no_dob])
 
@@ -164,7 +240,12 @@ class TestSkipBehavior:
     def test_missing_treatment_dates_skips_observation_period_but_not_person(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         p_ok = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 1, 1),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
         p_no_dates = create_patient("p2", "test", sex="f", date_of_birth=dt.date(1985, 8, 10))
 
@@ -178,7 +259,12 @@ class TestDedup:
     def test_same_patient_twice_deduplicates(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 1, 1),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
 
         tables = OmopService(concepts).build([patient, patient])
@@ -206,7 +292,12 @@ class TestOmopTablesApi:
     def test_getitem(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 1, 1),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
 
         tables = OmopService(concepts).build([patient])
@@ -226,7 +317,12 @@ class TestOmopTablesApi:
     def test_typed_properties(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
-            "p1", "test", sex="m", date_of_birth=dt.date(1980, 5, 15), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 5, 15),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
         )
 
         tables = OmopService(concepts).build([patient])
