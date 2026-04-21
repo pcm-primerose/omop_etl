@@ -23,7 +23,7 @@ class TestPersonBuilder:
         assert row.year_of_birth == 1980
         assert row.month_of_birth == 5
         assert row.day_of_birth == 15
-        assert row.birth_datetime is None
+        assert row.birth_datetime == dt.datetime(1980, 5, 15)
         assert row.person_source_value == "p1"
         assert row.gender_source_value == "m"
         assert row.gender_source_concept_id == 0

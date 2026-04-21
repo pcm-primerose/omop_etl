@@ -1,3 +1,4 @@
+import datetime as dt
 from typing import ClassVar
 
 from omop_etl.harmonization.models.patient import Patient
@@ -30,7 +31,7 @@ class PersonBuilder(OmopBuilder[PersonRow]):
             year_of_birth=dob.year,
             month_of_birth=dob.month,
             day_of_birth=dob.day,
-            birth_datetime=None,
+            birth_datetime=dt.datetime(dob.year, dob.month, dob.day),
             race_concept_id=0,
             ethnicity_concept_id=0,
             person_source_value=patient.patient_id,

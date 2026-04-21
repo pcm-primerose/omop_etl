@@ -18,6 +18,10 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
     CDM policy: when a drug source value cannot be translated into a standard Drug
     concept, a row is stored with DRUG_CONCEPT_ID of 0 and the source value preserved
     in DRUG_SOURCE_VALUE (CDM 5.4 drug_exposure ETL conventions).
+
+    Note: previous treatment fields map to multiple domains, if no semantic result,
+    no row is emitted (breaking the cdm spec). This is because we can't know what domain
+    unmapped terms would land in a-priori. See tests for more details.
     """
 
     table_name: ClassVar[str] = "drug_exposure"

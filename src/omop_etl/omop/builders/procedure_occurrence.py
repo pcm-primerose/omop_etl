@@ -23,7 +23,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
 
     def build(self, patient: Patient, person_id: int) -> list[ProcedureOcurrenceRow]:
         rows: list[ProcedureOcurrenceRow] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
+        ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
         procedure_type_concept_id = ecrf.concept_id if ecrf else 0
 
         for idx, prev in enumerate(patient.previous_treatments):
