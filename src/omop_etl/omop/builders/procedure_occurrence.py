@@ -4,14 +4,14 @@ from logging import getLogger
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.omop.builders.base import OmopBuilder
-from omop_etl.omop.models.rows import ProcedureOcurrenceRow
+from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.models.rows import ProcedureOccurrenceRow
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
 
 
-class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
+class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
     """Builds procedure_occurrence rows from previous treatments and medical histories.
 
     CDM policy: only records whose source values map to standard concepts with a domain
@@ -21,8 +21,10 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
 
     table_name: ClassVar[str] = "procedure_occurrence"
 
-    def build(self, patient: Patient, person_id: int) -> list[ProcedureOcurrenceRow]:
-        rows: list[ProcedureOcurrenceRow] = []
+    def build(self, ctx: BuildContext) -> list[ProcedureOccurrenceRow]:
+        patient = ctx.patient
+        person_id = ctx.person_id
+        rows: list[ProcedureOccurrenceRow] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
         procedure_type_concept_id = ecrf.concept_id if ecrf else 0
 
@@ -47,7 +49,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         prev: PreviousTreatments,
         index: int,
         procedure_type_concept_id: int,
-    ) -> list[ProcedureOcurrenceRow]:
+    ) -> list[ProcedureOccurrenceRow]:
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
@@ -58,7 +60,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
             return []
 
         return [
-            ProcedureOcurrenceRow(
+            ProcedureOccurrenceRow(
                 procedure_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
@@ -83,7 +85,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         prev: PreviousTreatments,
         index: int,
         procedure_type_concept_id: int,
-    ) -> list[ProcedureOcurrenceRow]:
+    ) -> list[ProcedureOccurrenceRow]:
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
@@ -94,7 +96,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
             return []
 
         return [
-            ProcedureOcurrenceRow(
+            ProcedureOccurrenceRow(
                 procedure_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
@@ -119,7 +121,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
         mh: MedicalHistory,
         index: int,
         procedure_type_concept_id: int,
-    ) -> list[ProcedureOcurrenceRow]:
+    ) -> list[ProcedureOccurrenceRow]:
         if mh.start_date is None:
             return []
 
@@ -133,7 +135,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOcurrenceRow]):
             return []
 
         return [
-            ProcedureOcurrenceRow(
+            ProcedureOccurrenceRow(
                 procedure_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.MEDICAL_HISTORIES,

@@ -1,7 +1,6 @@
 from typing import ClassVar
 
-from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import ObservationPeriodRow
 
 
@@ -10,7 +9,8 @@ class ObservationPeriodBuilder(OmopBuilder[ObservationPeriodRow]):
 
     table_name: ClassVar[str] = "observation_period"
 
-    def build(self, patient: Patient, person_id: int) -> list[ObservationPeriodRow]:
+    def build(self, ctx: BuildContext) -> list[ObservationPeriodRow]:
+        patient = ctx.patient
         treatment_start_date = patient.treatment_start_date
         treatment_end_date = patient.end_of_treatment_date or patient.treatment_start_last_cycle
         if treatment_start_date is None:
@@ -23,7 +23,7 @@ class ObservationPeriodBuilder(OmopBuilder[ObservationPeriodRow]):
 
         row = ObservationPeriodRow(
             observation_period_id=period_id,
-            person_id=person_id,
+            person_id=ctx.person_id,
             observation_period_start_date=treatment_start_date,
             observation_period_end_date=treatment_end_date,
             period_type_concept_id=observation_type.concept_id,

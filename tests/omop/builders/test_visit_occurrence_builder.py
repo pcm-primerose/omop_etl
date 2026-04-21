@@ -5,7 +5,10 @@ from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessmen
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
-from tests.omop.conftest import create_patient
+from tests.omop.conftest import (
+    create_build_context,
+    create_patient,
+)
 
 PID = "p1"
 TRIAL = "test"
@@ -21,7 +24,7 @@ class TestVisitOccurrenceBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -36,7 +39,7 @@ class TestBaselineVisitRows:
         baseline.assessment_type = "RECIST"
         patient.tumor_assessment_baseline = baseline
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -55,7 +58,7 @@ class TestBaselineVisitRows:
         baseline.target_lesion_measurement_date = dt.date(2023, 2, 20)
         patient.tumor_assessment_baseline = baseline
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].visit_start_date == dt.date(2023, 2, 20)
@@ -71,7 +74,7 @@ class TestBaselineVisitRows:
         baseline.off_target_lesion_measurement_date = dt.date(2023, 3, 10)
         patient.tumor_assessment_baseline = baseline
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].visit_start_date == dt.date(2023, 3, 10)
@@ -84,7 +87,7 @@ class TestBaselineVisitRows:
         baseline.assessment_type = "RECIST"
         patient.tumor_assessment_baseline = baseline
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -104,7 +107,7 @@ class TestAssessmentVisitRows:
         a2.assessment_type = "iRECIST"
         patient.tumor_assessments = [a1, a2]
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         assert rows[0].visit_start_date == dt.date(2023, 3, 1)
@@ -122,7 +125,7 @@ class TestAssessmentVisitRows:
         a_without.event_id = "EVT002"
         patient.tumor_assessments = [a_with, a_without]
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].visit_start_date == dt.date(2023, 3, 1)
@@ -137,7 +140,7 @@ class TestAssessmentVisitRows:
         a2.date = dt.date(2023, 4, 1)
         patient.tumor_assessments = [a1, a2]
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
 
@@ -158,7 +161,7 @@ class TestDateGrouping:
         a2.assessment_type = "iRECIST"
         patient.tumor_assessments = [a1, a2]
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
 
@@ -175,7 +178,7 @@ class TestDateGrouping:
         a2.event_id = "W00"
         patient.tumor_assessments = [a1, a2]
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
 
@@ -188,7 +191,7 @@ class TestDateGrouping:
         a2.date = dt.date(2023, 4, 1)
         patient.tumor_assessments = [a1, a2]
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         assert rows[0].visit_occurrence_id != rows[1].visit_occurrence_id
@@ -208,7 +211,7 @@ class TestBaselineAndAssessmentsCombined:
         assessment.assessment_type = "Follow-up"
         patient.tumor_assessments = [assessment]
 
-        rows = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
 
@@ -219,7 +222,7 @@ class TestBaselineAndAssessmentsCombined:
         baseline.assessment_date = dt.date(2023, 1, 1)
         patient.tumor_assessment_baseline = baseline
 
-        rows_a = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
-        rows_b = VisitOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows_a = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        rows_b = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows_a[0].visit_occurrence_id == rows_b[0].visit_occurrence_id

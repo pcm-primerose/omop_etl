@@ -5,7 +5,7 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
-from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import ConditionOccurrenceRow
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
@@ -22,7 +22,9 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
 
     table_name: ClassVar[str] = "condition_occurrence"
 
-    def build(self, patient: Patient, person_id: int) -> list[ConditionOccurrenceRow]:
+    def build(self, ctx: BuildContext) -> list[ConditionOccurrenceRow]:
+        patient = ctx.patient
+        person_id = ctx.person_id
         rows: list[ConditionOccurrenceRow] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
         condition_type_concept_id = ecrf.concept_id if ecrf else 0

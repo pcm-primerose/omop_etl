@@ -5,7 +5,7 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
-from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import DrugExposureRow
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
@@ -26,7 +26,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
     table_name: ClassVar[str] = "drug_exposure"
 
-    def build(self, patient: Patient, person_id: int) -> list[DrugExposureRow]:
+    def build(self, ctx: BuildContext) -> list[DrugExposureRow]:
+        patient = ctx.patient
+        person_id = ctx.person_id
         rows: list[DrugExposureRow] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
         drug_type_concept_id = ecrf.concept_id if ecrf else 0

@@ -5,7 +5,7 @@ from logging import getLogger
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import VisitOccurrenceRow
 
 log = getLogger(__name__)
@@ -16,7 +16,9 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
 
     table_name: ClassVar[str] = "visit_occurrence"
 
-    def build(self, patient: Patient, person_id: int) -> list[VisitOccurrenceRow]:
+    def build(self, ctx: BuildContext) -> list[VisitOccurrenceRow]:
+        patient = ctx.patient
+        person_id = ctx.person_id
         rows: list[VisitOccurrenceRow] = []
         outpatient = self.concepts.lookup_structural("outpatient_visit", domains={"Visit"})
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})

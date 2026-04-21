@@ -7,7 +7,12 @@ from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
-from tests.omop.conftest import create_patient, create_semantic_index, SemanticEntry
+from tests.omop.conftest import (
+    create_build_context,
+    create_patient,
+    create_semantic_index,
+    SemanticEntry,
+)
 
 PID = "p1"
 TRIAL = "test"
@@ -23,7 +28,7 @@ class TestConditionOccurrenceBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -47,7 +52,7 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -77,7 +82,7 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].condition_concept_id == 4001
@@ -111,7 +116,7 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].condition_concept_id == 4000
@@ -124,7 +129,7 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -137,7 +142,7 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -159,7 +164,7 @@ class TestTumorTypeRows:
         tumor.icd10_code = "C50.9"
         patient.tumor_type = tumor
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].condition_start_date == dt.date(2023, 1, 1)
@@ -182,7 +187,7 @@ class TestTumorTypeRows:
         tumor.icd10_code = "C50.9"
         patient.tumor_type = tumor
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -208,7 +213,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -225,7 +230,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -238,7 +243,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -261,7 +266,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].condition_end_date is None
@@ -287,7 +292,7 @@ class TestAdverseEventRows:
         ae.end_date = dt.date(2023, 3, 10)
         patient.adverse_events = [ae]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -303,7 +308,7 @@ class TestAdverseEventRows:
         ae.term = "Fever"
         patient.adverse_events = [ae]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -315,7 +320,7 @@ class TestAdverseEventRows:
         ae.start_date = dt.date(2023, 3, 1)
         patient.adverse_events = [ae]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -338,7 +343,7 @@ class TestAdverseEventRows:
         ae.start_date = dt.date(2023, 3, 1)
         patient.adverse_events = [ae]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert len(rows[0].condition_source_value) == 50
@@ -391,7 +396,7 @@ class TestCombinedSources:
         ae.start_date = dt.date(2023, 3, 1)
         patient.adverse_events = [ae]
 
-        rows = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 3
         ids = [r.condition_occurrence_id for r in rows]
@@ -416,7 +421,7 @@ class TestCombinedSources:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows_a = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
-        rows_b = ConditionOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows_a = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        rows_b = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows_a[0].condition_occurrence_id == rows_b[0].condition_occurrence_id

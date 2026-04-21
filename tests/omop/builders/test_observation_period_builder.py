@@ -3,7 +3,10 @@ import datetime as dt
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.observation_period import ObservationPeriodBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
-from tests.omop.conftest import create_patient
+from tests.omop.conftest import (
+    create_build_context,
+    create_patient,
+)
 
 PID = "p1"
 TRIAL = "test"
@@ -21,7 +24,7 @@ class TestObservationPeriodBuilder:
             end_of_treatment_date=dt.date(2023, 6, 30),
         )
 
-        rows = ObservationPeriodBuilder(concepts).build(patient, PERSON_ID)
+        rows = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -34,7 +37,7 @@ class TestObservationPeriodBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL, end_of_treatment_date=dt.date(2023, 6, 30))
 
-        rows = ObservationPeriodBuilder(concepts).build(patient, PERSON_ID)
+        rows = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -43,7 +46,7 @@ class TestObservationPeriodBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL, treatment_start_date=dt.date(2023, 1, 1))
 
-        rows = ObservationPeriodBuilder(concepts).build(patient, PERSON_ID)
+        rows = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -57,7 +60,7 @@ class TestObservationPeriodBuilder:
             treatment_start_last_cycle=dt.date(2023, 5, 15),
         )
 
-        rows = ObservationPeriodBuilder(concepts).build(patient, PERSON_ID)
+        rows = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].observation_period_end_date == dt.date(2023, 5, 15)
@@ -73,7 +76,7 @@ class TestObservationPeriodBuilder:
             treatment_start_last_cycle=dt.date(2023, 5, 15),
         )
 
-        rows = ObservationPeriodBuilder(concepts).build(patient, PERSON_ID)
+        rows = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].observation_period_end_date == dt.date(2023, 6, 30)
@@ -87,8 +90,8 @@ class TestObservationPeriodBuilder:
             end_of_treatment_date=dt.date(2023, 6, 30),
         )
 
-        rows_a = ObservationPeriodBuilder(concepts).build(patient, PERSON_ID)
-        rows_b = ObservationPeriodBuilder(concepts).build(patient, PERSON_ID)
+        rows_a = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        rows_b = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows_a[0].observation_period_id == rows_b[0].observation_period_id
 

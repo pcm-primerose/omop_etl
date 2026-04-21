@@ -1,4 +1,6 @@
+import datetime as dt
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
 
 from omop_etl.harmonization.models.patient import Patient
@@ -8,13 +10,25 @@ from omop_etl.omop.core.id_generator import sha1_bigint
 T = TypeVar("T")
 
 
+@dataclass
+class BuildContext:
+    """Per-patient runtime state passed to builders.
+
+    Contains only per-patient data and cross-builder state (e.g. visit occurrence foreign keys).
+    """
+
+    patient: Patient
+    person_id: int
+    visit_id_by_date: dict[dt.date, int] = field(default_factory=dict)
+
+
 class OmopBuilder(ABC, Generic[T]):
     """
     Abstract base class for OMOP table builders.
 
     Class vars:
-        table_name: The OMOP table name (e.g., "person", "condition_occurrence")
-        id_namespace: Namespace for ID generation.
+        table_name: The OMOP table name (matching CDM spec)
+        id_namespace: Namespace for ID generation
     """
 
     table_name: ClassVar[str]
@@ -24,13 +38,13 @@ class OmopBuilder(ABC, Generic[T]):
         self.concepts = concepts
 
     @abstractmethod
-    def build(self, patient: Patient, person_id: int) -> list[T]:
+    def build(self, ctx: BuildContext) -> list[T]:
         """
-        Build zero or more rows from a patient.
+        Build rows from a patient.
 
         Args:
-            patient: The patient data to build rows from.
-            person_id: The generated person_id for this patient.
+            ctx: Build context containing patient data, person_id, concept service,
+                 and cross-builder state (e.g. visit_id_by_date).
 
         Returns:
             A list of rows (may be empty if patient data is insufficient).

@@ -32,6 +32,9 @@ class PersonRow:
     birth_datetime: dt.datetime | None = None
     race_source_value: str | None = None
     ethnicity_source_value: str | None = None
+    provider_id: int | None = None
+    location_id: int | None = None
+    care_site_id: int | None = None
 
     def natural_key(self) -> tuple:
         return tuple(getattr(self, f) for f in self.natural_key_fields)
@@ -182,7 +185,7 @@ class DrugExposureRow:
 
 
 @pd_dataclass(frozen=True, slots=True)
-class ProcedureOcurrenceRow:
+class ProcedureOccurrenceRow:
     """
     https://ohdsi.github.io/CommonDataModel/cdm54.html#procedure_occurrence
     """

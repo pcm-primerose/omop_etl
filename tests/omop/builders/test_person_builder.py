@@ -4,7 +4,10 @@ from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.person import PersonBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 from omop_etl.omop.models.rows import PersonRow
-from tests.omop.conftest import create_patient
+from tests.omop.conftest import (
+    create_build_context,
+    create_patient,
+)
 
 
 class TestPersonBuilder:
@@ -14,7 +17,7 @@ class TestPersonBuilder:
         patient = create_patient("p1", "test", sex="m", date_of_birth=dt.date(1980, 5, 15))
         person_id = sha1_bigint("person", "p1")
 
-        rows: list[PersonRow] = PersonBuilder(concepts).build(patient, person_id)
+        rows: list[PersonRow] = PersonBuilder(concepts).build(create_build_context(patient, person_id))
 
         assert len(rows) == 1
         row = rows[0]
@@ -38,7 +41,7 @@ class TestPersonBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient("p1", "test", sex="f", date_of_birth=dt.date(1990, 3, 20))
 
-        rows: list[PersonRow] = PersonBuilder(concepts).build(patient, sha1_bigint("person", "p1"))
+        rows: list[PersonRow] = PersonBuilder(concepts).build(create_build_context(patient))
 
         assert len(rows) == 1
         assert rows[0].gender_concept_id == 8532
@@ -48,7 +51,7 @@ class TestPersonBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient("p1", "test", sex="m")
 
-        rows: list[PersonRow] = PersonBuilder(concepts).build(patient, sha1_bigint("person", "p1"))
+        rows: list[PersonRow] = PersonBuilder(concepts).build(create_build_context(patient))
 
         assert rows == []
 
@@ -56,7 +59,7 @@ class TestPersonBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient("p1", "test", date_of_birth=dt.date(1975, 12, 1))
 
-        rows: list[PersonRow] = PersonBuilder(concepts).build(patient, sha1_bigint("person", "p1"))
+        rows: list[PersonRow] = PersonBuilder(concepts).build(create_build_context(patient))
 
         assert len(rows) == 1
         assert rows[0].gender_concept_id == 0
@@ -67,7 +70,7 @@ class TestPersonBuilder:
         patient = create_patient("p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1))
         person_id = sha1_bigint("person", "p1")
 
-        rows_a: list[PersonRow] = PersonBuilder(concepts).build(patient, person_id)
-        rows_b: list[PersonRow] = PersonBuilder(concepts).build(patient, person_id)
+        rows_a: list[PersonRow] = PersonBuilder(concepts).build(create_build_context(patient, person_id))
+        rows_b: list[PersonRow] = PersonBuilder(concepts).build(create_build_context(patient, person_id))
 
         assert rows_a[0].person_id == rows_b[0].person_id

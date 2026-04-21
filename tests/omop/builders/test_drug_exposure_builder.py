@@ -8,6 +8,7 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 from tests.omop.conftest import (
+    create_build_context,
     create_patient,
     create_semantic_index,
     SemanticEntry,
@@ -24,7 +25,7 @@ class TestDrugExposureBuilder:
 
     def test_empty_patient_returns_empty(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
         assert rows == []
 
 
@@ -41,7 +42,7 @@ class TestTreatmentCycleRows:
         cycle.iv_dose_prescribed_unit = "mg"
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -65,7 +66,7 @@ class TestTreatmentCycleRows:
         cycle.oral_dose_unit = "mg"
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -82,7 +83,7 @@ class TestTreatmentCycleRows:
         cycle.start_date = dt.date(2023, 3, 1)
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_exposure_end_date == dt.date(2023, 3, 1)
@@ -95,7 +96,7 @@ class TestTreatmentCycleRows:
         cycle.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -110,7 +111,7 @@ class TestTreatmentCycleRows:
         cycle.source_treatment_name = "Drug A"
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -128,7 +129,7 @@ class TestTreatmentCycleRows:
         c2.start_date = dt.date(2023, 2, 1)
         patient.treatment_cycles = [c1, c2]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         assert rows[0].drug_exposure_id != rows[1].drug_exposure_id
@@ -170,7 +171,7 @@ class TestTreatmentCycleRows:
         c2.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [c1, c2]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         concept_ids = {r.drug_concept_id for r in rows}
@@ -196,7 +197,7 @@ class TestTreatmentCycleRows:
         cycle.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_concept_id == 1234
@@ -232,7 +233,7 @@ class TestSemanticLookupStrategy:
         cycle.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_concept_id == 5001
@@ -257,7 +258,7 @@ class TestSemanticLookupStrategy:
         cycle.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_concept_id == 5002
@@ -282,7 +283,7 @@ class TestSemanticLookupStrategy:
         cycle.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 0
         assert rows == []
@@ -311,7 +312,7 @@ class TestSemanticLookupStrategy:
         cycle.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [cycle]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_concept_id == 5001
@@ -352,7 +353,7 @@ class TestPreviousTreatmentRows:
         prev.end_date = dt.date(2022, 12, 1)
         patient.previous_treatments = [prev]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -380,7 +381,7 @@ class TestPreviousTreatmentRows:
         prev.start_date = dt.date(2022, 1, 1)
         patient.previous_treatments = [prev]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_source_value == "Letrozole"
@@ -414,7 +415,7 @@ class TestPreviousTreatmentRows:
         prev.start_date = dt.date(2022, 1, 1)
         patient.previous_treatments = [prev]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         assert rows[0].drug_exposure_id != rows[1].drug_exposure_id
@@ -429,7 +430,7 @@ class TestPreviousTreatmentRows:
         prev.start_date = dt.date(2022, 6, 1)
         patient.previous_treatments = [prev]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -440,7 +441,7 @@ class TestPreviousTreatmentRows:
         prev.additional_treatment = "Zometa"
         patient.previous_treatments = [prev]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -456,7 +457,7 @@ class TestConcomitantMedicationRows:
         concom.sequence_id = 1
         patient.concomitant_medications = [concom]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -484,7 +485,7 @@ class TestConcomitantMedicationRows:
         concom.sequence_id = 1
         patient.concomitant_medications = [concom]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_concept_id == 1124957
@@ -495,7 +496,7 @@ class TestConcomitantMedicationRows:
         concom.medication_name = "Paracetamol"
         patient.concomitant_medications = [concom]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -506,7 +507,7 @@ class TestConcomitantMedicationRows:
         concom.sequence_id = 1
         patient.concomitant_medications = [concom]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -518,7 +519,7 @@ class TestConcomitantMedicationRows:
         concom.sequence_id = 1
         patient.concomitant_medications = [concom]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].drug_exposure_start_date == dt.date(2023, 1, 10)
@@ -539,7 +540,7 @@ class TestConcomitantMedicationRows:
         concom.sequence_id = 1
         patient.concomitant_medications = [concom]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         concept_ids = {r.drug_concept_id for r in rows}
@@ -581,7 +582,7 @@ class TestIdUniqueness:
         concom.start_date = dt.date(2023, 1, 1)
         patient.concomitant_medications = [concom]
 
-        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 3
         ids = [r.drug_exposure_id for r in rows]
@@ -595,7 +596,7 @@ class TestIdUniqueness:
         patient.treatment_cycles = [cycle]
 
         builder = DrugExposureBuilder(ConceptLookupService(static_index, structural_index))
-        rows1 = builder.build(patient, PERSON_ID)
-        rows2 = builder.build(patient, PERSON_ID)
+        rows1 = builder.build(create_build_context(patient, PERSON_ID))
+        rows2 = builder.build(create_build_context(patient, PERSON_ID))
 
         assert rows1[0].drug_exposure_id == rows2[0].drug_exposure_id

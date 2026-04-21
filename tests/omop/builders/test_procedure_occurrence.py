@@ -6,7 +6,12 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
-from tests.omop.conftest import create_patient, create_semantic_index, SemanticEntry
+from tests.omop.conftest import (
+    create_build_context,
+    create_patient,
+    create_semantic_index,
+    SemanticEntry,
+)
 
 PID = "p1"
 TRIAL = "test"
@@ -22,7 +27,7 @@ class TestProcedureOccurrenceBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -47,7 +52,7 @@ class TestPreviousTreatmentMainRows:
         prev.end_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -66,7 +71,7 @@ class TestPreviousTreatmentMainRows:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -77,7 +82,7 @@ class TestPreviousTreatmentMainRows:
         prev.treatment = "Surgery"
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -99,7 +104,7 @@ class TestPreviousTreatmentMainRows:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].procedure_end_date is None
@@ -125,7 +130,7 @@ class TestPreviousTreatmentAdditionalRows:
         prev.start_date = dt.date(2021, 5, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].procedure_concept_id == 4061650
@@ -140,7 +145,7 @@ class TestPreviousTreatmentAdditionalRows:
         prev.start_date = dt.date(2021, 5, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -172,7 +177,7 @@ class TestPreviousTreatmentAdditionalRows:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         assert rows[0].procedure_occurrence_id != rows[1].procedure_occurrence_id
@@ -201,7 +206,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -218,7 +223,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -232,7 +237,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
@@ -271,7 +276,7 @@ class TestCombinedSources:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
         ids = [r.procedure_occurrence_id for r in rows]
@@ -295,7 +300,7 @@ class TestCombinedSources:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows_a = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
-        rows_b = ProcedureOccurrenceBuilder(concepts).build(patient, PERSON_ID)
+        rows_a = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        rows_b = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows_a[0].procedure_occurrence_id == rows_b[0].procedure_occurrence_id

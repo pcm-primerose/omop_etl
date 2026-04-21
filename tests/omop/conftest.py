@@ -1,13 +1,25 @@
 import datetime as dt
 from collections import defaultdict
 from dataclasses import dataclass
-
 import pytest
 
 from omop_etl.concept_mapping.core.models import StructuralConcept, StaticConcept
 from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.semantic_mapping.core.models import SemanticRow, QueryResult, Query, BatchQueryResult
+from omop_etl.omop.builders.base import BuildContext
+from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.semantic_mapping.core.models import (
+    SemanticRow,
+    QueryResult,
+    Query,
+    BatchQueryResult,
+)
+
+
+def create_build_context(patient: Patient, person_id: int | None = None) -> BuildContext:
+    if person_id is None:
+        person_id = sha1_bigint("person", patient.patient_id)
+    return BuildContext(patient=patient, person_id=person_id)
 
 
 def create_patient(patient_id: str, trial: str, **scalars: str | dt.date | None | bool | float | int) -> Patient:
