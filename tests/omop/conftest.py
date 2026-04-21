@@ -1,5 +1,6 @@
 import datetime as dt
 from collections import defaultdict
+from dataclasses import dataclass
 from unittest.mock import Mock
 
 import pytest
@@ -19,47 +20,56 @@ def create_patient(patient_id: str, trial: str, **scalars: str | dt.date | None 
     return patient
 
 
-def create_semantic_index(
-    patient_id: str,
-    field_path: tuple[str, str],
-    leaf_index: int | None,
-    concept_id,
-    omop_name,
-    domain,
-    query_text: str | None = "test",
-    source_term: str | None = "test",
-    source_col: str | None = "test",
-    term_id: str | None = "test",
-    validity: str | None = "valid",
-    frequency: int | None = 1,
-    omop_standard_concept: str | None = "standard",
-    concept_code: str | None = None,
-    vocab: str | None = None,
-    omop_concept_class: str | None = None,
-) -> SemanticResultIndex:
+@dataclass(frozen=True, slots=True)
+class SemanticEntry:
+    """Semantic mapping entry for test fixture construction."""
+
+    patient_id: str
+    field_path: tuple[str, ...]
+    leaf_index: int | None
+    concept_id: int | str
+    name: str
+    domain: str
+    vocab: str = "snomed"
+    concept_code: str = ""
+    concept_class: str = ""
+    standard_concept: str = "standard"
+    validity: str = "valid"
+    source_term: str = "test"
+    source_col: str = "test"
+    term_id: str = "test"
+    frequency: int = 1
+
+
+def create_semantic_index(*entries: SemanticEntry) -> SemanticResultIndex:
+    """
+    Build a SemanticResultIndex from one or more SemanticEntry instances.
+    Entries with the same (patient_id, field_path, leaf_index) are grouped into one QueryResult.
+    """
     grouped: dict[tuple, list[SemanticRow]] = defaultdict(list)
 
-    grouped[(patient_id, field_path, leaf_index)].append(
-        SemanticRow(
-            term_id=term_id,
-            source_col=source_col,
-            source_term=source_term,
-            frequency=frequency,
-            omop_concept_id=concept_id,
-            omop_domain=domain,
-            omop_concept_name=omop_name,
-            omop_concept_code=concept_code,
-            omop_vocab=vocab,
-            omop_standard_concept=omop_standard_concept,
-            omop_validity=validity,
-            omop_concept_class=omop_concept_class,
+    for e in entries:
+        grouped[(e.patient_id, e.field_path, e.leaf_index)].append(
+            SemanticRow(
+                term_id=e.term_id,
+                source_col=e.source_col,
+                source_term=e.source_term,
+                frequency=e.frequency,
+                omop_concept_id=str(e.concept_id),
+                omop_concept_code=e.concept_code or str(e.concept_id),
+                omop_concept_name=e.name,
+                omop_concept_class=e.concept_class,
+                omop_standard_concept=e.standard_concept,
+                omop_validity=e.validity,
+                omop_domain=e.domain,
+                omop_vocab=e.vocab,
+            )
         )
-    )
 
     results: list[QueryResult] = []
-    for (patient_id, field_path, leaf_index), rows in grouped.items():
-        query_text = Query(patient_id=patient_id, id="test", query=query_text, field_path=field_path, raw_value="test", leaf_index=leaf_index)
-        results.append(QueryResult(patient_id=patient_id, query=query_text, results=rows))
+    for (pid, fp, li), rows in grouped.items():
+        query = Query(patient_id=pid, id="test", query="test", field_path=fp, raw_value="test", leaf_index=li)
+        results.append(QueryResult(patient_id=pid, query=query, results=rows))
 
     return SemanticResultIndex.from_batch(BatchQueryResult(results=tuple(results)))
 
@@ -111,6 +121,9 @@ def static_index() -> dict[tuple[str, str], StaticConcept]:
         ("sex", "m"): _static("sex", "m", "8507", "gender"),
         ("sex", "f"): _static("sex", "f", "8532", "gender"),
     }
+
+
+# old fixtures:
 
 
 @pytest.fixture

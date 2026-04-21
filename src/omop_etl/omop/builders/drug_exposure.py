@@ -24,7 +24,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
     def build(self, patient: Patient, person_id: int) -> list[DrugExposureRow]:
         rows: list[DrugExposureRow] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
+        ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
         drug_type_concept_id = ecrf.concept_id if ecrf else 0
 
         for idx, cycle in enumerate(patient.treatment_cycles):
@@ -53,7 +53,11 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
         if cycle.start_date is None:
-            log.warning("Skipping treatment cycle %d for %s: missing start_date", index, patient.patient_id)
+            log.warning(f"Skipping treatment cycle {index} for {patient.patient_id}: missing start_date")
+            return []
+
+        if cycle.source_treatment_name is None and cycle.ingredient_name is None:
+            log.warning(f"Skipping treatment cycle {index} for {patient.patient_id}: missing source_treatment_name and ingredient_name")
             return []
 
         if cycle.ingredient_name:
@@ -109,7 +113,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     quantity=quantity,
                     route_source_value=route_source,
                     dose_unit_source_value=dose_unit,
-                    drug_source_value=cycle.source_treatment_name,
+                    drug_source_value=cycle.source_treatment_name or cycle.ingredient_name,
                     route_concept_id=route_concept_id,
                 )
             ]
@@ -125,7 +129,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 quantity=quantity,
                 route_source_value=route_source,
                 dose_unit_source_value=dose_unit,
-                drug_source_value=cycle.source_treatment_name,
+                drug_source_value=cycle.source_treatment_name or cycle.ingredient_name,
                 route_concept_id=route_concept_id,
             )
             for concept in matches
@@ -212,7 +216,11 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
         if concom.start_date is None:
-            log.warning("Skipping concomitant medication %d for %s: missing start_date", index, patient.patient_id)
+            log.warning(f"Skipping concomitant medication {index} for {patient.patient_id}: missing start_date")
+            return []
+
+        if concom.medication_name is None:
+            log.warning(f"Skipping concomitant medication {index} for {patient.patient_id}: missing medication_name")
             return []
 
         matches = self.concepts.lookup_semantic(
