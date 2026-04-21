@@ -7,7 +7,11 @@ from omop_etl.harmonization.models.domain.treatment_cycle_component import Treat
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
-from tests.omop.conftest import create_patient, create_semantic_index, SemanticEntry
+from tests.omop.conftest import (
+    create_patient,
+    create_semantic_index,
+    SemanticEntry,
+)
 
 PID = "p1"
 TRIAL = "test"
@@ -314,8 +318,19 @@ class TestSemanticLookupStrategy:
 
 
 class TestPreviousTreatmentRows:
-    """Previous treatments try both treatment and additional_treatment fields
-    independently with a Drug domain filter. Each match produces its own row."""
+    """
+    Previous treatments try both treatment and additional_treatment fields
+    independently with a Drug domain filter. Each match produces its own row.
+
+    Note: previous treatment fields map to multiple domains,
+    currently the builders won't know if there are off-domain target matches,
+    so a drug concept missing a mapping is indistinguishable from data mapping
+    to another domain (e.g. "chemetherapy" in previous treatments).
+    so, can't default to emit "0-rows" for previous treatments, unless
+    adding "off-target-matches" as a field to the semantic lookup return type,
+    but this still doesn't descriminate between no match inside target domain
+    versus no match outside target domain, need classified or default domain in configs for this.
+    """
 
     def test_additional_treatment_maps_to_drug(self, static_index, structural_index):
         semantic = create_semantic_index(
@@ -414,15 +429,6 @@ class TestPreviousTreatmentRows:
         prev.start_date = dt.date(2022, 6, 1)
         patient.previous_treatments = [prev]
 
-        # note: previous treatment fields map to multiple domains,
-        # currently the builders won't know if there are off-domain target matches,
-        # so a drug concept missing a mapping is indistinguishable from data mapping
-        # to another domain (e.g. "chemetherapy" in previous treatments).
-        # so, can't default to emit "0-rows" for previous treatments, unless
-        # adding "off-target-matches" as a field to the semantic lookup return type,
-        # but this still doesn't descriminate between no match inside target domain
-        # versus no match outside target domain, need classified or default domain in configs for this.
-
         rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(patient, PERSON_ID)
 
         assert rows == []
@@ -441,7 +447,7 @@ class TestPreviousTreatmentRows:
 
 class TestConcomitantMedicationRows:
     def test_produces_row_with_concept_id_zero(self, static_index, structural_index):
-        """CDM: emit with drug_concept_id=0 when no semantic mapping exists."""
+        """emit with drug_concept_id=0 when no semantic mapping exists."""
         patient = create_patient(PID, "test")
         concom = ConcomitantMedication(patient_id=PID)
         concom.medication_name = "Paracetamol"
