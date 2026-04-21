@@ -1,107 +1,236 @@
 import datetime as dt
 
+from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
+from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
+from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
+from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.service import OmopService
+from tests.omop.conftest import (
+    create_patient,
+    create_semantic_index,
+    SemanticEntry,
+)
 
 
-class TestOmopService:
-    def test_builds_all_tables(self, mock_concepts, patient_complete):
-        service = OmopService(concepts=mock_concepts)
+class TestOmopServiceOrchestration:
+    def test_builds_person_and_observation_period(self, static_index, structural_index):
+        """Minimal patient produces person and observation_period rows."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 5, 15),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
+        )
 
-        tables = service.build([patient_complete])
+        tables = OmopService(concepts).build([patient])
 
         assert len(tables.person) == 1
         assert len(tables.observation_period) == 1
         assert tables.cdm_source is not None
 
-    def test_builds_multiple_patients(self, mock_concepts, patient_complete, patient_female):
-        service = OmopService(concepts=mock_concepts)
+    def test_all_builders_produce_output(self, static_index, structural_index):
+        """A fully-populated patient with semantic entries produces rows in all tables."""
+        semantic = create_semantic_index(
+            SemanticEntry("p1", (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE), None, 4000, "neoplasm", "condition"),
+            SemanticEntry("p1", (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM), 0, 316866, "hypertension", "condition"),
+            SemanticEntry("p1", (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM), 0, 437663, "fever", "condition"),
+            SemanticEntry(
+                "p1", (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME), 0, 1234, "trametinib", "drug", "rxnorm"
+            ),
+            SemanticEntry(
+                "p1", (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME), 0, 1124957, "oxycodone", "drug", "rxnorm"
+            ),
+            SemanticEntry("p1", (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT), 0, 4301351, "surgery", "procedure"),
+        )
+        concepts = ConceptLookupService(static_index, structural_index, semantic)
 
-        tables = service.build([patient_complete, patient_female])
+        patient = create_patient(
+            "p1",
+            "test",
+            sex="m",
+            date_of_birth=dt.date(1980, 5, 15),
+            treatment_start_date=dt.date(2023, 1, 1),
+            end_of_treatment_date=dt.date(2023, 6, 30),
+        )
+        tumor = TumorType(patient_id="p1")
+        tumor.icd10_code = "C50.9"
+        tumor.date = dt.date(2022, 6, 1)
+        patient.tumor_type = tumor
 
-        assert len(tables.person) == 2
-        assert len(tables.observation_period) == 2
+        mh = MedicalHistory(patient_id="p1")
+        mh.term = "Hypertension"
+        mh.start_date = dt.date(2020, 1, 1)
+        mh.sequence_id = 1
+        patient.medical_histories = [mh]
+
+        ae = AdverseEvent(patient_id="p1")
+        ae.term = "Fever"
+        ae.start_date = dt.date(2023, 3, 1)
+        patient.adverse_events = [ae]
+
+        cycle = TreatmentCycleComponent(patient_id="p1")
+        cycle.source_treatment_name = "Trametinib"
+        cycle.start_date = dt.date(2023, 1, 15)
+        patient.treatment_cycles = [cycle]
+
+        concom = ConcomitantMedication(patient_id="p1")
+        concom.medication_name = "Oxynorm"
+        concom.start_date = dt.date(2023, 2, 1)
+        concom.sequence_id = 1
+        patient.concomitant_medications = [concom]
+
+        prev = PreviousTreatments(patient_id="p1")
+        prev.treatment = "Surgery"
+        prev.start_date = dt.date(2021, 3, 1)
+        patient.previous_treatments = [prev]
+
+        baseline = TumorAssessmentBaseline(patient_id="p1")
+        baseline.assessment_date = dt.date(2023, 1, 10)
+        patient.tumor_assessment_baseline = baseline
+
+        tables = OmopService(concepts).build([patient])
+
+        assert len(tables.person) == 1
+        assert len(tables.observation_period) == 1
+        assert len(tables.visit_occurrence) >= 1
+        assert len(tables.condition_occurrence) >= 1
+        assert len(tables.drug_exposure) >= 1
+        assert len(tables.procedure_occurrence) >= 1
         assert tables.cdm_source is not None
 
-    def test_skips_patient_missing_dob(self, mock_concepts, patient_complete, patient_missing_dob):
-        service = OmopService(concepts=mock_concepts)
 
-        tables = service.build([patient_complete, patient_missing_dob])
+class TestMultiPatient:
+    def test_multiple_patients(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        p1 = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 5, 15), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
+        p2 = create_patient(
+            "p2", "test", sex="f", date_of_birth=dt.date(1990, 3, 20), treatment_start_date=dt.date(2023, 2, 1), end_of_treatment_date=dt.date(2023, 7, 15)
+        )
 
-        # patient_missing_dob should be skipped for Person but not affect others
-        assert len(tables.person) == 1
-        # patient_missing_dob has treatment_start, so observation_period is built
+        tables = OmopService(concepts).build([p1, p2])
+
+        assert len(tables.person) == 2
         assert len(tables.observation_period) == 2
 
-    def test_skips_patient_missing_treatment_start(self, mock_concepts, patient_complete, patient_missing_treatment_start):
-        service = OmopService(concepts=mock_concepts)
+    def test_person_ids_are_unique_across_patients(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        p1 = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
+        p2 = create_patient(
+            "p2", "test", sex="f", date_of_birth=dt.date(1990, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
 
-        tables = service.build([patient_complete, patient_missing_treatment_start])
+        tables = OmopService(concepts).build([p1, p2])
 
-        # patient_missing_treatment_start has DOB, so Person is built
+        person_ids = [r.person_id for r in tables.person]
+        assert len(person_ids) == len(set(person_ids))
+
+    def test_person_ids_are_deterministic(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
+
+        t1 = OmopService(concepts).build([patient])
+        t2 = OmopService(concepts).build([patient])
+
+        assert t1.person[0].person_id == t2.person[0].person_id
+
+
+class TestSkipBehavior:
+    def test_missing_dob_skips_person_but_not_observation_period(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        p_ok = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
+        p_no_dob = create_patient("p2", "test", sex="m", treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30))
+
+        tables = OmopService(concepts).build([p_ok, p_no_dob])
+
+        assert len(tables.person) == 1
+        assert len(tables.observation_period) == 2
+
+    def test_missing_treatment_dates_skips_observation_period_but_not_person(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        p_ok = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
+        p_no_dates = create_patient("p2", "test", sex="f", date_of_birth=dt.date(1985, 8, 10))
+
+        tables = OmopService(concepts).build([p_ok, p_no_dates])
+
         assert len(tables.person) == 2
-        # but no treatment_start, so ObservationPeriod is skipped
         assert len(tables.observation_period) == 1
 
-    def test_empty_patients_list(self, mock_concepts):
-        service = OmopService(concepts=mock_concepts)
 
-        tables = service.build([])
+class TestDedup:
+    def test_same_patient_twice_deduplicates(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
+
+        tables = OmopService(concepts).build([patient, patient])
+
+        assert len(tables.person) == 1
+        assert len(tables.observation_period) == 1
+
+
+class TestEmptyInput:
+    def test_empty_patients_list(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+
+        tables = OmopService(concepts).build([])
 
         assert len(tables.person) == 0
         assert len(tables.observation_period) == 0
-        assert tables.cdm_source is not None  # always created
+        assert len(tables.visit_occurrence) == 0
+        assert len(tables.drug_exposure) == 0
+        assert len(tables.condition_occurrence) == 0
+        assert len(tables.procedure_occurrence) == 0
+        assert tables.cdm_source is not None
 
-    def test_person_ids_are_unique(self, mock_concepts, patient_complete, patient_female):
-        service = OmopService(concepts=mock_concepts)
 
-        tables = service.build([patient_complete, patient_female])
+class TestOmopTablesApi:
+    def test_getitem(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
 
-        person_ids = [row.person_id for row in tables.person]
-        assert len(person_ids) == len(set(person_ids))
-
-    def test_person_ids_are_deterministic(self, mock_concepts, patient_complete):
-        service = OmopService(concepts=mock_concepts)
-
-        tables1 = service.build([patient_complete])
-        tables2 = service.build([patient_complete])
-
-        assert tables1.person[0].person_id == tables2.person[0].person_id
-
-    def test_table_access_via_property(self, mock_concepts, patient_complete):
-        service = OmopService(concepts=mock_concepts)
-
-        tables = service.build([patient_complete])
-
-        # typed property access
-        assert tables.person[0].person_source_value == "P001"
-        assert tables.observation_period[0].observation_period_start_date == dt.date(2023, 1, 1)
-        assert tables.cdm_source.cdm_holder == "PRIME-ROSE"
-
-    def test_table_access_via_getitem(self, mock_concepts, patient_complete):
-        service = OmopService(concepts=mock_concepts)
-
-        tables = service.build([patient_complete])
+        tables = OmopService(concepts).build([patient])
 
         assert len(tables["person"]) == 1
         assert len(tables["observation_period"]) == 1
         assert len(tables["cdm_source"]) == 1
 
-    def test_table_get_with_default(self, mock_concepts, patient_complete):
-        service = OmopService(concepts=mock_concepts)
+    def test_get_with_default(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
 
-        tables = service.build([patient_complete])
+        tables = OmopService(concepts).build([])
 
-        # non-existent table returns default
         assert tables.get("condition_occurrence") == []
-        assert tables.get("drug_exposure", []) == []
+        assert tables.get("nonexistent", []) == []
 
-    def test_deduplicates_same_patient_twice(self, mock_concepts, patient_complete):
-        """Building from same patient twice should dedupe by natural key."""
-        service = OmopService(concepts=mock_concepts)
+    def test_typed_properties(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(
+            "p1", "test", sex="m", date_of_birth=dt.date(1980, 5, 15), treatment_start_date=dt.date(2023, 1, 1), end_of_treatment_date=dt.date(2023, 6, 30)
+        )
 
-        # build twice
-        tables = service.build([patient_complete, patient_complete])
+        tables = OmopService(concepts).build([patient])
 
-        # should only have one person row, deduped by person_id
-        assert len(tables.person) == 1
-        assert len(tables.observation_period) == 1
+        assert tables.person[0].person_source_value == "p1"
+        assert tables.observation_period[0].observation_period_start_date == dt.date(2023, 1, 1)
+        assert tables.cdm_source.cdm_holder == "PRIME-ROSE"

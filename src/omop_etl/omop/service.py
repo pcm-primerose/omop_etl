@@ -7,10 +7,9 @@ from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuild
 from omop_etl.omop.builders.person import PersonBuilder
 from omop_etl.omop.builders.observation_period import ObservationPeriodBuilder
 from omop_etl.omop.builders.cdm_source import CdmSourceBuilder
+from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
-
-# from omop_etl.omop.builders.condition_occurrence_builder import ConditionOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 from omop_etl.omop.models.tables import OmopTables
 
@@ -31,6 +30,7 @@ class OmopService:
             VisitOccurrenceBuilder(concepts),
             DrugExposureBuilder(concepts),
             ConditionOccurrenceBuilder(concepts),
+            ProcedureOccurrenceBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
