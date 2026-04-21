@@ -226,3 +226,82 @@ class TestBaselineAndAssessmentsCombined:
         rows_b = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows_a[0].visit_occurrence_id == rows_b[0].visit_occurrence_id
+
+
+class TestPrecedingVisitOccurrenceId:
+    def test_single_baseline_has_no_preceding(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        baseline = TumorAssessmentBaseline(patient_id=PID)
+        baseline.assessment_date = dt.date(2023, 1, 1)
+        patient.tumor_assessment_baseline = baseline
+
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].preceding_visit_occurrence_id is None
+
+    def test_single_assessment_has_no_preceding(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        a = TumorAssessment(patient_id=PID)
+        a.date = dt.date(2023, 3, 1)
+        patient.tumor_assessments = [a]
+
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].preceding_visit_occurrence_id is None
+
+    def test_baseline_then_assessment_links_preceding(self, static_index, structural_index):
+        """Assessment's preceding_visit_occurrence_id points to baseline."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        baseline = TumorAssessmentBaseline(patient_id=PID)
+        baseline.assessment_date = dt.date(2023, 1, 1)
+        patient.tumor_assessment_baseline = baseline
+        a = TumorAssessment(patient_id=PID)
+        a.date = dt.date(2023, 3, 1)
+        patient.tumor_assessments = [a]
+
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        assert rows[0].preceding_visit_occurrence_id is None
+        assert rows[1].preceding_visit_occurrence_id == rows[0].visit_occurrence_id
+
+    def test_chain_of_three_visits(self, static_index, structural_index):
+        """Baseline -> assessment1 -> assessment2, each pointing to the previous."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        baseline = TumorAssessmentBaseline(patient_id=PID)
+        baseline.assessment_date = dt.date(2023, 1, 1)
+        patient.tumor_assessment_baseline = baseline
+        a1 = TumorAssessment(patient_id=PID)
+        a1.date = dt.date(2023, 3, 1)
+        a2 = TumorAssessment(patient_id=PID)
+        a2.date = dt.date(2023, 5, 1)
+        patient.tumor_assessments = [a1, a2]
+
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 3
+        assert rows[0].preceding_visit_occurrence_id is None
+        assert rows[1].preceding_visit_occurrence_id == rows[0].visit_occurrence_id
+        assert rows[2].preceding_visit_occurrence_id == rows[1].visit_occurrence_id
+
+    def test_assessments_only_chain(self, static_index, structural_index):
+        """Without baseline, assessments still chain to each other."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        a1 = TumorAssessment(patient_id=PID)
+        a1.date = dt.date(2023, 3, 1)
+        a2 = TumorAssessment(patient_id=PID)
+        a2.date = dt.date(2023, 5, 1)
+        patient.tumor_assessments = [a1, a2]
+
+        rows = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        assert rows[0].preceding_visit_occurrence_id is None
+        assert rows[1].preceding_visit_occurrence_id == rows[0].visit_occurrence_id

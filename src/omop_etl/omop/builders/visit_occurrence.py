@@ -25,10 +25,21 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         visit_concept_id = outpatient.concept_id if outpatient else 0
         visit_type_concept_id = ecrf.concept_id if ecrf else 0
 
+        # track previous visit for preceding_visit_occurrence_id FK
+        prev_visit_id: int | None = None
+
         # baseline singleton
         if patient.tumor_assessment_baseline is not None:
-            row = self._build_baseline_row(patient, person_id, patient.tumor_assessment_baseline, visit_concept_id, visit_type_concept_id)
+            row = self._build_baseline_row(
+                patient,
+                person_id,
+                patient.tumor_assessment_baseline,
+                visit_concept_id,
+                visit_type_concept_id,
+                prev_visit_id,
+            )
             if row is not None:
+                prev_visit_id = row.visit_occurrence_id
                 rows.append(row)
 
         # grouping by date: multiple assessment rows from the same physical encounter,
@@ -38,9 +49,17 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         for assessment in patient.tumor_assessments:
             if assessment.date is not None and assessment.date in seen_dates:
                 continue
-            row = self._build_assessment_row(patient, person_id, assessment, visit_concept_id, visit_type_concept_id)
+            row = self._build_assessment_row(
+                patient,
+                person_id,
+                assessment,
+                visit_concept_id,
+                visit_type_concept_id,
+                prev_visit_id,
+            )
             if row is not None:
                 seen_dates.add(assessment.date)
+                prev_visit_id = row.visit_occurrence_id
                 rows.append(row)
 
         return rows
@@ -52,6 +71,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         baseline: TumorAssessmentBaseline,
         visit_concept_id: int,
         visit_type_concept_id: int,
+        preceding_visit_id: int | None,
     ) -> VisitOccurrenceRow | None:
         date = baseline.assessment_date or baseline.target_lesion_measurement_date or baseline.off_target_lesion_measurement_date
 
@@ -73,6 +93,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             visit_end_date=date,
             visit_type_concept_id=visit_type_concept_id,
             visit_source_value=baseline.assessment_type,
+            preceding_visit_occurrence_id=preceding_visit_id,
         )
 
     def _build_assessment_row(
@@ -82,6 +103,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         assessment: TumorAssessment,
         visit_concept_id: int,
         visit_type_concept_id: int,
+        preceding_visit_id: int | None,
     ) -> VisitOccurrenceRow | None:
         if assessment.date is None:
             return None
@@ -100,4 +122,5 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             visit_end_date=assessment.date,
             visit_type_concept_id=visit_type_concept_id,
             visit_source_value=assessment.assessment_type,
+            preceding_visit_occurrence_id=preceding_visit_id,
         )
