@@ -1,3 +1,4 @@
+from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -124,5 +125,17 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
         field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_DESCRIPTION),
         target=QueryTarget(domains={OmopDomain.CONDITION}),
         tags={"tumor", "icd10_description"},
+    ),
+    FieldConfig(
+        name="ecog_baseline.grade",
+        field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.GRADE),
+        target=QueryTarget(domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE}),
+        tags={"ecog_basline_grade"},
+    ),
+    FieldConfig(
+        name="ecog_baseline.description",
+        field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.DESCRIPTION),
+        target=QueryTarget(domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE}),
+        tags={"ecog_basline_description"},
     ),
 )
