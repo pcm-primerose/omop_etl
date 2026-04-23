@@ -4,8 +4,29 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PROJECT_ROOT = Path(__file__).parents[4]
-DATA_ROOT = Path(os.getenv("DATA_ROOT", PROJECT_ROOT / ".data"))
+
+def _find_project_root() -> Path:
+    """Walk up from this file until pyproject.toml is found."""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    raise RuntimeError(f"Could not find pyproject.toml walking up from {Path(__file__).resolve()}")
+
+
+PROJECT_ROOT = _find_project_root()
+
+
+def _resolve_data_root() -> Path:
+    """DATA_ROOT from env, resolved relative to PROJECT_ROOT if the env value is a
+    relative path. Absolute paths are used as-is. Falls back to PROJECT_ROOT / .data."""
+    env_val = os.getenv("DATA_ROOT")
+    if env_val is None:
+        return PROJECT_ROOT / ".data"
+    p = Path(env_val)
+    return p if p.is_absolute() else PROJECT_ROOT / p
+
+
+DATA_ROOT = _resolve_data_root()
 SYNTHETIC_DATA = DATA_ROOT / "synthetic"
 
 # debug for dev, info for prod
@@ -26,4 +47,5 @@ def resolve_dataset(name_or_path: str) -> Path:
     return Path(name_or_path)
 
 
-ACTIVE_DATASET = resolve_dataset(os.getenv("SYNTHETIC_DATASET", "impress_150"))
+# used when no --dataset arg is passed on the command line
+DEFAULT_DATASET = SYNTHETIC_DATASETS["impress_150"]

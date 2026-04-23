@@ -41,11 +41,18 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"}).concept_id
 
         if patient.ecog_baseline is not None:
-            rows.extend(self._build_ecog_rows(patient, person_id, ecrf, patient.ecog_baseline))
+            rows.extend(self._build_ecog_rows(patient, person_id, ecrf, patient.ecog_baseline, ctx))
 
         return rows
 
-    def _build_ecog_rows(self, patient: Patient, person_id: int, ecrf_concept: int, ecog_baseline: EcogBaseline) -> list[MeasurementRow]:
+    def _build_ecog_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        ecog_baseline: EcogBaseline,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
         if ecog_baseline.date is None:
             log.warning(f"Skipping EcogBaseline for {patient.patient_id} in {self.table_name}: missing date")
             return []
@@ -56,33 +63,38 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             return []
 
         if ecog_baseline.grade:
-            matches = self.concepts.lookup_semantic(
+            ecog_matches = self.concepts.lookup_semantic(
                 patient_id=patient.patient_id,
                 field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.GRADE),
                 domains={"Meas Value"},
                 leaf_index=None,
             )
         else:
-            matches = self.concepts.lookup_semantic(
+            ecog_matches = self.concepts.lookup_semantic(
                 patient_id=patient.patient_id,
                 field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.DESCRIPTION),
                 domains={"Meas Value"},
                 leaf_index=None,
             )
 
-        if matches is None:
+        if ecog_matches is None:
             return []
+
+        if len(ecog_matches) > 1:
+            log.warning(f"Got multiple semantic matches for {patient.patient_id} in ECOG baseline: {ecog_matches}")
 
         row_id = self.generate_row_id(
             ecog_baseline.patient_id,
             str(ecog_baseline.date),
         )
 
+        visit_occurrence_id = ctx.visit_id_by_date.get(ecog_baseline.date, None)
+
         return [
             MeasurementRow(
                 measurement_id=row_id,
                 person_id=person_id,
-                measurement_concept_id=concept.concept_id,
+                measurement_concept_id=ecog_performance_field_concept,
                 measurement_date=ecog_baseline.date,
                 measurement_type_concept_id=ecrf_concept,
                 measurement_datetime=dt.datetime(
@@ -90,22 +102,12 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     ecog_baseline.date.month,
                     ecog_baseline.date.day,
                 ),
-                operator_concept_id="",
-                value_as_number="",
-                value_as_concept_id="",
-                unit_concept_id="",
-                range_low="",
-                range_high="",
-                provider_id="",
-                visit_occurrence_id="",
-                visit_detail_id="",
-                measurement_source_value="",
-                measurement_source_concept_id="",
-                unit_source_value="",
-                unit_source_concept_id="",
-                value_source_value="",
-                measurement_event_id="",
-                meas_event_field_concept_id="",
+                value_as_number=float(ecog_baseline.grade),
+                value_as_concept_id=concept.concept_id,
+                visit_occurrence_id=visit_occurrence_id,
+                visit_detail_id=None,  # todo later: same logic as visit_occurrence_id
+                measurement_source_value=ecog_baseline.grade or ecog_baseline.description,
+                measurement_event_id=None,  # todo later: link FKs
             )
-            for concept in matches
+            for concept in ecog_matches
         ]

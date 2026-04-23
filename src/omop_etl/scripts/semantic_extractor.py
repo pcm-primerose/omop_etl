@@ -11,7 +11,7 @@ import polars as pl
 
 from omop_etl.config import (
     DATA_ROOT,
-    ACTIVE_DATASET,
+    DEFAULT_DATASET,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
@@ -798,7 +798,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def run_ide() -> None:
-    run(input_path=ACTIVE_DATASET, output_dir=DATA_ROOT / "semantic_extractor_synthetic", braf_non_v600_only=True)
+    run(input_path=DEFAULT_DATASET, output_dir=DATA_ROOT / "semantic_extractor_synthetic", braf_non_v600_only=True)
 
 
 if __name__ == "__main__":

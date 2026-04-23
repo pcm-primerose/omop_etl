@@ -10,6 +10,7 @@ from omop_etl.omop.models.rows import (
     DrugExposureRow,
     ConditionOccurrenceRow,
     ProcedureOccurrenceRow,
+    MeasurementRow,
 )
 
 logger = logging.getLogger(__name__)
@@ -115,3 +116,7 @@ class OmopTables:
     @property
     def procedure_occurrence(self) -> list[ProcedureOccurrenceRow]:
         return self._tables.get("procedure_occurrence", [])
+
+    @property
+    def measurement(self) -> list[MeasurementRow]:
+        return self._tables.get("measurement", [])
