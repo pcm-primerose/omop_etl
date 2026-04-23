@@ -122,6 +122,7 @@ def structural_index() -> dict[str, StructuralConcept]:
         "oral": _structural("oral", "4132161", "route"),
         "cdm": _structural("cdm", "705800", "metadata"),
         "vocab": _structural("vocab", "1146958", "metadata"),
+        "ecog": _structural("ecog", "36305384", "measurement"),
     }
 
 
@@ -130,4 +131,16 @@ def static_index() -> dict[tuple[str, str], StaticConcept]:
     return {
         ("sex", "m"): _static("sex", "m", "8507", "gender"),
         ("sex", "f"): _static("sex", "f", "8532", "gender"),
+        ("ecog_code", "1"): _static("ecog_code", "1", "36310827", "meas value"),
+        ("ecog_code", "0"): _static("ecog_code", "0", "36309661", "meas value"),
     }
+
+
+"""
+ecog_code,0,36309661,LA9622-7,"Fully active, able to carry on all pre-disease performance without restriction",Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,1,36310827,LA9623-5,"Restricted in physically strenuous activity but ambulatory and able to carry out work of a light or sedentary nature, e.g., light house work, office work",Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,2,36309245,LA9624-3,Ambulatory and capable of all selfcare but unable to carry out any work activities. Up and about more than 50% of waking hours,Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,3,36308652,LA9625-0,"Capable of only limited selfcare, confined to bed or chair more than 50% of waking hours",Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,4,36308589,LA9626-8,Completely disabled. Cannot carry on any selfcare. Totally confined to bed or chair,Answer,Standard,Valid,Meas Value,LOINC
+ecog_code,5,45880868,LA9627-6,Dead,Answer,Standard,Valid,Meas Value,LOINC
+"""

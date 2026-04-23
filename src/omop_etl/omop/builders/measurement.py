@@ -38,10 +38,11 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         person_id = ctx.person_id
 
         rows: list[MeasurementRow] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"}).concept_id
+        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
+        measurement_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
         if patient.ecog_baseline is not None:
-            rows.extend(self._build_ecog_rows(patient, person_id, ecrf, patient.ecog_baseline, ctx))
+            rows.extend(self._build_ecog_rows(patient, person_id, measurement_type_concept_id, patient.ecog_baseline, ctx))
 
         return rows
 
@@ -54,47 +55,39 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
         if ecog_baseline.date is None:
-            log.warning(f"Skipping EcogBaseline for {patient.patient_id} in {self.table_name}: missing date")
+            log.warning("Skipping ECOG for %s: missing date", patient.patient_id)
             return []
 
-        ecog_performance_field_concept = self.concepts.lookup_structural("ecog").concept_id
-        if ecog_performance_field_concept is None:
-            log.warning("No ECOG field concept found in structural mapping file")
+        if ecog_baseline.grade is None:
+            log.warning("Skipping ECOG for %s: missing grade", patient.patient_id)
             return []
 
-        if ecog_baseline.grade:
-            ecog_matches = self.concepts.lookup_semantic(
-                patient_id=patient.patient_id,
-                field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.GRADE),
-                domains={"Meas Value"},
-                leaf_index=None,
-            )
-        else:
-            ecog_matches = self.concepts.lookup_semantic(
-                patient_id=patient.patient_id,
-                field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.DESCRIPTION),
-                domains={"Meas Value"},
-                leaf_index=None,
-            )
-
-        if ecog_matches is None:
+        # ECOG performance status score
+        ecog_test = self.concepts.lookup_structural("ecog", domains={"Measurement"})
+        if ecog_test is None:
+            log.warning("No ECOG structural concept found")
             return []
 
-        if len(ecog_matches) > 1:
-            log.warning(f"Got multiple semantic matches for {patient.patient_id} in ECOG baseline: {ecog_matches}")
+        # specific grade answer concept
+        ecog_answer = self.concepts.lookup_static(
+            "ecog_code",
+            str(ecog_baseline.grade),
+            domains={"Meas Value"},
+        )
+        value_as_concept_id = int(ecog_answer.concept_id) if ecog_answer else 0
 
         row_id = self.generate_row_id(
-            ecog_baseline.patient_id,
+            patient.patient_id,
+            Patient.Singletons.ECOG_BASELINE,
             str(ecog_baseline.date),
         )
-
-        visit_occurrence_id = ctx.visit_id_by_date.get(ecog_baseline.date, None)
+        visit_occurrence_id = ctx.visit_id_by_date.get(ecog_baseline.date)
 
         return [
             MeasurementRow(
                 measurement_id=row_id,
                 person_id=person_id,
-                measurement_concept_id=ecog_performance_field_concept,
+                measurement_concept_id=int(ecog_test.concept_id),
                 measurement_date=ecog_baseline.date,
                 measurement_type_concept_id=ecrf_concept,
                 measurement_datetime=dt.datetime(
@@ -103,11 +96,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     ecog_baseline.date.day,
                 ),
                 value_as_number=float(ecog_baseline.grade),
-                value_as_concept_id=concept.concept_id,
+                value_as_concept_id=value_as_concept_id,
                 visit_occurrence_id=visit_occurrence_id,
-                visit_detail_id=None,  # todo later: same logic as visit_occurrence_id
-                measurement_source_value=ecog_baseline.grade or ecog_baseline.description,
-                measurement_event_id=None,  # todo later: link FKs
+                measurement_source_value=str(ecog_baseline.grade),
             )
-            for concept in ecog_matches
         ]
