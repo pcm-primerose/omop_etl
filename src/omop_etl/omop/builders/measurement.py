@@ -2,6 +2,12 @@ import datetime as dt
 from logging import getLogger
 from typing import ClassVar
 
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
+from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.eq5d import EQ5D
+from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
+from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.omop.models.rows import MeasurementRow
@@ -43,6 +49,9 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         if patient.ecog_baseline is not None:
             rows.extend(self._build_ecog_rows(patient, person_id, measurement_type_concept_id, patient.ecog_baseline, ctx))
+
+        if patient.biomarkers is not None:
+            rows.extend(self._build_biomarker_rows(patient, person_id, measurement_type_concept_id, patient.biomarkers, ctx))
 
         return rows
 
@@ -101,3 +110,73 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 measurement_source_value=str(ecog_baseline.grade),
             )
         ]
+
+    def build_biomarker_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        biomarkers: Biomarkers,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        pass
+
+    def build_response_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        responses: TumorAssessment,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        pass
+
+    def build_adverse_event_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        adverse_events: AdverseEvent,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        pass
+
+    def build_tumor_assessment_baseline_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        tumor_assessment_baseline: TumorAssessmentBaseline,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        pass
+
+    def build_tumor_assessment_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        tumor_assessments: TumorAssessment,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        pass
+
+    def build_c30_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        c30: C30,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        pass
+
+    def build_eq5d_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        eq5d: EQ5D,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        pass
