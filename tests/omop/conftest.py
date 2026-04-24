@@ -123,6 +123,14 @@ def structural_index() -> dict[str, StructuralConcept]:
         "cdm": _structural("cdm", "705800", "metadata"),
         "vocab": _structural("vocab", "1146958", "metadata"),
         "ecog": _structural("ecog", "36305384", "measurement"),
+        # measurement builder: target lesion absolute size
+        "lesion_size": _structural("lesion_size", "4084390", "measurement"),
+        # measurement builder: C30 questions
+        "c30_q1": _structural("c30_q1", "701340", "measurement"),
+        "c30_q2": _structural("c30_q2", "701341", "measurement"),
+        "c30_q29": _structural("c30_q29", "701367", "measurement"),
+        # EQ5D VAS
+        "eq5d_qol_score": _structural("eq5d_qol_score", "42537274", "measurement"),
     }
 
 
@@ -133,14 +141,41 @@ def static_index() -> dict[tuple[str, str], StaticConcept]:
         ("sex", "f"): _static("sex", "f", "8532", "gender"),
         ("ecog_code", "1"): _static("ecog_code", "1", "36310827", "meas value"),
         ("ecog_code", "0"): _static("ecog_code", "0", "36309661", "meas value"),
+        # C30 shared answer scale (Q1–Q28)
+        ("c30_answer_code", "1"): _static("c30_answer_code", "1", "45883172", "meas value"),
+        ("c30_answer_code", "2"): _static("c30_answer_code", "2", "45876949", "meas value"),
+        ("c30_answer_code", "3"): _static("c30_answer_code", "3", "45884456", "meas value"),
+        ("c30_answer_code", "4"): _static("c30_answer_code", "4", "45885256", "meas value"),
+        # C30 global answer scale (Q29–Q30)
+        ("c30_global_answer_code", "1"): _static("c30_global_answer_code", "1", "45878558", "meas value"),
+        ("c30_global_answer_code", "2"): _static("c30_global_answer_code", "2", "1094227", "meas value"),
+        ("c30_global_answer_code", "3"): _static("c30_global_answer_code", "3", "45878305", "meas value"),
+        ("c30_global_answer_code", "4"): _static("c30_global_answer_code", "4", "45878304", "meas value"),
+        ("c30_global_answer_code", "5"): _static("c30_global_answer_code", "5", "45878730", "meas value"),
+        ("c30_global_answer_code", "6"): _static("c30_global_answer_code", "6", "45878254", "meas value"),
+        ("c30_global_answer_code", "7"): _static("c30_global_answer_code", "7", "45881924", "meas value"),
+        # EQ5D
+        ("eq5d_q1_answer_code", "1"): _static("eq5d_q1_answer_code", "1", "742346", "measurement"),
+        ("eq5d_q1_answer_code", "2"): _static("eq5d_q1_answer_code", "2", "742347", "measurement"),
+        ("eq5d_q1_answer_code", "3"): _static("eq5d_q1_answer_code", "3", "742348", "measurement"),
+        ("eq5d_q1_answer_code", "4"): _static("eq5d_q1_answer_code", "4", "742349", "measurement"),
+        ("eq5d_q1_answer_code", "5"): _static("eq5d_q1_answer_code", "5", "742350", "measurement"),
+        ("eq5d_q2_answer_code", "1"): _static("eq5d_q2_answer_code", "1", "742351", "measurement"),
+        ("eq5d_q2_answer_code", "2"): _static("eq5d_q2_answer_code", "2", "742352", "measurement"),
+        ("eq5d_q2_answer_code", "3"): _static("eq5d_q2_answer_code", "3", "742353", "measurement"),
+        ("eq5d_q2_answer_code", "4"): _static("eq5d_q2_answer_code", "4", "742354", "measurement"),
+        ("eq5d_q2_answer_code", "5"): _static("eq5d_q2_answer_code", "5", "742355", "measurement"),
+        # Tumor-response scales
+        ("response_recist", "cr"): _static("response_recist", "cr", "1634772", "measurement"),
+        ("response_recist", "pr"): _static("response_recist", "pr", "1633368", "measurement"),
+        ("response_recist", "sd"): _static("response_recist", "sd", "1634680", "measurement"),
+        ("response_recist", "pd"): _static("response_recist", "pd", "1633597", "measurement"),
+        ("response_irecist", "cr"): _static("response_irecist", "cr", "1633954", "measurement"),
+        ("response_irecist", "pr"): _static("response_irecist", "pr", "1635284", "measurement"),
+        ("response_irecist", "sd"): _static("response_irecist", "sd", "1635887", "measurement"),
+        ("response_irecist", "pd"): _static("response_irecist", "pd", "1633423", "measurement"),
+        ("response_rano", "cr"): _static("response_rano", "cr", "1634853", "measurement"),
+        ("response_rano", "pr"): _static("response_rano", "pr", "1634574", "measurement"),
+        ("response_rano", "sd"): _static("response_rano", "sd", "1633447", "measurement"),
+        ("response_rano", "pd"): _static("response_rano", "pd", "1634653", "measurement"),
     }
-
-
-"""
-ecog_code,0,36309661,LA9622-7,"Fully active, able to carry on all pre-disease performance without restriction",Answer,Standard,Valid,Meas Value,LOINC
-ecog_code,1,36310827,LA9623-5,"Restricted in physically strenuous activity but ambulatory and able to carry out work of a light or sedentary nature, e.g., light house work, office work",Answer,Standard,Valid,Meas Value,LOINC
-ecog_code,2,36309245,LA9624-3,Ambulatory and capable of all selfcare but unable to carry out any work activities. Up and about more than 50% of waking hours,Answer,Standard,Valid,Meas Value,LOINC
-ecog_code,3,36308652,LA9625-0,"Capable of only limited selfcare, confined to bed or chair more than 50% of waking hours",Answer,Standard,Valid,Meas Value,LOINC
-ecog_code,4,36308589,LA9626-8,Completely disabled. Cannot carry on any selfcare. Totally confined to bed or chair,Answer,Standard,Valid,Meas Value,LOINC
-ecog_code,5,45880868,LA9627-6,Dead,Answer,Standard,Valid,Meas Value,LOINC
-"""

@@ -1142,6 +1142,34 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return None if coerced.is_empty() else coerced
 
+    def _subject_baseline_target_lesion_size(self) -> pl.DataFrame:
+        """Per-subject baseline target lesion size in mm.
+
+        Earliest non-null baseline size across RNRSP_TERNTBAS / RA_RARECBAS per subject,
+        tie-broken by EventDate. Returns (SubjectId, baseline_size: Int64).
+        """
+        return (
+            self.data.select("SubjectId", "RNRSP_TERNTBAS", "RA_RARECBAS", "RNRSP_EventDate", "RA_EventDate")
+            .with_columns(
+                _size=pl.coalesce(
+                    [
+                        PolarsParsers.to_optional_int64(pl.col("RNRSP_TERNTBAS")),
+                        PolarsParsers.to_optional_int64(pl.col("RA_RARECBAS")),
+                    ],
+                ),
+                _date=pl.coalesce(
+                    [
+                        PolarsParsers.to_optional_date(pl.col("RNRSP_EventDate")),
+                        PolarsParsers.to_optional_date(pl.col("RA_EventDate")),
+                    ],
+                ),
+            )
+            .filter(pl.col("_size").is_not_null())
+            .sort(["SubjectId", "_date"])
+            .unique("SubjectId", keep="first")
+            .select("SubjectId", pl.col("_size").alias("baseline_size"))
+        )
+
     @singleton(TumorAssessmentBaseline)
     def _process_baseline_tumor_assessment(self) -> pl.DataFrame | None:
         """
@@ -1234,9 +1262,10 @@ class ImpressHarmonizer(BaseHarmonizer):
                 )
             )
 
-        # earliest row with value and date across RNRSP & RA
+        # earliest row with value and date across RNRSP & RA; size sourced from shared helper
+        # so _process_tumor_assessments sees the exact same per-subject baseline value.
         def target_lesions_baseline(df: pl.DataFrame) -> pl.DataFrame:
-            return (
+            nadir_and_date = (
                 df.with_columns(
                     rnrsp_size=PolarsParsers.to_optional_int64(pl.col("RNRSP_TERNTBAS")),
                     rnrsp_nadir=PolarsParsers.to_optional_int64(pl.col("RNRSP_TERNAD")),
@@ -1256,10 +1285,11 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .select(
                     "SubjectId",
                     pl.col("date_candidate").alias(cols.TARGET_LESION_MEASUREMENT_DATE),
-                    pl.col("size_candidate").alias(cols.TARGET_LESION_SIZE),
                     pl.col("nadir_candidate").alias(cols.TARGET_LESION_NADIR),
                 )
             )
+            size = self._subject_baseline_target_lesion_size().rename({"baseline_size": cols.TARGET_LESION_SIZE})
+            return size.join(nadir_and_date, on="SubjectId", how="inner")
 
         ta = tumor_assessment(base)
         ntl = off_target_lesions_baseline(base)
@@ -1325,6 +1355,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             "RNRSP_EventId",
         )
 
+        baseline_size = self._subject_baseline_target_lesion_size()
+
         def process(frame: pl.DataFrame) -> pl.DataFrame:
             _processed = (
                 frame.with_columns(
@@ -1360,6 +1392,14 @@ class ImpressHarmonizer(BaseHarmonizer):
                         .then(0)
                         .otherwise(pl.col("_tl_change_nadir") / 100)
                     ).alias(cols.TARGET_LESION_CHANGE_FROM_NADIR),
+                )
+                # absolute size per assessment: baseline × (1 + change_from_baseline).
+                # null propagates for missing baseline or missing change.
+                .join(baseline_size, on="SubjectId", how="left")
+                .with_columns(
+                    (pl.col("baseline_size").cast(pl.Float64, strict=False) * (pl.lit(1.0) + pl.col(cols.TARGET_LESION_CHANGE_FROM_BASELINE))).alias(
+                        cols.TARGET_LESION_SIZE
+                    ),
                 )
                 .with_columns(
                     PolarsParsers.int_to_bool(
@@ -1397,6 +1437,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .select(
                     "SubjectId",
                     cols.ASSESSMENT_TYPE,
+                    cols.TARGET_LESION_SIZE,
                     cols.TARGET_LESION_CHANGE_FROM_BASELINE,
                     cols.TARGET_LESION_CHANGE_FROM_NADIR,
                     cols.WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE,

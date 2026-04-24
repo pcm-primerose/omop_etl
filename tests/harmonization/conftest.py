@@ -1546,6 +1546,9 @@ class TumorAssessmentRow:
     RA_RAiUNPDT: str | None = None
     RA_EventId: str | None = None
     RNRSP_EventId: str | None = None
+    # baseline lesion size sources (used to derive absolute target_lesion_size per assessment)
+    RNRSP_TERNTBAS: str | None = None
+    RA_RARECBAS: str | None = None
 
 
 @pytest.fixture
