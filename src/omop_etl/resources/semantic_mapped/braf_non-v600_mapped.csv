@@ -1,4 +1,10 @@
 term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
+fc2cc4b5-e164-5f6f-9c67-6ce2d02e48d0,AE_AECTCAET,Platelet count decreased,1,4053347,1250004,Decreased,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+decde6b4-1ee2-5bef-90da-e3022ff5ffa2,AE_AECTCAET,Serum amylase increased,1,4146067,35105006,Increased,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+aed670b3-0f96-5448-99c8-eeca33269ed0,AE_AECTCAET,Aspartate aminotransferase increased,1,4146067,35105006,Increased,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+fc2cc4b5-e164-5f6f-9c67-6ce2d02e48d0,4267147,61928009,Platelet count,Procedure,Standard,Valid,Measurement,SNOMED
+decde6b4-1ee2-5bef-90da-e3022ff5ffa2,4043072,166570006,Serum amylase (pancreatic) measurement,Procedure,Standard,Valid,Measurement,SNOMED
+aed670b3-0f96-5448-99c8-eeca33269ed0,4094595,250641004,AST serum measurement,Procedure,Standard,Valid,Measurement,SNOMED
 a40acda4-5ce3-58e9-ace6-82861740d18a,AE_AECTCAET,Fever,3,437663,386661006,Fever,Clinical Finding,Standard,Valid,Condition,SNOMED
 fbd67699-0581-5e17-8403-f7eb290b9124,AE_AECTCAET,Pancreatitis,1,4192640,75694006,Pancreatitis,Disorder,Standard,Valid,Condition,SNOMED
 cba0153e-317a-5a35-9ad4-efcec032533a,AE_AECTCAET,Dyspnea,1,312437,267036007,Dyspnea,Clinical Finding,Standard,Valid,Condition,SNOMED
@@ -7,16 +13,13 @@ df0f888c-b5f5-50ba-a9cc-4cf055450f36,AE_AECTCAET,Mucositis oral,1,4260546,450005
 406708a2-1547-5f74-b161-e4bff788f3a8,AE_AECTCAET,Urinary tract infection,1,81902,68566005,Urinary tract infectious disease,Disorder,Standard,Valid,Condition,SNOMED
 b9967c78-8458-58cb-9c2b-84a156826e06,AE_AECTCAET,"Infections and infestations - Other, specify",1,432250,40733004,Infectious disease,Disorder,Standard,Valid,Condition,SNOMED
 fb2490e9-7fbe-5041-b29c-2948d916894d,AE_AECTCAET,Pleural effusion,1,254061,60046008,Pleural effusion,Disorder,Standard,Valid,Condition,SNOMED
-fc2cc4b5-e164-5f6f-9c67-6ce2d02e48d0,AE_AECTCAET,Platelet count decreased,1,4190644,415116008,Platelet count below reference range,Clinical Finding,Standard,Valid,Measurement,SNOMED
 6022044f-76b7-5f7f-81f8-c02e7c307057,AE_AECTCAET,Diarrhea,1,196523,62315008,Diarrhea,Clinical Finding,Standard,Valid,Condition,SNOMED
 8c8865f3-6d5d-5a25-9616-35a848007695,AE_AECTCAET,Flu like symptoms,1,4319159,95891005,Influenza-like illness,Clinical Finding,Standard,Valid,Condition,SNOMED
 58fa206a-b49b-5faa-9cc3-ee2dbe1006c4,AE_AECTCAET,Superior vena cava syndrome,1,4272799,63363004,Superior vena cava syndrome,Disorder,Standard,Valid,Condition,SNOMED
 9c923530-fa12-5c1d-95f6-2b2f457d354f,AE_AECTCAET,Gastrointestinal disorders,1,4201745,53619000,Disorder of digestive system,Disorder,Standard,Valid,Condition,SNOMED
-aed670b3-0f96-5448-99c8-eeca33269ed0,AE_AECTCAET,Aspartate aminotransferase increased,1,4042568,166669000,Aspartate aminotransferase serum level above reference range,Clinical Finding,Standard,Valid,Measurement,SNOMED
 ce2acc9f-81f7-5302-a751-dd1db1b64bce,AE_AECTCAET,Abdominal infection,1,4028062,128070006,Infectious disease of abdomen,Disorder,Standard,Valid,Condition,SNOMED
 d555b785-d4a8-5279-bd24-c8d1fb4d443d,AE_AECTCAET,Pancreatic duct obstruction,1,4342874,235973002,Pancreatic duct obstruction,Standard,Standard,Valid,Condition,SNOMED
 dc8b7be5-527a-5ef4-b621-b0c7c52f3a74,AE_AECTCAET,Visceral arterial ischemia,1,43020435,153821000119103,Visceral ischemia,Disorder,Standard,Valid,Condition,SNOMED
-decde6b4-1ee2-5bef-90da-e3022ff5ffa2,AE_AECTCAET,Serum amylase increased,1,4077377,275739007,Serum amylase above reference range,Clinical Finding,Standard,Valid,Measurement,SNOMED
 6fbe678d-073e-5b91-a199-7272a70f5dbf,AE_AECTCAET,Musculoskeletal and connective tissue disorder,1,4208786,312225001,Musculoskeletal and connective tissue disorder,Disorder,Standard,Valid,Condition,SNOMED
 90b1c5e2-768b-59cd-87c5-5367d7aa0664,AE_AECTCAET,Neutrophil count decreased,1,320073,165517008,Neutropenia,Clinical Finding,Standard,Valid,Condition,SNOMED
 d78140be-6561-5ca4-906d-e8d063794949,CM_CMTRT,Prednisolon,5,1550557,8638,prednisolone,Ingredient,Standard,Valid,Drug,RxNorm
@@ -170,6 +173,8 @@ fc4de2f6-c822-542e-8392-53cf03842961,CM_CMTRT,Cimetidin,1,997276,2541,cimetidine
 9261aa9a-b652-5d50-b109-b5c92b058ae2,COH_COHCTN,BRAF Non-V600 activating mutations,12,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 a683d456-51bb-52f1-8dcb-b88cfe79add6,COH_COHCTN,BRAF Non-V600activating mutations,1,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 8d9cba99-2d8f-5254-8226-cc57d315adc7,COH_COHTMN,BRAF Non-V600 activating mutations,13,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
+4bf9b6d6-5f7e-5c8e-b424-16b4885158df,COH_GENMUT1,BRAF activating mutations,11,13,3039156,53844-7,"BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test",Standard,Valid,Measurement,LOINC
+2e020752-c463-5744-9859-8dd3e864d528,COH_GENMUT1,Other,2,4205432,55446002,Genetic mutation,Clinical Finding,Standard,Valid,Condition,SNOMED
 16634bc9-9c93-5cd8-b149-34d0894a2e4b,COH_COHTT,Pancreatic cancer,3,4180793,363418001,Malignant tumor of pancreas,Disorder,Standard,Valid,Condition,SNOMED
 88b3fa87-2b35-5bee-adf1-39ed0e10c828,COH_COHTT,Cholangiocarcinoma,3,4208660,312104005,Cholangiocarcinoma of biliary tract,Disorder,Standard,Valid,Condition,SNOMED
 d00c7df5-1845-5ef2-b7c0-e3193c3f18d8,COH_COHTT,NSCLC,2,4115276,254637007,Non-small cell lung cancer,Disorder,Standard,Valid,Condition,SNOMED
@@ -186,8 +191,6 @@ dae331bb-eac3-5d2c-8a45-00667b6c41f7,COH_COHTTYPE,Lung Cancer: Non-Small Cell,2,
 4b0915cb-3c4a-5c4a-8f86-549c876f2dcc,COH_COHTTYPE__2,Cholangiocarcinoma,1,4208660,312104005,Cholangiocarcinoma of biliary tract,Disorder,Standard,Valid,Condition,SNOMED
 89edbc49-94c9-5c05-a756-0d2621e428be,COH_COHTTYPE__2,Odontogenic Carcinoma,1,42511925,9341/3-C41.0,Clear cell odontogenic carcinoma of bones of skull and face and associated joints,ICDO Condition,Standard,Valid,Condition,ICDO3
 d3fff833-a4ab-56d4-ae0f-76b2a7fea1cb,COH_COHTTYPE__2,Salivary Gland Cancer,1,4116235,255072001,Malignant tumor of salivary gland,Disorder,Standard,Valid,Condition,SNOMED
-4bf9b6d6-5f7e-5c8e-b424-16b4885158df,COH_GENMUT1,BRAF activating mutations,11,13,3039156,53844-7,"BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test",Standard,Valid,Measurement,LOINC
-2e020752-c463-5744-9859-8dd3e864d528,COH_GENMUT1,Other,2,4205432,55446002,Genetic mutation,Clinical Finding,Standard,Valid,Condition,SNOMED
 87fd97de-059f-5f6b-a757-4405dd148549,COH_ICD10COD,C22.1,3,4001664,109842005,Intrahepatic bile duct carcinoma,Disorder,Standard,Valid,Condition,SNOMED
 b36cf15c-8eef-5b61-8ca7-8a8eefaeaab6,COH_ICD10COD,C34.9,2,4311499,93986008,Primary malignant neoplasm of respiratory tract,Disorder,Standard,Valid,Condition,SNOMED
 e1fd68a5-855f-58ba-af0c-0ee4f984a83f,COH_ICD10COD,C25.9,2,199754,372003004,Primary malignant neoplasm of pancreas,Disorder,Standard,Valid,Condition,SNOMED

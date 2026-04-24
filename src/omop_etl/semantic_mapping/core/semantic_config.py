@@ -20,7 +20,7 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     FieldConfig(
         name="adverse_event.term",
         field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
+        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE}),
         tags={"adverse_event", "term"},
     ),
     # concomitant medications
