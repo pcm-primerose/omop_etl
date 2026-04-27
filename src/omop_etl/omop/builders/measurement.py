@@ -19,25 +19,22 @@ from omop_etl.omop.builders.base import (
 
 log = getLogger(__name__)
 
-# todo:
-# [ ] verify logic/mapping & clean up code
-# [ ] clean up tests
-
 
 class MeasurementBuilder(OmopBuilder[MeasurementRow]):
-    """Builds measurement rows from ECOG, tumor-assessment baseline + per-instance
-    assessments, C30/EQ5D PROs, biomarkers, and adverse-event terms that map to the
+    """
+    Builds measurement rows from ECOG, tumor-assessment baseline + per-instance
+    assessments, C30/EQ5D, biomarkers, and adverse-event terms that map to the
     Measurement domain.
 
     CDM 5.4 policy:
-    - `measurement_concept_id` must be in measurement domain. Rows are skipped if no
+    - measurement_concept_id: must be in measurement domain. Rows are skipped if no
       Measurement concept is available.
-    - `value_as_concept_id` is Meas Value domain: NULL when the source has no
-      categorical result; 0 when there is a categorical result but no mapping;
+    - value_as_concept_id: is Meas Value domain: NULL when the source has no
+      categorical result, 0 when there is a categorical result but no mapping,
       otherwise the mapped concept id.
-    - `value_as_number` is the numeric result where the source provides one.
-    - `visit_occurrence_id` is linked by date via `ctx.visit_id_by_date` (populated
-      by the visit_occurrence builder, which must run before this one).
+    - value_as_number: is the numeric result where the source provides one.
+    - visit_occurrence_id: is linked by date via ctx.visit_id_by_date (populated
+      by the visit_occurrence builder, which must run before this).
     """
 
     table_name: ClassVar[str] = "measurement"
@@ -616,4 +613,66 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        return []
+        """
+        Emits 0-N rows from AdverseEvent.
+        Some values in AdverseEvent maps to the measurement domain,
+        e.g. "decreased platelet count".
+
+        measurement_concept_id is here the attribute mapping from the semantic mapping,
+        e.g. "platelet count", where value_as_concept_id is the meas-value qualifier,
+        e.g. "decreased". Both are in semantic mapping as these fields are free-text.
+        value_as_number is the adverse event grade, measurement_source_value is the adverse event term.
+
+        Skipped if start_date is missing or if no measurement domain found from semantic query.
+        If measurement concept is found but no meas value qualifier, measurement_concept_id is
+        populated but value_as_concept_id is set to 0.
+        """
+        date = ae.start_date
+        if date is None:
+            log.warning("Skipping AE %d for %s: missing start_date", index, patient.patient_id)
+            return []
+
+        matches = self.concepts.lookup_semantic(
+            patient.patient_id,
+            (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+            index,
+            domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE},
+        )
+        if not matches:
+            return []
+
+        measurement_concepts = [c for c in matches if c.domain_id == OmopDomain.MEASUREMENTS.value]
+        meas_value_concepts = [c for c in matches if c.domain_id == OmopDomain.MEAS_VALUE.value]
+
+        if not measurement_concepts:
+            return []
+
+        grade = ae.grade
+        term = ae.term
+        value_as_concept_id = int(meas_value_concepts[0].concept_id) if meas_value_concepts else 0
+        datetime_value = dt.datetime(date.year, date.month, date.day)
+        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        value_as_number = float(grade) if grade is not None else None
+        source_value = term[:50] if term is not None else None
+
+        return [
+            MeasurementRow(
+                measurement_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.ADVERSE_EVENTS,
+                    str(term),
+                    str(date),
+                    str(concept.concept_id),
+                ),
+                person_id=person_id,
+                measurement_concept_id=int(concept.concept_id),
+                measurement_date=date,
+                measurement_datetime=datetime_value,
+                measurement_type_concept_id=ecrf_concept,
+                value_as_number=value_as_number,
+                value_as_concept_id=value_as_concept_id,
+                visit_occurrence_id=visit_occurrence_id,
+                measurement_source_value=source_value,
+            )
+            for concept in measurement_concepts
+        ]

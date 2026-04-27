@@ -1,6 +1,7 @@
 import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
@@ -974,6 +975,259 @@ class TestBiomarkerRows:
         )
         patient = create_patient(PID, TRIAL)
         patient.biomarkers = _make_biomarkers(cohort_target_mutation="BRAF V600E")
+        context = create_build_context(patient, PERSON_ID)
+
+        rows_1 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
+        rows_2 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
+
+        assert rows_1[0].measurement_id == rows_2[0].measurement_id
+
+
+def _make_ae(
+    term: str = "Decreased platelet count",
+    start_date: dt.date | None = dt.date(2040, 6, 1),
+    grade: int | None = 2,
+) -> AdverseEvent:
+    ae = AdverseEvent(PID)
+    ae.term = term
+    if start_date is not None:
+        ae.start_date = start_date
+    if grade is not None:
+        ae.grade = grade
+    return ae
+
+
+class TestAdverseEventMeasurementRows:
+    def test_term_with_measurement_and_meas_value_emits_row(self, static_index, structural_index):
+        # term maps to Measurement attribute and Meas Value qualifier
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Platelet count",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4002,
+                name="Decreased",
+                domain="meas value",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae(term="Decreased platelet count", grade=2)]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.measurement_concept_id == 4001  # measurement attribute
+        assert row.value_as_concept_id == 4002  # meas Value qualifier
+        assert row.value_as_number == 2.0  # grade
+        assert row.measurement_source_value == "Decreased platelet count"
+        assert row.measurement_date == dt.date(2040, 6, 1)
+
+    def test_measurement_only_no_meas_value_uses_zero(self, static_index, structural_index):
+        # AE term mapping present, but no meas value mapping: value_as_concept_id = 0.
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Platelet count",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae(grade=3)]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].measurement_concept_id == 4001
+        assert rows[0].value_as_concept_id == 0
+        assert rows[0].value_as_number == 3.0
+
+    def test_meas_value_only_skips_row(self, static_index, structural_index):
+        # no measurement-domain match: no row
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4002,
+                name="Decreased",
+                domain="meas value",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae()]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert rows == []
+
+    def test_no_semantic_match_skips_row(self, static_index, structural_index):
+        # no semantic match in any domain: no row
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae(term="Some unmapped term")]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_missing_start_date_skips_row(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Platelet count",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        ae = AdverseEvent(PID)
+        ae.term = "Decreased platelet count"
+        patient.adverse_events = [ae]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_grade_none_yields_value_as_number_none(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Platelet count",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae(grade=None)]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].value_as_number is None
+
+    def test_multiple_measurement_concepts_emit_one_row_each(self, static_index, structural_index):
+        # if a term maps to multiple measurement concepts, one row per
+        # concept: all share the same meas value qualifier when present
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Attribute A",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4003,
+                name="Attribute B",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4002,
+                name="Decreased",
+                domain="meas value",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae()]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        concept_ids = {r.measurement_concept_id for r in rows}
+        assert concept_ids == {4001, 4003}
+        assert all(r.value_as_concept_id == 4002 for r in rows)
+        assert len({r.measurement_id for r in rows}) == 2, "row IDs distinct since concept_id is part of the key"
+
+    def test_row_ids_unique_across_aes(self, static_index, structural_index):
+        # two AEs at different leaf_indexes: each maps independently
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Platelet count",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=1,
+                concept_id=4011,
+                name="Hemoglobin",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [
+            _make_ae(term="Decreased platelet count", start_date=dt.date(2040, 6, 1)),
+            _make_ae(term="Decreased hemoglobin", start_date=dt.date(2040, 7, 1)),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        assert len({r.measurement_id for r in rows}) == 2
+
+    def test_visit_id_linked_when_date_matches(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Platelet count",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae(start_date=dt.date(2040, 5, 1))]
+        baseline = TumorAssessmentBaseline(PID)
+        baseline.assessment_type = "RECIST"
+        baseline.assessment_date = dt.date(2040, 5, 1)
+        patient.tumor_assessment_baseline = baseline
+
+        context = create_build_context(patient, PERSON_ID)
+        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
+
+        assert rows[0].measurement_concept_id == 4001
+        assert rows[0].visit_occurrence_id == context.visit_id_by_date.get(rows[0].measurement_date)
+
+    def test_row_id_deterministic(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Platelet count",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae()]
         context = create_build_context(patient, PERSON_ID)
 
         rows_1 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
