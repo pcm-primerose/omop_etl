@@ -6,6 +6,7 @@ from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
+from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
@@ -1158,6 +1159,61 @@ class TestAdverseEventMeasurementRows:
         assert all(r.value_as_concept_id == 4002 for r in rows)
         assert len({r.measurement_id for r in rows}) == 2, "row IDs distinct since concept_id is part of the key"
 
+    def test_cross_product_when_multiple_meas_values(self, static_index, structural_index, caplog):
+        # Unusual but supported: 2 Measurement attributes × 2 Meas Value qualifiers
+        # → 4 rows (cross-product). Builder logs the multi-Meas-Value case.
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Attribute A",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4003,
+                name="Attribute B",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4002,
+                name="Decreased",
+                domain="meas value",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                leaf_index=0,
+                concept_id=4004,
+                name="Severe",
+                domain="meas value",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.adverse_events = [_make_ae()]
+
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="omop_etl.omop.builders.measurement"):
+            rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        # 2 Measurement × 2 Meas Value = 4 rows
+        assert len(rows) == 4
+        pairs = {(r.measurement_concept_id, r.value_as_concept_id) for r in rows}
+        assert pairs == {(4001, 4002), (4001, 4004), (4003, 4002), (4003, 4004)}
+        # all four rows have distinct measurement_ids (qualifier in row_id key)
+        assert len({r.measurement_id for r in rows}) == 4
+
+        # cardinality anomaly is logged (not silent)
+        assert any("Meas Value concepts" in rec.message for rec in caplog.records)
+
     def test_row_ids_unique_across_aes(self, static_index, structural_index):
         # two AEs at different leaf_indexes: each maps independently
         semantic = create_semantic_index(
@@ -1214,6 +1270,7 @@ class TestAdverseEventMeasurementRows:
 
         assert rows[0].measurement_concept_id == 4001
         assert rows[0].visit_occurrence_id == context.visit_id_by_date.get(rows[0].measurement_date)
+        assert rows[0].visit_occurrence_id is not None
 
     def test_row_id_deterministic(self, static_index, structural_index):
         semantic = create_semantic_index(
@@ -1228,6 +1285,272 @@ class TestAdverseEventMeasurementRows:
         )
         patient = create_patient(PID, TRIAL)
         patient.adverse_events = [_make_ae()]
+        context = create_build_context(patient, PERSON_ID)
+
+        rows_1 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
+        rows_2 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
+
+        assert rows_1[0].measurement_id == rows_2[0].measurement_id
+
+
+def _make_mh(
+    term: str = "Decreased hemoglobin",
+    sequence_id: int = 1,
+    start_date: dt.date | None = dt.date(2039, 1, 1),
+    end_date: dt.date | None = None,
+) -> MedicalHistory:
+    mh = MedicalHistory(PID)
+    mh.term = term
+    mh.sequence_id = sequence_id
+    if start_date is not None:
+        mh.start_date = start_date
+    if end_date is not None:
+        mh.end_date = end_date
+    return mh
+
+
+class TestMedicalHistoryMeasurementRows:
+    def test_term_with_measurement_and_meas_value_emits_row(self, static_index, structural_index):
+        # "decreased hemoglobin" -> Hemoglobin measurement (Measurement) + Decreased (Meas Value)
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Hemoglobin measurement",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4002,
+                name="Decreased",
+                domain="meas value",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh()]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.measurement_concept_id == 4001
+        assert row.value_as_concept_id == 4002
+        assert row.value_as_number is None  # MH has no grade
+        assert row.measurement_source_value == "Decreased hemoglobin"
+        assert row.measurement_date == dt.date(2039, 1, 1)
+
+    def test_measurement_only_no_meas_value_uses_zero(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Hemoglobin measurement",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh()]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].measurement_concept_id == 4001
+        assert rows[0].value_as_concept_id == 0
+
+    def test_condition_only_skips_row(self, static_index, structural_index):
+        # Condition-domain hit belongs to condition_occurrence builder, not here.
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=999,
+                name="Hypertension",
+                domain="condition",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh(term="Hypertension")]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_meas_value_only_skips_row(self, static_index, structural_index):
+        # Meas Value alone (no Measurement attribute) → not a measurement row.
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4002,
+                name="Decreased",
+                domain="meas value",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh()]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_no_semantic_match_skips_row(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh(term="Some unmapped term")]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_missing_start_date_skips_row(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Hemoglobin measurement",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        mh = MedicalHistory(PID)
+        mh.term = "Decreased hemoglobin"
+        mh.sequence_id = 1
+        # start_date intentionally omitted
+        patient.medical_histories = [mh]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_cross_product_when_multiple_meas_values(self, static_index, structural_index, caplog):
+        # 2 Measurement × 2 Meas Value -> 4 rows; warns on cardinality anomaly.
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Attribute A",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4003,
+                name="Attribute B",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4002,
+                name="Decreased",
+                domain="meas value",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4004,
+                name="Severe",
+                domain="meas value",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh()]
+
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="omop_etl.omop.builders.measurement"):
+            rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 4
+        pairs = {(r.measurement_concept_id, r.value_as_concept_id) for r in rows}
+        assert pairs == {(4001, 4002), (4001, 4004), (4003, 4002), (4003, 4004)}
+        assert len({r.measurement_id for r in rows}) == 4
+        assert any("Meas Value concepts" in rec.message for rec in caplog.records)
+
+    def test_row_ids_unique_across_histories(self, static_index, structural_index):
+        # Two MH instances with distinct sequence_ids -> row_ids differ.
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Hemoglobin measurement",
+                domain="measurement",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=1,
+                concept_id=4011,
+                name="Glucose measurement",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [
+            _make_mh(term="Decreased hemoglobin", sequence_id=1, start_date=dt.date(2039, 1, 1)),
+            _make_mh(term="Elevated glucose", sequence_id=2, start_date=dt.date(2039, 6, 1)),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        assert len({r.measurement_id for r in rows}) == 2
+
+    def test_visit_id_linked_when_date_matches(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Hemoglobin measurement",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh(start_date=dt.date(2040, 5, 1))]
+        baseline = TumorAssessmentBaseline(PID)
+        baseline.assessment_type = "RECIST"
+        baseline.assessment_date = dt.date(2040, 5, 1)
+        patient.tumor_assessment_baseline = baseline
+
+        context = create_build_context(patient, PERSON_ID)
+        # mirror OmopService.build to populate visit_id_by_date
+        visit_rows = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        for v in visit_rows:
+            context.visit_id_by_date[v.visit_start_date] = v.visit_occurrence_id
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
+
+        mh_row = next(r for r in rows if r.measurement_concept_id == 4001)
+        assert mh_row.visit_occurrence_id == context.visit_id_by_date[dt.date(2040, 5, 1)]
+        assert mh_row.visit_occurrence_id is not None
+
+    def test_row_id_deterministic(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                leaf_index=0,
+                concept_id=4001,
+                name="Hemoglobin measurement",
+                domain="measurement",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.medical_histories = [_make_mh()]
         context = create_build_context(patient, PERSON_ID)
 
         rows_1 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)

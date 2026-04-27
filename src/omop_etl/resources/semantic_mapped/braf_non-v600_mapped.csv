@@ -1,10 +1,10 @@
 term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 fc2cc4b5-e164-5f6f-9c67-6ce2d02e48d0,AE_AECTCAET,Platelet count decreased,1,4053347,1250004,Decreased,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+fc2cc4b5-e164-5f6f-9c67-6ce2d02e48d0,AE_AECTCAET,Platelet count decreased,1,4267147,61928009,Platelet count,Procedure,Standard,Valid,Measurement,SNOMED
 decde6b4-1ee2-5bef-90da-e3022ff5ffa2,AE_AECTCAET,Serum amylase increased,1,4146067,35105006,Increased,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+decde6b4-1ee2-5bef-90da-e3022ff5ffa2,AE_AECTCAET,Serum amylase increased,1,4043072,166570006,Serum amylase (pancreatic) measurement,Procedure,Standard,Valid,Measurement,SNOMED
 aed670b3-0f96-5448-99c8-eeca33269ed0,AE_AECTCAET,Aspartate aminotransferase increased,1,4146067,35105006,Increased,Qualifier Value,Standard,Valid,Meas Value,SNOMED
-fc2cc4b5-e164-5f6f-9c67-6ce2d02e48d0,4267147,61928009,1,Platelet count,Procedure,Standard,Valid,Measurement,SNOMED
-decde6b4-1ee2-5bef-90da-e3022ff5ffa2,4043072,166570006,1,Serum amylase (pancreatic) measurement,Procedure,Standard,Valid,Measurement,SNOMED
-aed670b3-0f96-5448-99c8-eeca33269ed0,4094595,250641004,1,AST serum measurement,Procedure,Standard,Valid,Measurement,SNOMED
+aed670b3-0f96-5448-99c8-eeca33269ed0,AE_AECTCAET,Aspartate aminotransferase increased,1,4094595,250641004,AST serum measurement,Procedure,Standard,Valid,Measurement,SNOMED
 a40acda4-5ce3-58e9-ace6-82861740d18a,AE_AECTCAET,Fever,3,437663,386661006,Fever,Clinical Finding,Standard,Valid,Condition,SNOMED
 fbd67699-0581-5e17-8403-f7eb290b9124,AE_AECTCAET,Pancreatitis,1,4192640,75694006,Pancreatitis,Disorder,Standard,Valid,Condition,SNOMED
 cba0153e-317a-5a35-9ad4-efcec032533a,AE_AECTCAET,Dyspnea,1,312437,267036007,Dyspnea,Clinical Finding,Standard,Valid,Condition,SNOMED

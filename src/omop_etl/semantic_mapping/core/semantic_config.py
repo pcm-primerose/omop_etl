@@ -43,11 +43,12 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
         target=QueryTarget(domains={OmopDomain.PROCEDURE, OmopDomain.DRUG}),
         tags={"previous_treatments", "additional_term"},
     ),
-    # medical history
+    # medical history — same shape as adverse_event.term: free-text, may map to a
+    # Measurement attribute + Meas Value qualifier (e.g. "decreased hemoglobin").
     FieldConfig(
         name="medical_history.term",
         field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.PROCEDURE}),
+        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.PROCEDURE, OmopDomain.MEAS_VALUE}),
         tags={"medical_history", "term"},
     ),
     # biomarkers

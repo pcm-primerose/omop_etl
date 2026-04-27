@@ -81,7 +81,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     tables: OmopTables = omop_service.build(harmonized_result.patients)
 
     # todo: remove
-    print(f"built tables: {[t.measurement for t in tables if tables.nam]}")
+    print(f"built tables: {tables}")
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")

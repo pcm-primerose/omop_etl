@@ -51,7 +51,7 @@ class OmopBuilder(ABC, Generic[T]):
         """
         ...
 
-    def generate_row_id(self, *key_parts: str) -> int:
+    def generate_row_id(self, *key_parts: str | None) -> int:
         """
         Deterministic row ID from key parts, using SHA1 hashing with builder's
         namespace to create a reproducible 63-bit integer ID.
