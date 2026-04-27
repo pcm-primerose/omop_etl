@@ -204,6 +204,62 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         biomarkers: Biomarkers,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
+        """
+        Emits 0-N rows from Biomarkers, one row per matched concept for selected
+        biomarker field in preference chain.
+        Cohort fields are inclusion criteria and are preferred when mapping.
+
+        measurement_concept_id is each mapped semantic concept (one row each),
+        can return multiple (meaning multiple rows, decided by semantic mapper).
+        measurement_source_value is the raw biomarker value.
+
+        value_as_number and value_as_concept_id is not set.
+
+        Skipped if date is missing, or if no field in chain maps to a measurement concept.
+        """
+        date = biomarkers.date
+        if date is None:
+            log.warning("Skipping biomarkers for %s: missing date", patient.patient_id)
+            return []
+
+        chain: list[tuple[str, str | None]] = [
+            (Biomarkers.Fields.COHORT_TARGET_MUTATION, biomarkers.cohort_target_mutation),
+            (Biomarkers.Fields.COHORT_TARGET_NAME, biomarkers.cohort_target_name),
+            (Biomarkers.Fields.GENE_AND_MUTATION, biomarkers.gene_and_mutation),
+        ]
+        for field_name, source_value in chain:
+            if source_value is None:
+                continue
+            matches = self.concepts.lookup_semantic(
+                patient.patient_id,
+                (Patient.Singletons.BIOMARKERS, field_name),
+                None,
+                domains={OmopDomain.MEASUREMENTS},
+            )
+            if not matches:
+                continue
+
+            datetime_value = dt.datetime(date.year, date.month, date.day)
+            visit_occurrence_id = ctx.visit_id_by_date.get(date)
+            return [
+                MeasurementRow(
+                    measurement_id=self.generate_row_id(
+                        patient.patient_id,
+                        Patient.Singletons.BIOMARKERS,
+                        field_name,
+                        str(concept.concept_id),
+                    ),
+                    person_id=person_id,
+                    measurement_concept_id=int(concept.concept_id),
+                    measurement_date=date,
+                    measurement_datetime=datetime_value,
+                    measurement_type_concept_id=ecrf_concept,
+                    visit_occurrence_id=visit_occurrence_id,
+                    measurement_source_value=source_value[:50],
+                )
+                for concept in matches
+            ]
+
         return []
 
     def _build_tumor_assessment_baseline_rows(
