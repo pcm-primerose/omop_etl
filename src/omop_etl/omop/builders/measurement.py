@@ -2,115 +2,44 @@ import datetime as dt
 from logging import getLogger
 from typing import ClassVar
 
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.omop.models.rows import MeasurementRow
+from omop_etl.semantic_mapping.core.models import OmopDomain
 from omop_etl.omop.builders.base import (
-    OmopBuilder,
     BuildContext,
+    OmopBuilder,
 )
 
 log = getLogger(__name__)
 
-# what Patient data?
-# what branches are needed, how to structure/group etc
-# define all states/branches for test
-
-# what is inlcuded?
-# measurements are stored as attribute value pairs, where the value is either
-# a number or a concept.
-
-# all measurements and orders of measurements:
-#   - labs, questionnaires (?), biomarkers, medical history ongoing/past etc, tumor assessments (size, number of lesions),
-#     adverse events with measurmenet domain, ecog, responce (recist,irecist,rano),
-
-# c30, eq5d, ecog, biomarkers, response, tumor assessments / baseline (size, number of lesions),
-# medical history (ongoing/past/etc) &
-
-# so: any standardized intrument/test means data goes into measurement
-
-
 # todo:
-#   [ ] include adverse events or not?
-#       - AEs are free-text but also terms from ctcaet and graded,
-#         so belongs in observations, but some terms are measurements,
-#         e.g. labs like "decreased platelet count".
-#       - would then need to expoand semantic config to measurement,
-#         filter on measurement only and emit one row per mapped concept for AEs
-#   [x] are biomarkers semantically mapped to measurement or observations?
-#   [x] one method per mapped concept, or one method per domain model -> rows?
-#       - tumor assessments would emit multiple concepts/rows: leaning one per domain
-#   [x] cohort target name or gene and mutation as main biomarker row?
-#       - use the one with highest prevalance, fallback to secondary field?
-
-# tumor assessment baseline:
-# emit two rows per instance basically:
-# target_lesion_size, off_target_lesions_number, target_lesions_nadir
-# value as number/str separates these?
-# also: number_of_lesions are currently in observation,
-# but can't find any concept for this in measurement domain: defer to observation!
-
-# biomarkers
-# use cohort_target_mutation, fallback to cohort_target_name
-#           - COHTMN/cohort target mutation name is:
-#             e.g. Activating mutations of SSH pathway or MMR-genes incl res
-#           - COHCTN/cohort target name is:
-#             e.g. SSH pathway or MSI-high incl. res
-#       --> cohort_target_mutation_name (COHTMN) seems most specific,
-#           wheras gene_and_mutation is more unspecific in some cases (e.g. BRAF non-v600 is here BRAF activating mutations)
-
-# tumor assessments
-# just check what response fields have data per instance,
-# emit resoponses as value_as_concept_id, tumor assessment types as attr (measurement_concept_id),
-# row id from (patient_id, TUMOR_ASSESSMENTS, date, response_type)
-# todo: need to map change in lesion size (or just lesion size) per instance!
-# we need to track the change in lesion size from baseline, this is very important.
-# this is stored as a float, denoting the percentage change from baseline lesion size (e.g. -0.5) iirc.
-# so this means we can see over time the response in the tumor size to treatment.
-# each instance of tumor assessments has data here.
-# what concept can i use for this?
-# maybe just map the absolute size per instance (would ideally need to update the tumor assessment domain model),
-# instead of calculating this in the builder (should be harmonizer job)
-# so, as long as we can store the lesion size per instance (date linked), we can
-# calculate change from baseline and nadir (these are derived), after extraction from the database
-# so either 1) change the domain model to add a field that calculates the total size,
-# or 2) store the values as the relative change floats per instance in:
-# lesion_size,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED
-# maybe? think it's better to update the patient model, but then i'd need to update:
-# _process_tumor_assessments() method and tests, adding a method to calculate the absolute size,
-# but this then requires knowledge of the absolute size at baseline, which is processed in the _process_tumor_assessment_baseline()
-# method. I could also do the same column selection and processing as in the baseline method, and
-# then match to the correct patient and tumor assessment type etc, not a basic change and need more robust testing.
-# regardless, tracking the absolute size of the target lesion per instance allows for calculating the percentage change
-# over time and the change from nadir over time.
-
-# end of treatment
-# just access patient scalars directly (end_of_treatment_reason, end_of_treatment_date):
-# one concept:
-# eot_reason,Normal completion according to cohort-specific manual,45884335,LA4511-7,Treatment Completed,Answer,Standard,Valid,Meas Value,LOINC
-# todo: find observation concept for this instead: conceptually EOT reason belongs in observation?
-# at least all other EOT reasons are in observation...
-# conclusion: just defer this to when I implement the observation builder!
-
-# c30
-# quite simple with the loop,
-# but shouldn't value_as_concept_id be the static mappings for c30 in the static_mapping.csv file?
-# other than that I agree.
-
-# eq5d
-# same as for c30, shouldn't the static mappings for answers be used as value_as_concept_id?
-#
+# [ ] verify logic/mapping & clean up code
+# [ ] clean up tests
 
 
 class MeasurementBuilder(OmopBuilder[MeasurementRow]):
+    """Builds measurement rows from ECOG, biomarkers, tumor assessments, C30/EQ5D PROs,
+    and adverse-event terms that map to the Measurement domain.
+
+    CDM 5.4 policy:
+    - `measurement_concept_id` must be in measurement domain. Rows are skipped if no
+      Measurement concept is available.
+    - `value_as_concept_id` is Meas Value domain: NULL when the source has no
+      categorical result; 0 when there is a categorical result but no mapping;
+      otherwise the mapped concept id.
+    - `value_as_number` is the numeric result where the source provides one.
+    """
+
     table_name: ClassVar[str] = "measurement"
 
-    def build(self, ctx: BuildContext):
+    def build(self, ctx: BuildContext) -> list[MeasurementRow]:
         patient = ctx.patient
         person_id = ctx.person_id
 
@@ -118,11 +47,91 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
         measurement_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
-        if patient.ecog_baseline is not None:
-            rows.extend(self._build_ecog_rows(patient, person_id, measurement_type_concept_id, patient.ecog_baseline, ctx))
+        # bind property accessors to locals so the type checker can narrow `None`
+        # across the call site and the inner method.
+        ecog_baseline = patient.ecog_baseline
+        if ecog_baseline is not None:
+            rows.extend(
+                self._build_ecog_rows(
+                    patient,
+                    person_id,
+                    measurement_type_concept_id,
+                    ecog_baseline,
+                    ctx,
+                )
+            )
 
-        if patient.biomarkers is not None:
-            rows.extend(self._build_biomarker_rows(patient, person_id, measurement_type_concept_id, patient.biomarkers, ctx))
+        ta_baseline = patient.tumor_assessment_baseline
+        if ta_baseline is not None:
+            rows.extend(
+                self._build_tumor_assessment_baseline_rows(
+                    patient,
+                    person_id,
+                    measurement_type_concept_id,
+                    ta_baseline,
+                    ctx,
+                )
+            )
+
+        for idx, ta in enumerate(patient.tumor_assessments):
+            rows.extend(
+                self._build_tumor_assessment_rows(
+                    patient,
+                    person_id,
+                    measurement_type_concept_id,
+                    ta,
+                    idx,
+                    ctx,
+                )
+            )
+
+        for idx, c30 in enumerate(patient.c30_collection):
+            rows.extend(
+                self._build_c30_rows(
+                    patient,
+                    person_id,
+                    measurement_type_concept_id,
+                    c30,
+                    idx,
+                    ctx,
+                )
+            )
+
+        for idx, eq5d in enumerate(patient.eq5d_collection):
+            rows.extend(
+                self._build_eq5d_rows(
+                    patient,
+                    person_id,
+                    measurement_type_concept_id,
+                    eq5d,
+                    idx,
+                    ctx,
+                )
+            )
+
+        biomarkers = patient.biomarkers
+        if biomarkers is not None:
+            rows.extend(
+                self._build_biomarker_rows(
+                    patient,
+                    person_id,
+                    measurement_type_concept_id,
+                    biomarkers,
+                    ctx,
+                )
+            )
+
+        for idx, ae in enumerate(patient.adverse_events):
+            rows.extend(
+                self._build_adverse_event_rows(
+                    patient,
+                    person_id,
+                    measurement_type_concept_id,
+                    ae,
+                    idx,
+                    ctx,
+                )
+            )
 
         return rows
 
@@ -134,11 +143,12 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ecog_baseline: EcogBaseline,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        if ecog_baseline.date is None:
+        date = ecog_baseline.date
+        grade = ecog_baseline.grade
+        if date is None:
             log.warning("Skipping ECOG for %s: missing date", patient.patient_id)
             return []
-
-        if ecog_baseline.grade is None:
+        if grade is None:
             log.warning("Skipping ECOG for %s: missing grade", patient.patient_id)
             return []
 
@@ -151,7 +161,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         # specific grade answer concept
         ecog_answer = self.concepts.lookup_static(
             "ecog_code",
-            str(ecog_baseline.grade),
+            str(grade),
             domains={"Meas Value"},
         )
         value_as_concept_id = int(ecog_answer.concept_id) if ecog_answer else 0
@@ -159,26 +169,20 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Singletons.ECOG_BASELINE,
-            str(ecog_baseline.date),
+            str(date),
         )
-        visit_occurrence_id = ctx.visit_id_by_date.get(ecog_baseline.date)
-
         return [
             MeasurementRow(
                 measurement_id=row_id,
                 person_id=person_id,
                 measurement_concept_id=int(ecog_test.concept_id),
-                measurement_date=ecog_baseline.date,
+                measurement_date=date,
                 measurement_type_concept_id=ecrf_concept,
-                measurement_datetime=dt.datetime(
-                    ecog_baseline.date.year,
-                    ecog_baseline.date.month,
-                    ecog_baseline.date.day,
-                ),
-                value_as_number=float(ecog_baseline.grade),
+                measurement_datetime=dt.datetime(date.year, date.month, date.day),
+                value_as_number=float(grade),
                 value_as_concept_id=value_as_concept_id,
-                visit_occurrence_id=visit_occurrence_id,
-                measurement_source_value=str(ecog_baseline.grade),
+                visit_occurrence_id=ctx.visit_id_by_date.get(date),
+                measurement_source_value=str(grade)[0:50],
             )
         ]
 
@@ -190,17 +194,50 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         biomarkers: Biomarkers,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        pass
+        return []
 
     def _build_tumor_assessment_baseline_rows(
         self,
         patient: Patient,
         person_id: int,
         ecrf_concept: int,
-        tumor_assessment_baseline: TumorAssessmentBaseline,
+        baseline: TumorAssessmentBaseline,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        pass
+        # baseline nadir is not emitted, at baseline nadir is the starting size
+        # off-target lesion count belongs in observation, has no measurement concept for lesion count
+        size = baseline.target_lesion_size
+        date = baseline.target_lesion_measurement_date
+        if size is None:
+            log.warning("No size for tumor assessment baseline for %s", patient.patient_id)
+            return []
+        if date is None:
+            log.warning("No date for tumor assessment baseline for %s", patient.patient_id)
+            return []
+
+        lesion = self.concepts.lookup_structural("lesion_size", domains={OmopDomain.MEASUREMENTS})
+        if lesion is None:
+            log.warning("No lesion_size structural concept for %s", patient.patient_id)
+            return []
+
+        row_id = self.generate_row_id(
+            patient.patient_id,
+            Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
+            TumorAssessmentBaseline.Fields.TARGET_LESION_SIZE,
+        )
+        return [
+            MeasurementRow(
+                measurement_id=row_id,
+                person_id=person_id,
+                measurement_concept_id=int(lesion.concept_id),
+                measurement_date=date,
+                measurement_datetime=dt.datetime(date.year, date.month, date.day),
+                measurement_type_concept_id=ecrf_concept,
+                value_as_number=float(size),
+                visit_occurrence_id=ctx.visit_id_by_date.get(date),
+                measurement_source_value=str(size)[0:50],
+            )
+        ]
 
     def _build_tumor_assessment_rows(
         self,
@@ -208,9 +245,124 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         person_id: int,
         ecrf_concept: int,
         tumor_assessments: TumorAssessment,
+        index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        pass
+        date = tumor_assessments.date
+        if date is None:
+            log.warning("Skipping tumor assessment %d for %s: missing date", index, patient.patient_id)
+            return []
+
+        rows: list[MeasurementRow] = []
+        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        datetime_value = dt.datetime(date.year, date.month, date.day)
+
+        # absolute target-lesion size set by harmonizer: baseline * (1 + change_from_baseline)
+        # skipped when size or structural concept is unavailable,
+        # response rows on the same instance emits rows independantly (below)
+        size = tumor_assessments.target_lesion_size
+        if size is not None:
+            lesion = self.concepts.lookup_structural("lesion_size", domains={OmopDomain.MEASUREMENTS})
+            if lesion is not None:
+                rows.append(
+                    MeasurementRow(
+                        measurement_id=self.generate_row_id(
+                            patient.patient_id,
+                            Patient.Collections.TUMOR_ASSESSMENTS,
+                            str(tumor_assessments.event_id),
+                            str(date),
+                            TumorAssessment.Fields.TARGET_LESION_SIZE,
+                        ),
+                        person_id=person_id,
+                        measurement_concept_id=int(lesion.concept_id),
+                        measurement_date=date,
+                        measurement_datetime=datetime_value,
+                        measurement_type_concept_id=ecrf_concept,
+                        value_as_number=float(size),
+                        visit_occurrence_id=visit_occurrence_id,
+                        measurement_source_value=str(size)[:50],
+                    )
+                )
+
+        # response rows: each scale has its own precoordinated Measurement concept that
+        # encodes scale + answer (e.g. "RECIST 1.1: stable disease"),
+        # the static concept is the measurement_concept_id and value_as_concept_id stays NULL
+        recist = tumor_assessments.recist_response
+        if recist is not None:
+            concept = self.concepts.lookup_static("response_recist", recist, domains={OmopDomain.MEASUREMENTS})
+            if concept is None:
+                log.warning("No response_recist mapping for %r (patient %s)", recist, patient.patient_id)
+            else:
+                rows.append(
+                    MeasurementRow(
+                        measurement_id=self.generate_row_id(
+                            patient.patient_id,
+                            Patient.Collections.TUMOR_ASSESSMENTS,
+                            str(tumor_assessments.event_id),
+                            str(date),
+                            TumorAssessment.Fields.RECIST_RESPONSE,
+                        ),
+                        person_id=person_id,
+                        measurement_concept_id=int(concept.concept_id),
+                        measurement_date=date,
+                        measurement_datetime=datetime_value,
+                        measurement_type_concept_id=ecrf_concept,
+                        visit_occurrence_id=visit_occurrence_id,
+                        measurement_source_value=recist[:50],
+                    )
+                )
+
+        irecist = tumor_assessments.irecist_response
+        if irecist is not None:
+            concept = self.concepts.lookup_static("response_irecist", irecist, domains={OmopDomain.MEASUREMENTS})
+            if concept is None:
+                log.warning("No response_irecist mapping for %r (patient %s)", irecist, patient.patient_id)
+            else:
+                rows.append(
+                    MeasurementRow(
+                        measurement_id=self.generate_row_id(
+                            patient.patient_id,
+                            Patient.Collections.TUMOR_ASSESSMENTS,
+                            str(tumor_assessments.event_id),
+                            str(date),
+                            TumorAssessment.Fields.IRECIST_RESPONSE,
+                        ),
+                        person_id=person_id,
+                        measurement_concept_id=int(concept.concept_id),
+                        measurement_date=date,
+                        measurement_datetime=datetime_value,
+                        measurement_type_concept_id=ecrf_concept,
+                        visit_occurrence_id=visit_occurrence_id,
+                        measurement_source_value=irecist[:50],
+                    )
+                )
+
+        rano = tumor_assessments.rano_response
+        if rano is not None:
+            concept = self.concepts.lookup_static("response_rano", rano, domains={OmopDomain.MEASUREMENTS})
+            if concept is None:
+                log.warning("No response_rano mapping for %r (patient %s)", rano, patient.patient_id)
+            else:
+                rows.append(
+                    MeasurementRow(
+                        measurement_id=self.generate_row_id(
+                            patient.patient_id,
+                            Patient.Collections.TUMOR_ASSESSMENTS,
+                            str(tumor_assessments.event_id),
+                            str(date),
+                            TumorAssessment.Fields.RANO_RESPONSE,
+                        ),
+                        person_id=person_id,
+                        measurement_concept_id=int(concept.concept_id),
+                        measurement_date=date,
+                        measurement_datetime=datetime_value,
+                        measurement_type_concept_id=ecrf_concept,
+                        visit_occurrence_id=visit_occurrence_id,
+                        measurement_source_value=rano[:50],
+                    )
+                )
+
+        return rows
 
     def _build_c30_rows(
         self,
@@ -218,9 +370,10 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         person_id: int,
         ecrf_concept: int,
         c30: C30,
+        index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        pass
+        return []
 
     def _build_eq5d_rows(
         self,
@@ -228,6 +381,18 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         person_id: int,
         ecrf_concept: int,
         eq5d: EQ5D,
+        index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        pass
+        return []
+
+    def _build_adverse_event_rows(
+        self,
+        patient: Patient,
+        person_id: int,
+        ecrf_concept: int,
+        ae: AdverseEvent,
+        index: int,
+        ctx: BuildContext,
+    ) -> list[MeasurementRow]:
+        return []

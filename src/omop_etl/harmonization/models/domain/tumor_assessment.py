@@ -197,7 +197,7 @@ class TumorAssessment(DomainBase):
             f"irecist_response={self.irecist_response!r}{delim} "
             f"rano_response={self.rano_response!r}{delim} "
             f"recist_date_of_progression={self.recist_date_of_progression!r}{delim} "
-            f"irecist_response={self.irecist_response!r}{delim} "
+            f"irecist_date_of_progression={self.irecist_date_of_progression!r}{delim} "
             f"event_id={self.event_id!r}"
             f")"
         )
