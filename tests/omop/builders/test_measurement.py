@@ -3,6 +3,7 @@ import datetime as dt
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.omop.builders.measurement import MeasurementBuilder
@@ -380,7 +381,7 @@ class TestC30Rows:
     def test_emits_q1_with_text_and_level(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
         patient.c30_collection = [
-            _make_c30(dt.date(2040, 5, 1), q1="not at all", q1_code=1),
+            _make_c30(dt.date(2040, 5, 1), q1="not at all", q1_code=1, q2="quite a bit", q2_code=3),
             _make_c30(dt.date(2041, 5, 1), q2="quite a bit", q2_code=3),
         ]
 
@@ -393,7 +394,7 @@ class TestC30Rows:
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
         _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
 
-        assert len(rows) == 2
+        assert len(rows) == 3
 
         # c30_q1
         row_1 = rows[0]
@@ -408,12 +409,15 @@ class TestC30Rows:
         # c30_q2
         row_2 = rows[1]
         assert row_2.measurement_concept_id == 701341
-        assert row_2.measurement_date == dt.date(2041, 5, 1)
+        assert row_2.measurement_date == dt.date(2040, 5, 1)
         assert row_2.value_as_concept_id == 45884456
         assert row_2.value_as_number == 3.0
         assert row_2.measurement_source_value == "quite a bit"
         assert row_2.measurement_type_concept_id == 32817
-        assert row_2.visit_occurrence_id is None
+        assert row_2.visit_occurrence_id == context.visit_id_by_date.get(row_2.measurement_date)
+
+        assert rows[2].visit_occurrence_id is None
+        assert rows[2].measurement_date == dt.date(2041, 5, 1)
 
     def test_q29_uses_global_answer_scale(self, static_index, structural_index):
         # Q29 (overall health) uses c30_global_answer_code (1–7)
@@ -558,3 +562,175 @@ class TestC30Rows:
         rows_2 = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
 
         assert rows_1[0].measurement_id == rows_2[0].measurement_id
+
+
+def _make_eq5d(date: dt.date, event_name: str = "BASELINE", **answers: str | int) -> EQ5D:
+    eq5d = EQ5D(PID)
+    eq5d.date = date
+    eq5d.event_name = event_name
+    for attr, value in answers.items():
+        setattr(eq5d, attr, value)
+    return eq5d
+
+
+class TestEQ5DRows:
+    def test_dimension_uses_precoordinated_concept(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(
+                dt.date(2040, 5, 1),
+                q1="I have no problems in walking about",
+                q1_code=1,
+                q2="I am unable to walk about",
+                q2_code=5,
+            ),
+            _make_eq5d(dt.date(2041, 5, 1), q1="I have slight problems", q1_code=2),
+        ]
+
+        baseline = TumorAssessmentBaseline(PID)
+        baseline.assessment_date = dt.date(2040, 5, 1)
+        baseline.assessment_type = "RECIST"
+        patient.tumor_assessment_baseline = baseline
+
+        context = create_build_context(patient, PERSON_ID)
+        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+
+        assert len(rows) == 3
+
+        # q1 level 1
+        row_1 = rows[0]
+        assert row_1.value_as_number == 1.0
+        assert row_1.measurement_source_value == "I have no problems in walking about"
+        assert row_1.visit_occurrence_id == context.visit_id_by_date.get(row_1.measurement_date)
+        assert row_1.measurement_concept_id == 742346
+        assert row_1.value_as_concept_id is None
+        assert row_1.measurement_type_concept_id == 32817
+        assert row_1.person_id == PERSON_ID
+        assert row_1.measurement_date == dt.date(2040, 5, 1)
+        assert row_1.measurement_datetime == dt.datetime(2040, 5, 1)
+        assert row_1.measurement_id == 5607913108096982206
+
+        # q2 level 5
+        row_2 = rows[1]
+        assert row_2.value_as_number == 5.0
+        assert row_2.measurement_concept_id == 742355
+        assert row_2.visit_occurrence_id == context.visit_id_by_date.get(row_2.measurement_date)
+
+        # q1 level 2 2041 instance, no visit
+        row_3 = rows[2]
+        assert row_3.value_as_number == 2.0
+        assert row_3.measurement_date == dt.date(2041, 5, 1)
+        assert row_3.measurement_concept_id == 742347
+        assert row_3.visit_occurrence_id is None
+
+    def test_levels_2_through_5_resolve_distinct_concepts(self, static_index, structural_index):
+        # same dimension but different levels yields different precoordinated concepts
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), q1_code=1, q2_code=2),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        concept_ids = {r.measurement_concept_id for r in rows}
+        assert concept_ids == {742346, 742352}
+
+    def test_dimension_without_level_skipped(self, static_index, structural_index):
+        # text field alone can't be used for precoordinated lookup, skip text only fields
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), q1="some text", q2_code=2),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].measurement_concept_id == 742352  # only q2
+
+    def test_unmapped_level_skipped(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), q1_code=99),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert rows == []
+
+    def test_vas_emits_separate_row(self, static_index, structural_index):
+        # qol_metric (VAS: 0–100) uses structural eq5d_qol_score with value_as_number
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), qol_metric=80),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.measurement_concept_id == 42537274  # eq5d_qol_score
+        assert row.value_as_concept_id is None
+        assert row.value_as_number == 80.0
+        assert row.measurement_source_value == "80"
+
+    def test_full_instance_emits_dimensions_and_vas(self, static_index, structural_index):
+        # 1 dimension + VAS = 2 rows
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), q1_code=1, qol_metric=80),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        concept_ids = {r.measurement_concept_id for r in rows}
+        assert concept_ids == {742346, 42537274}
+
+    def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        eq5d = EQ5D(PID)
+        eq5d.q1_code = 1
+        eq5d.qol_metric = 80
+        patient.eq5d_collection = [eq5d]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_vas_skipped_when_structural_concept_missing(self, static_index):
+        # no eq5d_qol_score in the structural index: VAS row skipped, dimensions still emit rows
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), q1_code=1, qol_metric=80),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, {})).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].measurement_concept_id == 742346
+
+    def test_row_ids_unique_within_instance(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), q1_code=1, q2_code=2, qol_metric=80),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        ids = [r.measurement_id for r in rows]
+        assert len(ids) == 3
+        assert len(set(ids)) == 3
+
+    def test_row_ids_unique_across_instances(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.eq5d_collection = [
+            _make_eq5d(dt.date(2040, 5, 1), event_name="BASELINE", q1_code=1),
+            _make_eq5d(dt.date(2040, 8, 1), event_name="C04", q1_code=2),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        ids = [r.measurement_id for r in rows]
+        assert len(ids) == 2
+        assert len(set(ids)) == 2

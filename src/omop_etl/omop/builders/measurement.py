@@ -25,8 +25,9 @@ log = getLogger(__name__)
 
 
 class MeasurementBuilder(OmopBuilder[MeasurementRow]):
-    """Builds measurement rows from ECOG, biomarkers, tumor assessments, C30/EQ5D PROs,
-    and adverse-event terms that map to the Measurement domain.
+    """Builds measurement rows from ECOG, tumor-assessment baseline + per-instance
+    assessments, C30/EQ5D PROs, biomarkers, and adverse-event terms that map to the
+    Measurement domain.
 
     CDM 5.4 policy:
     - `measurement_concept_id` must be in measurement domain. Rows are skipped if no
@@ -35,6 +36,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
       categorical result; 0 when there is a categorical result but no mapping;
       otherwise the mapped concept id.
     - `value_as_number` is the numeric result where the source provides one.
+    - `visit_occurrence_id` is linked by date via `ctx.visit_id_by_date` (populated
+      by the visit_occurrence builder, which must run before this one).
     """
 
     table_name: ClassVar[str] = "measurement"
@@ -47,8 +50,6 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
         measurement_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
-        # bind property accessors to locals so the type checker can narrow `None`
-        # across the call site and the inner method.
         ecog_baseline = patient.ecog_baseline
         if ecog_baseline is not None:
             rows.extend(
@@ -143,6 +144,15 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ecog_baseline: EcogBaseline,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
+        """
+        Emits 0 or 1 row from EcogBaseline.
+        Skipped if date, grade or ecog structural concept is missing.
+        measurement_concept_id is the structural ecog concept,
+        with the value_as_concept_id containing the static mapping per grade (0 if grade has no static mapping)
+        and the raw score in value_as_number.
+
+        Skipped if date, grade, or ecog structural concept is missing.
+        """
         date = ecog_baseline.date
         grade = ecog_baseline.grade
         if date is None:
@@ -204,8 +214,14 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         baseline: TumorAssessmentBaseline,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        # baseline nadir is not emitted, at baseline nadir is the starting size
-        # off-target lesion count belongs in observation, has no measurement concept for lesion count
+        """
+        Emits 0 or 1 row from TumorAssessmentBaseline.
+        measurment_concept_id is the structural lookup for 'lesion_size',
+        value_as_number is the actual size at baseline.
+
+        Skipped if target_lesion_size, target_lesion_measurement_date, or
+        lesion_size structural concept is missing.
+        """
         size = baseline.target_lesion_size
         date = baseline.target_lesion_measurement_date
         if size is None:
@@ -248,6 +264,18 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
+        """
+        Emits 0-4 rows per TumorAssessment instance.
+        1 row for each mapped target_lesion_size field when set,
+        using the strutural 'lesion_size' lookup as the measurement_concept_id,
+        storing the lesion size in the measurement_as_number.
+
+        1-3 rows as emitted per populated response scale (RECIST, iRECIST, RANO).
+        The responses use precooordinated pairs, so the measurement_concept_id stores
+        both the question and value (same as EQ5D) as on static concept.
+
+        If date is missing the instance is skipped entirely and no rows are emitted.
+        """
         date = tumor_assessments.date
         if date is None:
             log.warning("Skipping tumor assessment %d for %s: missing date", index, patient.patient_id)
@@ -257,9 +285,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         visit_occurrence_id = ctx.visit_id_by_date.get(date)
         datetime_value = dt.datetime(date.year, date.month, date.day)
 
-        # absolute target-lesion size set by harmonizer: baseline * (1 + change_from_baseline)
-        # skipped when size or structural concept is unavailable,
-        # response rows on the same instance emits rows independantly (below)
+        # absolute target-lesion size
         size = tumor_assessments.target_lesion_size
         if size is not None:
             lesion = self.concepts.lookup_structural("lesion_size", domains={OmopDomain.MEASUREMENTS})
@@ -284,9 +310,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     )
                 )
 
-        # response rows: each scale has its own precoordinated Measurement concept that
-        # encodes scale + answer (e.g. "RECIST 1.1: stable disease"),
-        # the static concept is the measurement_concept_id and value_as_concept_id stays NULL
+        # tumor assessment response rows
         recist = tumor_assessments.recist_response
         if recist is not None:
             concept = self.concepts.lookup_static("response_recist", recist, domains={OmopDomain.MEASUREMENTS})
@@ -373,11 +397,19 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        # EORTC QLQ-C30: 30 questions, one row per question.
-        # measurement_concept_id = structural `c30_q{N}` (precoordinated, names the question)
-        # value_as_concept_id = static answer concept; Q1–Q28 share `c30_answer_code` (1–4),
-        #   Q29–Q30 use `c30_global_answer_code` (1–7) — different scales.
-        # value_as_number = the raw level code; measurement_source_value = the answer text.
+        """
+        QLQ-C30 has 30 'question' fields. For each C30 instance the builder emits one row per answered question,
+        where either the answer or code is populated. These fields combine to a single row.
+
+        measurement_concept_id is populated by the structural question code for that field.
+
+        value_as_concept_id:
+        For Q1-Q28 the 4-level static lookups are used.
+        Q29-30 uses specific static concepts unique to those fields.
+
+        If a level is missing, sets the value to NULL, 0 when level is set but unmapped.
+        If date is missing, the entire instance is skipped and no rows are emitted.
+        """
         date = c30.date
         if date is None:
             log.warning("Skipping C30 instance %d for %s: missing date", index, patient.patient_id)
@@ -395,10 +427,10 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
             test_concept = self.concepts.lookup_structural(f"c30_q{n}", domains={OmopDomain.MEASUREMENTS})
             if test_concept is None:
-                # CDM: skip when no Measurement-domain concept is available.
+                log.warning("No measurement domain concept for C30 test found for patient %s", patient.patient_id)
                 continue
 
-            # Q29 (overall health) and Q30 (overall QoL) use the 1–7 global scale; Q1–Q28 use 1–4.
+            # Q29 (overall health) and Q30 (overall QoL) use the 1–7 global scale
             value_as_concept_id: int | None = None
             if answer_level is not None:
                 answer_set = "c30_global_answer_code" if n in (29, 30) else "c30_answer_code"
@@ -438,7 +470,86 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        return []
+        """
+        EQ5D: 5 question dimension and the VAS QoL score.
+        Per EQ5D instance, emits 0–6 rows.
+
+        Each question dimension uses a precoordinated static concept
+        that encodes the question and answer together in measurement_concept_id.
+        The actual score is in value_as_number.
+
+        The VAS score uses the rq5d_qol_core structural concept for measurement_concept_id,
+        storing the score in value_as_number.
+
+        If VAS score or question code field is missing, skips that field and emits no row.
+        If date is missing, skips the entire instance.
+        """
+        date = eq5d.date
+        if date is None:
+            log.warning("Skipping EQ5D instance %d for %s: missing date", index, patient.patient_id)
+            return []
+
+        rows: list[MeasurementRow] = []
+        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        datetime_value = dt.datetime(date.year, date.month, date.day)
+
+        for n in range(1, EQ5D.Q_COUNT + 1):
+            level: int | None = getattr(eq5d, f"q{n}_code")
+            if level is None:
+                continue
+
+            answer_concept = self.concepts.lookup_static(f"eq5d_q{n}_answer_code", str(level), domains={OmopDomain.MEASUREMENTS})
+            if answer_concept is None:
+                continue
+
+            text: str | None = getattr(eq5d, f"q{n}")
+            source_value = text if text is not None else str(level)
+            rows.append(
+                MeasurementRow(
+                    measurement_id=self.generate_row_id(
+                        patient.patient_id,
+                        Patient.Collections.EQ5D_COLLECTION,
+                        str(eq5d.event_name),
+                        str(date),
+                        f"q{n}",
+                    ),
+                    person_id=person_id,
+                    measurement_concept_id=int(answer_concept.concept_id),
+                    measurement_date=date,
+                    measurement_datetime=datetime_value,
+                    measurement_type_concept_id=ecrf_concept,
+                    value_as_number=float(level),
+                    visit_occurrence_id=visit_occurrence_id,
+                    measurement_source_value=source_value[:50],
+                )
+            )
+
+        # VAS row
+        vas = eq5d.qol_metric
+        if vas is not None:
+            vas_concept = self.concepts.lookup_structural("eq5d_qol_score", domains={OmopDomain.MEASUREMENTS})
+            if vas_concept is not None:
+                rows.append(
+                    MeasurementRow(
+                        measurement_id=self.generate_row_id(
+                            patient.patient_id,
+                            Patient.Collections.EQ5D_COLLECTION,
+                            str(eq5d.event_name),
+                            str(date),
+                            EQ5D.Fields.QOL_METRIC,
+                        ),
+                        person_id=person_id,
+                        measurement_concept_id=int(vas_concept.concept_id),
+                        measurement_date=date,
+                        measurement_datetime=datetime_value,
+                        measurement_type_concept_id=ecrf_concept,
+                        value_as_number=float(vas),
+                        visit_occurrence_id=visit_occurrence_id,
+                        measurement_source_value=str(vas)[:50],
+                    )
+                )
+
+        return rows
 
     def _build_adverse_event_rows(
         self,
