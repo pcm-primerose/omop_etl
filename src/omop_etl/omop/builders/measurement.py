@@ -373,7 +373,61 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         index: int,
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
-        return []
+        # EORTC QLQ-C30: 30 questions, one row per question.
+        # measurement_concept_id = structural `c30_q{N}` (precoordinated, names the question)
+        # value_as_concept_id = static answer concept; Q1–Q28 share `c30_answer_code` (1–4),
+        #   Q29–Q30 use `c30_global_answer_code` (1–7) — different scales.
+        # value_as_number = the raw level code; measurement_source_value = the answer text.
+        date = c30.date
+        if date is None:
+            log.warning("Skipping C30 instance %d for %s: missing date", index, patient.patient_id)
+            return []
+
+        rows: list[MeasurementRow] = []
+        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        datetime_value = dt.datetime(date.year, date.month, date.day)
+
+        for n in range(1, C30.Q_COUNT + 1):
+            answer_text: str | None = getattr(c30, f"q{n}")
+            answer_level: int | None = getattr(c30, f"q{n}_code")
+            if answer_text is None and answer_level is None:
+                continue
+
+            test_concept = self.concepts.lookup_structural(f"c30_q{n}", domains={OmopDomain.MEASUREMENTS})
+            if test_concept is None:
+                # CDM: skip when no Measurement-domain concept is available.
+                continue
+
+            # Q29 (overall health) and Q30 (overall QoL) use the 1–7 global scale; Q1–Q28 use 1–4.
+            value_as_concept_id: int | None = None
+            if answer_level is not None:
+                answer_set = "c30_global_answer_code" if n in (29, 30) else "c30_answer_code"
+                answer_concept = self.concepts.lookup_static(answer_set, str(answer_level), domains={"Meas Value"})
+                value_as_concept_id = int(answer_concept.concept_id) if answer_concept else 0
+
+            source_value = answer_text if answer_text is not None else str(answer_level)
+            rows.append(
+                MeasurementRow(
+                    measurement_id=self.generate_row_id(
+                        patient.patient_id,
+                        Patient.Collections.C30_COLLECTION,
+                        str(c30.event_name),
+                        str(date),
+                        f"q{n}",
+                    ),
+                    person_id=person_id,
+                    measurement_concept_id=int(test_concept.concept_id),
+                    measurement_date=date,
+                    measurement_datetime=datetime_value,
+                    measurement_type_concept_id=ecrf_concept,
+                    value_as_number=float(answer_level) if answer_level is not None else None,
+                    value_as_concept_id=value_as_concept_id,
+                    visit_occurrence_id=visit_occurrence_id,
+                    measurement_source_value=source_value[:50],
+                )
+            )
+
+        return rows
 
     def _build_eq5d_rows(
         self,

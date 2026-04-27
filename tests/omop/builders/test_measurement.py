@@ -1,6 +1,7 @@
 import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
@@ -364,3 +365,196 @@ class TestTumorAssessmentRows:
 
         # no visit exists on 2040-06-14, so visit_occurrence_id stays None
         assert rows[0].visit_occurrence_id is None
+
+
+def _make_c30(date: dt.date, event_name: str = "BASELINE", **answers: str | int) -> C30:
+    c30 = C30(PID)
+    c30.date = date
+    c30.event_name = event_name
+    for attr, value in answers.items():
+        setattr(c30, attr, value)
+    return c30
+
+
+class TestC30Rows:
+    def test_emits_q1_with_text_and_level(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="not at all", q1_code=1),
+            _make_c30(dt.date(2041, 5, 1), q2="quite a bit", q2_code=3),
+        ]
+
+        baseline = TumorAssessmentBaseline(patient_id=PID)
+        baseline.assessment_date = dt.date(2040, 5, 1)
+        baseline.assessment_type = "RECIST"
+        patient.tumor_assessment_baseline = baseline
+
+        context = create_build_context(patient, PERSON_ID)
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+
+        assert len(rows) == 2
+
+        # c30_q1
+        row_1 = rows[0]
+        assert row_1.measurement_concept_id == 701340
+        assert row_1.measurement_date == dt.date(2040, 5, 1)
+        assert row_1.value_as_concept_id == 45883172
+        assert row_1.value_as_number == 1.0
+        assert row_1.measurement_source_value == "not at all"
+        assert row_1.measurement_type_concept_id == 32817
+        assert row_1.visit_occurrence_id == context.visit_id_by_date.get(row_1.measurement_date)
+
+        # c30_q2
+        row_2 = rows[1]
+        assert row_2.measurement_concept_id == 701341
+        assert row_2.measurement_date == dt.date(2041, 5, 1)
+        assert row_2.value_as_concept_id == 45884456
+        assert row_2.value_as_number == 3.0
+        assert row_2.measurement_source_value == "quite a bit"
+        assert row_2.measurement_type_concept_id == 32817
+        assert row_2.visit_occurrence_id is None
+
+    def test_q29_uses_global_answer_scale(self, static_index, structural_index):
+        # Q29 (overall health) uses c30_global_answer_code (1–7)
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q29="Excellent", q29_code=7),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].measurement_concept_id == 701367  # c30_q29
+        assert rows[0].value_as_concept_id == 45881924  # c30_global_answer_code level 7
+        assert rows[0].value_as_number == 7.0
+
+    def test_multiple_questions_yield_multiple_rows(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="A little", q1_code=2, q2="Quite a bit", q2_code=3),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 2
+        by_concept = {r.measurement_concept_id: r for r in rows}
+        assert by_concept[701340].value_as_concept_id == 45876949  # level 2
+        assert by_concept[701341].value_as_concept_id == 45884456  # level 3
+
+    def test_question_with_no_text_or_level_skipped(self, static_index, structural_index):
+        # only Q1 answered: rest skipped silently
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="Not at all", q1_code=1),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+
+    def test_level_out_of_range_emits_value_as_concept_zero(self, static_index, structural_index):
+        # 99 has no static mapping: value_as_concept_id = 0.
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="weird answer", q1_code=99),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].value_as_concept_id == 0
+        assert rows[0].value_as_number == 99.0
+        assert rows[0].measurement_source_value == "weird answer"
+
+    def test_text_present_but_no_level(self, static_index, structural_index):
+        # source has answer text but no level code: emit row with measurement concept,
+        # value_as_concept_id NULL since no categorical level to look up, no value_as_number
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="Not at all"),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].measurement_concept_id == 701340
+        assert rows[0].value_as_concept_id is None
+        assert rows[0].value_as_number is None
+        assert rows[0].measurement_source_value == "Not at all"
+
+    def test_level_present_but_no_text(self, static_index, structural_index):
+        # source has level but no text: emit row with stringified level as source_value.
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1_code=2),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].value_as_number == 2.0
+        assert rows[0].value_as_concept_id == 45876949
+        assert rows[0].measurement_source_value == "2"
+
+    def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        c30 = C30(PID)
+        c30.q1 = "Not at all"
+        c30.q1_code = 1
+        patient.c30_collection = [c30]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+        assert rows == []
+
+    def test_no_structural_concept_skips_question(self, static_index):
+        # no c30_q1 in the structural index: that question is skipped, others continue
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="Not at all", q1_code=1, q2="A little", q2_code=2),
+        ]
+        # only c30_q2 in the structural index
+        from tests.omop.conftest import _structural
+
+        partial = {"c30_q2": _structural("c30_q2", "701341", "measurement")}
+        rows = MeasurementBuilder(ConceptLookupService(static_index, partial)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].measurement_concept_id == 701341
+
+    def test_row_ids_unique_within_instance(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="Not at all", q1_code=1, q2="A little", q2_code=2, q29="Excellent", q29_code=7),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        ids = [r.measurement_id for r in rows]
+        assert len(ids) == 3
+        assert len(set(ids)) == 3
+
+    def test_row_ids_unique_across_instances(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), event_name="BASELINE", q1="Not at all", q1_code=1),
+            _make_c30(dt.date(2040, 8, 1), event_name="C04", q1="A little", q1_code=2),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        ids = [r.measurement_id for r in rows]
+        assert len(ids) == 2
+        assert len(set(ids)) == 2
+
+    def test_row_id_deterministic(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.c30_collection = [
+            _make_c30(dt.date(2040, 5, 1), q1="Not at all", q1_code=1),
+        ]
+        context = create_build_context(patient, PERSON_ID)
+
+        rows_1 = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        rows_2 = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+
+        assert rows_1[0].measurement_id == rows_2[0].measurement_id
