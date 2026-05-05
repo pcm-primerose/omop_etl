@@ -37,8 +37,8 @@ def _find_config_path(trial: str, base) -> Optional[object]:
         pass
 
     for p in base.iterdir():
-        name = getattr(p, "name", None)
-        if not name or not name.endswith(".json5"):
+        name: str | None = getattr(p, "name", None)
+        if name is None or not name.endswith(".json5"):
             continue
         if name.casefold() == target_name:
             return p
@@ -51,7 +51,7 @@ def available_trials() -> list[str]:
     return out
 
 
-def _validate(config: dict) -> dict:
+def _validate(config: object) -> dict:
     if not isinstance(config, dict) or not all(isinstance(v, list) for v in config.values()):
         raise ValueError("Config must be a mapping[str, list[str]].")
     return config

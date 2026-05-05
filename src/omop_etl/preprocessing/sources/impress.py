@@ -1,5 +1,9 @@
 import polars as pl
-from ..core.models import EcrfConfig, PreprocessingRunOptions
+
+from src.omop_etl.preprocessing.core.models import (
+    EcrfConfig,
+    PreprocessingRunOptions,
+)
 
 
 def preprocess_impress(df: pl.DataFrame, ecfg: EcrfConfig, run_opts: PreprocessingRunOptions) -> pl.DataFrame:
@@ -17,7 +21,7 @@ def _filter_valid_cohort(df: pl.DataFrame) -> pl.DataFrame:
     """
     name = pl.col("COH_COHORTNAME")
     valid = name.is_not_null() & (name.str.strip_chars().str.len_chars() > 0) & (name.str.to_uppercase() != "NA")
-    any_valid = df.select(pl.col("SubjectId"), valid.alias("v")).group_by("SubjectId").agg(pl.any("v").alias("ok"))
+    any_valid = df.select(pl.col("SubjectId"), valid.alias("v")).group_by("SubjectId").agg(pl.col("v").any().alias("ok"))
     return df.join(any_valid.filter(pl.col("ok")), on="SubjectId", how="semi")
 
 

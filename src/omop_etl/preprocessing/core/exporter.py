@@ -9,8 +9,8 @@ from omop_etl.infra.logging.scoped import file_logging
 from omop_etl.infra.logging.adapters import with_extra
 from omop_etl.infra.io.types import (
     Layout,
-    WideFormat,
-    WIDE_FORMATS,
+    TabularFormat,
+    TABULAR_FORMATS,
 )
 from omop_etl.infra.io.io_core import (
     write_frame,
@@ -45,15 +45,15 @@ class PreprocessExporter:
         df: pl.DataFrame,
         meta,
         input_path: Path,
-        formats: Sequence[WideFormat],
+        formats: Sequence[TabularFormat],
         opts: WriterOptions | None = None,
-    ) -> Dict[WideFormat, WriterContext]:
+    ) -> Dict[TabularFormat, WriterContext]:
         opts = opts or WriterOptions()
-        out: Dict[WideFormat, WriterContext] = {}
+        out: Dict[TabularFormat, WriterContext] = {}
 
         # enforce only allowed tokens
         for fmt in formats:
-            if fmt not in WIDE_FORMATS:
+            if fmt not in TABULAR_FORMATS:
                 raise ValueError(f"Unsupported wide fmt: {fmt}")
 
         for fmt in formats:

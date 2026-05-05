@@ -55,10 +55,9 @@ def expand_formats(
         t = ALIASES.get(t, t)
         if t not in allowed_set:
             raise ValueError(f"Unsupported format: {tok}. Allowed: {', '.join(allowed)} or 'all'.")
-        t_typed = cast(F, t)
-        if t_typed not in seen:
-            seen.add(t_typed)
-            requested.append(t_typed)
+        if t not in seen:
+            seen.add(t)
+            requested.append(t)
 
     return requested
 

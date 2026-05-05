@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Sequence, Dict
+from typing import ClassVar, Sequence, Dict, cast
 import polars as pl
 from logging import getLogger
 
@@ -15,6 +15,8 @@ log = getLogger(__name__)
 
 class BaseReader(ABC):
     """Base class for data readers with common functionality."""
+
+    SUPPORTED_EXTENSIONS: ClassVar[set[str]] = set()
 
     @abstractmethod
     def can_read(self, path: Path) -> bool:
@@ -107,7 +109,10 @@ class ExcelReader(BaseReader):
         """
         log.info(f"Loading Excel file: {path}")
 
-        all_sheets = pl.read_excel(path, sheet_id=0, has_header=True, read_options={"header_row": 1})
+        result = pl.read_excel(path, sheet_id=0, has_header=True, read_options={"header_row": 1})
+        if not isinstance(result, dict):
+            raise TypeError(f"Expected dict of sheets from read_excel(sheet_id=0), got {type(result).__name__}")
+        all_sheets = cast(dict[str, pl.DataFrame], result)
 
         loaded_sheets = []
 
