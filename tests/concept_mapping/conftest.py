@@ -23,7 +23,7 @@ def static_concepts() -> list[StaticConcept]:
         StaticConcept(
             value_set="sex",
             local_value="M",
-            concept_id="8507",
+            concept_id=8507,
             concept_code="M",
             concept_name="Male",
             concept_class="Gender",
@@ -35,7 +35,7 @@ def static_concepts() -> list[StaticConcept]:
         StaticConcept(
             value_set="sex",
             local_value="F",
-            concept_id="8532",
+            concept_id=8532,
             concept_code="F",
             concept_name="Female",
             concept_class="Gender",
@@ -58,7 +58,7 @@ def structural_concepts() -> list[StructuralConcept]:
     return [
         StructuralConcept(
             value_set="ecrf",
-            concept_id="32817",
+            concept_id=32817,
             concept_code="OMOP4822053",
             concept_name="EHR encounter record",
             domain_id="Type Concept",

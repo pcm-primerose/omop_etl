@@ -209,7 +209,7 @@ class TreatmentCycleComponent(DomainBase):
         )
 
     @property
-    def was_total_dose_delivered(self) -> str | None:
+    def was_total_dose_delivered(self) -> bool | None:
         return self._was_total_dose_delivered
 
     @was_total_dose_delivered.setter

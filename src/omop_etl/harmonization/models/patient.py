@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import TypeVar
 
 from omop_etl.harmonization.core.validators import StrictValidators
-from omop_etl.harmonization.core.track_validated import TrackedValidated
+from omop_etl.harmonization.core.track_validated import TrackedValidated, setter_name
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -311,7 +311,7 @@ class Patient(TrackedValidated):
             value,
             item_type=TumorType,
             patient_id=self._patient_id,
-            field_name=self.__class__.tumor_type.fset.__name__,
+            field_name=setter_name(self.__class__.tumor_type),
         )
         self.updated_fields.add(TumorType.__name__)
 
@@ -325,7 +325,7 @@ class Patient(TrackedValidated):
             value,
             item_type=StudyDrugs,
             patient_id=self._patient_id,
-            field_name=self.__class__.study_drugs.fset.__name__,
+            field_name=setter_name(self.__class__.study_drugs),
         )
         self.updated_fields.add(StudyDrugs.__name__)
 
@@ -339,7 +339,7 @@ class Patient(TrackedValidated):
             value,
             item_type=Biomarkers,
             patient_id=self._patient_id,
-            field_name=self.__class__.biomarkers.fset.__name__,
+            field_name=setter_name(self.__class__.biomarkers),
         )
         self.updated_fields.add(Biomarkers.__name__)
 
@@ -353,7 +353,7 @@ class Patient(TrackedValidated):
             value,
             item_type=FollowUp,
             patient_id=self._patient_id,
-            field_name=self.__class__.lost_to_followup.fset.__name__,
+            field_name=setter_name(self.__class__.lost_to_followup),
         )
         self.updated_fields.add(FollowUp.__name__)
 
@@ -367,7 +367,7 @@ class Patient(TrackedValidated):
             value,
             item_type=EcogBaseline,
             patient_id=self._patient_id,
-            field_name=self.__class__.ecog_baseline.fset.__name__,
+            field_name=setter_name(self.__class__.ecog_baseline),
         )
         self.updated_fields.add(EcogBaseline.__name__)
 
@@ -381,7 +381,7 @@ class Patient(TrackedValidated):
             value,
             item_type=TumorAssessmentBaseline,
             patient_id=self._patient_id,
-            field_name=self.__class__.tumor_assessment_baseline.fset.__name__,
+            field_name=setter_name(self.__class__.tumor_assessment_baseline),
         )
         self.updated_fields.add(TumorAssessmentBaseline.__name__)
 
@@ -395,7 +395,7 @@ class Patient(TrackedValidated):
             value,
             item_type=BestOverallResponse,
             patient_id=self._patient_id,
-            field_name=self.__class__.best_overall_response.fset.__name__,
+            field_name=setter_name(self.__class__.best_overall_response),
         )
         self.updated_fields.add(BestOverallResponse.__name__)
 
@@ -407,9 +407,9 @@ class Patient(TrackedValidated):
     @medical_histories.setter
     def medical_histories(self, value: Sequence[MedicalHistory] | None) -> None:
         self._medical_histories = self.validate_collection(
-            value, item_type=MedicalHistory, patient_id=self._patient_id, field_name=self.__class__.medical_histories.fset.__name__
+            value, item_type=MedicalHistory, patient_id=self._patient_id, field_name=setter_name(self.__class__.medical_histories)
         )
-        self.updated_fields.add(self.__class__.medical_histories.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.medical_histories))
 
     @property
     def previous_treatments(self) -> tuple[PreviousTreatments, ...]:
@@ -418,9 +418,9 @@ class Patient(TrackedValidated):
     @previous_treatments.setter
     def previous_treatments(self, value: Sequence[PreviousTreatments] | None) -> None:
         self._previous_treatments = self.validate_collection(
-            value, item_type=PreviousTreatments, patient_id=self._patient_id, field_name=self.__class__.previous_treatments.fset.__name__
+            value, item_type=PreviousTreatments, patient_id=self._patient_id, field_name=setter_name(self.__class__.previous_treatments)
         )
-        self.updated_fields.add(self.__class__.previous_treatments.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.previous_treatments))
 
     @property
     def treatment_cycles(self) -> tuple[TreatmentCycleComponent, ...]:
@@ -429,9 +429,9 @@ class Patient(TrackedValidated):
     @treatment_cycles.setter
     def treatment_cycles(self, value: Sequence[TreatmentCycleComponent] | None) -> None:
         self._treatment_cycles = self.validate_collection(
-            value, item_type=TreatmentCycleComponent, patient_id=self._patient_id, field_name=self.__class__.treatment_cycles.fset.__name__
+            value, item_type=TreatmentCycleComponent, patient_id=self._patient_id, field_name=setter_name(self.__class__.treatment_cycles)
         )
-        self.updated_fields.add(self.__class__.treatment_cycles.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.treatment_cycles))
 
     @property
     def concomitant_medications(self) -> tuple[ConcomitantMedication, ...]:
@@ -443,9 +443,9 @@ class Patient(TrackedValidated):
             value,
             item_type=ConcomitantMedication,
             patient_id=self._patient_id,
-            field_name=self.__class__.concomitant_medications.fset.__name__,
+            field_name=setter_name(self.__class__.concomitant_medications),
         )
-        self.updated_fields.add(self.__class__.concomitant_medications.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.concomitant_medications))
 
     @property
     def adverse_events(self) -> tuple[AdverseEvent, ...]:
@@ -457,9 +457,9 @@ class Patient(TrackedValidated):
             value,
             item_type=AdverseEvent,
             patient_id=self._patient_id,
-            field_name=self.__class__.adverse_events.fset.__name__,
+            field_name=setter_name(self.__class__.adverse_events),
         )
-        self.updated_fields.add(self.__class__.adverse_events.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.adverse_events))
 
     @property
     def tumor_assessments(self) -> tuple[TumorAssessment, ...]:
@@ -471,9 +471,9 @@ class Patient(TrackedValidated):
             value,
             item_type=TumorAssessment,
             patient_id=self._patient_id,
-            field_name=self.__class__.tumor_assessments.fset.__name__,
+            field_name=setter_name(self.__class__.tumor_assessments),
         )
-        self.updated_fields.add(self.__class__.tumor_assessments.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.tumor_assessments))
 
     @property
     def c30_collection(self) -> tuple[C30, ...]:
@@ -485,9 +485,9 @@ class Patient(TrackedValidated):
             value,
             item_type=C30,
             patient_id=self._patient_id,
-            field_name=self.__class__.c30_collection.fset.__name__,
+            field_name=setter_name(self.__class__.c30_collection),
         )
-        self.updated_fields.add(self.__class__.c30_collection.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.c30_collection))
 
     @property
     def eq5d_collection(self) -> tuple[EQ5D, ...]:
@@ -499,9 +499,9 @@ class Patient(TrackedValidated):
             value,
             item_type=EQ5D,
             patient_id=self._patient_id,
-            field_name=self.__class__.eq5d_collection.fset.__name__,
+            field_name=setter_name(self.__class__.eq5d_collection),
         )
-        self.updated_fields.add(self.__class__.eq5d_collection.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.eq5d_collection))
 
     @staticmethod
     def validate_singleton(

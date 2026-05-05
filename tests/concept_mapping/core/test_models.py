@@ -9,7 +9,7 @@ class TestLookupResult:
     def test_record_match(self):
         result = LookupResult()
         concept = MappedConcept(
-            concept_id="8507",
+            concept_id=8507,
             concept_code="M",
             concept_name="Male",
             domain_id="Gender",

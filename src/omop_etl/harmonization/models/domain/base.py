@@ -79,10 +79,12 @@ class DomainBase(TrackedValidated, ABC):
         cls._schema_validated = True
 
     @classmethod
-    def data_fields(cls) -> tuple[str, ...] | None:
+    def data_fields(cls) -> tuple[str, ...]:
         """Returns the data fields for this domain class."""
         cls._ensure_schema()
-        return cls._data_fields
+        fields = cls._data_fields
+        assert fields is not None, f"{cls.__name__}._ensure_schema() did not populate _data_fields"
+        return fields
 
     @classmethod
     def from_row(

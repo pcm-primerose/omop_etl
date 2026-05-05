@@ -604,22 +604,12 @@ class TestValidateSpecs:
                     pass
 
     def test_singleton_requires_target_domain(self):
-        with pytest.raises(ValueError, match="singleton requires target_domain"):
-
-            class BadHarmonizer(BaseHarmonizer):  # noqa
-                SPECS = (SingletonSpec(name="foo", process=_noop_processor),)
-
-                def _create_patients(self) -> None:
-                    pass
+        with pytest.raises(TypeError, match="missing 1 required keyword-only argument: 'target_domain'"):
+            SingletonSpec(name="foo", process=_noop_processor)
 
     def test_collection_requires_target_domain(self):
-        with pytest.raises(ValueError, match="collection requires target_domain"):
-
-            class BadHarmonizer(BaseHarmonizer):  # noqa
-                SPECS = (CollectionSpec(name="foo", process=_noop_processor),)
-
-                def _create_patients(self) -> None:
-                    pass
+        with pytest.raises(TypeError, match="missing 1 required keyword-only argument: 'target_domain'"):
+            CollectionSpec(name="foo", process=_noop_processor)
 
     def test_empty_subject_col_raises(self):
         with pytest.raises(ValueError, match="subject_col cannot be empty"):

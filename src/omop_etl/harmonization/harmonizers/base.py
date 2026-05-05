@@ -14,6 +14,7 @@ from typing import (
 )
 
 from omop_etl.harmonization.models.domain.base import DomainBase
+from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
@@ -46,21 +47,21 @@ class ScalarSpec(SpecBase):
     on_duplicate: Literal["error", "first", "last"] = "error"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SingletonSpec(SpecBase):
     """Spec for singleton domain objects (one per patient)."""
 
+    target_domain: type[DomainBase]
     kind: Literal["singleton"] = "singleton"
-    target_domain: type[DomainBase] | None = None
     on_duplicate: Literal["error", "first", "last"] = "error"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class CollectionSpec(SpecBase):
     """Spec for collection domain objects (multiple per patient)."""
 
+    target_domain: type[DomainBase]
     kind: Literal["collection"] = "collection"
-    target_domain: type[DomainBase] | None = None
     mode: Literal["replace", "extend"] = "replace"
     order_by: tuple[str, ...] = ()
     require_order_by: bool = False
@@ -79,7 +80,8 @@ _SPEC_ATTR = "__processor_spec__"
 
 def _derived_name(fn: Callable[..., Any]) -> str:
     """Strip the conventional `_process_` prefix to get the logical spec name."""
-    return fn.__name__.removeprefix("_process_")
+    name: str = getattr(fn, "__name__")
+    return name.removeprefix("_process_")
 
 
 def scalar(
@@ -262,6 +264,10 @@ class BaseHarmonizer(ABC):
         """
         ...
 
+    def process(self) -> HarmonizedData:
+        """Run harmonization and return the harmonized output. Subclasses override."""
+        raise NotImplementedError(f"{type(self).__name__} must implement process()")
+
     @classmethod
     def _validate_specs(cls, specs: tuple[ProcessorSpec, ...]) -> None:
         """
@@ -288,8 +294,6 @@ class BaseHarmonizer(ABC):
                     raise ValueError(f"{spec.name}: Patient has no attribute '{spec.target_attr}'")
 
             elif isinstance(spec, SingletonSpec):
-                if not spec.target_domain:
-                    raise ValueError(f"{spec.name}: singleton requires target_domain")
                 try:
                     Patient.get_attr_for_type(spec.target_domain)
                 except KeyError as e:
@@ -298,9 +302,6 @@ class BaseHarmonizer(ABC):
                     raise ValueError(f"{spec.name}: @singleton used with {spec.target_domain.__name__}, but Patient maps it to a collection attribute")
 
             elif isinstance(spec, CollectionSpec):
-                if not spec.target_domain:
-                    raise ValueError(f"{spec.name}: collection requires target_domain")
-
                 if spec.order_by:
                     canonical = set(spec.target_domain.data_fields())
                     invalid = set(spec.order_by) - canonical
@@ -693,12 +694,12 @@ class BaseHarmonizer(ABC):
             raise RuntimeError("patient_data is empty. _create_patients() must populate it.")
 
     @staticmethod
-    def _log_processor_metrics(spec: ProcessorSpec, df: pl.DataFrame) -> None:
+    def _log_processor_metrics(spec: SingletonSpec | CollectionSpec, df: pl.DataFrame) -> None:
         """
         Log basic observability metrics for a processor result.
 
         Args:
-            spec (ProcessorSpec): ProcessorSpec instance to log.
+            spec: Singleton or Collection spec to log (scalar specs have no target_domain).
             df (pl.DataFrame): Dataframe for that processor spec.
         """
         row_count = df.height

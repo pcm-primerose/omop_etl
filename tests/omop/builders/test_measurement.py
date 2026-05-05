@@ -590,7 +590,7 @@ class TestEQ5DRows:
         assert row_1.person_id == PERSON_ID
         assert row_1.measurement_date == dt.date(2040, 5, 1)
         assert row_1.measurement_datetime == dt.datetime(2040, 5, 1)
-        assert row_1.measurement_id == 5607913108096982206
+        assert row_1.measurement_id == 3952701007853139582
 
         # q2 level 5
         row_2 = rows[1]

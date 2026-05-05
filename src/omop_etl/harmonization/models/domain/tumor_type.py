@@ -1,6 +1,7 @@
 from typing import Set
 import datetime as dt
 
+from omop_etl.harmonization.core.track_validated import setter_name
 from omop_etl.harmonization.core.validators import StrictValidators
 from omop_etl.harmonization.models.domain.base import DomainBase
 
@@ -37,7 +38,7 @@ class TumorType(DomainBase):
             value=value,
             validator=StrictValidators.validate_optional_str,
         )
-        self.updated_fields.add(self.__class__.icd10_code.fset.__name__)
+        self.updated_fields.add(setter_name(self.__class__.icd10_code))
 
     @property
     def icd10_description(self) -> str | None:
