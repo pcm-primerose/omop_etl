@@ -18,7 +18,9 @@ class LoadSemantics:
 
     def as_rows(self) -> list[SemanticRow]:
         rows: list[SemanticRow] = []
-        with open(self.path, "r", newline="") as f:
+        # Path.open accepts newline="", but Traversable.open does not
+        f = self.path.open("r", newline="") if isinstance(self.path, Path) else self.path.open("r")
+        try:
             for line_no, row in enumerate(csv.DictReader(f), start=2):
                 none_cols = [k for k, v in row.items() if v is None]
                 if none_cols:
@@ -30,6 +32,8 @@ class LoadSemantics:
                         dict(row),
                     )
                 rows.append(SemanticRow.from_csv_row(row))
+        finally:
+            f.close()
         return rows
 
     def as_indexed(self) -> dict[str, list[SemanticRow]]:
@@ -68,7 +72,7 @@ class LoadSemantics:
 def _resolve_base(base: Traversable) -> Traversable:
     candidates = [entry for entry in base.iterdir() if entry.is_file()]
     if not candidates:
-        raise ValueError(f"No semantic mapping files found in {base!r}")
+        raise ValueError(f"No semantic mapping files found in {base.name}")
     if len(candidates) > 1:
         log.warning(
             "Base semantic dir contains several semantic files, current impl picks the first: %s",

@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence, List, Final, Mapping, TypeVar
+from typing import Iterable, Sequence, List, Final, Mapping, TypeVar, cast
 from types import MappingProxyType
 
 from .types import ALIASES, WIDE_FORMATS, AnyFormatToken
@@ -35,14 +35,13 @@ F = TypeVar("F", bound=str)  # element type of `allowed` (TabularFormat or WideF
 
 def expand_formats(
     formats: AnyFormatToken | Sequence[AnyFormatToken],
-    allowed: Sequence[F] | None,
+    allowed: Sequence[F],
 ) -> List[F]:
-    # normalize to a flat list of strings, services ensures not None
     raw = [formats] if isinstance(formats, str) else _flatten(formats)
 
     allowed_set = set(allowed)
-    seen: set[str] = set()
-    requested: list[str] = []
+    seen: set[F] = set()
+    requested: list[F] = []
 
     for tok in raw:
         t = tok.lower()
@@ -52,12 +51,14 @@ def expand_formats(
                     seen.add(f)
                     requested.append(f)
             continue
-        t = ALIASES.get(t, t)  # map aliases
+        # map aliases
+        t = ALIASES.get(t, t)
         if t not in allowed_set:
             raise ValueError(f"Unsupported format: {tok}. Allowed: {', '.join(allowed)} or 'all'.")
-        if t not in seen:
-            seen.add(t)
-            requested.append(t)
+        t_typed = cast(F, t)
+        if t_typed not in seen:
+            seen.add(t_typed)
+            requested.append(t_typed)
 
     return requested
 
@@ -66,4 +67,4 @@ def normalize_format(
     fmt: AnyFormatToken,
     allowed: Sequence[AnyFormatToken] = WIDE_FORMATS,
 ) -> AnyFormatToken:
-    return expand_formats(fmt, allowed=allowed)[0]
+    return cast(AnyFormatToken, expand_formats(fmt, allowed=allowed)[0])

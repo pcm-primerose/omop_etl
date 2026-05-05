@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Any
+from typing import Mapping, Any, MutableMapping
 
 RESERVED = {
     "name",
@@ -26,9 +26,9 @@ RESERVED = {
 
 
 class ExtraAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
+    def process(self, msg, kwargs: MutableMapping[str, Any]):
         extra = kwargs.pop("extra", {}) or {}
-        merged = {**self.extra, **extra}
+        merged = {**(self.extra or {}), **extra}
         # drop reserved keys
         for k in list(merged.keys()):
             if k in RESERVED:
