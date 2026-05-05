@@ -18,7 +18,7 @@ class PersonBuilder(OmopBuilder[PersonRow]):
         if sex_raw is not None:
             mapped = self.concepts.lookup_static("sex", sex_raw, domains={"Gender"})
 
-        gender_concept_id = mapped.concept_id if mapped else 0
+        gender_concept_id = int(mapped.concept_id) if mapped else 0
 
         dob = patient.date_of_birth
         if dob is None:

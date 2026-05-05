@@ -140,7 +140,7 @@ class TestCreatePatients:
 class TestValidateSchemaSubset:
     def test_valid_subset(self):
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"]})
-        (BaseHarmonizer.validate_schema_subset(df, SimpleDomain),)  # shouldn't raise
+        BaseHarmonizer.validate_schema_subset(df, SimpleDomain)  # shouldn't raise
 
     def test_full_schema(self):
         df = pl.DataFrame({"SubjectId": ["p1"], "name": ["foo"], "value": [42]})

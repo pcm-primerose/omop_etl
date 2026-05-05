@@ -133,7 +133,7 @@ class Patient(TrackedValidated):
         )
 
     @property
-    def cohort_name(self) -> str:
+    def cohort_name(self) -> str | None:
         return self._cohort_name
 
     @cohort_name.setter
@@ -570,8 +570,8 @@ class Patient(TrackedValidated):
     @classmethod
     def get_attr_for_type(cls, item_type: type) -> str:
         """
-        Find the attribute name that accepts the given type by inspecting property return type hints.
-        Results are cached for performance.
+        Find the attribute name that accepts the given type by inspecting property return type hints,
+        and caches results.
 
         Works for both singletons (T | None) and collections (tuple[T, ...]).
         """

@@ -983,7 +983,7 @@ class TestProcessTreatmentCycle:
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
 
-        # iv_two_cycles uses "iv Drug" (no parenthetical) — should have no brand
+        # iv_two_cycles uses "iv Drug" (no parenthetical): should have no brand
         rows = df.filter(pl.col("SubjectId") == "iv_two_cycles")
         assert rows[0, "brand_name"] is None
         assert rows[0, "ingredient_name"] is None

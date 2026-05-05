@@ -28,7 +28,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         # track previous visit for preceding_visit_occurrence_id FK
         prev_visit_id: int | None = None
 
-        # baseline singleton — bind property to local so the `is not None` guard narrows.
+        # baseline singleton
         baseline = patient.tumor_assessment_baseline
         if baseline is not None:
             row = self._build_baseline_row(
@@ -93,7 +93,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
-            str(date),
+            date.strftime(format="%Y%m%d"),
         )
 
         return VisitOccurrenceRow(
@@ -120,7 +120,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Collections.TUMOR_ASSESSMENTS,
-            str(date),
+            date.strftime(format="%Y%m%d"),
         )
 
         return VisitOccurrenceRow(

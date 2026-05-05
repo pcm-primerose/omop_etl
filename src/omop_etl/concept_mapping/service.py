@@ -218,7 +218,7 @@ class ConceptLookupService:
         Raises RuntimeError if duplicate concept_ids are found (same concept
         mapped twice = mapping file issue that must be resolved).
         Legitimate multi-concept mappings (e.g. combination drugs with multiple
-        ingredients) return multiple unique concepts — builders iterate and
+        ingredients) return multiple unique concepts, builders iterate and
         emit one row per concept.
         """
         if self._semantic_index is None:

@@ -40,7 +40,7 @@ class TestMeasurementBuilder:
 
         Every measurement source uses the same `ctx.visit_id_by_date.get(date)`
         lookup. We test the mechanism once here using a sentinel id seeded
-        directly into the context — no dependency on the visit builder. The
+        directly into the context, no dependency on the visit builder. The
         negative case (no entry for the date → None) is covered by
         `TestEcogBaselineRows::test_visit_id_none_when_no_matches`.
         """

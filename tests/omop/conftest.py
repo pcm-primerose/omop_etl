@@ -16,7 +16,7 @@ from omop_etl.semantic_mapping.core.models import (
 )
 
 
-def create_build_context(patient: Patient, person_id: int | None = None) -> BuildContext:
+def create_build_context(patient: Patient, person_id: int = None) -> BuildContext:
     if person_id is None:
         person_id = sha1_bigint("person", patient.patient_id)
     return BuildContext(patient=patient, person_id=person_id)

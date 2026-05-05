@@ -31,7 +31,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         person_id = ctx.person_id
         rows: list[DrugExposureRow] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
-        drug_type_concept_id = ecrf.concept_id if ecrf else 0
+        drug_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
         for idx, cycle in enumerate(patient.treatment_cycles):
             rows.extend(self._build_treatment_cycle_rows(patient, person_id, cycle, idx, drug_type_concept_id))
@@ -58,7 +58,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
-        if cycle.start_date is None:
+        start_date = cycle.start_date
+        end_date = cycle.end_date
+        if start_date is None:
             log.warning(f"Skipping treatment cycle {index} for {patient.patient_id}: missing start_date")
             return []
 
@@ -84,19 +86,19 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         # dose fields depend on cycle type
         quantity: float | None = None
         dose_unit: str | None = None
-        route_concept_id: str | None = None
+        route_concept_id: int | None = None
         route_source: str | None = cycle.cycle_type
 
         if cycle.cycle_type and cycle.cycle_type == "iv":
             quantity = cycle.iv_dose_prescribed
             dose_unit = cycle.iv_dose_prescribed_unit
             iv_route = self.concepts.lookup_structural("iv", domains={"Route"})
-            route_concept_id = iv_route.concept_id if iv_route else None
+            route_concept_id = int(iv_route.concept_id) if iv_route else None
         elif cycle.cycle_type and cycle.cycle_type == "oral":
             quantity = cycle.oral_dose_prescribed_per_day
             dose_unit = cycle.oral_dose_unit
             oral_route = self.concepts.lookup_structural("oral", domains={"Route"})
-            route_concept_id = oral_route.concept_id if oral_route else None
+            route_concept_id = int(oral_route.concept_id) if oral_route else None
 
         base_row_id_parts = (
             patient.patient_id,
@@ -105,6 +107,8 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             str(cycle.treatment_number),
             str(cycle.component_index),
         )
+        end_date_or_start = end_date or start_date
+        drug_source_value = cycle.source_treatment_name or cycle.ingredient_name
 
         # CDM: emit with concept_id=0 if no mapping
         if not matches:
@@ -113,13 +117,13 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     drug_exposure_id=self.generate_row_id(*base_row_id_parts),
                     person_id=person_id,
                     drug_concept_id=0,
-                    drug_exposure_start_date=cycle.start_date,
-                    drug_exposure_end_date=cycle.end_date or cycle.start_date,
+                    drug_exposure_start_date=start_date,
+                    drug_exposure_end_date=end_date_or_start,
                     drug_type_concept_id=drug_type_concept_id,
                     quantity=quantity,
                     route_source_value=route_source,
                     dose_unit_source_value=dose_unit,
-                    drug_source_value=cycle.source_treatment_name or cycle.ingredient_name,
+                    drug_source_value=drug_source_value,
                     route_concept_id=route_concept_id,
                 )
             ]
@@ -129,13 +133,13 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 drug_exposure_id=self.generate_row_id(*base_row_id_parts, str(concept.concept_id)),
                 person_id=person_id,
                 drug_concept_id=int(concept.concept_id),
-                drug_exposure_start_date=cycle.start_date,
-                drug_exposure_end_date=cycle.end_date or cycle.start_date,
+                drug_exposure_start_date=start_date,
+                drug_exposure_end_date=end_date_or_start,
                 drug_type_concept_id=drug_type_concept_id,
                 quantity=quantity,
                 route_source_value=route_source,
                 dose_unit_source_value=dose_unit,
-                drug_source_value=cycle.source_treatment_name or cycle.ingredient_name,
+                drug_source_value=drug_source_value,
                 route_concept_id=route_concept_id,
             )
             for concept in matches
@@ -149,6 +153,11 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
+        start_date = prev.start_date
+        if start_date is None:
+            return []
+
+        end_date = prev.end_date or start_date
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
@@ -169,8 +178,8 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 ),
                 person_id=person_id,
                 drug_concept_id=int(concept.concept_id),
-                drug_exposure_start_date=prev.start_date,
-                drug_exposure_end_date=prev.end_date or prev.start_date,
+                drug_exposure_start_date=start_date,
+                drug_exposure_end_date=end_date,
                 drug_type_concept_id=drug_type_concept_id,
                 drug_source_value=prev.treatment,
             )
@@ -185,6 +194,11 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
+        start_date = prev.start_date
+        if start_date is None:
+            return []
+
+        end_date = prev.end_date or start_date
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
@@ -205,8 +219,8 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 ),
                 person_id=person_id,
                 drug_concept_id=int(concept.concept_id),
-                drug_exposure_start_date=prev.start_date,
-                drug_exposure_end_date=prev.end_date or prev.start_date,
+                drug_exposure_start_date=start_date,
+                drug_exposure_end_date=end_date,
                 drug_type_concept_id=drug_type_concept_id,
                 drug_source_value=prev.additional_treatment,
             )
@@ -221,7 +235,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
-        if concom.start_date is None:
+        start_date = concom.start_date
+        end_date = concom.end_date
+        if start_date is None:
             log.warning(f"Skipping concomitant medication {index} for {patient.patient_id}: missing start_date")
             return []
 
@@ -235,6 +251,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             index,
             domains={OmopDomain.DRUG},
         )
+        end_date_or_start = end_date or start_date
 
         # CDM: emit with concept_id=0 if no mapping
         if not matches:
@@ -247,8 +264,8 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     ),
                     person_id=person_id,
                     drug_concept_id=0,
-                    drug_exposure_start_date=concom.start_date,
-                    drug_exposure_end_date=concom.end_date or concom.start_date,
+                    drug_exposure_start_date=start_date,
+                    drug_exposure_end_date=end_date_or_start,
                     drug_type_concept_id=drug_type_concept_id,
                     drug_source_value=concom.medication_name,
                 )
@@ -264,8 +281,8 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 ),
                 person_id=person_id,
                 drug_concept_id=int(concept.concept_id),
-                drug_exposure_start_date=concom.start_date,
-                drug_exposure_end_date=concom.end_date or concom.start_date,
+                drug_exposure_start_date=start_date,
+                drug_exposure_end_date=end_date_or_start,
                 drug_type_concept_id=drug_type_concept_id,
                 drug_source_value=concom.medication_name,
             )

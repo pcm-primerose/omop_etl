@@ -12,7 +12,7 @@ def _norm(v: str | None) -> str:
 
 @dataclass(frozen=True, slots=True)
 class MappedConcept:
-    concept_id: int | str
+    concept_id: int
     concept_code: str
     concept_name: str
     domain_id: str

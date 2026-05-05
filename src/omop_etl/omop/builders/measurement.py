@@ -188,7 +188,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Singletons.ECOG_BASELINE,
-            str(date),
+            date.strftime(format="%Y%m%d"),
         )
         return [
             MeasurementRow(
@@ -285,8 +285,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         value_as_number is the actual size at baseline.
 
         Skipped if target_lesion_size, target_lesion_measurement_date, or the
-        lesion_size structural concept is missing. Baseline nadir is not emitted
-        (meaningless at baseline — derived from the absolute-size series instead).
+        lesion_size structural concept is missing.
         """
         size = baseline.target_lesion_size
         date = baseline.target_lesion_measurement_date
@@ -338,7 +337,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         Up to 3 additional rows, one per populated response scale (RECIST, iRECIST,
         RANO). The responses use precoordinated pair concepts, so the
-        measurement_concept_id stores both scale and answer (same pattern as EQ5D);
+        measurement_concept_id stores both scale and answer (same pattern as EQ5D),
         value_as_concept_id stays NULL.
 
         If date is missing the instance is skipped entirely and no rows are emitted.
@@ -363,7 +362,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
                             str(tumor_assessments.event_id),
-                            str(date),
+                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.TARGET_LESION_SIZE,
                         ),
                         person_id=person_id,
@@ -390,7 +389,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
                             str(tumor_assessments.event_id),
-                            str(date),
+                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.RECIST_RESPONSE,
                         ),
                         person_id=person_id,
@@ -415,7 +414,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
                             str(tumor_assessments.event_id),
-                            str(date),
+                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.IRECIST_RESPONSE,
                         ),
                         person_id=person_id,
@@ -440,7 +439,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
                             str(tumor_assessments.event_id),
-                            str(date),
+                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.RANO_RESPONSE,
                         ),
                         person_id=person_id,
@@ -511,7 +510,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         patient.patient_id,
                         Patient.Collections.C30_COLLECTION,
                         str(c30.event_name),
-                        str(date),
+                        date.strftime(format="%Y%m%d"),
                         f"q{n}",
                     ),
                     person_id=person_id,
@@ -540,10 +539,10 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         """
         EQ5D: 5 dimension questions + VAS QoL score. Per EQ5D instance, emits 0–6 rows.
 
-        Each dimension uses a precoordinated static concept (encodes question +
-        answer together) as measurement_concept_id; value_as_concept_id stays NULL,
-        value_as_number is the level. A dimension is skipped if its level is unset
-        — there is no generic structural fallback for an EQ5D dimension (per 0.8.0).
+        Each dimension uses a precoordinated static concept (encodes question and
+        answer together) as measurement_concept_id, value_as_concept_id stays NULL,
+        value_as_number is the level. A dimension is skipped if its level is unset,
+        there is no generic structural fallback for an EQ5D dimension.
 
         The VAS uses the eq5d_qol_score structural concept as measurement_concept_id
         with the raw VAS in value_as_number.
@@ -576,7 +575,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         patient.patient_id,
                         Patient.Collections.EQ5D_COLLECTION,
                         str(eq5d.event_name),
-                        str(date),
+                        date.strftime(format="%Y%m%d"),
                         f"q{n}",
                     ),
                     person_id=person_id,
@@ -601,7 +600,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             patient.patient_id,
                             Patient.Collections.EQ5D_COLLECTION,
                             str(eq5d.event_name),
-                            str(date),
+                            date.strftime(format="%Y%m%d"),
                             EQ5D.Fields.QOL_METRIC,
                         ),
                         person_id=person_id,
@@ -635,13 +634,10 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         Behavior:
         - Skipped if `start_date` is missing.
-        - Lookup is constrained to {Measurement, Meas Value}; results partitioned by
-          domain. CONDITION-domain hits stay with the condition_occurrence builder.
-        - If no Measurement-domain concept is matched, no rows are emitted (the term
-          is a condition or procedure or unmapped — not this builder's concern).
-        - One row per (Measurement, Meas Value) pair (Cartesian product). When no
-          Meas Value matches, emits one row per Measurement with `value_as_concept_id=0`.
-        - `value_as_number` is unused — medical histories carry no numeric grade.
+        - Lookup is constrained to {Measurement, Meas Value} domains.
+        - If no Measurement-domain concept is matched, no rows are emitted.
+        - One row per (Measurement, Meas Value) pair. When no Meas Value matches,
+          emits one row per Measurement with `value_as_concept_id=0`.
         - `measurement_source_value` is the raw term.
 
         Multi-Meas-Value cardinality is logged so a real mapping mistake doesn't
@@ -748,11 +744,9 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         if not measurement_concepts:
             return []
 
-        # Mapping policy: typically one Measurement attribute paired with one Meas Value
-        # qualifier per AE term. If the mapper returns multiple qualifiers (or multiple
-        # attributes), trust it and emit the full Cartesian product — semantic mapping
-        # owns the truth. Log unexpected cardinalities so a real mapping mistake doesn't
-        # silently inflate the table.
+        # mapping policy: one measurement attribute paired with one meas value
+        # qualifier per AE term. If mapper returns multiple qualifiers (or multiple
+        # attributes), trust it and emit the full product, semantic mapping is singular source of truth.
         if len(meas_value_concepts) > 1:
             log.warning(
                 "AE %d for %s mapped to %d Meas Value concepts (typical: 1). Emitting cross-product. concepts=%s",
@@ -769,8 +763,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         value_as_number = float(grade) if grade is not None else None
         source_value = term[:50] if term is not None else None
 
-        # No Meas Value match → single qualifier slot of 0 (categorical present in source
-        # but unmapped, per CDM 5.4 §measurement value_as_concept_id rules).
+        # no meas value match yields single qualifier slot of 0 (categorical present in source
+        # but unmapped, see CDM 5.4 measurement value_as_concept_id rules).
         qualifier_ids: list[int] = [int(c.concept_id) for c in meas_value_concepts] if meas_value_concepts else [0]
 
         return [
@@ -779,7 +773,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
                     term,
-                    str(date),
+                    date.strftime(format="%Y%m%d"),
                     str(m_concept.concept_id),
                     str(q_id),
                 ),

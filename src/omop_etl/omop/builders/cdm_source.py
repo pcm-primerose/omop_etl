@@ -13,8 +13,10 @@ class CdmSourceBuilder:
         self.concepts = concepts
 
     def build(self) -> CdmSourceRow:
-        cdm_version_concept = self.concepts.lookup_structural("cdm", domains={"Metadata"}).concept_id
-        cdm_vocabulary_version = str(self.concepts.lookup_structural("vocab", domains={"Metadata"}).concept_id)
+        cdm_concept = self.concepts.lookup_structural("cdm", domains={"Metadata"})
+        vocab_concept = self.concepts.lookup_structural("vocab", domains={"Metadata"})
+        cdm_version_concept_id = int(cdm_concept.concept_id) if cdm_concept else 0
+        cdm_vocabulary_version = str(vocab_concept.concept_id) if vocab_concept else ""
 
         return CdmSourceRow(
             cdm_source_name="PRIME-ROSE OMOP ETL",
@@ -26,6 +28,6 @@ class CdmSourceBuilder:
             source_release_date=dt.date.today(),
             cdm_release_date=dt.date.today(),
             cdm_version="v5.4",
-            cdm_version_concept_id=cdm_version_concept,
+            cdm_version_concept_id=cdm_version_concept_id,
             vocabulary_version=cdm_vocabulary_version,
         )

@@ -26,9 +26,9 @@ class OmopService:
 
     def __init__(self, concepts: ConceptLookupService):
         self._concepts = concepts
-        # Order matters: builders that publish ctx state via populate_context
-        # (e.g. VisitOccurrenceBuilder writing ctx.visit_id_by_date) must run
-        # before any downstream consumer that reads that state.
+        # builders that return context state via populate_context
+        # must run before any downstream consumer that reads that state:
+        # (e.g. VisitOccurrenceBuilder writing ctx.visit_id_by_date)
         self._builders: list[OmopBuilder] = [
             VisitOccurrenceBuilder(concepts),
             PersonBuilder(concepts),
