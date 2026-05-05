@@ -26,8 +26,11 @@ class OmopService:
 
     def __init__(self, concepts: ConceptLookupService):
         self._concepts = concepts
-        self._visit_builder = VisitOccurrenceBuilder(concepts)
+        # Order matters: builders that publish ctx state via populate_context
+        # (e.g. VisitOccurrenceBuilder writing ctx.visit_id_by_date) must run
+        # before any downstream consumer that reads that state.
         self._builders: list[OmopBuilder] = [
+            VisitOccurrenceBuilder(concepts),
             PersonBuilder(concepts),
             ObservationPeriodBuilder(concepts),
             DrugExposureBuilder(concepts),
@@ -44,20 +47,11 @@ class OmopService:
 
         for patient in patients:
             person_id = sha1_bigint("person", patient.patient_id)
-            ctx = BuildContext(
-                patient=patient,
-                person_id=person_id,
-            )
+            ctx = BuildContext(patient=patient, person_id=person_id)
 
-            # build visits first to populate ctx.visit_id_by_date for downstream builders
-            visit_rows = self._visit_builder.build(ctx)
-            for row in visit_rows:
-                ctx.visit_id_by_date[row.visit_start_date] = row.visit_occurrence_id
-            tables.extend(self._visit_builder.table_name, visit_rows)
-
-            # build remaining tables
             for builder in self._builders:
                 rows = builder.build(ctx)
+                builder.populate_context(rows, ctx)
                 tables.extend(builder.table_name, rows)
 
         # singleton metadata row

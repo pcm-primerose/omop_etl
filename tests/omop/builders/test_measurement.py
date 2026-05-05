@@ -35,6 +35,30 @@ class TestMeasurementBuilder:
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
         assert len(rows) == 0
 
+    def test_visit_occurrence_id_resolves_from_context(self, static_index, structural_index):
+        """Canonical visit-linkage test for the measurement builder.
+
+        Every measurement source uses the same `ctx.visit_id_by_date.get(date)`
+        lookup. We test the mechanism once here using a sentinel id seeded
+        directly into the context — no dependency on the visit builder. The
+        negative case (no entry for the date → None) is covered by
+        `TestEcogBaselineRows::test_visit_id_none_when_no_matches`.
+        """
+        patient = create_patient(PID, TRIAL)
+        ecog = EcogBaseline(PID)
+        ecog.grade = 1
+        ecog.date = dt.date(2040, 5, 1)
+        patient.ecog_baseline = ecog
+
+        context = create_build_context(patient, PERSON_ID)
+        sentinel = 999_888_777
+        context.visit_id_by_date[dt.date(2040, 5, 1)] = sentinel
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+
+        assert len(rows) == 1
+        assert rows[0].visit_occurrence_id == sentinel
+
 
 class TestEcogBaselineRows:
     def test_ecog_baseline_produces_rows(self, static_index, structural_index):
@@ -45,15 +69,7 @@ class TestEcogBaselineRows:
         ecog_baseline.date = dt.date(2814, 1, 21)
         patient.ecog_baseline = ecog_baseline
 
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2814, 1, 21)
-        baseline.assessment_type = "RECIST"
-        patient.tumor_assessment_baseline = baseline
-
-        context = create_build_context(patient, PERSON_ID)
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-
-        ecog_rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        ecog_rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(ecog_rows) == 1
         assert ecog_rows[0].person_id == PERSON_ID
@@ -61,9 +77,6 @@ class TestEcogBaselineRows:
         assert ecog_rows[0].measurement_type_concept_id == 32817
         assert ecog_rows[0].measurement_date == dt.date(2814, 1, 21)
         assert ecog_rows[0].value_as_concept_id == 36310827
-
-        # optional fields
-        assert ecog_rows[0].visit_occurrence_id == context.visit_id_by_date.get(dt.date(2814, 1, 21))
         assert ecog_rows[0].measurement_datetime == dt.datetime(year=2814, month=1, day=21)
         assert ecog_rows[0].value_as_number == 1.0
         assert ecog_rows[0].measurement_source_value == "1"
@@ -129,7 +142,7 @@ class TestEcogBaselineRows:
 
         context = create_build_context(patient, PERSON_ID)
 
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build_and_populate(context)
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
 
         assert len(rows) == 1
@@ -161,9 +174,7 @@ class TestTumorAssessmentBaselineRows:
         baseline.target_lesion_measurement_date = dt.date(2040, 4, 19)
         patient.tumor_assessment_baseline = baseline
 
-        context = create_build_context(patient, PERSON_ID)
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
@@ -175,7 +186,6 @@ class TestTumorAssessmentBaselineRows:
         assert row.value_as_number == 41.0
         assert row.value_as_concept_id is None
         assert row.measurement_source_value == "41"
-        assert row.visit_occurrence_id == context.visit_id_by_date.get(dt.date(2040, 4, 19))
 
     def test_missing_size_returns_empty(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
@@ -356,23 +366,6 @@ class TestTumorAssessmentRows:
         assert len(ids) == 2
         assert len(set(ids)) == 2
 
-    def test_visit_id_populated_when_matches(self, static_index, structural_index):
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.assessment_type = "recist"
-        baseline.assessment_date = dt.date(2040, 4, 19)
-        patient.tumor_assessment_baseline = baseline
-        patient.tumor_assessments = [
-            _make_tumor_assessments(dt.date(2040, 6, 14), "V03", size=13.98),
-        ]
-
-        context = create_build_context(patient, PERSON_ID)
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-
-        # no visit exists on 2040-06-14, so visit_occurrence_id stays None
-        assert rows[0].visit_occurrence_id is None
-
 
 def _make_c30(date: dt.date, event_name: str = "BASELINE", **answers: str | int) -> C30:
     c30 = C30(PID)
@@ -391,14 +384,7 @@ class TestC30Rows:
             _make_c30(dt.date(2041, 5, 1), q2="quite a bit", q2_code=3),
         ]
 
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2040, 5, 1)
-        baseline.assessment_type = "RECIST"
-        patient.tumor_assessment_baseline = baseline
-
-        context = create_build_context(patient, PERSON_ID)
-        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 3
 
@@ -410,7 +396,6 @@ class TestC30Rows:
         assert row_1.value_as_number == 1.0
         assert row_1.measurement_source_value == "not at all"
         assert row_1.measurement_type_concept_id == 32817
-        assert row_1.visit_occurrence_id == context.visit_id_by_date.get(row_1.measurement_date)
 
         # c30_q2
         row_2 = rows[1]
@@ -420,9 +405,7 @@ class TestC30Rows:
         assert row_2.value_as_number == 3.0
         assert row_2.measurement_source_value == "quite a bit"
         assert row_2.measurement_type_concept_id == 32817
-        assert row_2.visit_occurrence_id == context.visit_id_by_date.get(row_2.measurement_date)
 
-        assert rows[2].visit_occurrence_id is None
         assert rows[2].measurement_date == dt.date(2041, 5, 1)
 
     def test_q29_uses_global_answer_scale(self, static_index, structural_index):
@@ -593,14 +576,7 @@ class TestEQ5DRows:
             _make_eq5d(dt.date(2041, 5, 1), q1="I have slight problems", q1_code=2),
         ]
 
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.assessment_date = dt.date(2040, 5, 1)
-        baseline.assessment_type = "RECIST"
-        patient.tumor_assessment_baseline = baseline
-
-        context = create_build_context(patient, PERSON_ID)
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 3
 
@@ -608,7 +584,6 @@ class TestEQ5DRows:
         row_1 = rows[0]
         assert row_1.value_as_number == 1.0
         assert row_1.measurement_source_value == "I have no problems in walking about"
-        assert row_1.visit_occurrence_id == context.visit_id_by_date.get(row_1.measurement_date)
         assert row_1.measurement_concept_id == 742346
         assert row_1.value_as_concept_id is None
         assert row_1.measurement_type_concept_id == 32817
@@ -621,14 +596,12 @@ class TestEQ5DRows:
         row_2 = rows[1]
         assert row_2.value_as_number == 5.0
         assert row_2.measurement_concept_id == 742355
-        assert row_2.visit_occurrence_id == context.visit_id_by_date.get(row_2.measurement_date)
 
-        # q1 level 2 2041 instance, no visit
+        # q1 level 2 from the 2041 instance
         row_3 = rows[2]
         assert row_3.value_as_number == 2.0
         assert row_3.measurement_date == dt.date(2041, 5, 1)
         assert row_3.measurement_concept_id == 742347
-        assert row_3.visit_occurrence_id is None
 
     def test_levels_2_through_5_resolve_distinct_concepts(self, static_index, structural_index):
         # same dimension but different levels yields different precoordinated concepts
@@ -934,35 +907,6 @@ class TestBiomarkerRows:
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
         assert rows == []
 
-    def test_visit_id_linked_when_date_matches(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
-                leaf_index=None,
-                concept_id=4001,
-                name="BRAF V600E",
-                domain="measurement",
-            ),
-        )
-        patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(dt.date(2040, 5, 1), cohort_target_mutation="BRAF V600E")
-
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.assessment_type = "RECIST"
-        baseline.assessment_date = dt.date(2040, 5, 1)
-        patient.tumor_assessment_baseline = baseline
-
-        context = create_build_context(patient, PERSON_ID)
-
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-
-        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
-
-        biomarker_row = rows[0]
-        assert biomarker_row.measurement_concept_id == 4001
-        assert biomarker_row.visit_occurrence_id == context.visit_id_by_date.get(biomarker_row.measurement_date)
-
     def test_row_id_deterministic(self, static_index, structural_index):
         semantic = create_semantic_index(
             SemanticEntry(
@@ -1245,33 +1189,6 @@ class TestAdverseEventMeasurementRows:
         assert len(rows) == 2
         assert len({r.measurement_id for r in rows}) == 2
 
-    def test_visit_id_linked_when_date_matches(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Platelet count",
-                domain="measurement",
-            ),
-        )
-        patient = create_patient(PID, TRIAL)
-        patient.adverse_events = [_make_ae(start_date=dt.date(2040, 5, 1))]
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.assessment_type = "RECIST"
-        baseline.assessment_date = dt.date(2040, 5, 1)
-        patient.tumor_assessment_baseline = baseline
-
-        context = create_build_context(patient, PERSON_ID)
-        _ = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-
-        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
-
-        assert rows[0].measurement_concept_id == 4001
-        assert rows[0].visit_occurrence_id == context.visit_id_by_date.get(rows[0].measurement_date)
-        assert rows[0].visit_occurrence_id is not None
-
     def test_row_id_deterministic(self, static_index, structural_index):
         semantic = create_semantic_index(
             SemanticEntry(
@@ -1507,36 +1424,6 @@ class TestMedicalHistoryMeasurementRows:
 
         assert len(rows) == 2
         assert len({r.measurement_id for r in rows}) == 2
-
-    def test_visit_id_linked_when_date_matches(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Hemoglobin measurement",
-                domain="measurement",
-            ),
-        )
-        patient = create_patient(PID, TRIAL)
-        patient.medical_histories = [_make_mh(start_date=dt.date(2040, 5, 1))]
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.assessment_type = "RECIST"
-        baseline.assessment_date = dt.date(2040, 5, 1)
-        patient.tumor_assessment_baseline = baseline
-
-        context = create_build_context(patient, PERSON_ID)
-        # mirror OmopService.build to populate visit_id_by_date
-        visit_rows = VisitOccurrenceBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-        for v in visit_rows:
-            context.visit_id_by_date[v.visit_start_date] = v.visit_occurrence_id
-
-        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
-
-        mh_row = next(r for r in rows if r.measurement_concept_id == 4001)
-        assert mh_row.visit_occurrence_id == context.visit_id_by_date[dt.date(2040, 5, 1)]
-        assert mh_row.visit_occurrence_id is not None
 
     def test_row_id_deterministic(self, static_index, structural_index):
         semantic = create_semantic_index(
