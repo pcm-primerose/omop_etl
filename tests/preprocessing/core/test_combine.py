@@ -1,9 +1,9 @@
-from types import SimpleNamespace
 import pytest
 import polars as pl
 
 from omop_etl.preprocessing.core.combine import combine
-from omop_etl.preprocessing.sources.impress import _aggregate_no_conflicts
+from omop_etl.preprocessing.core.models import EcrfConfig, SheetData
+from omop_etl.preprocessing.sources.impress import _aggregate_no_conflicts  # noqa
 
 
 @pytest.fixture
@@ -54,12 +54,12 @@ def df_extra_subjectid():
     )
 
 
-def sheet(key: str, df: pl.DataFrame):
-    return SimpleNamespace(key=key, data=df)
+def sheet(key: str, df: pl.DataFrame) -> SheetData:
+    return SheetData(key=key, data=df)
 
 
-def ecfg(*sheets):
-    return SimpleNamespace(data=list(sheets))
+def ecfg(*sheets: SheetData) -> EcrfConfig:
+    return EcrfConfig(configs=[], data=list(sheets))
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def demographics_merged_subjects(df_subjects, df_demographics) -> pl.DataFrame:
         sheet("subjects", df_subjects),
         sheet("demographics", df_demographics),
     )
-    combined = combine(e, on="SubjectId")  # type: ignore
+    combined = combine(e, on="SubjectId")
 
     aggregated = _aggregate_no_conflicts(combined)
     return aggregated
@@ -82,7 +82,7 @@ def all_merged(df_subjects, df_demographics, df_icd10, df_extra_subjectid) -> pl
         sheet("icd10", df_icd10),
         sheet("extra", df_extra_subjectid),
     )
-    combined = combine(e, on="SubjectId")  # type: ignore
+    combined = combine(e, on="SubjectId")
 
     # apply aggregations
     aggregated = _aggregate_no_conflicts(combined)
@@ -151,7 +151,7 @@ def test_sorting_handles_null_keys():
     df_with_nulls = pl.DataFrame({"SubjectId": ["B_001", None, "A_001"], "value": [1, 2, 3]})
 
     e = ecfg(sheet("test", df_with_nulls))
-    out = combine(e, on="SubjectId")  # type: ignore
+    out = combine(e, on="SubjectId")
 
     _keys = out.select("SubjectId").to_series().to_list()
     assert _keys == [
@@ -167,7 +167,7 @@ def test_total_row_count_matches_unique_keys(all_merged):
 
 def test_no_duplicate_rows_for_same_key(df_subjects):
     e = ecfg(sheet("subjects", df_subjects))
-    out = combine(e, on="SubjectId")  # type: ignore
+    out = combine(e, on="SubjectId")
     subject_ids = out.select("SubjectId").to_series()
 
     assert len(out) == len(df_subjects)
@@ -179,19 +179,19 @@ def test_missing_key_column_raises_error():
     e = ecfg(sheet("no_key", df_no_key))
 
     with pytest.raises(ValueError, match="'SubjectId' not in sheet no_key"):
-        combine(e, on="SubjectId")  # type: ignore
+        combine(e, on="SubjectId")
 
 
 def test_empty_ecrf_config_raises_error():
     e = ecfg()  # no sheets
     with pytest.raises(ValueError, match="No eCRF config data loaded"):
-        combine(e, on="SubjectId")  # type: ignore
+        combine(e, on="SubjectId")
 
 
 def test_custom_key_column(df_subjects):
     df_renamed = df_subjects.rename({"SubjectId": "PatientId"})
     e = ecfg(sheet("patients", df_renamed))
-    out = combine(e, on="PatientId")  # type: ignore
+    out = combine(e, on="PatientId")
 
     assert "PatientId" in out.columns
     assert "patients_sex" in out.columns

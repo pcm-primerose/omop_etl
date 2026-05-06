@@ -298,7 +298,7 @@ def mock_simple_domain_attr(monkeypatch):
     monkeypatch.setattr(Patient, "get_attr_for_type", classmethod(mock_get_attr))
 
     # test-only attribute to Patient class for SimpleDomain using raising=False to allow new attr
-    Patient._test_simple_domain = None  # type: ignore
+    setattr(Patient, "_test_simple_domain", None)
     yield
     if hasattr(Patient, "_test_simple_domain"):
         delattr(Patient, "_test_simple_domain")
@@ -605,11 +605,11 @@ class TestValidateSpecs:
 
     def test_singleton_requires_target_domain(self):
         with pytest.raises(TypeError, match="missing 1 required keyword-only argument: 'target_domain'"):
-            SingletonSpec(name="foo", process=_noop_processor)
+            SingletonSpec(name="foo", process=_noop_processor)  # pyright: ignore[reportCallIssue]  # ty: ignore[missing-argument] # noqa
 
     def test_collection_requires_target_domain(self):
         with pytest.raises(TypeError, match="missing 1 required keyword-only argument: 'target_domain'"):
-            CollectionSpec(name="foo", process=_noop_processor)
+            CollectionSpec(name="foo", process=_noop_processor)  # pyright: ignore[reportCallIssue]  # ty: ignore[missing-argument] # noqa
 
     def test_empty_subject_col_raises(self):
         with pytest.raises(ValueError, match="subject_col cannot be empty"):
@@ -790,12 +790,16 @@ class TestEndToEndPipeline:
 
         # singleton (FollowUp)
         assert p1.lost_to_followup is not None
-        assert p1.lost_to_followup.lost_to_followup is False
-        assert p1.lost_to_followup.date_lost_to_followup is None
+        lfu = p1.lost_to_followup
+        assert lfu is not None
+        assert lfu.lost_to_followup is False
+        assert lfu.date_lost_to_followup is None
 
         assert p2.lost_to_followup is not None
-        assert p2.lost_to_followup.lost_to_followup is True
-        assert p2.lost_to_followup.date_lost_to_followup == dt.date(2024, 5, 1)
+        lfu_2 = p2.lost_to_followup
+        assert lfu_2 is not None
+        assert lfu_2.lost_to_followup is True
+        assert lfu_2.date_lost_to_followup == dt.date(2024, 5, 1)
 
         # collection (MedicalHistory), ordered by start_date
         assert len(p1.medical_histories) == 2
@@ -823,7 +827,9 @@ class TestEndToEndPipeline:
         # p1 has everything
         assert p1.cohort_name == "Cohort A"
         assert p1.lost_to_followup is not None
-        assert p1.lost_to_followup.lost_to_followup is True
+        lfu = p1.lost_to_followup
+        assert lfu is not None
+        assert lfu.lost_to_followup is True
         assert len(p1.medical_histories) == 1
 
         # p2 only has cohort
@@ -887,6 +893,7 @@ class TestDecoratorRegistration:
                 return None
 
         spec = H.SPECS[0]
+        assert isinstance(spec, ScalarSpec)
         assert spec.name == "custom_name"
         assert spec.target_attr == "cohort_name"
         assert spec.value_col == "raw_col"
@@ -902,6 +909,7 @@ class TestDecoratorRegistration:
                 return None
 
         spec = H.SPECS[0]
+        assert isinstance(spec, ScalarSpec)
         assert spec.name == "cohort_name"  # default from method name
         assert spec.target_attr == "cohort_name"  # explicit
         assert spec.value_col == "cohort_name"  # default from method name

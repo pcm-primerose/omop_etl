@@ -245,6 +245,7 @@ class TestCsvDirectoryReader:
         labs_csv.write_text("Header Row (skipped)\nSubjectId,TestName,TestValue\nA001,Glucose,85\nA002,Glucose,92\n")
 
         result = reader.load(tmp_path, sample_config)
+        assert result.data is not None
         subjects_data = next(d for d in result.data if d.key == "subjects")
 
         # should load all correctly
@@ -361,6 +362,7 @@ def test_full_csv_workflow(tmp_path):
 
     resolver = InputResolver()
     result = resolver.resolve(tmp_path, config)
+    assert result.data is not None
 
     patients_data = next(d for d in result.data if d.key == "patients")
     visits_data = next(d for d in result.data if d.key == "visits")
@@ -389,6 +391,7 @@ def test_mixed_case_column_handling(tmp_path):
 
     resolver = InputResolver()
     result = resolver.resolve(tmp_path, config)
+    assert result.data is not None
     data = result.data[0]
 
     assert data.data.columns == ["SubjectId", "TestValue", "Result_Code"]

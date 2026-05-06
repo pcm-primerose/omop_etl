@@ -23,7 +23,7 @@ class DomainBase(TrackedValidated, ABC):
     INVARIANT_FIELDS: ClassVar[tuple[str, ...]] = ()
 
     @abstractmethod
-    def __init__(self, patient_id: str) -> None:
+    def __init__(self, patient_id: str) -> None:  # noqa
         """Initialize domain object with patient_id. Must be implemented by subclasses."""
         ...
 

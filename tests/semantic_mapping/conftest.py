@@ -95,10 +95,10 @@ def patients() -> List[Patient]:
     patient_2.sex = "F"
 
     # singleton
+    tumor_1.main_tumor_type = "tumor_1"
     patient_1.tumor_type = tumor_1
-    patient_1.tumor_type.main_tumor_type = "tumor_1"
+    tumor_2.main_tumor_type = "tumor_2"
     patient_2.tumor_type = tumor_2
-    patient_2.tumor_type.main_tumor_type = "tumor_2"
 
     # collection
     patient_1.medical_histories = medical_history_1

@@ -63,7 +63,7 @@ def test_write_frame_parquet(tmp_path: Path, df_people: pl.DataFrame):
 
 def test_write_frame_invalid_raises(tmp_path: Path, df_people: pl.DataFrame):
     with pytest.raises(ValueError, match="Unsupported tabular fmt"):
-        write_frame(df_people, tmp_path / "x.xlsx", "xlsx")  # type: ignore
+        write_frame(df_people, tmp_path / "x.xlsx", "xlsx")  # noqa
 
 
 def test_write_frames_dir_tabular_csv(tmp_path: Path, frames_norm: dict[str, pl.DataFrame]):

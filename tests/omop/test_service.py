@@ -329,4 +329,7 @@ class TestOmopTablesApi:
 
         assert tables.person[0].person_source_value == "p1"
         assert tables.observation_period[0].observation_period_start_date == dt.date(2023, 1, 1)
-        assert tables.cdm_source.cdm_holder == "PRIME-ROSE"
+        assert tables.cdm_source is not None
+        cdm_row = tables.cdm_source
+        assert cdm_row is not None
+        assert cdm_row.cdm_holder == "PRIME-ROSE"

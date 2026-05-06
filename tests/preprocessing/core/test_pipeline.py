@@ -36,7 +36,7 @@ def test_pipeline_with_real_components(tmp_path):
         ecrf_config=config,
         meta=meta,
         output_manager=exporter,
-        preprocessor_resolver=lambda _trial: mock_processor,  # type: ignore
+        preprocessor_resolver=lambda _trial: mock_processor,
     )
 
     run_opts = PreprocessingRunOptions(filter_valid_cohort=False)

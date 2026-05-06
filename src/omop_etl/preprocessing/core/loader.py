@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import ClassVar, Sequence, Dict, cast
+from typing import ClassVar, Sequence, Dict
 import polars as pl
 from logging import getLogger
 
@@ -112,7 +112,7 @@ class ExcelReader(BaseReader):
         result = pl.read_excel(path, sheet_id=0, has_header=True, read_options={"header_row": 1})
         if not isinstance(result, dict):
             raise TypeError(f"Expected dict of sheets from read_excel(sheet_id=0), got {type(result).__name__}")
-        all_sheets = cast(dict[str, pl.DataFrame], result)
+        all_sheets: dict[str, pl.DataFrame] = result
 
         loaded_sheets = []
 

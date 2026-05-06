@@ -9,11 +9,19 @@ from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.omop.service import OmopService
 from omop_etl.omop.models.tables import OmopTables
-from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
+from omop_etl.preprocessing.service import (
+    make_ecrf_config,
+    PreprocessService,
+)
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
-from omop_etl.config import DEFAULT_DATASET, SYNTHETIC_DATASETS, resolve_dataset, LOG_LEVEL
+from omop_etl.config import (
+    DEFAULT_DATASET,
+    SYNTHETIC_DATASETS,
+    resolve_dataset,
+    LOG_LEVEL,
+)
 
 # default resource paths: make dev defaults later
 RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"

@@ -80,7 +80,7 @@ class TestMalformedCsvRows:
             "sex,m,8507,M,MALE,Gender,Standard,Valid,Gender\n"
         )
 
-        rows = StaticMapLoader(csv).as_rows()
+        _ = StaticMapLoader(csv).as_rows()
         idx = StaticMapLoader(csv).as_index()
 
         assert ("sex", "m") in idx

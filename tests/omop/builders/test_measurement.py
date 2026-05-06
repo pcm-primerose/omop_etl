@@ -1,3 +1,6 @@
+# pyright: reportAttributeAccessIssue=false
+# C30/EQ5D dynamically attach q1..qN attributes via setattr; pyright can't see them statically.
+
 import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
@@ -493,8 +496,8 @@ class TestC30Rows:
     def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
         c30 = C30(PID)
-        c30.q1 = "Not at all"
-        c30.q1_code = 1
+        c30.q1 = "Not at all"  # ty: ignore[unresolved-attribute]
+        c30.q1_code = 1  # ty: ignore[unresolved-attribute]
         patient.c30_collection = [c30]
 
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
@@ -509,7 +512,7 @@ class TestC30Rows:
         # only c30_q2 in the structural index
         from tests.omop.conftest import _structural
 
-        partial = {"c30_q2": _structural("c30_q2", "701341", "measurement")}
+        partial = {"c30_q2": _structural("c30_q2", 701341, "measurement")}
         rows = MeasurementBuilder(ConceptLookupService(static_index, partial)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
@@ -670,7 +673,7 @@ class TestEQ5DRows:
     def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
         eq5d = EQ5D(PID)
-        eq5d.q1_code = 1
+        eq5d.q1_code = 1  # ty: ignore[unresolved-attribute]
         eq5d.qol_metric = 80
         patient.eq5d_collection = [eq5d]
 

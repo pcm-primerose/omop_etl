@@ -32,7 +32,7 @@ class TestLookupResult:
 
     def test_coverage_by_field(self):
         result = LookupResult()
-        concept = MappedConcept("1", "C", "Name", "Domain", "Vocab", "Valid")
+        concept = MappedConcept(1, "C", "Name", "Domain", "Vocab", "Valid")
 
         result.record_match("static", "sex", "M", concept)
         result.record_match("static", "sex", "F", concept)

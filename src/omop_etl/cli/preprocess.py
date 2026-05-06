@@ -20,7 +20,7 @@ def run_preprocessing(
     trial: str = "IMPRESS",
     combine_key: str = "SubjectId",
     output_format: Literal["csv", "tsv", "parquet"] = "csv",
-    only_cohort: bool | None = True,
+    only_cohort: bool = True,
     config: Path | None = None,
 ) -> PreprocessResult:
     # build runtime options

@@ -66,9 +66,9 @@ def test_normalize_format_defaults_to_wide_formats():
 
 def test_normalize_format_with_custom_allowed(allowed_tabular):
     # custom allowed list is respected
-    assert normalize_format("parquet", allowed=allowed_tabular) == "parquet"  # type: ignore
+    assert normalize_format("parquet", allowed=allowed_tabular) == "parquet"
     with pytest.raises(ValueError):
-        normalize_format("json", allowed=allowed_tabular)  # type: ignore
+        normalize_format("json", allowed=allowed_tabular)
 
 
 def test_normalize_raises_on_unknown():
