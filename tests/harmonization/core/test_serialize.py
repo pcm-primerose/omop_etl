@@ -1,7 +1,3 @@
-# pyright: reportAttributeAccessIssue=false
-# C30 and EQ5D dynamically attach q1..qN / q1_code..qN_code using setattr, tests for
-# that feature need to assign to those attributes, which pyright can't see statically.
-
 import datetime as dt
 from typing import Optional, List
 import polars as pl
@@ -198,10 +194,10 @@ class TestDynamicPropertySerialization:
         p = Patient(patient_id="P001", trial_id="TEST")
         c = C30("P001")
         c.event_name = "Baseline"
-        c.q1 = "test_value"  # ty: ignore[unresolved-attribute]
-        c.q1_code = 1  # ty: ignore[unresolved-attribute]
-        c.q15 = "another_value"  # ty: ignore[unresolved-attribute]
-        c.q15_code = 15  # ty: ignore[unresolved-attribute]
+        c.q1 = "test_value"
+        c.q1_code = 1
+        c.q15 = "another_value"
+        c.q15_code = 15
         p.c30_collection = [c]
 
         schema = build_nested_schema([p], Patient)
@@ -234,8 +230,8 @@ class TestDynamicPropertySerialization:
         p = Patient(patient_id="P001", trial_id="TEST")
         e = EQ5D("P001")
         e.event_name = "Baseline"
-        e.q1 = "test"  # ty: ignore[unresolved-attribute]
-        e.q1_code = 1  # ty: ignore[unresolved-attribute]
+        e.q1 = "test"
+        e.q1_code = 1
         e.qol_metric = 75
         p.eq5d_collection = [e]
 
@@ -265,8 +261,8 @@ class TestDynamicPropertySerialization:
         p = Patient(patient_id="P001", trial_id="TEST")
         c = C30("P001")
         c.event_name = "Baseline"
-        c.q1 = "value1"  # ty: ignore[unresolved-attribute]
-        c.q1_code = 1  # ty: ignore[unresolved-attribute]
+        c.q1 = "value1"
+        c.q1_code = 1
         p.c30_collection = [c]
 
         df = build_nested_df([p], Patient)
@@ -285,10 +281,10 @@ class TestDynamicPropertySerialization:
         p = Patient(patient_id="P001", trial_id="TEST")
         c = C30("P001")
         c.event_name = "Baseline"
-        c.q1 = "value1"  # ty: ignore[unresolved-attribute]
-        c.q1_code = 1  # ty: ignore[unresolved-attribute]
-        c.q2 = "value2"  # ty: ignore[unresolved-attribute]
-        c.q2_code = 2  # ty: ignore[unresolved-attribute]
+        c.q1 = "value1"
+        c.q1_code = 1
+        c.q2 = "value2"
+        c.q2_code = 2
         p.c30_collection = [c]
 
         df = build_nested_df([p], Patient)

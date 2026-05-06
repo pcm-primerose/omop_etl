@@ -23,9 +23,8 @@ log = getLogger(__name__)
 
 class MeasurementBuilder(OmopBuilder[MeasurementRow]):
     """
-    Builds measurement rows from ECOG, tumor-assessment baseline + per-instance
-    assessments, C30/EQ5D, biomarkers, and adverse-event terms that map to the
-    Measurement domain.
+    Builds measurement rows from ECOG, tumor-assessment baseline, tumor assessment instances,
+    C30/EQ5D, biomarkers, and adverse-event terms that map to the Measurement domain.
 
     CDM 5.4 policy:
     - measurement_concept_id: must be in measurement domain. Rows are skipped if no

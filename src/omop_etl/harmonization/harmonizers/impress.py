@@ -1393,7 +1393,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                         .otherwise(pl.col("_tl_change_nadir") / 100)
                     ).alias(cols.TARGET_LESION_CHANGE_FROM_NADIR),
                 )
-                # absolute size per assessment: baseline × (1 + change_from_baseline).
+                # absolute size per assessment: baseline * (1 + change_from_baseline).
                 # null propagates for missing baseline or missing change.
                 .join(baseline_size, on="SubjectId", how="left")
                 .with_columns(

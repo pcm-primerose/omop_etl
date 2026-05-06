@@ -1,6 +1,3 @@
-# pyright: reportAttributeAccessIssue=false
-# C30/EQ5D dynamically attach q1..qN attributes via setattr; pyright can't see them statically.
-
 import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
@@ -42,10 +39,7 @@ class TestMeasurementBuilder:
         """Canonical visit-linkage test for the measurement builder.
 
         Every measurement source uses the same `ctx.visit_id_by_date.get(date)`
-        lookup. We test the mechanism once here using a sentinel id seeded
-        directly into the context, no dependency on the visit builder. The
-        negative case (no entry for the date → None) is covered by
-        `TestEcogBaselineRows::test_visit_id_none_when_no_matches`.
+        lookup, tested once here, negative case is covered by test_visit_id_none_when_no_matches.
         """
         patient = create_patient(PID, TRIAL)
         ecog = EcogBaseline(PID)
@@ -266,19 +260,20 @@ class TestTumorAssessmentRows:
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
-        by_concept = {r.measurement_concept_id: r for r in rows}
         # lesion_size row
-        size_row = by_concept[4084390]
-        assert size_row.measurement_date == dt.date(2040, 6, 14)
-        assert size_row.value_as_number == 13.98
-        assert size_row.value_as_concept_id is None
-        assert size_row.measurement_source_value == "13.98"
-        # RECIST PR → precoordinated concept, no value_as_number or value_as_concept_id
-        pr_row = by_concept[1633368]
-        assert pr_row.measurement_date == dt.date(2040, 6, 14)
-        assert pr_row.value_as_number is None
-        assert pr_row.value_as_concept_id is None
-        assert pr_row.measurement_source_value == "Partial Response (PR)"
+        row_1 = rows[0]
+        assert row_1.measurement_concept_id == 4084390
+        assert row_1.measurement_date == dt.date(2040, 6, 14)
+        assert row_1.value_as_number == 13.98
+        assert row_1.value_as_concept_id is None
+        assert row_1.measurement_source_value == "13.98"
+        # RECIST: precoordinated concept, no value_as_number or value_as_concept_id
+        row_2 = rows[1]
+        assert row_2.measurement_concept_id == 1633368
+        assert row_2.measurement_date == dt.date(2040, 6, 14)
+        assert row_2.value_as_number is None
+        assert row_2.value_as_concept_id is None
+        assert row_2.measurement_source_value == "Partial Response (PR)"
 
     def test_rano_response(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
@@ -305,7 +300,6 @@ class TestTumorAssessmentRows:
         assert rows[0].measurement_concept_id == 1635887  # iRECIST-SD
 
     def test_unmapped_response_is_skipped(self, static_index, structural_index):
-        # "Not Evaluable (NE)" is not in the static catalogue.
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [
             _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="Not Evaluable (NE)"),
@@ -313,8 +307,10 @@ class TestTumorAssessmentRows:
 
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1  # only the size row
+        # only the size row:
+        assert len(rows) == 1
         assert rows[0].measurement_concept_id == 4084390
+        assert rows[0].value_as_number == 28.987
 
     def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
@@ -496,8 +492,8 @@ class TestC30Rows:
     def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
         c30 = C30(PID)
-        c30.q1 = "Not at all"  # ty: ignore[unresolved-attribute]
-        c30.q1_code = 1  # ty: ignore[unresolved-attribute]
+        c30.q1 = "Not at all"
+        c30.q1_code = 1
         patient.c30_collection = [c30]
 
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
@@ -673,7 +669,7 @@ class TestEQ5DRows:
     def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
         eq5d = EQ5D(PID)
-        eq5d.q1_code = 1  # ty: ignore[unresolved-attribute]
+        eq5d.q1_code = 1
         eq5d.qol_metric = 80
         patient.eq5d_collection = [eq5d]
 
@@ -1101,14 +1097,20 @@ class TestAdverseEventMeasurementRows:
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 2
-        concept_ids = {r.measurement_concept_id for r in rows}
-        assert concept_ids == {4001, 4003}
-        assert all(r.value_as_concept_id == 4002 for r in rows)
+        row_1 = rows[0]
+        row_2 = rows[1]
+
+        assert row_1.measurement_concept_id == 4001
+        assert row_1.value_as_concept_id == 4002
+        assert row_2.measurement_concept_id == 4003
+        assert row_2.value_as_concept_id == 4002
+
+        assert row_1.measurement_id != row_2.measurement_id
         assert len({r.measurement_id for r in rows}) == 2, "row IDs distinct since concept_id is part of the key"
 
     def test_cross_product_when_multiple_meas_values(self, static_index, structural_index, caplog):
-        # Unusual but supported: 2 Measurement attributes × 2 Meas Value qualifiers
-        # → 4 rows (cross-product). Builder logs the multi-Meas-Value case.
+        # Unusual but supported: 2 Measurement attributes * 2 Meas Value qualifiers
+        # yields 4 rows, the cross-product. Builder logs the multi-Meas-Value case.
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
@@ -1151,14 +1153,14 @@ class TestAdverseEventMeasurementRows:
         with caplog.at_level(logging.WARNING, logger="omop_etl.omop.builders.measurement"):
             rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
-        # 2 Measurement × 2 Meas Value = 4 rows
+        # 2 Measurement * 2 Meas Value = 4 rows
         assert len(rows) == 4
         pairs = {(r.measurement_concept_id, r.value_as_concept_id) for r in rows}
         assert pairs == {(4001, 4002), (4001, 4004), (4003, 4002), (4003, 4004)}
         # all four rows have distinct measurement_ids (qualifier in row_id key)
         assert len({r.measurement_id for r in rows}) == 4
 
-        # cardinality anomaly is logged (not silent)
+        # cardinality anomaly is logged
         assert any("Meas Value concepts" in rec.message for rec in caplog.records)
 
     def test_row_ids_unique_across_aes(self, static_index, structural_index):
@@ -1231,7 +1233,7 @@ def _make_mh(
 
 class TestMedicalHistoryMeasurementRows:
     def test_term_with_measurement_and_meas_value_emits_row(self, static_index, structural_index):
-        # "decreased hemoglobin" -> Hemoglobin measurement (Measurement) + Decreased (Meas Value)
+        # "decreased hemoglobin": Hemoglobin measurement (Measurement) + Decreased (Meas Value)
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
@@ -1302,7 +1304,7 @@ class TestMedicalHistoryMeasurementRows:
         assert rows == []
 
     def test_meas_value_only_skips_row(self, static_index, structural_index):
-        # Meas Value alone (no Measurement attribute) → not a measurement row.
+        # Meas Value alone (no Measurement attribute): not a measurement row.
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
@@ -1341,14 +1343,13 @@ class TestMedicalHistoryMeasurementRows:
         mh = MedicalHistory(PID)
         mh.term = "Decreased hemoglobin"
         mh.sequence_id = 1
-        # start_date intentionally omitted
         patient.medical_histories = [mh]
 
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
         assert rows == []
 
     def test_cross_product_when_multiple_meas_values(self, static_index, structural_index, caplog):
-        # 2 Measurement × 2 Meas Value -> 4 rows; warns on cardinality anomaly.
+        # 2 Measurement * 2 Meas Value yields 4 rows: warns on cardinality anomaly.
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
@@ -1398,7 +1399,7 @@ class TestMedicalHistoryMeasurementRows:
         assert any("Meas Value concepts" in rec.message for rec in caplog.records)
 
     def test_row_ids_unique_across_histories(self, static_index, structural_index):
-        # Two MH instances with distinct sequence_ids -> row_ids differ.
+        # two MH instances with distinct sequence_ids: row_ids differ.
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,

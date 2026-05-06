@@ -1364,7 +1364,7 @@ class TestProcessTumorAssessments:
 
 
 class TestProcessTumorAssessmentsAbsoluteSize:
-    """Absolute target_lesion_size = baseline_size × (1 + change_from_baseline).
+    """Absolute target_lesion_size = baseline_size * (1 + change_from_baseline).
 
     Baseline is sourced via the shared `_subject_baseline_target_lesion_size`
     helper (earliest non-null RNRSP_TERNTBAS / RA_RARECBAS per subject); change

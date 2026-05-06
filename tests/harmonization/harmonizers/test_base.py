@@ -605,11 +605,11 @@ class TestValidateSpecs:
 
     def test_singleton_requires_target_domain(self):
         with pytest.raises(TypeError, match="missing 1 required keyword-only argument: 'target_domain'"):
-            SingletonSpec(name="foo", process=_noop_processor)  # pyright: ignore[reportCallIssue]  # ty: ignore[missing-argument] # noqa
+            SingletonSpec(name="foo", process=_noop_processor)  # noqa
 
     def test_collection_requires_target_domain(self):
         with pytest.raises(TypeError, match="missing 1 required keyword-only argument: 'target_domain'"):
-            CollectionSpec(name="foo", process=_noop_processor)  # pyright: ignore[reportCallIssue]  # ty: ignore[missing-argument] # noqa
+            CollectionSpec(name="foo", process=_noop_processor)  # noqa
 
     def test_empty_subject_col_raises(self):
         with pytest.raises(ValueError, match="subject_col cannot be empty"):
