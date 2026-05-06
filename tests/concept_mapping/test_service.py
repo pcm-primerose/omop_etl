@@ -17,7 +17,7 @@ class TestConceptLookupService:
         result = service.lookup_static("sex", "M")
 
         assert result is not None
-        assert result.concept_id == "8507"
+        assert result.concept_id == 8507
         assert result.concept_name == "Male"
 
     def test_lookup_static_miss(self, static_index):
@@ -37,7 +37,7 @@ class TestConceptLookupService:
         result = service.lookup_structural("ecrf")
 
         assert result is not None
-        assert result.concept_id == "32817"
+        assert result.concept_id == 32817
 
     def test_lookup_structural_miss(self, static_index, structural_index):
         service = ConceptLookupService(
@@ -79,7 +79,7 @@ class TestCaseInsensitiveLookups:
         result = service.lookup_static("sex", "M")
 
         assert result is not None
-        assert result.concept_id == "8507"
+        assert result.concept_id == 8507
 
     def test_lookup_static_matches_titlecase_value_set(self, static_index):
         service = ConceptLookupService(static_index=static_index)
@@ -105,7 +105,7 @@ class TestCaseInsensitiveLookups:
         result = service.lookup_structural("ECRF")
 
         assert result is not None
-        assert result.concept_id == "32817"
+        assert result.concept_id == 32817
 
     def test_domain_filter_is_case_insensitive(self, static_index):
         """Filter accepts mixed-case domain strings and still matches."""

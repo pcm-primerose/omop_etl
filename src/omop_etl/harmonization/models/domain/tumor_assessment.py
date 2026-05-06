@@ -8,6 +8,7 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 class TumorAssessment(DomainBase):
     class Fields:
         ASSESSMENT_TYPE = "assessment_type"
+        TARGET_LESION_SIZE = "target_lesion_size"
         TARGET_LESION_CHANGE_FROM_BASELINE = "target_lesion_change_from_baseline"
         TARGET_LESION_CHANGE_FROM_NADIR = "target_lesion_change_from_nadir"
         WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE = "was_new_lesions_registered_after_baseline"
@@ -22,6 +23,7 @@ class TumorAssessment(DomainBase):
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._assessment_type: str | None = None
+        self._target_lesion_size: float | None = None
         self._target_lesion_change_from_baseline: float | None = None
         self._target_lesion_change_from_nadir: float | None = None
         self._was_new_lesions_registered_after_baseline: bool | None = None
@@ -48,6 +50,18 @@ class TumorAssessment(DomainBase):
             prop=self.__class__.assessment_type,
             value=value,
             validator=StrictValidators.validate_optional_str,
+        )
+
+    @property
+    def target_lesion_size(self) -> float | None:
+        return self._target_lesion_size
+
+    @target_lesion_size.setter
+    def target_lesion_size(self, value: float | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.target_lesion_size,
+            value=value,
+            validator=StrictValidators.validate_optional_float,
         )
 
     @property
@@ -174,6 +188,7 @@ class TumorAssessment(DomainBase):
         return (
             f"{self.__class__.__name__}("
             f"assessment_type={self.assessment_type!r}{delim} "
+            f"target_lesion_size={self.target_lesion_size!r}{delim} "
             f"target_lesion_change_from_baseline={self.target_lesion_change_from_baseline!r}{delim} "
             f"target_lesion_change_from_nadir={self.target_lesion_change_from_nadir!r}{delim} "
             f"was_new_lesions_registered_after_baseline={self.was_new_lesions_registered_after_baseline!r}{delim} "
@@ -182,7 +197,7 @@ class TumorAssessment(DomainBase):
             f"irecist_response={self.irecist_response!r}{delim} "
             f"rano_response={self.rano_response!r}{delim} "
             f"recist_date_of_progression={self.recist_date_of_progression!r}{delim} "
-            f"irecist_response={self.irecist_response!r}{delim} "
+            f"irecist_date_of_progression={self.irecist_date_of_progression!r}{delim} "
             f"event_id={self.event_id!r}"
             f")"
         )

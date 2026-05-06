@@ -41,12 +41,12 @@ def test_validate_optional_str_err(bad):
         va.validate_optional_str(bad, "name")
 
 
-@pytest.mark.parametrize("bad", ["1", 1.0, True, None.__class__])  # type: ignore
+@pytest.mark.parametrize("bad", ["1", 1.0, True, None.__class__])
 def test_validate_optional_int_err(bad):
     if bad is True:
         with pytest.raises(TypeError):
             va.validate_optional_int(bad, "age")
-    elif bad == "1" or bad == 1.0 or bad is None.__class__:  # type: ignore
+    elif bad == "1" or bad == 1.0 or bad is None.__class__:
         with pytest.raises(TypeError):
             va.validate_optional_int(bad, "age")
 

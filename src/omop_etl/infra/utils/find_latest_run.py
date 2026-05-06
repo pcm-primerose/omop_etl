@@ -1,5 +1,37 @@
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal, overload
+
+
+@overload
+def find_latest_run_output(
+    module: Literal["preprocessed"],
+    trial: str = "impress",
+    fmt: str = "csv",
+    mode: None = None,
+    data_root: Path | None = None,
+) -> Path | None: ...
+
+
+@overload
+def find_latest_run_output(
+    module: Literal["harmonized"],
+    trial: str = "impress",
+    fmt: str = "csv",
+    *,
+    mode: Literal["wide"],
+    data_root: Path | None = None,
+) -> Path | None: ...
+
+
+@overload
+def find_latest_run_output(
+    module: Literal["harmonized"],
+    trial: str = "impress",
+    fmt: str = "csv",
+    *,
+    mode: Literal["norm"],
+    data_root: Path | None = None,
+) -> dict[str, Path] | None: ...
 
 
 def find_latest_run_output(
@@ -8,7 +40,7 @@ def find_latest_run_output(
     fmt: str = "csv",
     mode: Literal["wide", "norm"] | None = None,
     data_root: Path | None = None,
-) -> Union[Path, dict[str, Path]] | None:
+) -> Path | dict[str, Path] | None:
     """
     Find the most recent output from a pipeline module.
 

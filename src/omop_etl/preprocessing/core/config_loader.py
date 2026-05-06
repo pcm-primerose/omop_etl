@@ -1,6 +1,5 @@
 from importlib.resources import files as pkg_files
 from pathlib import Path
-from typing import Optional
 import json5 as json
 from logging import getLogger
 
@@ -9,7 +8,7 @@ log = getLogger(__name__)
 _BASE = pkg_files("omop_etl.resources") / "ecrf_variables"
 
 
-def load_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> dict:
+def load_ecrf_config(trial: str, custom_config_path: Path | None = None) -> dict:
     if custom_config_path:
         config_path = Path(custom_config_path)
         if not config_path.exists():
@@ -21,11 +20,11 @@ def load_ecrf_config(trial: str, custom_config_path: Optional[Path] = None) -> d
         avail = ", ".join(available_trials()) or "none"
         raise FileNotFoundError(f"No packaged config for trial '{trial}'. Expected one of: {avail}")
 
-    with path.open("r", encoding="utf-8") as f:  # type: ignore
+    with path.open("r", encoding="utf-8") as f:
         return _validate(json.load(f))
 
 
-def _find_config_path(trial: str, base) -> Optional[object]:
+def _find_config_path(trial: str, base) -> Path | None:
     """Return a Traversable/Path for the matching JSON5, case-insensitive."""
     target_name = f"{trial.casefold()}.json5"
 
@@ -37,8 +36,8 @@ def _find_config_path(trial: str, base) -> Optional[object]:
         pass
 
     for p in base.iterdir():
-        name = getattr(p, "name", None)
-        if not name or not name.endswith(".json5"):
+        name: str | None = getattr(p, "name", None)
+        if name is None or not name.endswith(".json5"):
             continue
         if name.casefold() == target_name:
             return p
@@ -51,7 +50,7 @@ def available_trials() -> list[str]:
     return out
 
 
-def _validate(config: dict) -> dict:
+def _validate(config: object) -> dict:
     if not isinstance(config, dict) or not all(isinstance(v, list) for v in config.values()):
         raise ValueError("Config must be a mapping[str, list[str]].")
     return config

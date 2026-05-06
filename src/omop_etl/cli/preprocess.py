@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Literal
 
 from omop_etl.config import (
-    ACTIVE_DATASET,
+    DEFAULT_DATASET,
     DATA_ROOT,
 )
 from omop_etl.infra.io.types import Layout
@@ -20,7 +20,7 @@ def run_preprocessing(
     trial: str = "IMPRESS",
     combine_key: str = "SubjectId",
     output_format: Literal["csv", "tsv", "parquet"] = "csv",
-    only_cohort: bool | None = True,
+    only_cohort: bool = True,
     config: Path | None = None,
 ) -> PreprocessResult:
     # build runtime options
@@ -47,7 +47,7 @@ def run_preprocessing(
 
 if __name__ == "__main__":
     run_preprocessing(
-        preprocessing_input=ACTIVE_DATASET,
+        preprocessing_input=DEFAULT_DATASET,
         trial="IMPRESS",
         base_root=DATA_ROOT,
         output_format="csv",

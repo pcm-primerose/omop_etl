@@ -17,6 +17,7 @@ class TestProcessCohortName:
     def test_returns_expected_columns(self, cohort_name_fixture):
         h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
         df = h._process_cohort_name()
+        assert df is not None
 
         assert set(df.columns) == {"SubjectId", "cohort_name"}
 
@@ -33,6 +34,7 @@ class TestProcessCohortName:
     def test_cohort_name_values(self, cohort_name_fixture, sid, expected):
         h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
         df = h._process_cohort_name()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "cohort_name")
@@ -43,12 +45,14 @@ class TestProcessSex:
     def test_returns_expected_columns(self, gender_fixture):
         h = ImpressHarmonizer(data=gender_fixture, trial_id="T")
         df = h._process_sex()
+        assert df is not None
 
         assert set(df.columns) == {"SubjectId", "sex"}
 
     def test_normalizes_to_lowercase(self, gender_fixture):
         h = ImpressHarmonizer(data=gender_fixture, trial_id="T")
         df = h._process_sex()
+        assert df is not None
 
         values = set(df["sex"].to_list())
         assert values <= {"male", "female"}, "all values should be 'male' or 'female'"
@@ -69,6 +73,7 @@ class TestProcessSex:
     def test_sex_values(self, gender_fixture, sid, expected):
         h = ImpressHarmonizer(data=gender_fixture, trial_id="T")
         df = h._process_sex()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "sex")
@@ -79,6 +84,7 @@ class TestProcessAge:
     def test_returns_expected_columns(self, age_fixture):
         h = ImpressHarmonizer(data=age_fixture, trial_id="T")
         df = h._process_age()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "age" in df.columns
@@ -96,6 +102,7 @@ class TestProcessAge:
     def test_age_values(self, age_fixture, sid, expected):
         h = ImpressHarmonizer(data=age_fixture, trial_id="T")
         df = h._process_age()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "age")
@@ -106,6 +113,7 @@ class TestProcessTumorType:
     def test_returns_expected_columns(self, tumor_type_fixture):
         h = ImpressHarmonizer(data=tumor_type_fixture, trial_id="T")
         df = h._process_tumor_type()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.tumor_type import TumorType
 
@@ -116,6 +124,7 @@ class TestProcessTumorType:
     def test_extracts_tumor_fields(self, tumor_type_fixture):
         h = ImpressHarmonizer(data=tumor_type_fixture, trial_id="T")
         df = h._process_tumor_type()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "tumor1_multi_subtypes")
         assert row.item(0, "icd10_code") == "C30"
@@ -171,6 +180,7 @@ class TestProcessStudyDrugs:
     def test_returns_expected_columns(self, study_drugs_fixture):
         h = ImpressHarmonizer(data=study_drugs_fixture, trial_id="T")
         df = h._process_study_drugs()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 
@@ -180,6 +190,7 @@ class TestProcessStudyDrugs:
     def test_extracts_drug_fields(self, study_drugs_fixture):
         h = ImpressHarmonizer(data=study_drugs_fixture, trial_id="T")
         df = h._process_study_drugs()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "sd_from_alt_slots")
         assert row.item(0, "primary_treatment_drug") == "Traztuzumab"
@@ -211,6 +222,7 @@ class TestProcessStudyDrugs:
     def test_collision_filtered_out(self, study_drugs_fixture):
         h = ImpressHarmonizer(data=study_drugs_fixture, trial_id="T")
         df = h._process_study_drugs()
+        assert df is not None
 
         # collision subject should be filtered out
         subject_ids = set(df["SubjectId"].to_list())
@@ -221,6 +233,7 @@ class TestProcessDateOfDeath:
     def test_returns_expected_columns(self, date_of_death_fixture):
         h = ImpressHarmonizer(data=date_of_death_fixture, trial_id="T")
         df = h._process_date_of_death()
+        assert df is not None
 
         assert set(df.columns) == {"SubjectId", "date_of_death"}
 
@@ -237,6 +250,7 @@ class TestProcessDateOfDeath:
     def test_date_of_death_values(self, date_of_death_fixture, sid, expected):
         h = ImpressHarmonizer(data=date_of_death_fixture, trial_id="T")
         df = h._process_date_of_death()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "date_of_death")
@@ -247,6 +261,7 @@ class TestProcessBiomarkers:
     def test_returns_expected_columns(self, biomarkers_fixture):
         h = ImpressHarmonizer(data=biomarkers_fixture, trial_id="T")
         df = h._process_biomarkers()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 
@@ -256,6 +271,7 @@ class TestProcessBiomarkers:
     def test_extracts_biomarker_values(self, biomarkers_fixture):
         h = ImpressHarmonizer(data=biomarkers_fixture, trial_id="T")
         df = h._process_biomarkers()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "mut_braf_activating")
         assert row.item(0, "gene_and_mutation") == "BRAF activating mutations"
@@ -301,6 +317,7 @@ class TestProcessLostToFollowup:
     def test_returns_expected_columns(self, lost_to_followup_fixture):
         h = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="T")
         df = h._process_lost_to_followup()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.followup import FollowUp
 
@@ -310,6 +327,7 @@ class TestProcessLostToFollowup:
     def test_ltfu_status_and_dates(self, lost_to_followup_fixture):
         h = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="T")
         df = h._process_lost_to_followup()
+        assert df is not None
 
         def get_row(sid: str):
             return df.filter(pl.col("SubjectId") == sid)
@@ -334,6 +352,7 @@ class TestProcessLostToFollowup:
         produce lost_to_followup=False with no LTFU date."""
         h = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="T")
         df = h._process_lost_to_followup()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "alive_lowercase_code_missing")
         assert row.item(0, "lost_to_followup") is False
@@ -343,6 +362,7 @@ class TestProcessLostToFollowup:
         """Invalid date strings should not flag the subject as LTFU."""
         h = ImpressHarmonizer(data=lost_to_followup_fixture, trial_id="T")
         df = h._process_lost_to_followup()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "invalid_dates")
         assert row.item(0, "lost_to_followup") is False
@@ -373,6 +393,7 @@ class TestProcessEvaluability:
     def test_evaluability_values(self, evaluability_fixture, patient_id, expected):
         h = ImpressHarmonizer(data=evaluability_fixture, trial_id="T")
         df = h._process_evaluable_for_efficacy_analysis()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == patient_id)
         assert row.item(0, "evaluable_for_efficacy_analysis") is expected
@@ -382,6 +403,7 @@ class TestProcessEcogBaseline:
     def test_returns_expected_columns(self, ecog_fixture):
         h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
         df = h._process_ecog_baseline()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 
@@ -391,6 +413,7 @@ class TestProcessEcogBaseline:
     def test_extracts_ecog_values(self, ecog_fixture):
         h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
         df = h._process_ecog_baseline()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "all_data")
         assert row.item(0, "description") == "all"
@@ -400,6 +423,7 @@ class TestProcessEcogBaseline:
     def test_wrong_event_id_filtered(self, ecog_fixture):
         h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
         df = h._process_ecog_baseline()
+        assert df is not None
 
         # subjects without a valid baseline event_id should be filtered out
         # entirely (so the eventual hydrated singleton is None on the patient).
@@ -414,6 +438,7 @@ class TestProcessEcogBaseline:
         """
         h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
         df = h._process_ecog_baseline()
+        assert df is not None
 
         # eventid_no_code: description present, grade missing, date present
         row = df.filter(pl.col("SubjectId") == "eventid_no_code")
@@ -444,6 +469,7 @@ class TestProcessMedicalHistories:
     def test_returns_expected_columns(self, medical_history_fixture):
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
         df = h._process_medical_histories()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 
@@ -453,6 +479,7 @@ class TestProcessMedicalHistories:
     def test_extracts_medical_history_values(self, medical_history_fixture):
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
         df = h._process_medical_histories()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "two_rows")
         assert rows.height == 2
@@ -478,6 +505,7 @@ class TestProcessMedicalHistories:
     def test_missing_data_returns_no_rows(self, medical_history_fixture):
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
         df = h._process_medical_histories()
+        assert df is not None
 
         missing = df.filter(pl.col("SubjectId") == "missing")
         assert missing.height == 0
@@ -486,6 +514,7 @@ class TestProcessMedicalHistories:
         """`ended` has hypertension with both start and end dates."""
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
         df = h._process_medical_histories()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "ended")
         assert row.item(0, "term") == "hypertension"
@@ -502,6 +531,7 @@ class TestProcessMedicalHistories:
         """
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
         df = h._process_medical_histories()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "ended_term_mismatch")
         assert row.item(0, "term") == "pain"
@@ -518,6 +548,7 @@ class TestProcessMedicalHistories:
         """
         h = ImpressHarmonizer(data=medical_history_fixture, trial_id="T")
         df = h._process_medical_histories()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "ended_code_mismatch")
         assert row.item(0, "term") == "rigor mortis"
@@ -532,6 +563,7 @@ class TestProcessAdverseEventNumber:
     def test_returns_expected_columns(self, adverse_event_number_fixture):
         h = ImpressHarmonizer(data=adverse_event_number_fixture, trial_id="T")
         df = h._process_number_of_adverse_events()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "number_of_adverse_events" in df.columns
@@ -549,6 +581,7 @@ class TestProcessAdverseEventNumber:
     def test_number_of_adverse_events_values(self, adverse_event_number_fixture, sid, expected):
         h = ImpressHarmonizer(data=adverse_event_number_fixture, trial_id="T")
         df = h._process_number_of_adverse_events()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "number_of_adverse_events")
@@ -569,6 +602,7 @@ class TestProcessSeriousAdverseEventNumber:
     def test_number_of_serious_adverse_events_values(self, serious_adverse_event_number_fixture, sid, expected):
         h = ImpressHarmonizer(data=serious_adverse_event_number_fixture, trial_id="T")
         df = h._process_number_of_serious_adverse_events()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "number_of_serious_adverse_events")
@@ -579,6 +613,7 @@ class TestProcessBaselineTumorAssessment:
     def test_returns_expected_columns(self, baseline_tumor_assessment_fixture):
         h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
         df = h._process_baseline_tumor_assessment()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 
@@ -593,6 +628,7 @@ class TestProcessBaselineTumorAssessment:
         """
         h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
         df = h._process_baseline_tumor_assessment()
+        assert df is not None
 
         subject_ids = set(df["SubjectId"].to_list())
         for sid in (
@@ -613,6 +649,7 @@ class TestProcessBaselineTumorAssessment:
         """
         h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
         df = h._process_baseline_tumor_assessment()
+        assert df is not None
 
         # vituma_only: VI_VITUMA primary source
         row = df.filter(pl.col("SubjectId") == "vituma_only")
@@ -636,6 +673,7 @@ class TestProcessBaselineTumorAssessment:
         """
         h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
         df = h._process_baseline_tumor_assessment()
+        assert df is not None
 
         # both_ntl_cols: both sources present, picks one
         row = df.filter(pl.col("SubjectId") == "both_ntl_cols")
@@ -665,6 +703,7 @@ class TestProcessBaselineTumorAssessment:
         """
         h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
         df = h._process_baseline_tumor_assessment()
+        assert df is not None
 
         # ra_valid: RA source, full data
         row = df.filter(pl.col("SubjectId") == "ra_valid")
@@ -697,6 +736,7 @@ class TestProcessBaselineTumorAssessment:
         """
         h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
         df = h._process_baseline_tumor_assessment()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "multiple_rows")
         assert row.item(0, "target_lesion_size") == 9
@@ -708,6 +748,7 @@ class TestProcessPreviousTreatments:
     def test_returns_expected_columns(self, previous_treatment_fixture):
         h = ImpressHarmonizer(data=previous_treatment_fixture, trial_id="T")
         df = h._process_previous_treatments()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
 
@@ -717,6 +758,7 @@ class TestProcessPreviousTreatments:
     def test_extracts_treatment_values(self, previous_treatment_fixture):
         h = ImpressHarmonizer(data=previous_treatment_fixture, trial_id="T")
         df = h._process_previous_treatments()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "has_treatment")
         assert row.item(0, "treatment") == "abc"
@@ -728,6 +770,7 @@ class TestProcessPreviousTreatments:
     def test_missing_treatment_filtered(self, previous_treatment_fixture):
         h = ImpressHarmonizer(data=previous_treatment_fixture, trial_id="T")
         df = h._process_previous_treatments()
+        assert df is not None
 
         subject_ids = set(df["SubjectId"].to_list())
         assert "missing_treatment" not in subject_ids
@@ -741,6 +784,7 @@ class TestProcessPreviousTreatments:
         """
         h = ImpressHarmonizer(data=previous_treatment_fixture, trial_id="T")
         df = h._process_previous_treatments()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "missing_partial")
         assert rows.height == 2
@@ -762,6 +806,7 @@ class TestProcessTreatmentStartDate:
     def test_returns_expected_columns(self, treatment_start_fixture):
         h = ImpressHarmonizer(data=treatment_start_fixture, trial_id="T")
         df = h._process_treatment_start_date()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "treatment_start_date" in df.columns
@@ -779,6 +824,7 @@ class TestProcessTreatmentStartDate:
     def test_treatment_start_date_values(self, treatment_start_fixture, sid, expected):
         h = ImpressHarmonizer(data=treatment_start_fixture, trial_id="T")
         df = h._process_treatment_start_date()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "treatment_start_date")
@@ -789,6 +835,7 @@ class TestProcessEndOfTreatmentDate:
     def test_returns_expected_columns(self, treatment_stop_fixture):
         h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
         df = h._process_end_of_treatment_date()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "end_of_treatment_date" in df.columns
@@ -811,6 +858,7 @@ class TestProcessEndOfTreatmentDate:
     def test_end_of_treatment_date_values(self, treatment_stop_fixture, sid, expected):
         h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
         df = h._process_end_of_treatment_date()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "end_of_treatment_date")
@@ -821,6 +869,7 @@ class TestProcessTreatmentStartLastCycle:
     def test_returns_expected_columns(self, last_treatment_start_fixture):
         h = ImpressHarmonizer(data=last_treatment_start_fixture, trial_id="T")
         df = h._process_treatment_start_last_cycle()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "treatment_start_last_cycle" in df.columns
@@ -840,6 +889,7 @@ class TestProcessTreatmentStartLastCycle:
     def test_treatment_start_last_cycle_values(self, last_treatment_start_fixture, sid, expected):
         h = ImpressHarmonizer(data=last_treatment_start_fixture, trial_id="T")
         df = h._process_treatment_start_last_cycle()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "treatment_start_last_cycle")
@@ -850,6 +900,7 @@ class TestProcessTreatmentCycle:
     def test_returns_expected_columns(self, treatment_cycle_fixture):
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 
@@ -864,6 +915,7 @@ class TestProcessTreatmentCycle:
         """
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "iv_two_cycles")
         assert rows.height == 2
@@ -882,6 +934,7 @@ class TestProcessTreatmentCycle:
     def test_extracts_oral_cycle(self, treatment_cycle_fixture):
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "oral_single")
         assert row.item(0, "cycle_type") == "oral"
@@ -903,6 +956,7 @@ class TestProcessTreatmentCycle:
         """
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "both_modalities")
         assert rows.height == 2
@@ -921,6 +975,7 @@ class TestProcessTreatmentCycle:
         """
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "both_in_row")
         assert row.height == 1
@@ -930,6 +985,7 @@ class TestProcessTreatmentCycle:
     def test_null_name_filtered(self, treatment_cycle_fixture):
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         subject_ids = set(df["SubjectId"].to_list())
         assert "drop_no_name" not in subject_ids
@@ -938,6 +994,7 @@ class TestProcessTreatmentCycle:
         """'Phesgo (Pertuzumab and Trastuzumab)' with '600/600' splits into two rows."""
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "combo_equal_dose")
         assert rows.height == 2
@@ -965,6 +1022,7 @@ class TestProcessTreatmentCycle:
         """'1200/600' maps first dose to first drug, second dose to second drug."""
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "combo_diff_dose").sort("ingredient_name")
         assert rows.height == 2
@@ -982,8 +1040,9 @@ class TestProcessTreatmentCycle:
         """Non-combination 'Brand (Ingredient)' rows extract brand and ingredient."""
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
-        # iv_two_cycles uses "iv Drug" (no parenthetical) — should have no brand
+        # iv_two_cycles uses "iv Drug" (no parenthetical): should have no brand
         rows = df.filter(pl.col("SubjectId") == "iv_two_cycles")
         assert rows[0, "brand_name"] is None
         assert rows[0, "ingredient_name"] is None
@@ -994,6 +1053,7 @@ class TestProcessTreatmentCycle:
         """'Tecentriq (Atezolizumab)' extracts brand and ingredient, no component_index."""
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "single_branded")
         assert row.height == 1
@@ -1007,6 +1067,7 @@ class TestProcessTreatmentCycle:
         """Plain treatment names without parenthetical have no brand, name unchanged."""
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "oral_single")
         assert row.item(0, "brand_name") is None
@@ -1018,6 +1079,7 @@ class TestProcessTreatmentCycle:
         """All iv_dose_prescribed values are float after processing (not strings)."""
         h = ImpressHarmonizer(data=treatment_cycle_fixture, trial_id="T")
         df = h._process_treatment_cycle()
+        assert df is not None
 
         assert df["iv_dose_prescribed"].dtype == pl.Float64
 
@@ -1026,6 +1088,7 @@ class TestProcessConcomitantMedication:
     def test_returns_expected_columns(self, concomitant_medication_fixture):
         h = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="T")
         df = h._process_concomitant_medication()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 
@@ -1035,6 +1098,7 @@ class TestProcessConcomitantMedication:
     def test_extracts_medication_values(self, concomitant_medication_fixture):
         h = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="T")
         df = h._process_concomitant_medication()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "all_fields")
         assert row.item(0, "medication_name") == "Paracetamol"
@@ -1049,6 +1113,7 @@ class TestProcessConcomitantMedication:
     def test_null_name_filtered(self, concomitant_medication_fixture):
         h = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="T")
         df = h._process_concomitant_medication()
+        assert df is not None
 
         subject_ids = set(df["SubjectId"].to_list())
         assert "drop_null_name" not in subject_ids
@@ -1058,6 +1123,7 @@ class TestProcessConcomitantMedication:
     def test_ordering_subject_emits_all_rows(self, concomitant_medication_fixture):
         h = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="T")
         df = h._process_concomitant_medication()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "ordering")
         assert rows.height == 3
@@ -1076,6 +1142,7 @@ class TestProcessConcomitantMedication:
     def test_ongoing_none_subject_keeps_null_fields(self, concomitant_medication_fixture):
         h = ImpressHarmonizer(data=concomitant_medication_fixture, trial_id="T")
         df = h._process_concomitant_medication()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "ongoing_none")
         assert row.height == 1
@@ -1092,6 +1159,7 @@ class TestProcessHasAnyAdverseEvents:
     def test_returns_expected_columns(self, adverse_events_flag_fixture):
         h = ImpressHarmonizer(data=adverse_events_flag_fixture, trial_id="T")
         df = h._process_has_any_adverse_events()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "has_any_adverse_events" in df.columns
@@ -1112,6 +1180,7 @@ class TestProcessHasAnyAdverseEvents:
     def test_has_any_adverse_events_values(self, adverse_events_flag_fixture, sid, expected):
         h = ImpressHarmonizer(data=adverse_events_flag_fixture, trial_id="T")
         df = h._process_has_any_adverse_events()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "has_any_adverse_events")
@@ -1122,6 +1191,7 @@ class TestProcessAdverseEvents:
     def test_returns_expected_columns(self, adverse_events_fixture):
         h = ImpressHarmonizer(data=adverse_events_fixture, trial_id="T")
         df = h._process_adverse_events()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 
@@ -1131,6 +1201,7 @@ class TestProcessAdverseEvents:
     def test_extracts_adverse_event_values(self, adverse_events_fixture):
         h = ImpressHarmonizer(data=adverse_events_fixture, trial_id="T")
         df = h._process_adverse_events()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "simple")
         assert row.item(0, "term") == "Headache"
@@ -1154,6 +1225,7 @@ class TestProcessAdverseEvents:
         """
         h = ImpressHarmonizer(data=adverse_events_fixture, trial_id="T")
         df = h._process_adverse_events()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "serious_fill_end_from_death")
         assert row.height == 1
@@ -1168,6 +1240,7 @@ class TestProcessAdverseEvents:
     def test_multiple_events_per_patient(self, adverse_events_fixture):
         h = ImpressHarmonizer(data=adverse_events_fixture, trial_id="T")
         df = h._process_adverse_events()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "multi")
         assert rows.height == 2
@@ -1190,6 +1263,7 @@ class TestProcessAdverseEvents:
     def test_null_term_filtered(self, adverse_events_fixture):
         h = ImpressHarmonizer(data=adverse_events_fixture, trial_id="T")
         df = h._process_adverse_events()
+        assert df is not None
 
         subject_ids = set(df["SubjectId"].to_list())
         assert "drop_null_term" not in subject_ids
@@ -1199,6 +1273,7 @@ class TestProcessTumorAssessments:
     def test_returns_expected_columns(self, tumor_assessments_fixture):
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 
@@ -1208,6 +1283,7 @@ class TestProcessTumorAssessments:
     def test_extracts_recist_values(self, tumor_assessments_fixture):
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "recist_full")
         assert row.item(0, "assessment_type") == "recist"
@@ -1222,6 +1298,7 @@ class TestProcessTumorAssessments:
     def test_extracts_rano_values(self, tumor_assessments_fixture):
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "rano_full")
         assert row.item(0, "assessment_type") == "rano"
@@ -1235,6 +1312,7 @@ class TestProcessTumorAssessments:
     def test_extracts_irecist_values(self, tumor_assessments_fixture):
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "irecist_full")
         assert row.item(0, "assessment_type") == "irecist"
@@ -1247,6 +1325,7 @@ class TestProcessTumorAssessments:
     def test_collision_irecist_wins_over_recist(self, tumor_assessments_fixture):
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "collision_irecist_wins")
         assert row.item(0, "assessment_type") == "irecist"
@@ -1254,6 +1333,7 @@ class TestProcessTumorAssessments:
     def test_recist_with_invalid_date_keeps_response(self, tumor_assessments_fixture):
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "recist_bad_date")
         assert row.item(0, "assessment_type") == "recist"
@@ -1266,6 +1346,7 @@ class TestProcessTumorAssessments:
         date should be picked up from the RNRSP fields."""
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "event_from_rnrsp")
         assert row.item(0, "assessment_type") == "rano"
@@ -1276,15 +1357,157 @@ class TestProcessTumorAssessments:
     def test_no_signal_subject_filtered(self, tumor_assessments_fixture):
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
         df = h._process_tumor_assessments()
+        assert df is not None
 
         subject_ids = set(df["SubjectId"].to_list())
         assert "no_signal" not in subject_ids
+
+
+class TestProcessTumorAssessmentsAbsoluteSize:
+    """Absolute target_lesion_size = baseline_size * (1 + change_from_baseline).
+
+    Baseline is sourced via the shared `_subject_baseline_target_lesion_size`
+    helper (earliest non-null RNRSP_TERNTBAS / RA_RARECBAS per subject); change
+    is the fractional percent-change already computed on the row.
+    """
+
+    @staticmethod
+    def _frame(rows):
+        from tests.harmonization.conftest import TumorAssessmentRow
+        from dataclasses import asdict, fields
+
+        # all TumorAssessmentRow source columns are str/int-or-None and come from CSV in prod;
+        # pin schema so all-None columns in small test frames don't infer Null dtype.
+        schema = {}
+        for f in fields(TumorAssessmentRow):
+            if f.name in ("RA_RANLBASECD", "RNRSP_RNRSPNLCD"):
+                schema[f.name] = pl.Int64
+            else:
+                schema[f.name] = pl.Utf8
+        return pl.from_dicts([asdict(TumorAssessmentRow(**r)) for r in rows], schema=schema)
+
+    def test_baseline_100_change_minus_50_pct_yields_50(self):
+        df = self._frame(
+            [
+                # baseline row supplies the size only
+                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
+                # assessment row with -50% change from baseline
+                {
+                    "SubjectId": "s1",
+                    "RA_RARECCH": "-50",
+                    "RA_RABASECH": "-50",
+                    "RA_RAASSESS1": "RECIST",
+                    "RA_EventDate": "2020-03-01",
+                    "RA_EventId": "V02",
+                },
+            ],
+        )
+        h = ImpressHarmonizer(data=df, trial_id="T")
+        out = h._process_tumor_assessments()
+        assert out is not None
+
+        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V02"))
+        assert row.item(0, "target_lesion_size") == 50.0
+
+    def test_baseline_100_change_zero_yields_baseline(self):
+        df = self._frame(
+            [
+                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
+                {
+                    "SubjectId": "s1",
+                    "RA_RABASECH": "0",
+                    "RA_RAASSESS1": "RECIST",
+                    "RA_EventDate": "2020-02-01",
+                    "RA_EventId": "V01",
+                },
+            ],
+        )
+        h = ImpressHarmonizer(data=df, trial_id="T")
+        out = h._process_tumor_assessments()
+        assert out is not None
+
+        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
+        assert row.item(0, "target_lesion_size") == 100.0
+
+    def test_subject_without_baseline_yields_none(self):
+        df = self._frame(
+            [
+                # no baseline size row for s1, only an assessment with a change value
+                {
+                    "SubjectId": "s1",
+                    "RA_RABASECH": "-30",
+                    "RA_RAASSESS1": "RECIST",
+                    "RA_EventDate": "2020-02-01",
+                    "RA_EventId": "V01",
+                },
+            ],
+        )
+        h = ImpressHarmonizer(data=df, trial_id="T")
+        out = h._process_tumor_assessments()
+        assert out is not None
+
+        row = out.filter(pl.col("SubjectId") == "s1")
+        assert row.item(0, "target_lesion_size") is None
+
+    def test_change_is_none_yields_none(self):
+        df = self._frame(
+            [
+                {"SubjectId": "s1", "RA_RARECBAS": "80", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
+                # assessment with signal but no change value
+                {
+                    "SubjectId": "s1",
+                    "RA_RAASSESS1": "RECIST",
+                    "RA_RATIMRES": "SD",
+                    "RA_EventDate": "2020-02-01",
+                    "RA_EventId": "V01",
+                },
+            ],
+        )
+        h = ImpressHarmonizer(data=df, trial_id="T")
+        out = h._process_tumor_assessments()
+        assert out is not None
+
+        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
+        assert row.item(0, "target_lesion_size") is None
+
+    def test_subjects_do_not_cross_contaminate(self):
+        df = self._frame(
+            [
+                # s1 baseline 100, assessment -50%: 50.0
+                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
+                {
+                    "SubjectId": "s1",
+                    "RA_RABASECH": "-50",
+                    "RA_RAASSESS1": "RECIST",
+                    "RA_EventDate": "2020-02-01",
+                    "RA_EventId": "V01",
+                },
+                # s2 baseline 40, assessment +25%: 50.0 (same arithmetic, different subject)
+                {"SubjectId": "s2", "RA_RARECBAS": "40", "RA_EventDate": "2020-01-05", "RA_EventId": "V00"},
+                {
+                    "SubjectId": "s2",
+                    "RA_RABASECH": "25",
+                    "RA_RAASSESS1": "RECIST",
+                    "RA_EventDate": "2020-02-05",
+                    "RA_EventId": "V01",
+                },
+            ],
+        )
+        h = ImpressHarmonizer(data=df, trial_id="T")
+        out = h._process_tumor_assessments()
+        assert out is not None
+
+        s1 = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
+        s2 = out.filter((pl.col("SubjectId") == "s2") & (pl.col("event_id") == "V01"))
+        assert s1.item(0, "target_lesion_size") == 50.0
+        assert s2.item(0, "target_lesion_size") == 50.0
 
 
 class TestProcessBestOverallResponse:
     def test_returns_expected_columns(self, best_overall_response_fixture):
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
+        assert df is not None
 
         from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 
@@ -1294,6 +1517,7 @@ class TestProcessBestOverallResponse:
     def test_extracts_response_values(self, best_overall_response_fixture):
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "recist_only")
         assert row.item(0, "response") == "PR"
@@ -1308,6 +1532,7 @@ class TestProcessBestOverallResponse:
     def test_irecist_only_subject(self, best_overall_response_fixture):
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "irecist_only")
         assert row.item(0, "response") == "CR"
@@ -1317,6 +1542,7 @@ class TestProcessBestOverallResponse:
     def test_both_recist_and_irecist_picks_irecist(self, best_overall_response_fixture):
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "both_pick_irecist")
         assert row.item(0, "response") == "iCR"
@@ -1326,6 +1552,7 @@ class TestProcessBestOverallResponse:
     def test_irecist_unconfirmed_dropped_in_favor_of_recist(self, best_overall_response_fixture):
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "irecist_unconfirmed_drop")
         assert row.item(0, "response") == "PD"
@@ -1335,6 +1562,7 @@ class TestProcessBestOverallResponse:
     def test_multi_best_picks_best(self, best_overall_response_fixture):
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "multi_best")
         assert row.item(0, "response") == "PR"
@@ -1345,6 +1573,7 @@ class TestProcessBestOverallResponse:
         """iRECIST 'NE' (not evaluable) should map to code 96 / response 'SD'."""
         h = ImpressHarmonizer(data=best_overall_response_fixture, trial_id="T")
         df = h._process_best_overall_response()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == "irecist_ne_maps_96")
         assert row.item(0, "response") == "SD"
@@ -1356,6 +1585,7 @@ class TestProcessClinicalBenefitAtWeek16:
     def test_returns_expected_columns(self, has_clinical_benefit_at_week_16_fixture):
         h = ImpressHarmonizer(data=has_clinical_benefit_at_week_16_fixture, trial_id="T")
         df = h._process_has_clinical_benefit_at_week_16()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "has_clinical_benefit_at_week_16" in df.columns
@@ -1375,6 +1605,7 @@ class TestProcessClinicalBenefitAtWeek16:
     def test_clinical_benefit__at_week_16_values(self, has_clinical_benefit_at_week_16_fixture, sid, expected):
         h = ImpressHarmonizer(data=has_clinical_benefit_at_week_16_fixture, trial_id="T")
         df = h._process_has_clinical_benefit_at_week_16()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "has_clinical_benefit_at_week_16")
@@ -1385,6 +1616,7 @@ class TestProcessEotReason:
     def test_returns_expected_columns(self, end_of_treatment_reason_fixture):
         h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
         df = h._process_end_of_treatment_reason()
+        assert df is not None
 
         assert "SubjectId" in df.columns
         assert "end_of_treatment_reason" in df.columns
@@ -1401,6 +1633,7 @@ class TestProcessEotReason:
     def test_eot_reason_values(self, end_of_treatment_reason_fixture, sid, expected):
         h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
         df = h._process_end_of_treatment_reason()
+        assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "end_of_treatment_reason")
@@ -1409,6 +1642,7 @@ class TestProcessEotReason:
     def test_multi_row_subject_keeps_all_rows(self, end_of_treatment_reason_fixture):
         h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
         df = h._process_end_of_treatment_reason()
+        assert df is not None
 
         rows = df.filter(pl.col("SubjectId") == "reason_multi_overwrite")
         assert rows.height == 2

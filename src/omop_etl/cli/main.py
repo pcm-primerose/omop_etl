@@ -61,7 +61,7 @@ def _build_tables(
 ) -> OmopTables:
     semantic_batch: BatchQueryResult | None = None
     if with_semantic:
-        result = SemanticService().run(harmonized_data=harmonized, meta=meta)
+        result = SemanticService().run(harmonized_data=harmonized, meta=meta, trial=meta.trial)
         semantic_batch = result.batch_result
 
     concept_service = ConceptLookupService.from_paths(

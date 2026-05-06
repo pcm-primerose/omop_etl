@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import multiprocessing as mp
+import multiprocessing.context as mp_context
 import atexit
 from pathlib import Path
 from typing import Dict, Any, List
@@ -86,8 +87,9 @@ def get_logger(name: str | None = None) -> logging.Logger:
         import inspect
 
         frame = inspect.currentframe()
-        if frame and frame.f_back:
-            name = frame.f_back.f_globals.get("__name__", __name__)
+        caller = frame.f_back if frame is not None else None
+        if caller is not None:
+            name = caller.f_globals.get("__name__", __name__)
         else:
             name = __name__
 
@@ -109,13 +111,13 @@ class JsonFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        # add extra fields if present
+        # add extra fields if present (set via logger `extra=` kwarg, not on LogRecord by default)
         if hasattr(record, "trial"):
-            payload["trial"] = record.trial
+            payload["trial"] = getattr(record, "trial")
         if hasattr(record, "run_id"):
-            payload["run_id"] = record.run_id
+            payload["run_id"] = getattr(record, "run_id")
         if hasattr(record, "timestamp"):
-            payload["run_timestamp"] = record.timestamp
+            payload["run_timestamp"] = getattr(record, "timestamp")
 
         # add any other extra fields
         for key, value in record.__dict__.items():
@@ -220,7 +222,7 @@ atexit.register(_cleanup_file_handlers)
 
 
 def _start_mp_logging(
-    ctx: mp.context.BaseContext | None = None,
+    ctx: mp_context.BaseContext | None = None,
 ) -> tuple[mp.Queue, QueueListener]:
     """
     Set up multiprocessing logging in the parent process,
@@ -247,9 +249,10 @@ def _start_mp_logging(
     listener = QueueListener(queue, *handlers, respect_handler_level=True)
     listener.start()
 
-    # ctore controller
-    _mp_controller = MpLoggingController(queue, listener)
-    atexit.register(_mp_controller.stop)
+    # store controller
+    controller = MpLoggingController(queue, listener)
+    _mp_controller = controller
+    atexit.register(controller.stop)
 
     logging.getLogger(__name__).debug("Multiprocessing logging started")
 

@@ -27,7 +27,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         person_id = ctx.person_id
         rows: list[ConditionOccurrenceRow] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        condition_type_concept_id = ecrf.concept_id if ecrf else 0
+        condition_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
         if patient.tumor_type is not None:
             rows.extend(self._build_tumor_type_rows(patient, person_id, patient.tumor_type, condition_type_concept_id))
@@ -44,9 +44,12 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         self,
         patient: Patient,
         person_id: int,
-        tumor: TumorType,
+        tumor: TumorType | None,
         condition_type_concept_id: int,
     ) -> list[ConditionOccurrenceRow]:
+        if tumor is None:
+            return []
+
         if tumor.icd10_code:
             matches = self.concepts.lookup_semantic(
                 patient.patient_id,
@@ -99,7 +102,8 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         index: int,
         condition_type_concept_id: int,
     ) -> list[ConditionOccurrenceRow]:
-        if mh.start_date is None:
+        start_date = mh.start_date
+        if start_date is None:
             log.warning("Skipping medical history %d for %s: missing start_date", index, patient.patient_id)
             return []
 
@@ -122,7 +126,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 ),
                 person_id=person_id,
                 condition_concept_id=int(concept.concept_id),
-                condition_start_date=mh.start_date,
+                condition_start_date=start_date,
                 condition_end_date=mh.end_date,
                 condition_type_concept_id=condition_type_concept_id,
                 condition_source_value=mh.term,
@@ -138,7 +142,9 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         index: int,
         condition_type_concept_id: int,
     ) -> list[ConditionOccurrenceRow]:
-        if ae.start_date is None:
+        start_date = ae.start_date
+        term = ae.term
+        if start_date is None:
             log.warning("Skipping adverse event %d for %s: missing start_date", index, patient.patient_id)
             return []
 
@@ -156,16 +162,16 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 condition_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
-                    str(ae.term),
-                    str(ae.start_date),
+                    term,
+                    start_date.strftime(format="%Y%m%d"),
                     str(concept.concept_id),
                 ),
                 person_id=person_id,
                 condition_concept_id=int(concept.concept_id),
-                condition_start_date=ae.start_date,
+                condition_start_date=start_date,
                 condition_end_date=ae.end_date,
                 condition_type_concept_id=condition_type_concept_id,
-                condition_source_value=ae.term[0:50],
+                condition_source_value=term[:50] if term is not None else None,
             )
             for concept in matches
         ]

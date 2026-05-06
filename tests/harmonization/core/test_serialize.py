@@ -13,10 +13,6 @@ from omop_etl.harmonization.core.serialize import (
 
 
 class BestOverallResponse:
-    # leaf class, use annotations for field types
-    code: Optional[int]
-    date: Optional[dt.date]
-
     def __init__(self, code: Optional[int], date: Optional[dt.date]):
         self._code = code
         self._date = date
@@ -31,9 +27,6 @@ class BestOverallResponse:
 
 
 class AdverseEvent:
-    term: str
-    grade: Optional[int]
-
     def __init__(self, term: str, grade: Optional[int]):
         self._term = term
         self._grade = grade
@@ -325,7 +318,7 @@ class TestDynamicPropertySerialization:
         p.c30_collection = [c]
 
         schema = build_nested_schema([p], Patient)
-        inner_schema = schema["c30_collection"].inner.to_schema()  # type: ignore
+        inner_schema = schema["c30_collection"].inner.to_schema()  # noqa
 
         # static properties should retain their annotated types
         assert inner_schema["date"] == pl.Date

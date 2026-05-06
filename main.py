@@ -9,11 +9,19 @@ from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.omop.service import OmopService
 from omop_etl.omop.models.tables import OmopTables
-from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
+from omop_etl.preprocessing.service import (
+    make_ecrf_config,
+    PreprocessService,
+)
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
-from omop_etl.config import ACTIVE_DATASET, SYNTHETIC_DATASETS, resolve_dataset, LOG_LEVEL
+from omop_etl.config import (
+    DEFAULT_DATASET,
+    SYNTHETIC_DATASETS,
+    resolve_dataset,
+    LOG_LEVEL,
+)
 
 # default resource paths: make dev defaults later
 RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"
@@ -81,7 +89,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     tables: OmopTables = omop_service.build(harmonized_result.patients)
 
     # todo: remove
-    # print(f"built tables: {tables}")
+    print(f"built tables: {tables}")
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")
@@ -102,11 +110,11 @@ def main() -> int:
     parser.add_argument(
         "--dataset",
         default=None,
-        help=f"Dataset name ({', '.join(SYNTHETIC_DATASETS)}) or explicit path. Falls back to SYNTHETIC_DATASET env var, then 'impress_150'.",
+        help=f"Dataset name ({', '.join(SYNTHETIC_DATASETS)}) or explicit path. Defaults to 'impress_150'.",
     )
     args = parser.parse_args()
 
-    dataset_path = resolve_dataset(args.dataset) if args.dataset else ACTIVE_DATASET
+    dataset_path = resolve_dataset(args.dataset) if args.dataset else DEFAULT_DATASET
     if not dataset_path.exists():
         parser.error(f"Dataset path does not exist: {dataset_path}")
     configure_logger(level=LOG_LEVEL)

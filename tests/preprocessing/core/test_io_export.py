@@ -152,15 +152,15 @@ class TestFormatUtils:
     def test_expand_formats(self):
         assert expand_formats("csv", allowed=WIDE_FORMATS) == ["csv"]
         assert set(expand_formats("all", allowed=TABULAR_FORMATS)) == set(TABULAR_FORMATS)
-        assert expand_formats(["CSV", "parquet"], allowed=WIDE_FORMATS) == ["csv", "parquet"]  # type: ignore
-        assert expand_formats([["csv"], ["parquet"]], allowed=TABULAR_FORMATS) == ["csv", "parquet"]  # type: ignore
+        assert expand_formats(["CSV", "parquet"], allowed=WIDE_FORMATS) == ["csv", "parquet"]  # noqa
+        assert expand_formats([["csv"], ["parquet"]], allowed=TABULAR_FORMATS) == ["csv", "parquet"]  # noqa
 
     def test_normalize_format(self):
-        assert normalize_format("CSV", allowed=WIDE_FORMATS) == "csv"  # type: ignore
-        assert normalize_format("txt", allowed=WIDE_FORMATS) == "tsv"  # type: ignore
+        assert normalize_format("CSV", allowed=WIDE_FORMATS) == "csv"  # noqa
+        assert normalize_format("txt", allowed=WIDE_FORMATS) == "tsv"  # noqa
         assert normalize_format("csv", allowed=WIDE_FORMATS) == "csv"
         with pytest.raises(ValueError):
-            normalize_format("xml", allowed=WIDE_FORMATS)  # type: ignore
+            normalize_format("xml", allowed=WIDE_FORMATS)  # noqa
 
 
 class TestEndToEndDisabledLog:

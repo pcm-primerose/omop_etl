@@ -35,7 +35,7 @@ class _FakeHD:
 
 
 class _FakeHarmonizer:
-    def __init__(self, df: pl.DataFrame, trial_id: str):
+    def __init__(self, df: pl.DataFrame, trial_id: str):  # noqa
         pass
 
     @staticmethod
@@ -123,7 +123,7 @@ def test_service_normalized_tabular(tmp_path: Path, run_meta: RunMetadata, fmt: 
         write_normalized=True,
         input_path=inp,
         meta=run_meta,
-        formats=[fmt],  # type: ignore
+        formats=[fmt],  # noqa
     )
 
     seg = f"{run_meta.started_at}_{run_meta.run_id}"

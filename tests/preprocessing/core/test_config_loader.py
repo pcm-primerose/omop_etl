@@ -7,7 +7,7 @@ import pytest
 from omop_etl.preprocessing.core.config_loader import (
     load_ecrf_config,
     available_trials,
-    _validate,
+    _validate,  # noqa
 )
 
 

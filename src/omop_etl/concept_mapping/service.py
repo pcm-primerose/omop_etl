@@ -32,7 +32,7 @@ def _concept_matches_filter(
     concept: MappedConcept,
     domains: Collection[OmopDomain | str] | None,
     vocabs: Collection[str] | None,
-    validity: Collection[str] | None,
+    validities: Collection[str] | None,
 ) -> bool:
     """
     Case-insensitive filter check against a MappedConcept's attributes.
@@ -49,8 +49,8 @@ def _concept_matches_filter(
         wanted_v = {v.lower() for v in vocabs}
         if (concept.vocabulary_id or "").lower() not in wanted_v:
             return False
-    if validity is not None:
-        wanted_s = {s.lower() for s in validity}
+    if validities is not None:
+        wanted_s = {s.lower() for s in validities}
         if (concept.validity or "").lower() not in wanted_s:
             return False
     return True
@@ -107,8 +107,8 @@ class ConceptLookupService:
             layout: Output layout
         """
         static_index = StaticMapLoader(static_path).as_index()
-        structural_index = StructuralMapLoader(structural_path).as_index()
-        semantic_index = SemanticResultIndex.from_batch(semantic_batch)
+        structural_index = StructuralMapLoader(structural_path).as_index() if structural_path is not None else None
+        semantic_index = SemanticResultIndex.from_batch(semantic_batch) if semantic_batch is not None else None
 
         return cls(
             static_index=static_index,
@@ -181,6 +181,9 @@ class ConceptLookupService:
         `value_set` is lowercased and stripped before index access for case-insensitive lookups.
         """
         key = value_set.lower().strip()
+        if self._structural_index is None:
+            self._result.record_miss("structural", value_set, "")
+            return None
         c = self._structural_index.get(key)
         if c is None:
             self._result.record_miss("structural", value_set, "")
@@ -218,7 +221,7 @@ class ConceptLookupService:
         Raises RuntimeError if duplicate concept_ids are found (same concept
         mapped twice = mapping file issue that must be resolved).
         Legitimate multi-concept mappings (e.g. combination drugs with multiple
-        ingredients) return multiple unique concepts — builders iterate and
+        ingredients) return multiple unique concepts, builders iterate and
         emit one row per concept.
         """
         if self._semantic_index is None:

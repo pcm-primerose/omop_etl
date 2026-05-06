@@ -51,7 +51,23 @@ class OmopBuilder(ABC, Generic[T]):
         """
         ...
 
-    def generate_row_id(self, *key_parts: str) -> int:
+    def populate_context(self, rows: list[T], ctx: BuildContext) -> None:
+        """
+        Publish context state derived from this builder's rows for downstream builders.
+        Default no-op, override in builders that produce shared identifiers other
+        builders consume (e.g. VisitOccurrenceBuilder writes `ctx.visit_id_by_date`).
+        """
+        return
+
+    def build_and_populate(self, ctx: BuildContext) -> list[T]:
+        """
+        Convenience method to build and populate context in one go e.g. for tests.
+        """
+        rows = self.build(ctx)
+        self.populate_context(rows, ctx)
+        return rows
+
+    def generate_row_id(self, *key_parts: str | None) -> int:
         """
         Deterministic row ID from key parts, using SHA1 hashing with builder's
         namespace to create a reproducible 63-bit integer ID.

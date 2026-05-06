@@ -1,7 +1,7 @@
 from pydantic.dataclasses import dataclass as pd_dataclass
 from pydantic import Field as pd_field
 import datetime as dt
-from typing import ClassVar
+from typing import ClassVar, Annotated
 
 from omop_etl.omop.core.row_validator import validate_required_fields
 
@@ -79,14 +79,14 @@ class CdmSourceRow:
     source_release_date: dt.date
     cdm_release_date: dt.date
     cdm_version_concept_id: int
-    cdm_source_name: str = pd_field(max_length=255)
-    cdm_source_abbreviation: str = pd_field(max_length=25)
-    cdm_holder: str = pd_field(max_length=255)
-    vocabulary_version: str = pd_field(max_length=20)
-    source_description: str | None = pd_field(None, max_length=2147483647)
-    source_documentation_reference: str | None = pd_field(max_length=255)
-    cdm_etl_reference: str | None = pd_field(max_length=255)
-    cdm_version: str | None = pd_field(max_length=10)
+    cdm_source_name: Annotated[str, pd_field(max_length=255)]
+    cdm_source_abbreviation: Annotated[str, pd_field(max_length=25)]
+    cdm_holder: Annotated[str, pd_field(max_length=255)]
+    vocabulary_version: Annotated[str, pd_field(max_length=20)]
+    source_description: Annotated[str | None, pd_field(max_length=2147483647)] = None
+    source_documentation_reference: Annotated[str | None, pd_field(max_length=255)] = None
+    cdm_etl_reference: Annotated[str | None, pd_field(max_length=255)] = None
+    cdm_version: Annotated[str | None, pd_field(max_length=10)] = None
 
     def validate(self) -> None:
         """Validate required fields based on type hints. Raises RowValidationError if invalid."""
@@ -138,13 +138,13 @@ class ConditionOccurrenceRow:
     condition_end_date: dt.date | None = None
     condition_end_datetime: dt.datetime | None = None
     condition_status_concept_id: int | None = None
-    stop_reason: str | None = pd_field(None, max_length=20)
+    stop_reason: Annotated[str | None, pd_field(max_length=20)] = None
     provider_id: int | None = None
     visit_occurrence_id: int | None = None
     visit_detail_id: int | None = None
-    condition_source_value: str | None = pd_field(None, max_length=50)
+    condition_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     condition_source_concept_id: int | None = None
-    condition_status_source_value: str | None = pd_field(None, max_length=50)
+    condition_status_source_value: Annotated[str | None, pd_field(max_length=50)] = None
 
     def validate(self):
         validate_required_fields(self)
@@ -165,20 +165,20 @@ class DrugExposureRow:
     drug_exposure_start_datetime: dt.datetime | None = None
     drug_exposure_end_datetime: dt.datetime | None = None
     verbatim_end_date: dt.date | None = None
-    stop_reason: str | None = pd_field(None, max_length=20)
+    stop_reason: Annotated[str | None, pd_field(max_length=20)] = None
     refills: int | None = None
     quantity: float | None = None
     days_supply: int | None = None
-    sig: str | None = pd_field(None, max_length=10000)
+    sig: Annotated[str | None, pd_field(max_length=10000)] = None
     route_concept_id: int | None = None
-    lot_number: str | None = pd_field(None, max_length=50)
+    lot_number: Annotated[str | None, pd_field(max_length=50)] = None
     provider_id: int | None = None
     visit_occurrence_id: int | None = None
     visit_detail_id: int | None = None
-    drug_source_value: str | None = pd_field(None, max_length=50)
+    drug_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     drug_source_concept_id: int | None = None
-    route_source_value: str | None = pd_field(None, max_length=50)
-    dose_unit_source_value: str | None = pd_field(None, max_length=50)
+    route_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    dose_unit_source_value: Annotated[str | None, pd_field(max_length=50)] = None
 
     def validate(self):
         validate_required_fields(self)
@@ -203,9 +203,9 @@ class ProcedureOccurrenceRow:
     provider_id: int | None = None
     visit_occurrence_id: int | None = None
     visit_detail_id: int | None = None
-    procedure_source_value: str | None = pd_field(None, max_length=50)
+    procedure_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     procedure_source_concept_id: int | None = None
-    modifier_source_value: str | None = pd_field(None, max_length=50)
+    modifier_source_value: Annotated[str | None, pd_field(max_length=50)] = None
 
     def validate(self):
         validate_required_fields(self)
@@ -223,7 +223,7 @@ class MeasurementRow:
     measurement_date: dt.date
     measurement_type_concept_id: int
     measurement_datetime: dt.datetime | None = None
-    measurement_time: str | None = pd_field(None, max_length=10)
+    measurement_time: Annotated[str | None, pd_field(max_length=10)] = None  # deprecated in next cdm version
     operator_concept_id: int | None = None
     value_as_number: float | None = None
     value_as_concept_id: int | None = None
@@ -233,11 +233,11 @@ class MeasurementRow:
     provider_id: int | None = None
     visit_occurrence_id: int | None = None
     visit_detail_id: int | None = None
-    measurement_source_value: str | None = pd_field(None, max_length=50)
+    measurement_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     measurement_source_concept_id: int | None = None
-    unit_source_value: str | None = pd_field(None, max_length=50)
+    unit_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     unit_source_concept_id: int | None = None
-    value_source_value: str | None = pd_field(None, max_length=50)
+    value_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     measurement_event_id: int | None = None
     meas_event_field_concept_id: int | None = None
 

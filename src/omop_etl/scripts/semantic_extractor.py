@@ -6,15 +6,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
 import logging
 from pathlib import Path
-from typing import Sequence, Mapping, Dict, Literal
+from typing import ClassVar, Sequence, Mapping, Dict, Literal
 import polars as pl
 
 from omop_etl.config import (
     DATA_ROOT,
-    ACTIVE_DATASET,
+    DEFAULT_DATASET,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", filemode="a")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 log = logging.getLogger()
 
 
@@ -34,7 +34,7 @@ class SheetData:
 @dataclass
 class EcrfConfig:
     configs: list[SheetConfig]
-    data: list[SheetData] | None = None
+    data: list[SheetData] = None
     trial: str | None = None
     source_type: str | None = None
 
@@ -42,13 +42,15 @@ class EcrfConfig:
     def from_mapping(cls, m: Mapping[str, list[str]]) -> "EcrfConfig":
         return cls([SheetConfig(key=k.upper(), usecols=v) for k, v in m.items()])
 
-    def __iter__(self):  # type: ignore
+    def __iter__(self):
         for field in fields(self):
             yield getattr(self, field.name)
 
 
 class BaseReader(ABC):
     """Base class for data readers with common functionality."""
+
+    SUPPORTED_EXTENSIONS: ClassVar[set[str]] = set()
 
     @abstractmethod
     def can_read(self, path: Path) -> bool:
@@ -141,7 +143,10 @@ class ExcelReader(BaseReader):
         """
         log.info(f"Loading Excel file: {path}")
 
-        all_sheets = pl.read_excel(path, sheet_id=0, has_header=True, read_options={"header_row": 1})
+        result = pl.read_excel(path, sheet_id=0, has_header=True, read_options={"header_row": 1})
+        if not isinstance(result, dict):
+            raise TypeError(f"Expected dict of sheets from read_excel(sheet_id=0), got {type(result).__name__}")
+        all_sheets: dict[str, pl.DataFrame] = result
 
         loaded_sheets = []
 
@@ -211,7 +216,7 @@ class CsvDirectoryReader(BaseReader):
 
     @staticmethod
     def _index_csv_files(directory: Path) -> Dict[str, Path]:
-        index = {}  # type: ignore
+        index: Dict[str, Path] = {}
 
         for file_path in directory.iterdir():
             if not file_path.is_file():
@@ -256,7 +261,7 @@ class InputResolver:
             else:
                 supported.append(reader.__class__.__name__)
 
-        raise ValueError(f"Unsupported input type: {type(path)}. Supported: {', '.join(supported)} or directory of CSVs")
+        raise ValueError(f"Unsupported input type: {type(path).__name__}. Supported: {', '.join(supported)} or directory of CSVs")
 
 
 def get_config(all_data: bool = False) -> Dict[str, list[str]]:
@@ -645,16 +650,12 @@ def frames_to_dict(config: EcrfConfig, braf_non_v600_only: bool | None = None) -
     out: dict[str, pl.Series] = {}
 
     if braf_non_v600_only:
-        coh_sheet = next(
-            s.data
-            for s, k in zip(config.data, config.configs)  # type: ignore
-            if k.key.lower() == "coh"
-        )
+        coh_sheet = next(s.data for s, k in zip(config.data, config.configs) if k.key.lower() == "coh")
 
         # only subject ids that belong to the BRAF non-V600 cohort
         cohort_subject_ids = get_only_nonv600_cohort(coh_sheet).to_list()
 
-        for sheet in config.data:  # type: ignore
+        for sheet in config.data:
             df = sheet.data
             df = df.filter(pl.col("SubjectId").is_in(cohort_subject_ids))
             df = filter_df(df, drop="SubjectId")
@@ -666,7 +667,7 @@ def frames_to_dict(config: EcrfConfig, braf_non_v600_only: bool | None = None) -
         return out
 
     else:
-        for sheet in config.data:  # type: ignore
+        for sheet in config.data:
             df = filter_df(sheet.data, drop="SubjectId")
             sheet_key = (sheet.key or "").upper()
             for s in df.get_columns():
@@ -701,29 +702,25 @@ def add_term_id(data: pl.DataFrame, id_scope: Scope = "per_scope") -> pl.DataFra
     term = pl.col("source_term").cast(pl.Utf8)
     _namespace = "5c630d6e-a4f6-11f0-aeff-325096b39f47"
 
+    namespace = uuid.UUID(_namespace)
+
+    def _term_id(s: str) -> str:
+        return str(uuid.uuid5(namespace, s))  # noqa
+
     if id_scope == "global":
-        namespace = uuid.UUID(_namespace)
-        output = data.with_columns(term.map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8).alias("term_id")).select(
-            "term_id", "source_col", "source_term", "frequency"
-        )
-        return output
+        return data.with_columns(term.map_elements(_term_id, return_dtype=pl.Utf8).alias("term_id")).select("term_id", "source_col", "source_term", "frequency")
 
     if id_scope == "per_scope":
-        namespace = uuid.UUID(_namespace)
-        output = data.with_columns(
-            (pl.col("source_col").cast(pl.Utf8) + ":" + term)
-            .map_elements(lambda string: str(uuid.uuid5(namespace, string)), return_dtype=pl.Utf8)
-            .alias("term_id")
-        ).select("term_id", "source_col", "source_term", "frequency")
-        return output
+        return data.with_columns((pl.col("source_col").cast(pl.Utf8) + ":" + term).map_elements(_term_id, return_dtype=pl.Utf8).alias("term_id")).select(
+            "term_id", "source_col", "source_term", "frequency"
+        )
 
-    else:
-        raise ValueError(f"id_scope not valid: `{id_scope}`. Needs to be: `{Scope}`")
+    raise ValueError(f"id_scope not valid: `{id_scope}`. Needs to be one of: 'per_scope', 'global'.")
 
 
-def run(input_path: Path, output_dir: Path, trial: str = "impress", all_data: bool | None = False, braf_non_v600_only: bool | None = False) -> None:
+def run(input_path: Path, output_dir: Path, trial: str = "impress", all_data: bool = False, braf_non_v600_only: bool | None = False) -> None:
     start_time = time.time()
-    config = EcrfConfig.from_mapping(get_config(all_data=all_data))  # type: ignore
+    config = EcrfConfig.from_mapping(get_config(all_data=all_data))
     InputResolver().resolve(path=input_path, ecfg=config)
 
     series_by_key = frames_to_dict(config, braf_non_v600_only=braf_non_v600_only)
@@ -762,13 +759,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="impress",
         help="Trial name used in output filename. Default: %(default)s",
     )
-    (
-        parser.add_argument(
-            "--all-data",
-            action="store_true",
-            default=False,
-            help="If provided, run with entire eCRF config: not limited to non-sensitive or semantic data.",
-        ),
+    parser.add_argument(
+        "--all-data",
+        action="store_true",
+        default=False,
+        help="If provided, run with entire eCRF config: not limited to non-sensitive or semantic data.",
     )
     parser.add_argument(
         "--braf-non-v600-only",
@@ -798,7 +793,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def run_ide() -> None:
-    run(input_path=ACTIVE_DATASET, output_dir=DATA_ROOT / "semantic_extractor_synthetic", braf_non_v600_only=True)
+    run(input_path=DEFAULT_DATASET, output_dir=DATA_ROOT / "semantic_extractor_synthetic", braf_non_v600_only=True)
 
 
 if __name__ == "__main__":

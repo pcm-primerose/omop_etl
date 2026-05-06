@@ -58,7 +58,7 @@ class SemanticLookupPipeline:
         required_domains: Set[OmopDomain] | None = None,
         required_tags: Set[str] | None = None,
         input_path: Path | None = None,
-        formats: Sequence[WideFormat] = "csv",
+        formats: Sequence[WideFormat] = ("csv",),
         write_output: bool | None = None,
     ) -> SemanticMappingResult:
         configs = self._build_configs(

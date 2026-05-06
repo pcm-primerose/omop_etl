@@ -1,3 +1,4 @@
+from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -19,7 +20,7 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     FieldConfig(
         name="adverse_event.term",
         field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
+        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE}),
         tags={"adverse_event", "term"},
     ),
     # concomitant medications
@@ -42,11 +43,12 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
         target=QueryTarget(domains={OmopDomain.PROCEDURE, OmopDomain.DRUG}),
         tags={"previous_treatments", "additional_term"},
     ),
-    # medical history
+    # medical history: same shape as adverse_event.term: free-text, may map to a
+    # Measurement attribute + Meas Value qualifier (e.g. "decreased hemoglobin").
     FieldConfig(
         name="medical_history.term",
         field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.PROCEDURE}),
+        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.PROCEDURE, OmopDomain.MEAS_VALUE}),
         tags={"medical_history", "term"},
     ),
     # biomarkers
@@ -124,5 +126,17 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
         field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_DESCRIPTION),
         target=QueryTarget(domains={OmopDomain.CONDITION}),
         tags={"tumor", "icd10_description"},
+    ),
+    FieldConfig(
+        name="ecog_baseline.grade",
+        field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.GRADE),
+        target=QueryTarget(domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE}),
+        tags={"ecog_basline_grade"},
+    ),
+    FieldConfig(
+        name="ecog_baseline.description",
+        field_path=(Patient.Singletons.ECOG_BASELINE, EcogBaseline.Fields.DESCRIPTION),
+        target=QueryTarget(domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE}),
+        tags={"ecog_basline_description"},
     ),
 )

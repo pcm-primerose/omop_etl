@@ -114,10 +114,12 @@ def _schema_from_manifest(manifest_schema: dict[str, str]) -> pl.Schema:
     """
     Convert {column_name: type_name} from JSON to pl.Schema.
     """
-    out: dict[str, pl.DataType] = {}
+    from polars._typing import PolarsDataType  # noqa
+
+    out: dict[str, PolarsDataType] = {}
     for col, type_name in manifest_schema.items():
         try:
-            out[col] = NAME_TO_POLARS_DTYPE[type_name]  # todo: fix type warning
+            out[col] = NAME_TO_POLARS_DTYPE[type_name]
         except KeyError:
             raise ValueError(f"Unknown dtype name {type_name} for column {col} in manifest. Add it to NAME_TO_POLARS_DTYPE/POLARS_DTYPE_TO_NAME.")
     return pl.Schema(out)

@@ -1,10 +1,10 @@
 import polars as pl
 
 from omop_etl.preprocessing.sources.impress import (
-    _filter_valid_cohort,
-    _add_trial,
-    _prefix_subject,
-    _aggregate_no_conflicts,
+    _filter_valid_cohort,  # noqa
+    _add_trial,  # noqa
+    _prefix_subject,  # noqa
+    _aggregate_no_conflicts,  # noqa
     preprocess_impress,
 )
 from omop_etl.preprocessing.core.models import (

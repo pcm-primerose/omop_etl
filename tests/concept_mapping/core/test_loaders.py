@@ -15,7 +15,7 @@ class TestStaticMapLoader:
         assert rows[0].value_set == "sex"
         # csv had "M": loader normalizes to "m"
         assert rows[0].local_value == "m"
-        assert rows[0].concept_id == "8507"
+        assert rows[0].concept_id == 8507
         # display fields also normalized
         assert rows[0].concept_name == "male"
         assert rows[0].domain_id == "gender"
@@ -39,7 +39,7 @@ class TestStructuralMapLoader:
 
         assert len(rows) == 1
         assert rows[0].value_set == "ecrf"
-        assert rows[0].concept_id == "32817"
+        assert rows[0].concept_id == 32817
         # "Type Concept": "type concept"
         assert rows[0].domain_id == "type concept"
 
@@ -80,7 +80,7 @@ class TestMalformedCsvRows:
             "sex,m,8507,M,MALE,Gender,Standard,Valid,Gender\n"
         )
 
-        rows = StaticMapLoader(csv).as_rows()
+        _ = StaticMapLoader(csv).as_rows()
         idx = StaticMapLoader(csv).as_index()
 
         assert ("sex", "m") in idx

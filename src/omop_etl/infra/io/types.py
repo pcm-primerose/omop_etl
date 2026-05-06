@@ -1,7 +1,6 @@
 from enum import StrEnum
 from typing import Final, Literal, Mapping, TypeAlias, Sequence
 import polars as pl
-from polars import String, Int64, Int32, UInt64, UInt32, Float64, Float32, Boolean, Date, Datetime, Time
 from types import MappingProxyType, NoneType
 
 
@@ -50,7 +49,7 @@ ParquetCompression: TypeAlias = Literal[
     "zstd",
 ]
 
-POLARS_DTYPE_TO_NAME: dict[type[String | Int64 | Int32 | UInt64 | UInt32 | Float64 | Float32 | Boolean | Date | Datetime | Time], str] = {
+POLARS_DTYPE_TO_NAME: dict[type[pl.DataType], str] = {
     pl.String: "string",
     pl.Int64: "int64",
     pl.Int32: "int32",
@@ -65,6 +64,4 @@ POLARS_DTYPE_TO_NAME: dict[type[String | Int64 | Int32 | UInt64 | UInt32 | Float
     pl.Utf8: "utf8",
 }
 
-NAME_TO_POLARS_DTYPE: dict[str, type[String | Int64 | Int32 | UInt64 | UInt32 | Float64 | Float32 | Boolean | Date | Datetime | Time]] = {
-    v: k for k, v in POLARS_DTYPE_TO_NAME.items()
-}
+NAME_TO_POLARS_DTYPE: dict[str, type[pl.DataType]] = {v: k for k, v in POLARS_DTYPE_TO_NAME.items()}

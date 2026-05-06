@@ -1,7 +1,7 @@
 import datetime as dt
 import inspect
 import typing
-from typing import Any, Sequence, MutableSequence
+from typing import Any, Iterable, Sequence, MutableSequence, cast
 from functools import lru_cache
 import polars as pl
 from polars._typing import PolarsDataType as polars_data_type  # noqa
@@ -129,7 +129,7 @@ def build_nested_df(patients: list, patient_cls: type) -> pl.DataFrame:
                 continue
 
             if origin in (list, tuple, Sequence, MutableSequence):
-                row[prop_name] = [export_leaf_object(item) for item in list(value)]
+                row[prop_name] = [export_leaf_object(item) for item in cast(Iterable[Any], value)]
             elif isinstance(base_type, type) and schema.get(prop_name) == pl.Struct:
                 row[prop_name] = export_leaf_object(value)
             else:
@@ -258,7 +258,7 @@ def _to_polars_primitive(value: Any) -> Any:
     return str(value)
 
 
-def export_leaf_object(obj: Any, *, exclude: set[str] = SerializeTypes.IDENTITY_FIELDS) -> dict[str, Any]:
+def export_leaf_object(obj: Any, *, exclude: frozenset[str] | set[str] = SerializeTypes.IDENTITY_FIELDS) -> dict[str, Any]:
     """
     Export an object as a dict. Prefer public @properties, if none, fall back
     to __dict__ for dynamic leaves (like C30/EQ5D).
@@ -330,7 +330,7 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
         origin = typing.get_origin(base_type) if base_type else None
 
         if isinstance(base_type, type) and enriched_schema.get(prop_name) == pl.Struct:
-            fields: dict[str, pl.DataType] = {}
+            fields: dict[str, polars_data_type] = {}
             for patient in patients:
                 value = getattr(patient, prop_name, None)
                 if value is None:
@@ -350,7 +350,7 @@ def _enrich_schema_from_data(patients: list, patient_cls: type, schema: dict[str
         if origin in (list, tuple, Sequence, MutableSequence) and isinstance(current_dtype, pl.List):
             inner = current_dtype.inner
             # start with existing fields from class schema (if any)
-            fields: dict[str, pl.DataType] = {}
+            fields: dict[str, polars_data_type] = {}
             if isinstance(inner, pl.Struct):
                 fields.update(inner.to_schema())
 

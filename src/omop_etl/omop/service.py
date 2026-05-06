@@ -4,6 +4,7 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
+from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.builders.person import PersonBuilder
 from omop_etl.omop.builders.observation_period import ObservationPeriodBuilder
 from omop_etl.omop.builders.cdm_source import CdmSourceBuilder
@@ -25,13 +26,17 @@ class OmopService:
 
     def __init__(self, concepts: ConceptLookupService):
         self._concepts = concepts
-        self._visit_builder = VisitOccurrenceBuilder(concepts)
+        # builders that return context state via populate_context
+        # must run before any downstream consumer that reads that state:
+        # (e.g. VisitOccurrenceBuilder writing ctx.visit_id_by_date)
         self._builders: list[OmopBuilder] = [
+            VisitOccurrenceBuilder(concepts),
             PersonBuilder(concepts),
             ObservationPeriodBuilder(concepts),
             DrugExposureBuilder(concepts),
             ConditionOccurrenceBuilder(concepts),
             ProcedureOccurrenceBuilder(concepts),
+            MeasurementBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
@@ -42,20 +47,11 @@ class OmopService:
 
         for patient in patients:
             person_id = sha1_bigint("person", patient.patient_id)
-            ctx = BuildContext(
-                patient=patient,
-                person_id=person_id,
-            )
+            ctx = BuildContext(patient=patient, person_id=person_id)
 
-            # build visits first to populate ctx.visit_id_by_date for downstream builders
-            visit_rows = self._visit_builder.build(ctx)
-            for row in visit_rows:
-                ctx.visit_id_by_date[row.visit_start_date] = row.visit_occurrence_id
-            tables.extend(self._visit_builder.table_name, visit_rows)
-
-            # build remaining tables
             for builder in self._builders:
                 rows = builder.build(ctx)
+                builder.populate_context(rows, ctx)
                 tables.extend(builder.table_name, rows)
 
         # singleton metadata row

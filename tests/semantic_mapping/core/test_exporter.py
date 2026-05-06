@@ -226,7 +226,7 @@ class TestSemanticExporter:
                 batch_result=batch_result,
                 meta=run_meta,
                 input_path=None,
-                formats=["xlsx"],  # type: ignore
+                formats=["xlsx"],  # noqa
             )
 
 

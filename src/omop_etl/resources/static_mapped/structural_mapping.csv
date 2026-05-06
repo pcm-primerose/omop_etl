@@ -1,7 +1,7 @@
 value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 ecog,36305384,89247-1,ECOG Performance Status score,Clinical Observation,Standard,Valid,Measurement,LOINC
-tumor_assessment_baseline,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED
-tumor_assessment_baseline,4085855,246206008,Number of lesions,Observable Entity,Standard,Valid,Observation,SNOMED
+lesion_size,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED
+number_of_lesions,4085855,246206008,Number of lesions,Observable Entity,Standard,Valid,Observation,SNOMED
 c30_q1,701340,OMOP5117524,"EORTC Quality of Life Questionnaire: Do you have any trouble doing strenuous activities, like carrying a heavy shopping bag or a suitcase?",Staging / Scales,Standard,Valid,Measurement,OMOP Extension
 c30_q2,701341,OMOP5117525,EORTC Quality of Life Questionnaire: Do you have any trouble taking a long walk?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension
 c30_q3,701342,OMOP5117526,EORTC Quality of Life Questionnaire: Do you have any trouble taking a short walk outside of the house?,Staging / Scales,Standard,Valid,Measurement,OMOP Extension

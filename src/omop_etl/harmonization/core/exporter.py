@@ -77,15 +77,20 @@ class HarmonizedExporter:
                     extra={"input": str(input_path), "output_dir": str(ctx.base_dir)},
                 )
 
-                if fmt in {"csv", "tsv"}:
+                rows: int
+                cols: int | None
+                if fmt == "csv" or fmt == "tsv":
                     df = hd.to_dataframe_wide()
                     opt = opts.csv if fmt == "csv" else opts.tsv
                     result = write_frame(df, ctx.data_path, fmt, opt)
+                    rows, cols = df.height, df.width
                 elif fmt == "parquet":
                     df = hd.to_dataframe_wide()
                     result = write_frame(df, ctx.data_path, fmt, opts.parquet)
+                    rows, cols = df.height, df.width
                 elif fmt == "json":
                     result = write_json(hd.to_dict(), ctx.data_path, opts.json)
+                    rows, cols = len(hd.patients), None
                 else:
                     raise AssertionError(f"unhandled fmt: {fmt}")
 
@@ -104,8 +109,8 @@ class HarmonizedExporter:
                 run_log.info(
                     "harmonize.export_wide.done",
                     extra={
-                        "rows": (df.height if fmt != "json" else len(hd.patients)),
-                        "cols": (df.width if fmt != "json" else None),
+                        "rows": rows,
+                        "cols": cols,
                         "data_path": str(ctx.data_path),
                         "manifest_path": str(ctx.manifest_path),
                         "log_path": str(ctx.log_path),

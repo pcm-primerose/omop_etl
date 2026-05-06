@@ -1,11 +1,12 @@
 from pathlib import Path
-from typing import List, Sequence, Callable
+from typing import List, Sequence
 
 from omop_etl.preprocessing.core.exporter import PreprocessExporter
 from omop_etl.preprocessing.core.config_loader import load_ecrf_config
 from omop_etl.preprocessing.core.dispatch import list_trials as _list_trials
 from omop_etl.preprocessing.core.pipeline import (
     PreprocessingPipeline,
+    PreprocessResolver,
     PreprocessResult,
 )
 from omop_etl.preprocessing.core.models import (
@@ -45,7 +46,7 @@ class PreprocessService:
         self,
         outdir: Path,
         layout: Layout = Layout.TRIAL_RUN,
-        preprocessor_resolver: Callable[[str], type] | None = None,
+        preprocessor_resolver: PreprocessResolver | None = None,
     ):
         self.outdir = outdir
         self.layout = layout
@@ -59,14 +60,14 @@ class PreprocessService:
         formats: AnyFormatToken | Sequence[AnyFormatToken] = "csv",
         config: EcrfConfig | None = None,
         combine_key: str | None = None,
-        filter_valid_cohorts: bool | None = True,
+        filter_valid_cohorts: bool = True,
     ) -> PreprocessResult:
         cfg = config or make_ecrf_config(trial)
-        key = combine_key or PreprocessingRunOptions.combine_key
 
-        run_options = PreprocessingRunOptions(
-            combine_key=key,
-            filter_valid_cohort=filter_valid_cohorts,
+        run_options = (
+            PreprocessingRunOptions(combine_key=combine_key, filter_valid_cohort=filter_valid_cohorts)
+            if combine_key is not None
+            else PreprocessingRunOptions(filter_valid_cohort=filter_valid_cohorts)
         )
 
         # normalize formats

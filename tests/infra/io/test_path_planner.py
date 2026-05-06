@@ -35,7 +35,7 @@ def test_plan_single_file_layout_and_names(tmp_path: Path, meta: RunMetadata, fm
         meta=meta,
         module="preprocessed" if mode == "preprocessed" else "harmonized",
         trial=meta.trial,
-        mode=mode,  # type: ignore
+        mode=mode,  # noqa
         fmt=fmt,
         filename_base="{trial}_{run_id}_{started_at}_{mode}",
     )
@@ -59,7 +59,7 @@ def test_plan_table_dir_layout_and_names(tmp_path: Path, meta: RunMetadata, fmt:
         meta=meta,
         module="harmonized",
         trial=meta.trial,
-        mode=mode,  # type: ignore
+        mode=mode,  # noqa
         fmt=fmt,
         filename_base="{trial}_{run_id}_{started_at}_{mode}",
     )

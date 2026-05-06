@@ -12,7 +12,7 @@ class TestConceptLookupExporter:
         exporter = ConceptLookupExporter(base_out=tmp_path)
         result = LookupResult()
         result.record_miss("static", "sex", "X")
-        result.record_match("static", "sex", "M", MappedConcept("8507", "M", "Male", "Gender", "Gender", "Valid"))
+        result.record_match("static", "sex", "M", MappedConcept(8507, "M", "Male", "Gender", "Gender", "Valid"))
 
         ctx = exporter.export(result, run_meta, formats=["csv"])
 
@@ -36,7 +36,7 @@ class TestConceptLookupExporter:
     def test_manifest_contains_coverage(self, tmp_path, run_meta):
         exporter = ConceptLookupExporter(base_out=tmp_path)
         result = LookupResult()
-        result.record_match("static", "sex", "M", MappedConcept("8507", "M", "Male", "Gender", "Gender", "Valid"))
+        result.record_match("static", "sex", "M", MappedConcept(8507, "M", "Male", "Gender", "Gender", "Valid"))
         result.record_miss("static", "sex", "X")
 
         ctx = exporter.export(result, run_meta, formats=["csv"])

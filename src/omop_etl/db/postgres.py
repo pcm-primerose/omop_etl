@@ -2,6 +2,10 @@ from dataclasses import is_dataclass
 from typing import Sequence
 
 import psycopg
+from psycopg.sql import (
+    SQL,
+    Identifier,
+)
 
 
 class PostgresOmopWriter:
@@ -29,7 +33,7 @@ class PostgresOmopWriter:
         cdm_rows = list(cdm_src) if isinstance(cdm_src, list) else [cdm_src]
 
         with psycopg.connect(self._dsn) as conn:
-            conn.execute(f"SET search_path TO {self._schema}")
+            conn.execute(SQL("SET search_path TO {}").format(Identifier(self._schema)))
 
             with conn.transaction():
                 if self._truncate_first:
@@ -54,11 +58,13 @@ class PostgresOmopWriter:
         if not is_dataclass(first):
             raise TypeError(f"Expected dataclass rows for {table}, got: {type(first)}")
 
-        # Filter out ClassVar and private fields (start with _)
+        # filter out ClassVar and private fields (start with _)
         hints = get_type_hints(type(first), include_extras=True)
-        cols = tuple(f.name for f in fields(first) if not f.name.startswith("_") and get_origin(hints.get(f.name)) is not ClassVar)
-        col_sql = ", ".join(cols)
-        copy_sql = f"COPY {table} ({col_sql}) FROM STDIN"
+        cols = tuple(f.name for f in fields(first) if not f.name.startswith("_") and get_origin(hints.get(f.name)) is not ClassVar)  # noqa
+        copy_sql = SQL("COPY {table} ({cols}) FROM STDIN").format(
+            table=Identifier(table),
+            cols=SQL(", ").join(Identifier(c) for c in cols),
+        )
 
         with conn.cursor() as cur:
             with cur.copy(copy_sql) as copy:

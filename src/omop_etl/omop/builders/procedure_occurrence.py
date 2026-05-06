@@ -26,7 +26,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         person_id = ctx.person_id
         rows: list[ProcedureOccurrenceRow] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
-        procedure_type_concept_id = ecrf.concept_id if ecrf else 0
+        procedure_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
         for idx, prev in enumerate(patient.previous_treatments):
             if prev.start_date is None:
@@ -50,6 +50,10 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         index: int,
         procedure_type_concept_id: int,
     ) -> list[ProcedureOccurrenceRow]:
+        start_date = prev.start_date
+        if start_date is None:
+            return []
+
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
@@ -70,7 +74,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
                 ),
                 person_id=person_id,
                 procedure_concept_id=int(concept.concept_id),
-                procedure_date=prev.start_date,
+                procedure_date=start_date,
                 procedure_end_date=prev.end_date,
                 procedure_type_concept_id=procedure_type_concept_id,
                 procedure_source_value=prev.treatment,
@@ -86,6 +90,10 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         index: int,
         procedure_type_concept_id: int,
     ) -> list[ProcedureOccurrenceRow]:
+        start_date = prev.start_date
+        if start_date is None:
+            return []
+
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
@@ -106,7 +114,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
                 ),
                 person_id=person_id,
                 procedure_concept_id=int(concept.concept_id),
-                procedure_date=prev.start_date,
+                procedure_date=start_date,
                 procedure_end_date=prev.end_date,
                 procedure_type_concept_id=procedure_type_concept_id,
                 procedure_source_value=prev.additional_treatment,
@@ -122,7 +130,8 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         index: int,
         procedure_type_concept_id: int,
     ) -> list[ProcedureOccurrenceRow]:
-        if mh.start_date is None:
+        start_date = mh.start_date
+        if start_date is None:
             return []
 
         matches = self.concepts.lookup_semantic(
@@ -144,7 +153,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
                 ),
                 person_id=person_id,
                 procedure_concept_id=int(concept.concept_id),
-                procedure_date=mh.start_date,
+                procedure_date=start_date,
                 procedure_end_date=mh.end_date,
                 procedure_type_concept_id=procedure_type_concept_id,
                 procedure_source_value=mh.term,

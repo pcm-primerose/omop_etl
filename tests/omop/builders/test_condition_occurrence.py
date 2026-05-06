@@ -346,6 +346,7 @@ class TestAdverseEventRows:
         rows = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
+        assert rows[0].condition_source_value is not None
         assert len(rows[0].condition_source_value) == 50
 
 

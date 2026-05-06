@@ -92,7 +92,7 @@ def _get_nested_attr(obj: object, path: Sequence[str]) -> Any:
         if current is None:
             return None
         if not hasattr(current, name):
-            raise AttributeError(f"{current!r} has no attribute {name!r}")
+            raise AttributeError(f"{type(current).__name__} has no attribute {name!r}")
         current = getattr(current, name)
     return current
 
@@ -126,7 +126,7 @@ def validate_field_paths(
             if sample_obj is not None:
                 break
 
-        # No sample object with data: can’t validate tail,
+        # no sample object with data: can’t validate tail,
         # but head is structurally ok
         if sample_obj is None:
             continue

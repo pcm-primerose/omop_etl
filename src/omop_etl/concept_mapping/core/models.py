@@ -12,7 +12,7 @@ def _norm(v: str | None) -> str:
 
 @dataclass(frozen=True, slots=True)
 class MappedConcept:
-    concept_id: int | str
+    concept_id: int
     concept_code: str
     concept_name: str
     domain_id: str
@@ -24,7 +24,7 @@ class MappedConcept:
 class StaticConcept:
     value_set: str
     local_value: str
-    concept_id: str
+    concept_id: int
     concept_code: str
     concept_name: str
     concept_class: str
@@ -38,7 +38,7 @@ class StaticConcept:
         return cls(
             value_set=_norm(row["value_set"]),
             local_value=_norm(row["local_value"]),
-            concept_id=_norm(row["omop_concept_id"]),
+            concept_id=int(row["omop_concept_id"]),
             concept_code=_norm(row["omop_concept_code"]),
             concept_name=_norm(row["omop_concept_name"]),
             concept_class=_norm(row["omop_concept_class"]),
@@ -52,7 +52,7 @@ class StaticConcept:
 @dataclass(frozen=True, slots=True)
 class StructuralConcept:
     value_set: str
-    concept_id: str
+    concept_id: int
     concept_code: str
     concept_name: str
     domain_id: str
@@ -66,7 +66,7 @@ class StructuralConcept:
     def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
         return cls(
             value_set=_norm(row["value_set"]),
-            concept_id=_norm(row["omop_concept_id"]),
+            concept_id=int(row["omop_concept_id"]),
             concept_code=_norm(row["omop_concept_code"]),
             concept_name=_norm(row["omop_concept_name"]),
             concept_class=_norm(row["omop_concept_class"]),

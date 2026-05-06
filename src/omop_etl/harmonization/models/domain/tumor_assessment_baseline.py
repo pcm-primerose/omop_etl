@@ -122,7 +122,7 @@ class TumorAssessmentBaseline(DomainBase):
             f"target_lesion_size={self.target_lesion_size!r}{delim} "
             f"target_lesion_nadir={self.target_lesion_nadir!r}{delim} "
             f"target_lesion_measurement_date={self.target_lesion_measurement_date!r}{delim} "
-            f"off_target_lesion_size={self.off_target_lesions_number!r}{delim} "
+            f"off_target_lesions_number={self.off_target_lesions_number!r}{delim} "
             f"off_target_lesion_measurement_date={self.off_target_lesion_measurement_date!r}"
             f")"
         )

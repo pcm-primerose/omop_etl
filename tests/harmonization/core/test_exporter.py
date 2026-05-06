@@ -84,7 +84,7 @@ def test_export_wide_csv(exporter: HarmonizedExporter, run_context: RunMetadata,
     input_path.write_text("dummy\n")
 
     out = exporter.export_wide(
-        hd=fake_hd,  # type: ignore
+        hd=fake_hd,  # noqa
         meta=run_context,
         input_path=input_path,
         formats=["csv"],
@@ -113,7 +113,7 @@ def test_export_wide_other_formats(fmt: WideFormat, exporter: HarmonizedExporter
     input_path.write_text("dummy\n")
 
     out = exporter.export_wide(
-        hd=fake_hd,  # type: ignore
+        hd=fake_hd,  # noqa
         meta=run_context,
         input_path=input_path,
         formats=[fmt],
@@ -140,7 +140,7 @@ def test_export_normalized(fmt: TabularFormat, exporter: HarmonizedExporter, run
     input_path.write_text("dummy\n")
 
     out = exporter.export_normalized(
-        hd=fake_hd,  # type: ignore
+        hd=fake_hd,  # noqa
         meta=run_context,
         input_path=input_path,
         formats=[fmt],

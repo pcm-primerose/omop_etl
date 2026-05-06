@@ -1,9 +1,10 @@
 import polars as pl
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
-from omop_etl.harmonization.models import HarmonizedData, Patient
+from omop_etl.harmonization.models.harmonized import HarmonizedData
+from omop_etl.harmonization.models.patient import Patient
 
 
-class DrupHarmonizer(BaseHarmonizer):
+class DrupHarmonizer(BaseHarmonizer):  # noqa
     def __init__(self, data: pl.DataFrame, trial_id: str):
         super().__init__(data, trial_id)
 

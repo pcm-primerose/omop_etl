@@ -1,10 +1,9 @@
 from pathlib import Path
 from typing import Optional, Callable, Sequence
-import polars as pl
 
 from omop_etl.preprocessing.core.loader import InputResolver
 from omop_etl.preprocessing.core.combine import combine
-from omop_etl.preprocessing.core.dispatch import resolve_preprocessor
+from omop_etl.preprocessing.core.dispatch import resolve_preprocessor, Processor
 from omop_etl.preprocessing.core.exporter import PreprocessExporter
 from omop_etl.infra.io.types import Layout, TabularFormat
 from omop_etl.infra.io.options import WriterOptions
@@ -16,7 +15,8 @@ from omop_etl.preprocessing.core.models import (
     OutputPath,
 )
 
-PreprocessResolver = Callable[[pl.DataFrame, EcrfConfig, PreprocessingRunOptions], pl.DataFrame]
+# resolves a trial name to its Processor function (data -> data transformation).
+PreprocessResolver = Callable[[str], Processor]
 
 
 class PreprocessingPipeline:

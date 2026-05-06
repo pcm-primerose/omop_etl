@@ -87,7 +87,7 @@ def write_json(obj: dict | list, path: Path, opts: JsonOptions | None = None) ->
     j = opts or JsonOptions()
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as fp:
-        json.dump(obj, fp, cls=ISOJSONEncoder, ensure_ascii=j.ensure_ascii, indent=j.indent)  # type: ignore
+        json.dump(obj, fp, cls=ISOJSONEncoder, ensure_ascii=j.ensure_ascii, indent=j.indent)
     return WriterResult(main_file=path, table_files={}, tables={})
 
 
@@ -101,8 +101,8 @@ def _schema_to_manifest(schema: pl.Schema) -> dict[str, str]:
     out: dict[str, str] = {}
     for col, dtype in schema.items():
         try:
-            out[col] = POLARS_DTYPE_TO_NAME[dtype]
+            out[col] = POLARS_DTYPE_TO_NAME[type(dtype)]
         except KeyError:
-            raise ValueError(f"Unsupported drype {dtype} for column {col}, add to POALRS_DTYPE_TO_NAME and NAME_TO_POLARS_DTYPE")
+            raise ValueError(f"Unsupported dtype {dtype} for column {col}, add to POLARS_DTYPE_TO_NAME and NAME_TO_POLARS_DTYPE")
 
     return out
