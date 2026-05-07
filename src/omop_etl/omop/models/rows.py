@@ -271,3 +271,29 @@ class ObservationRow:
 
     def validate(self):
         validate_required_fields(self)
+
+
+@pd_dataclass(frozen=True, slots=True)
+class DeviceExposureRow:
+    device_exposure_id: int
+    person_id: int
+    device_concept_id: int
+    device_exposure_start_date: dt.date
+    device_type_concept_id: int
+    device_exposure_start_datetime: dt.datetime | None = None
+    device_exposure_end_date: dt.date | None = None
+    device_exposure_end_datetime: dt.datetime | None = None
+    unique_device_id: Annotated[str | None, pd_field(max_length=255)] = None
+    production_id: Annotated[str | None, pd_field(max_length=255)] = None
+    quantity: int | None = None
+    provider_id: int | None = None
+    visit_occurrence_id: int | None = None
+    visit_detail_id: int | None = None
+    device_source_value: Annotated[str | None, pd_field(max_length=255)] = None
+    device_source_concept_id: int | None = None
+    unit_concept_id: int | None = None
+    unit_source_value: int | None = None
+    unit_source_concept_id: int | None = None
+
+    def validate(self):
+        validate_required_fields(self)
