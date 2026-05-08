@@ -17,12 +17,15 @@ class MedicalHistory(DomainBase):
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._term: str | None = None
-        self._sequence_id: int | None = None
         self._start_date: dt.date | None = None
         self._end_date: dt.date | None = None
+        self._sequence_id: int | None = None
         self._status: str | None = None
         self._status_code: int | None = None
         self.updated_fields: Set[str] = set()
+
+    INVARIANT_FIELDS = (Fields.TERM,)
+    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.SEQUENCE_ID, Fields.TERM)
 
     @property
     def patient_id(self) -> str:
@@ -107,6 +110,7 @@ class MedicalHistory(DomainBase):
             f"seq={self.sequence_id!r}{delim} "
             f"start={self.start_date!r}{delim} "
             f"end={self.end_date!r}{delim} "
+            f"sequence_id={self.sequence_id!r}{delim} "
             f"status={self.status!r}{delim} "
             f"code={self.status_code!r})"
         )

@@ -14,7 +14,7 @@ from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
@@ -719,9 +719,9 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return merged
 
-    @collection(PreviousTreatments, order_by=("start_date",), require_order_by=True)
+    @collection(PreviousTreatment, order_by=("start_date",), require_order_by=True)
     def _process_previous_treatments(self) -> pl.DataFrame | None:
-        cols = PreviousTreatments.Fields
+        cols = PreviousTreatment.Fields
         ct_base = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -1024,7 +1024,11 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return filtered
 
-    @collection(AdverseEvent, order_by=("start_date",), require_order_by=True)
+    @collection(
+        AdverseEvent,
+        order_by=("start_date", "sequence_id"),
+        require_order_by=True,
+    )
     def _process_adverse_events(self) -> pl.DataFrame | None:
         cols = AdverseEvent.Fields
         ae_base = self.data.select(

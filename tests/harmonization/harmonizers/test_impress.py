@@ -750,9 +750,9 @@ class TestProcessPreviousTreatments:
         df = h._process_previous_treatments()
         assert df is not None
 
-        from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+        from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 
-        expected_cols = {"SubjectId"} | set(PreviousTreatments.data_fields())
+        expected_cols = {"SubjectId"} | set(PreviousTreatment.data_fields())
         assert set(df.columns) == expected_cols
 
     def test_extracts_treatment_values(self, previous_treatment_fixture):

@@ -14,7 +14,7 @@ from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
@@ -99,7 +99,7 @@ class Patient(TrackedValidated):
 
         # collections
         self._medical_histories: tuple[MedicalHistory, ...] = ()
-        self._previous_treatments: tuple[PreviousTreatments, ...] = ()
+        self._previous_treatments: tuple[PreviousTreatment, ...] = ()
         self._treatment_cycles: tuple[TreatmentCycleComponent, ...] = ()
         self._concomitant_medications: tuple[ConcomitantMedication, ...] = ()
         self._adverse_events: tuple[AdverseEvent, ...] = ()
@@ -412,13 +412,13 @@ class Patient(TrackedValidated):
         self.updated_fields.add(setter_name(self.__class__.medical_histories))
 
     @property
-    def previous_treatments(self) -> tuple[PreviousTreatments, ...]:
+    def previous_treatments(self) -> tuple[PreviousTreatment, ...]:
         return self._previous_treatments
 
     @previous_treatments.setter
-    def previous_treatments(self, value: Sequence[PreviousTreatments] | None) -> None:
+    def previous_treatments(self, value: Sequence[PreviousTreatment] | None) -> None:
         self._previous_treatments = self.validate_collection(
-            value, item_type=PreviousTreatments, patient_id=self._patient_id, field_name=setter_name(self.__class__.previous_treatments)
+            value, item_type=PreviousTreatment, patient_id=self._patient_id, field_name=setter_name(self.__class__.previous_treatments)
         )
         self.updated_fields.add(setter_name(self.__class__.previous_treatments))
 

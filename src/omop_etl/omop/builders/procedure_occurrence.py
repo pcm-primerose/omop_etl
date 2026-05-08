@@ -2,7 +2,7 @@ from typing import ClassVar
 from logging import getLogger
 
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import ProcedureOccurrenceRow
@@ -46,7 +46,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         self,
         patient: Patient,
         person_id: int,
-        prev: PreviousTreatments,
+        prev: PreviousTreatment,
         index: int,
         procedure_type_concept_id: int,
     ) -> list[ProcedureOccurrenceRow]:
@@ -56,7 +56,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
 
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
-            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
             index,
             domains={OmopDomain.PROCEDURE},
         )
@@ -69,7 +69,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
                     str(prev.treatment_sequence_number),
-                    PreviousTreatments.Fields.TREATMENT,
+                    PreviousTreatment.Fields.TREATMENT,
                     str(concept.concept_id),
                 ),
                 person_id=person_id,
@@ -86,7 +86,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         self,
         patient: Patient,
         person_id: int,
-        prev: PreviousTreatments,
+        prev: PreviousTreatment,
         index: int,
         procedure_type_concept_id: int,
     ) -> list[ProcedureOccurrenceRow]:
@@ -96,7 +96,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
 
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
-            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
             index,
             domains={OmopDomain.PROCEDURE},
         )
@@ -109,7 +109,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
                     str(prev.treatment_sequence_number),
-                    PreviousTreatments.Fields.ADDITIONAL_TREATMENT,
+                    PreviousTreatment.Fields.ADDITIONAL_TREATMENT,
                     str(concept.concept_id),
                 ),
                 person_id=person_id,

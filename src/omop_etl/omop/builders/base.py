@@ -67,7 +67,7 @@ class OmopBuilder(ABC, Generic[T]):
         self.populate_context(rows, ctx)
         return rows
 
-    def generate_row_id(self, *key_parts: str | None) -> int:
+    def generate_row_id(self, *key_parts: int | str | float | dt.date | None) -> int:
         """
         Deterministic row ID from key parts, using SHA1 hashing with builder's
         namespace to create a reproducible 63-bit integer ID.

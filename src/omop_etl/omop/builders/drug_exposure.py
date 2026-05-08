@@ -3,7 +3,7 @@ from logging import getLogger
 
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import DrugExposureRow
@@ -149,7 +149,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         self,
         patient: Patient,
         person_id: int,
-        prev: PreviousTreatments,
+        prev: PreviousTreatment,
         index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
@@ -160,7 +160,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         end_date = prev.end_date or start_date
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
-            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
             index,
             domains={OmopDomain.DRUG},
         )
@@ -173,7 +173,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
                     str(prev.treatment_sequence_number),
-                    PreviousTreatments.Fields.TREATMENT,
+                    PreviousTreatment.Fields.TREATMENT,
                     str(concept.concept_id),
                 ),
                 person_id=person_id,
@@ -190,7 +190,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         self,
         patient: Patient,
         person_id: int,
-        prev: PreviousTreatments,
+        prev: PreviousTreatment,
         index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
@@ -201,7 +201,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         end_date = prev.end_date or start_date
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
-            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+            (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
             index,
             domains={OmopDomain.DRUG},
         )
@@ -214,7 +214,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
                     str(prev.treatment_sequence_number),
-                    PreviousTreatments.Fields.ADDITIONAL_TREATMENT,
+                    PreviousTreatment.Fields.ADDITIONAL_TREATMENT,
                     str(concept.concept_id),
                 ),
                 person_id=person_id,

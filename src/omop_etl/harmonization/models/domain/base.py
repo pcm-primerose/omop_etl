@@ -9,18 +9,20 @@ class DomainBase(TrackedValidated, ABC):
     Base class for all domain models with schema contract support.
 
     Subclasses must define:
-    - `class Fields:` with string constants for canonical field names (wire schema)
+    - `class Fields:` with string constants for canonical field names (schema from processor to domain)
 
     Subclasses may optionally define:
-    - INVARIANT_FIELDS` tuple referencing Fields constants for materiality (the domains' invariants) filtering
+    - `INVARIANT_FIELDS` tuple referencing Fields constants for materiality (the domains' invariants) filtering
+    - `NATURAL_KEY_FIELDS` tuple referencing Fields that make up the natural key for the domain subclass
     """
 
     # internal cache, use data_fields() method to access
     _data_fields: ClassVar[tuple[str, ...] | None] = None
     _schema_validated: ClassVar[bool] = False
 
-    # optional
+    # collection and singleton subclasses override
     INVARIANT_FIELDS: ClassVar[tuple[str, ...]] = ()
+    NATURAL_KEY_FIELDS: ClassVar[tuple[str, ...]] = ()
 
     @abstractmethod
     def __init__(self, patient_id: str) -> None:  # noqa
@@ -32,6 +34,12 @@ class DomainBase(TrackedValidated, ABC):
         # reset cache for each subclass
         cls._data_fields = None
         cls._schema_validated = False
+
+    def natural_key(self) -> tuple:
+        return tuple(getattr(self, f) for f in self.NATURAL_KEY_FIELDS)
+
+    def invariant_fields(self) -> tuple:
+        return tuple(getattr(self, f) for f in self.INVARIANT_FIELDS)
 
     @classmethod
     def _derive_data_fields(cls) -> tuple[str, ...]:
@@ -63,9 +71,15 @@ class DomainBase(TrackedValidated, ABC):
         if len(fields) != len(set(fields)):
             raise ValueError(f"{cls.__name__}.data_fields has duplicates")
 
+        field_set = set(fields)
+
         invariant = set(cls.INVARIANT_FIELDS)
-        if invariant and not invariant.issubset(set(fields)):
-            raise ValueError(f"{cls.__name__}.INVARIANT_FIELDS not subset of data_fields: {invariant - set(fields)}")
+        if invariant and not invariant.issubset(field_set):
+            raise ValueError(f"{cls.__name__}.INVARIANT_FIELDS not a subset of data_fields: {invariant - field_set}")
+
+        natural_key = set(cls.NATURAL_KEY_FIELDS)
+        if natural_key and not natural_key.issubset(field_set):
+            raise ValueError(f"{cls.__name__}.NATURAL_KEY_FIELDS not a subset of data_fields: {natural_key - field_set}")
 
         # validate every Fields value matches an actual property on the class
         fields_cls = getattr(cls, "Fields", None)

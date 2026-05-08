@@ -2,7 +2,7 @@ import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
@@ -337,7 +337,7 @@ class TestPreviousTreatmentRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
                 leaf_index=0,
                 concept_id=1524674,
                 name="zoledronic acid",
@@ -346,7 +346,7 @@ class TestPreviousTreatmentRows:
             )
         )
         patient = create_patient(PID, "test")
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Chemotherapy"
         prev.additional_treatment = "Zometa"
         prev.start_date = dt.date(2022, 6, 1)
@@ -366,7 +366,7 @@ class TestPreviousTreatmentRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 leaf_index=0,
                 concept_id=1304850,
                 name="letrozole",
@@ -375,7 +375,7 @@ class TestPreviousTreatmentRows:
             )
         )
         patient = create_patient(PID, "test")
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Letrozole"
         prev.additional_treatment = "Additional"
         prev.start_date = dt.date(2022, 1, 1)
@@ -391,7 +391,7 @@ class TestPreviousTreatmentRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 leaf_index=0,
                 concept_id=100,
                 name="drug a",
@@ -400,7 +400,7 @@ class TestPreviousTreatmentRows:
             ),
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
                 leaf_index=0,
                 concept_id=200,
                 name="drug b",
@@ -409,7 +409,7 @@ class TestPreviousTreatmentRows:
             ),
         )
         patient = create_patient(PID, "test")
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Drug A"
         prev.additional_treatment = "Drug B"
         prev.start_date = dt.date(2022, 1, 1)
@@ -425,7 +425,7 @@ class TestPreviousTreatmentRows:
     def test_no_drug_mapping_produces_no_row(self, static_index, structural_index):
         """Treatment fields without drug domain mappings produce no rows."""
         patient = create_patient(PID, "test")
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "paracetamol"
         prev.start_date = dt.date(2022, 6, 1)
         patient.previous_treatments = [prev]
@@ -436,7 +436,7 @@ class TestPreviousTreatmentRows:
 
     def test_missing_start_date_skips(self, static_index, structural_index):
         patient = create_patient(PID, "test")
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Chemotherapy"
         prev.additional_treatment = "Zometa"
         patient.previous_treatments = [prev]
@@ -556,7 +556,7 @@ class TestIdUniqueness:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
                 leaf_index=0,
                 concept_id=1524674,
                 name="zoledronic acid",
@@ -571,7 +571,7 @@ class TestIdUniqueness:
         cycle.start_date = dt.date(2023, 1, 1)
         patient.treatment_cycles = [cycle]
 
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Chemotherapy"
         prev.additional_treatment = "Zometa"
         prev.start_date = dt.date(2022, 1, 1)

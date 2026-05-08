@@ -107,6 +107,11 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping medical history %d for %s: missing start_date", index, patient.patient_id)
             return []
 
+        sequence_id = mh.sequence_id if mh.sequence_id else None
+        if not sequence_id:
+            log.warning("Skipping medical history for %s: missing sequence_id", patient.patient_id)
+            return []
+
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
@@ -121,11 +126,12 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 condition_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.MEDICAL_HISTORIES,
-                    str(mh.sequence_id),
-                    str(concept.concept_id),
+                    start_date,
+                    sequence_id,
+                    concept.concept_id,
                 ),
                 person_id=person_id,
-                condition_concept_id=int(concept.concept_id),
+                condition_concept_id=concept.concept_id,
                 condition_start_date=start_date,
                 condition_end_date=mh.end_date,
                 condition_type_concept_id=condition_type_concept_id,
@@ -144,9 +150,14 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
     ) -> list[ConditionOccurrenceRow]:
         start_date = ae.start_date
         term = ae.term
+
         if start_date is None:
             log.warning("Skipping adverse event %d for %s: missing start_date", index, patient.patient_id)
             return []
+
+        sequence_id = ae.sequence_id if ae.sequence_id else None
+        if not sequence_id:
+            log.warning("medical history for %s is missing sequence_id", patient.patient_id)
 
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
@@ -163,8 +174,9 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
                     term,
-                    start_date.strftime(format="%Y%m%d"),
-                    str(concept.concept_id),
+                    start_date,
+                    sequence_id,
+                    concept.concept_id,
                 ),
                 person_id=person_id,
                 condition_concept_id=int(concept.concept_id),

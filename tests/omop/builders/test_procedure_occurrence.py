@@ -2,7 +2,7 @@ import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
@@ -37,7 +37,7 @@ class TestPreviousTreatmentMainRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 leaf_index=0,
                 concept_id=4301351,
                 name="surgical procedure",
@@ -46,7 +46,7 @@ class TestPreviousTreatmentMainRows:
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Surgery"
         prev.start_date = dt.date(2021, 3, 1)
         prev.end_date = dt.date(2021, 3, 1)
@@ -66,7 +66,7 @@ class TestPreviousTreatmentMainRows:
     def test_no_procedure_match_skips(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Surgery"
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
@@ -78,7 +78,7 @@ class TestPreviousTreatmentMainRows:
     def test_missing_start_date_skips(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Surgery"
         patient.previous_treatments = [prev]
 
@@ -90,7 +90,7 @@ class TestPreviousTreatmentMainRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 leaf_index=0,
                 concept_id=4301351,
                 name="surgical procedure",
@@ -99,7 +99,7 @@ class TestPreviousTreatmentMainRows:
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Surgery"
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
@@ -115,7 +115,7 @@ class TestPreviousTreatmentAdditionalRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
                 leaf_index=0,
                 concept_id=4061650,
                 name="hormone therapy",
@@ -124,7 +124,7 @@ class TestPreviousTreatmentAdditionalRows:
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Other"
         prev.additional_treatment = "Hormone therapy"
         prev.start_date = dt.date(2021, 5, 1)
@@ -139,7 +139,7 @@ class TestPreviousTreatmentAdditionalRows:
     def test_no_match_skips(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Other"
         prev.additional_treatment = "Something unmapped"
         prev.start_date = dt.date(2021, 5, 1)
@@ -154,7 +154,7 @@ class TestPreviousTreatmentAdditionalRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 leaf_index=0,
                 concept_id=4301351,
                 name="surgical procedure",
@@ -162,7 +162,7 @@ class TestPreviousTreatmentAdditionalRows:
             ),
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
                 leaf_index=0,
                 concept_id=4061650,
                 name="hormone therapy",
@@ -171,7 +171,7 @@ class TestPreviousTreatmentAdditionalRows:
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Surgery"
         prev.additional_treatment = "Hormone therapy"
         prev.start_date = dt.date(2021, 3, 1)
@@ -247,7 +247,7 @@ class TestCombinedSources:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 leaf_index=0,
                 concept_id=4301351,
                 name="surgical procedure",
@@ -265,7 +265,7 @@ class TestCombinedSources:
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
 
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Surgery"
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
@@ -286,7 +286,7 @@ class TestCombinedSources:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 leaf_index=0,
                 concept_id=4301351,
                 name="surgical procedure",
@@ -295,7 +295,7 @@ class TestCombinedSources:
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
-        prev = PreviousTreatments(patient_id=PID)
+        prev = PreviousTreatment(patient_id=PID)
         prev.treatment = "Surgery"
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]

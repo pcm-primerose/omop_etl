@@ -1459,6 +1459,7 @@ class AdverseEventRow:
     FU_FUPDEDAT: str | None = None
     TR_TRNAME: str | None = None
     TR_TRTNO: int | None = None
+    AE_AESPID: int | None = None
 
 
 @pytest.fixture
@@ -1484,6 +1485,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_AETRT2="Drug B",
             TR_TRNAME="Regimen X",
             TR_TRTNO="1",  # type: ignore
+            AE_AESPID=1,
         ),
         AdverseEventRow(
             "serious_fill_end_from_death",
@@ -1499,6 +1501,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             FU_FUPDEDAT="1900-02-01",
             TR_TRNAME="Regimen Y",
             TR_TRTNO=2,
+            AE_AESPID=1,
         ),
         AdverseEventRow(
             "multi",
@@ -1509,6 +1512,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_AESERCD=0,
             AE_AEREL1CD=2,
             AE_AEREL2CD=4,
+            AE_AESPID=1,
         ),
         AdverseEventRow(
             "multi",
@@ -1519,6 +1523,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_SAEEXP1CD=2,
             AE_SAEEXP2CD=1,
             AE_AEREL2CD=1,
+            AE_AESPID=2,
         ),
     ]
 

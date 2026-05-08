@@ -4,7 +4,7 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -33,13 +33,13 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     # previous treatments
     FieldConfig(
         name="previous_treatments.treatment",
-        field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+        field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
         target=QueryTarget(domains={OmopDomain.PROCEDURE, OmopDomain.DRUG}),
         tags={"previous_treatments", "term"},
     ),
     FieldConfig(
         name="previous_treatments.additional_treatment",
-        field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.ADDITIONAL_TREATMENT),
+        field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
         target=QueryTarget(domains={OmopDomain.PROCEDURE, OmopDomain.DRUG}),
         tags={"previous_treatments", "additional_term"},
     ),

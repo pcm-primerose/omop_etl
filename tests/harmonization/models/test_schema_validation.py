@@ -14,7 +14,7 @@ from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
@@ -34,10 +34,13 @@ def _get_all_constant_values(*sections) -> set[str]:
     return values
 
 
+_DOMAIN_BASE_PROPERTIES = {name for name, attr in vars(DomainBase).items() if isinstance(attr, property)}
+
+
 def _get_data_properties(cls) -> set[str]:
     props = set()
     for name in dir(cls):
-        if name.startswith("_"):
+        if name.startswith("_") or name in _DOMAIN_BASE_PROPERTIES:
             continue
         attr = getattr(cls, name, None)
         if isinstance(attr, property):
@@ -73,7 +76,7 @@ ALL_DOMAIN_CLASSES = [
     EQ5D,
     FollowUp,
     MedicalHistory,
-    PreviousTreatments,
+    PreviousTreatment,
     StudyDrugs,
     TreatmentCycleComponent,
     TumorAssessment,
