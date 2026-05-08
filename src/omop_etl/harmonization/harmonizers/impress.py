@@ -1044,6 +1044,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "AE_AESERCD",
             "AE_SAEEXP1CD",
             "AE_SAEEXP2CD",
+            "AE_AESPID",
             "FU_FUPDEDAT",
             "TR_TRNAME",
             "TR_TRTNO",
@@ -1054,6 +1055,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 PolarsParsers.to_optional_date(pl.col("AE_AESTDAT")).alias(cols.START_DATE),
                 PolarsParsers.to_optional_date(pl.col("AE_AEENDAT")).alias(cols.END_DATE),
                 PolarsParsers.to_optional_date(pl.col("AE_SAESTDAT")).alias(cols.TURNED_SERIOUS_DATE),
+                PolarsParsers.to_optional_int64(pl.col("AE_AESPID")).alias(cols.SEQUENCE_ID),
                 PolarsParsers.int_to_bool(
                     true_int=1,
                     false_int=0,
@@ -1137,6 +1139,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 cols.TREATMENT_2_NAME,
                 cols.WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_1,
                 cols.WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_2,
+                cols.SEQUENCE_ID,
             )
         )
 

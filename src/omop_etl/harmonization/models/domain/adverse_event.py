@@ -19,6 +19,7 @@ class AdverseEvent(DomainBase):
         OUTCOME = "outcome"
         START_DATE = "start_date"
         END_DATE = "end_date"
+        SEQUENCE_ID = "sequence_id"
         WAS_SERIOUS = "was_serious"
         TURNED_SERIOUS_DATE = "turned_serious_date"
         RELATED_TO_TREATMENT_1_STATUS = "related_to_treatment_1_status"
@@ -37,6 +38,7 @@ class AdverseEvent(DomainBase):
         self._outcome: str | None = None
         self._start_date: dt.date | None = None
         self._end_date: dt.date | None = None
+        self._sequence_id: int | None = None
         self._was_serious: bool | None = None
         self._turned_serious_date: dt.date | None = None
         self._related_to_treatment_1_status: RelatedStatus | None = None
@@ -109,6 +111,18 @@ class AdverseEvent(DomainBase):
             prop=self.__class__.end_date,
             value=value,
             validator=StrictValidators.validate_optional_date,
+        )
+
+    @property
+    def sequence_id(self) -> int | None:
+        return self._sequence_id
+
+    @sequence_id.setter
+    def sequence_id(self, value: int | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.sequence_id,
+            value=value,
+            validator=StrictValidators.validate_optional_int,
         )
 
     @property
