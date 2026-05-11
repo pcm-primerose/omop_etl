@@ -187,13 +187,13 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Singletons.ECOG_BASELINE,
-            date.strftime(format="%Y%m%d"),
+            *ecog_baseline.natural_key(),
         )
         return [
             MeasurementRow(
                 measurement_id=row_id,
                 person_id=person_id,
-                measurement_concept_id=int(ecog_test.concept_id),
+                measurement_concept_id=ecog_test.concept_id,
                 measurement_date=date,
                 measurement_type_concept_id=ecrf_concept,
                 measurement_datetime=dt.datetime(date.year, date.month, date.day),
@@ -255,10 +255,11 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         patient.patient_id,
                         Patient.Singletons.BIOMARKERS,
                         field_name,
-                        str(concept.concept_id),
+                        *biomarkers.natural_key(),
+                        concept.concept_id,
                     ),
                     person_id=person_id,
-                    measurement_concept_id=int(concept.concept_id),
+                    measurement_concept_id=concept.concept_id,
                     measurement_date=date,
                     measurement_datetime=datetime_value,
                     measurement_type_concept_id=ecrf_concept,
@@ -304,12 +305,13 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             patient.patient_id,
             Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
             TumorAssessmentBaseline.Fields.TARGET_LESION_SIZE,
+            *baseline.natural_key(),
         )
         return [
             MeasurementRow(
                 measurement_id=row_id,
                 person_id=person_id,
-                measurement_concept_id=int(lesion.concept_id),
+                measurement_concept_id=lesion.concept_id,
                 measurement_date=date,
                 measurement_datetime=dt.datetime(date.year, date.month, date.day),
                 measurement_type_concept_id=ecrf_concept,
@@ -360,16 +362,15 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
-                            str(tumor_assessments.event_id),
-                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.TARGET_LESION_SIZE,
+                            *tumor_assessments.natural_key(),
                         ),
                         person_id=person_id,
-                        measurement_concept_id=int(lesion.concept_id),
+                        measurement_concept_id=lesion.concept_id,
                         measurement_date=date,
                         measurement_datetime=datetime_value,
                         measurement_type_concept_id=ecrf_concept,
-                        value_as_number=float(size),
+                        value_as_number=size,
                         visit_occurrence_id=visit_occurrence_id,
                         measurement_source_value=str(size)[:50],
                     )
@@ -387,9 +388,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
-                            str(tumor_assessments.event_id),
-                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.RECIST_RESPONSE,
+                            *tumor_assessments.natural_key(),
                         ),
                         person_id=person_id,
                         measurement_concept_id=int(concept.concept_id),
@@ -412,9 +412,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
-                            str(tumor_assessments.event_id),
-                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.IRECIST_RESPONSE,
+                            *tumor_assessments.natural_key(),
                         ),
                         person_id=person_id,
                         measurement_concept_id=int(concept.concept_id),
@@ -437,9 +436,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
-                            str(tumor_assessments.event_id),
-                            date.strftime(format="%Y%m%d"),
                             TumorAssessment.Fields.RANO_RESPONSE,
+                            *tumor_assessments.natural_key(),
                         ),
                         person_id=person_id,
                         measurement_concept_id=int(concept.concept_id),
@@ -508,12 +506,12 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     measurement_id=self.generate_row_id(
                         patient.patient_id,
                         Patient.Collections.C30_COLLECTION,
-                        str(c30.event_name),
-                        date.strftime(format="%Y%m%d"),
+                        test_concept.concept_id,
+                        *c30.natural_key(),
                         f"q{n}",
                     ),
                     person_id=person_id,
-                    measurement_concept_id=int(test_concept.concept_id),
+                    measurement_concept_id=test_concept.concept_id,
                     measurement_date=date,
                     measurement_datetime=datetime_value,
                     measurement_type_concept_id=ecrf_concept,
@@ -573,12 +571,11 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     measurement_id=self.generate_row_id(
                         patient.patient_id,
                         Patient.Collections.EQ5D_COLLECTION,
-                        str(eq5d.event_name),
-                        date.strftime(format="%Y%m%d"),
+                        *eq5d.natural_key(),
                         f"q{n}",
                     ),
                     person_id=person_id,
-                    measurement_concept_id=int(answer_concept.concept_id),
+                    measurement_concept_id=answer_concept.concept_id,
                     measurement_date=date,
                     measurement_datetime=datetime_value,
                     measurement_type_concept_id=ecrf_concept,
@@ -598,12 +595,12 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
                             Patient.Collections.EQ5D_COLLECTION,
-                            str(eq5d.event_name),
-                            date.strftime(format="%Y%m%d"),
+                            *eq5d.natural_key(),
+                            vas_concept.concept_id,
                             EQ5D.Fields.QOL_METRIC,
                         ),
                         person_id=person_id,
-                        measurement_concept_id=int(vas_concept.concept_id),
+                        measurement_concept_id=vas_concept.concept_id,
                         measurement_date=date,
                         measurement_datetime=datetime_value,
                         measurement_type_concept_id=ecrf_concept,
@@ -680,15 +677,16 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         return [
             MeasurementRow(
+                # same concept id produces multiple rows, so need concept_id and q_id in UID
                 measurement_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.MEDICAL_HISTORIES,
-                    str(mh.sequence_id),
-                    str(m_concept.concept_id),
-                    str(q_id),
+                    *mh.natural_key(),
+                    q_id,
+                    m_concept.concept_id,
                 ),
                 person_id=person_id,
-                measurement_concept_id=int(m_concept.concept_id),
+                measurement_concept_id=m_concept.concept_id,
                 measurement_date=date,
                 measurement_datetime=datetime_value,
                 measurement_type_concept_id=ecrf_concept,
@@ -768,16 +766,16 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         return [
             MeasurementRow(
+                # same concept id produces multiple rows, so need concept_id and q_id in UID
                 measurement_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
-                    term,
-                    date.strftime(format="%Y%m%d"),
-                    str(m_concept.concept_id),
-                    str(q_id),
+                    *ae.natural_key(),
+                    q_id,
+                    m_concept.concept_id,
                 ),
                 person_id=person_id,
-                measurement_concept_id=int(m_concept.concept_id),
+                measurement_concept_id=m_concept.concept_id,
                 measurement_date=date,
                 measurement_datetime=datetime_value,
                 measurement_type_concept_id=ecrf_concept,

@@ -93,20 +93,14 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             quantity = cycle.iv_dose_prescribed
             dose_unit = cycle.iv_dose_prescribed_unit
             iv_route = self.concepts.lookup_structural("iv", domains={"Route"})
-            route_concept_id = int(iv_route.concept_id) if iv_route else None
+            route_concept_id = iv_route.concept_id if iv_route else None
         elif cycle.cycle_type and cycle.cycle_type == "oral":
             quantity = cycle.oral_dose_prescribed_per_day
             dose_unit = cycle.oral_dose_unit
             oral_route = self.concepts.lookup_structural("oral", domains={"Route"})
-            route_concept_id = int(oral_route.concept_id) if oral_route else None
+            route_concept_id = oral_route.concept_id if oral_route else None
 
-        base_row_id_parts = (
-            patient.patient_id,
-            Patient.Collections.TREATMENT_CYCLES,
-            str(cycle.cycle_number),
-            str(cycle.treatment_number),
-            str(cycle.component_index),
-        )
+        base_row_id_parts = (patient.patient_id, Patient.Collections.TREATMENT_CYCLES, *cycle.natural_key())
         end_date_or_start = end_date or start_date
         drug_source_value = cycle.source_treatment_name or cycle.ingredient_name
 
@@ -130,9 +124,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         return [
             DrugExposureRow(
-                drug_exposure_id=self.generate_row_id(*base_row_id_parts, str(concept.concept_id)),
+                drug_exposure_id=self.generate_row_id(*base_row_id_parts, concept.concept_id),
                 person_id=person_id,
-                drug_concept_id=int(concept.concept_id),
+                drug_concept_id=concept.concept_id,
                 drug_exposure_start_date=start_date,
                 drug_exposure_end_date=end_date_or_start,
                 drug_type_concept_id=drug_type_concept_id,
@@ -172,12 +166,12 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 drug_exposure_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
-                    str(prev.treatment_sequence_number),
+                    *prev.natural_key(),
                     PreviousTreatment.Fields.TREATMENT,
-                    str(concept.concept_id),
+                    concept.concept_id,
                 ),
                 person_id=person_id,
-                drug_concept_id=int(concept.concept_id),
+                drug_concept_id=concept.concept_id,
                 drug_exposure_start_date=start_date,
                 drug_exposure_end_date=end_date,
                 drug_type_concept_id=drug_type_concept_id,
@@ -213,9 +207,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 drug_exposure_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.PREVIOUS_TREATMENTS,
-                    str(prev.treatment_sequence_number),
+                    *prev.natural_key(),
                     PreviousTreatment.Fields.ADDITIONAL_TREATMENT,
-                    str(concept.concept_id),
+                    concept.concept_id,
                 ),
                 person_id=person_id,
                 drug_concept_id=int(concept.concept_id),
@@ -260,7 +254,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     drug_exposure_id=self.generate_row_id(
                         patient.patient_id,
                         Patient.Collections.CONCOMITANT_MEDICATIONS,
-                        str(concom.sequence_id),
+                        *concom.natural_key(),
                     ),
                     person_id=person_id,
                     drug_concept_id=0,
@@ -276,11 +270,11 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 drug_exposure_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.CONCOMITANT_MEDICATIONS,
-                    str(concom.sequence_id),
-                    str(concept.concept_id),
+                    *concom.natural_key(),
+                    concept.concept_id,
                 ),
                 person_id=person_id,
-                drug_concept_id=int(concept.concept_id),
+                drug_concept_id=concept.concept_id,
                 drug_exposure_start_date=start_date,
                 drug_exposure_end_date=end_date_or_start,
                 drug_type_concept_id=drug_type_concept_id,

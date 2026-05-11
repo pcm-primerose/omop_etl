@@ -58,6 +58,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 domains={OmopDomain.CONDITION},
             )
             source_value = tumor.icd10_code
+
         elif tumor.main_tumor_type:
             matches = self.concepts.lookup_semantic(
                 patient.patient_id,
@@ -66,6 +67,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 domains={OmopDomain.CONDITION},
             )
             source_value = tumor.main_tumor_type
+
         else:
             log.warning("Skipping tumor type for %s: no icd10_code or main_tumor_type", patient.patient_id)
             return []
@@ -83,10 +85,11 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 condition_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Singletons.TUMOR_TYPE,
-                    str(concept.concept_id),
+                    *tumor.natural_key(),
+                    concept.concept_id,
                 ),
                 person_id=person_id,
-                condition_concept_id=int(concept.concept_id),
+                condition_concept_id=concept.concept_id,
                 condition_start_date=date,
                 condition_type_concept_id=condition_type_concept_id,
                 condition_source_value=source_value,
@@ -126,8 +129,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 condition_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.MEDICAL_HISTORIES,
-                    start_date,
-                    sequence_id,
+                    *mh.natural_key(),
                     concept.concept_id,
                 ),
                 person_id=person_id,
@@ -173,13 +175,11 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 condition_occurrence_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
-                    term,
-                    start_date,
-                    sequence_id,
+                    *ae.natural_key(),
                     concept.concept_id,
                 ),
                 person_id=person_id,
-                condition_concept_id=int(concept.concept_id),
+                condition_concept_id=concept.concept_id,
                 condition_start_date=start_date,
                 condition_end_date=ae.end_date,
                 condition_type_concept_id=condition_type_concept_id,
