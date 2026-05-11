@@ -212,6 +212,7 @@ class StudyDrugsRow:
     COH_COHALLO2__2CD: str | None = None
     COH_COHALLO2__3: str | None = None
     COH_COHALLO2__3CD: str | None = None
+    COH_EventDate: str | None = None
 
 
 @pytest.fixture
@@ -223,6 +224,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1__2CD="31",
             COH_COHALLO2__2="Tafinlar",
             COH_COHALLO2__2CD="10",
+            COH_EventDate="2021-06-01",
         ),
         StudyDrugsRow(
             "sd1_match_sd2_match",
@@ -230,6 +232,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1CD="99",
             COH_COHALLO2="some drug 2",
             COH_COHALLO2CD="1",
+            COH_EventDate="2022-06-01",
         ),
         StudyDrugsRow(
             "sd1_mismatch1_sd2_mismatch1_2",
@@ -237,6 +240,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1CD="10",
             COH_COHALLO2__2="mismatch_1_2",
             COH_COHALLO2__2CD="12",
+            COH_EventDate="2023-06-01",
         ),
         StudyDrugsRow(
             "sd1_mismatch2_sd2_mismatch2_1",
@@ -244,6 +248,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1__2CD="50",
             COH_COHALLO2="mismatch_2_1",
             COH_COHALLO2CD="60",
+            COH_EventDate="2024-06-01",
         ),
         StudyDrugsRow(
             "sd_collision",
@@ -253,6 +258,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO2__2CD="5",
             COH_COHALLO2__3="some_drug_3_2",
             COH_COHALLO2__3CD="999",
+            COH_EventDate="2025-06-01",
         ),
     ]
 

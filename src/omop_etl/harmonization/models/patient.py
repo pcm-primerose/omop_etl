@@ -5,6 +5,7 @@ from typing import TypeVar
 
 from omop_etl.harmonization.core.validators import StrictValidators
 from omop_etl.harmonization.core.track_validated import TrackedValidated, setter_name
+from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -22,7 +23,7 @@ from omop_etl.harmonization.models.domain.tumor_assessment_baseline import Tumor
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 
 log = getLogger(__name__)
-T = TypeVar("T")
+T = TypeVar("T", bound=DomainBase)
 
 
 class Patient(TrackedValidated):
@@ -565,6 +566,8 @@ class Patient(TrackedValidated):
             if existing != patient_id:
                 raise ValueError(f"{field_name}: mismatched patient_id {existing!r} != {patient_id!r}")
 
+        # sort by domain natural_key so collections are deterministically ordered on assignment
+        items.sort(key=lambda x: x.sort_key())
         return tuple(items)
 
     @classmethod

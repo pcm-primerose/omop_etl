@@ -41,6 +41,10 @@ class DomainBase(TrackedValidated, ABC):
     def invariant_fields(self) -> tuple:
         return tuple(getattr(self, f) for f in self.INVARIANT_FIELDS)
 
+    def sort_key(self) -> tuple:
+        """None-safe sort key derived from natural_key, None values sort last."""
+        return tuple((v is None, v) for v in self.natural_key())
+
     @classmethod
     def _derive_data_fields(cls) -> tuple[str, ...]:
         """Derive data fields from Fields inner class string constants."""
