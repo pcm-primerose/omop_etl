@@ -26,6 +26,8 @@ class TumorAssessmentBaseline(DomainBase):
         self._off_target_lesion_measurement_date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
+    NATURAL_KEY_FIELDS = (Fields.ASSESSMENT_DATE,)
+
     @property
     def patient_id(self) -> str:
         return self._patient_id

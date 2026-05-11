@@ -16,6 +16,8 @@ class FollowUp(DomainBase):
         self._date_lost_to_followup: dt.datetime | None = None
         self.updated_fields: Set[str] = set()
 
+    NATURAL_KEY_FIELDS = (Fields.DATE_LOST_TO_FOLLOWUP,)
+
     @property
     def patient_id(self) -> str:
         return self._patient_id

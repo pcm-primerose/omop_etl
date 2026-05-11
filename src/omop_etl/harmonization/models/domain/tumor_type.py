@@ -27,6 +27,8 @@ class TumorType(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
+    NATURAL_KEY_FIELDS = (Fields.DATE,)
+
     @property
     def icd10_code(self) -> str | None:
         return self._icd10_code

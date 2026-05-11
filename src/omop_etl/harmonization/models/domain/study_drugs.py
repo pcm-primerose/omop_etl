@@ -1,4 +1,5 @@
 from typing import Set
+import datetime as dt
 
 from omop_etl.harmonization.core.validators import StrictValidators
 from omop_etl.harmonization.models.domain.base import DomainBase
@@ -10,6 +11,7 @@ class StudyDrugs(DomainBase):
         PRIMARY_TREATMENT_DRUG_CODE = "primary_treatment_drug_code"
         SECONDARY_TREATMENT_DRUG = "secondary_treatment_drug"
         SECONDARY_TREATMENT_DRUG_CODE = "secondary_treatment_drug_code"
+        DATE = "date"
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -17,7 +19,10 @@ class StudyDrugs(DomainBase):
         self._primary_treatment_drug_code: int | None = None
         self._secondary_treatment_drug: str | None = None
         self._secondary_treatment_drug_code: int | None = None
+        self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
+
+    NATURAL_KEY_FIELDS = (Fields.DATE,)
 
     @property
     def primary_treatment_drug(self) -> str | None:
@@ -67,11 +72,25 @@ class StudyDrugs(DomainBase):
             validator=StrictValidators.validate_optional_int,
         )
 
+    @property
+    def date(self) -> dt.date | None:
+        return self._date
+
+    @date.setter
+    def date(self, value: dt.date | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.date,
+            value=value,
+            validator=StrictValidators.validate_optional_date,
+        )
+
     def __repr__(self, delim=","):
         return (
             f"{self.__class__.__name__}("
             f"primary_treatment_drug={self.primary_treatment_drug!r}{delim} "
-            f" primary_treatment_drug_code={self.primary_treatment_drug_code!r}{delim} "
-            f" secondary_treatment_drug={self.secondary_treatment_drug!r}{delim} "
-            f" secondary_treatment_drug_code={self.secondary_treatment_drug_code!r})"
+            f"primary_treatment_drug_code={self.primary_treatment_drug_code!r}{delim} "
+            f"secondary_treatment_drug={self.secondary_treatment_drug!r}{delim} "
+            f"secondary_treatment_drug_code={self.secondary_treatment_drug_code!r}{delim}"
+            f"date={self.date!r}"
+            f")"
         )

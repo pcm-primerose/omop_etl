@@ -534,6 +534,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 s2cd=PolarsParsers.to_optional_int64(pl.col("COH_COHALLO2__2CD")),
                 s3=PolarsParsers.to_optional_utf8(pl.col("COH_COHALLO2__3")).str.strip_chars(),
                 s3cd=PolarsParsers.to_optional_int64(pl.col("COH_COHALLO2__3CD")),
+                date=PolarsParsers.to_optional_date(pl.col("COH_EventDate")),
             )
             # require at least one present
             .filter(
@@ -584,7 +585,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             .sort("_row")
             .unique(subset=["SubjectId"], keep="last")
             .select(
-                "SubjectId", cols.PRIMARY_TREATMENT_DRUG, cols.PRIMARY_TREATMENT_DRUG_CODE, cols.SECONDARY_TREATMENT_DRUG, cols.SECONDARY_TREATMENT_DRUG_CODE
+                "SubjectId",
+                cols.PRIMARY_TREATMENT_DRUG,
+                cols.PRIMARY_TREATMENT_DRUG_CODE,
+                cols.SECONDARY_TREATMENT_DRUG,
+                cols.SECONDARY_TREATMENT_DRUG_CODE,
+                cols.DATE,
             )
         )
 
