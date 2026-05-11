@@ -80,6 +80,8 @@ class C30(DomainBase):
         self._event_name: str | None = None
         # question fields default to None
 
+    NATURAL_KEY_FIELDS = (Fields.EVENT_NAME, Fields.DATE)
+
     @property
     def patient_id(self) -> str:
         return self._patient_id

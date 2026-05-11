@@ -13,7 +13,6 @@ class PreviousTreatment(DomainBase):
         START_DATE = "start_date"
         END_DATE = "end_date"
         ADDITIONAL_TREATMENT = "additional_treatment"
-        SEQUENCE_ID = "sequence_id"
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -23,11 +22,10 @@ class PreviousTreatment(DomainBase):
         self._start_date: dt.date | None = None
         self._end_date: dt.date | None = None
         self._additional_treatment: str | None = None
-        self._sequence_id: int | None = None
         self.updated_fields: Set[str] = set()
 
     INVARIANT_FIELDS = (Fields.TREATMENT,)
-    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.TREATMENT, Fields.SEQUENCE_ID)
+    NATURAL_KEY_FIELDS = (Fields.TREATMENT, Fields.START_DATE, Fields.TREATMENT_SEQUENCE_NUMBER)
 
     @property
     def patient_id(self) -> str:
@@ -94,18 +92,6 @@ class PreviousTreatment(DomainBase):
         )
 
     @property
-    def sequence_id(self) -> int | None:
-        return self._sequence_id
-
-    @sequence_id.setter
-    def sequence_id(self, value: int | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.sequence_id,
-            value=value,
-            validator=StrictValidators.validate_optional_int,
-        )
-
-    @property
     def additional_treatment(self) -> str | None:
         return self._additional_treatment
 
@@ -125,6 +111,5 @@ class PreviousTreatment(DomainBase):
             f" treatment_sequence_number={self.treatment_sequence_number!r}{delim}"
             f" start_date={self.start_date!r}{delim}"
             f" end_date={self.end_date!r}{delim}"
-            f" sequence_id={self.sequence_id!r}{delim}"
             f" additional_treatment={self.additional_treatment!r})"
         )

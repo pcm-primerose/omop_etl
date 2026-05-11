@@ -25,7 +25,7 @@ class MedicalHistory(DomainBase):
         self.updated_fields: Set[str] = set()
 
     INVARIANT_FIELDS = (Fields.TERM,)
-    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.SEQUENCE_ID, Fields.TERM)
+    NATURAL_KEY_FIELDS = (Fields.TERM, Fields.START_DATE, Fields.SEQUENCE_ID)
 
     @property
     def patient_id(self) -> str:
