@@ -630,7 +630,7 @@ class TestEQ5DRows:
         assert row_1.person_id == PERSON_ID
         assert row_1.measurement_date == dt.date(2040, 5, 1)
         assert row_1.measurement_datetime == dt.datetime(2040, 5, 1)
-        assert row_1.measurement_id == 5607913108096982206
+        assert row_1.measurement_id == 5607913108096982206  # fixme: assert on expected hash from collection's natural key instead
 
         # q2 level 5
         row_2 = rows[1]

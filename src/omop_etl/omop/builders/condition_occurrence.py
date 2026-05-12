@@ -1,6 +1,7 @@
 from typing import ClassVar
 from logging import getLogger
 
+from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -22,7 +23,12 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
 
     table_name: ClassVar[str] = "condition_occurrence"
 
+    def __init__(self, concepts: ConceptLookupService):
+        super().__init__(concepts)
+        self._ae_to_condition_id: dict[int, int] = {}
+
     def build(self, ctx: BuildContext) -> list[ConditionOccurrenceRow]:
+        self._ae_to_condition_id = {}
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[ConditionOccurrenceRow] = []
@@ -39,6 +45,13 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             rows.extend(self._build_adverse_event_rows(patient, person_id, ae, idx, condition_type_concept_id))
 
         return rows
+
+    def populate_context(self, rows: list[ConditionOccurrenceRow], ctx: BuildContext) -> None:
+        """
+        Publish AE.sequence_id to condition_occurrence_id from accumulated mapping from build,
+        so other builders (e.g. Observation) can set field concept/event ids from AEs (e.g. was_serious, turned_serious_data).
+        """
+        ctx.condition_id_by_ae_sequence_id.update(self._ae_to_condition_id)
 
     def _build_tumor_type_rows(
         self,
@@ -157,9 +170,13 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping adverse event %d for %s: missing start_date", index, patient.patient_id)
             return []
 
-        sequence_id = ae.sequence_id if ae.sequence_id else None
-        if not sequence_id:
-            log.warning("medical history for %s is missing sequence_id", patient.patient_id)
+        sequence_id = ae.sequence_id
+        if sequence_id is None:
+            log.warning(
+                "Adverse event %d for %s is missing sequence_id, emitting row but no FK link will be published for observation_event_id",
+                index,
+                patient.patient_id,
+            )
 
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
@@ -170,7 +187,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         if not matches:
             return []
 
-        return [
+        ae_rows = [
             ConditionOccurrenceRow(
                 condition_occurrence_id=self.generate_row_id(
                     patient.patient_id,
@@ -187,3 +204,11 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             )
             for concept in matches
         ]
+
+        # accumulate AE.sequence_id to first emitted condition_occurrence_id
+        # multi-concept AE links to the first row deterministically
+        # AEs without sequence_id are warned above and are emitted without linkage
+        if sequence_id is not None:
+            self._ae_to_condition_id[sequence_id] = ae_rows[0].condition_occurrence_id
+
+        return ae_rows

@@ -173,7 +173,7 @@ fc4de2f6-c822-542e-8392-53cf03842961,CM_CMTRT,Cimetidin,1,997276,2541,cimetidine
 9261aa9a-b652-5d50-b109-b5c92b058ae2,COH_COHCTN,BRAF Non-V600 activating mutations,12,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 a683d456-51bb-52f1-8dcb-b88cfe79add6,COH_COHCTN,BRAF Non-V600activating mutations,1,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 8d9cba99-2d8f-5254-8226-cc57d315adc7,COH_COHTMN,BRAF Non-V600 activating mutations,13,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
-4bf9b6d6-5f7e-5c8e-b424-16b4885158df,COH_GENMUT1,BRAF activating mutations,11,13,3039156,53844-7,"BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test",Standard,Valid,Measurement,LOINC
+4bf9b6d6-5f7e-5c8e-b424-16b4885158df,COH_GENMUT1,BRAF activating mutations,13,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 2e020752-c463-5744-9859-8dd3e864d528,COH_GENMUT1,Other,2,4205432,55446002,Genetic mutation,Clinical Finding,Standard,Valid,Condition,SNOMED
 16634bc9-9c93-5cd8-b149-34d0894a2e4b,COH_COHTT,Pancreatic cancer,3,4180793,363418001,Malignant tumor of pancreas,Disorder,Standard,Valid,Condition,SNOMED
 88b3fa87-2b35-5bee-adf1-39ed0e10c828,COH_COHTT,Cholangiocarcinoma,3,4208660,312104005,Cholangiocarcinoma of biliary tract,Disorder,Standard,Valid,Condition,SNOMED
