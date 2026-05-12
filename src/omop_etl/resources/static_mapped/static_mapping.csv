@@ -21,15 +21,21 @@ ecog_code,5,45880868,LA9627-6,Dead,Answer,Standard,Valid,Meas Value,LOINC
 tumor_assessment_baseline,iRecist 1.1,734318,iRECIST,iRECIST finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier
 tumor_assessment_baseline,RECIST 1.1,734317,RECIST,RECIST finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier
 tumor_assessment_baseline,RANO (for Glioblastoma),734345,RANO,RANO finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier
+response_recist,Not evaluable,45878793,LA4479-7,Status Not Evaluable,Answer,Standard,Valid,Meas Value,LOINC
+response_recist,Not evaluable (NE),45878793,LA4479-7,Status Not Evaluable,Answer,Standard,Valid,Meas Value,LOINC
 response_recist,Stable Disease (SD),1634680,1.1_RECIST-SD,RECIST 1.1: stable disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_recist,Progressive Disease (PD),1633597,1.1_RECIST-PD,RECIST 1.1: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_recist,Complete Response (CR),1634772,1.1_RECIST-CR,RECIST 1.1: complete response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_recist,Partial Response (PR),1633368,1.1_RECIST-PR,RECIST 1.1: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
-response_irecist,iComplete Response (CR),1633954,iRECIST-CR,iRECIST: complete response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
-response_irecist,iPartial Response (PR),1635284,iRECIST-PR,iRECIST: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_irecist,Not evaluable,45878793,LA4479-7,Status Not Evaluable,Answer,Standard,Valid,Meas Value,LOINC
+response_irecist,Not evaluable (NE),45878793,LA4479-7,Status Not Evaluable,Answer,Standard,Valid,Meas Value,LOINC
+response_irecist,iComplete Response,1633954,iRECIST-CR,iRECIST: complete response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_irecist,iPartial Response,1635284,iRECIST-PR,iRECIST: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_irecist,iStable disease,1635887,iRECIST-SD,iRECIST: stable disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_irecist,iConfirmed progressive disease,1633423,iRECIST-PD,iRECIST: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_irecist,iUnconfirmed progressive disease,1633423,iRECIST-PD,iRECIST: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+response_rano,Not evaluable,45878793,LA4479-7,Status Not Evaluable,Answer,Standard,Valid,Meas Value,LOINC
+response_rano,Not evaluable (NE),45878793,LA4479-7,Status Not Evaluable,Answer,Standard,Valid,Meas Value,LOINC
 response_rano,Complete Response (CR),1634853,RANO-CR,RANO: complete response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_rano,Partial Response (PR),1634574,RANO-PR,RANO: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_rano,Stable Disease (SD),1633447,RANO-SD,RANO: stable disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier

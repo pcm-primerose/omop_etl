@@ -379,10 +379,13 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         # tumor assessment response rows
         recist = tumor_assessments.recist_response
         if recist is not None:
-            concept = self.concepts.lookup_static("response_recist", recist, domains={OmopDomain.MEASUREMENTS})
-            if concept is None:
+            recist_response_concept = self.concepts.lookup_static("response_recist", recist, domains={OmopDomain.MEASUREMENTS})
+            recist_not_evaluable_concept = self.concepts.lookup_static("response_recist", recist, domains={OmopDomain.MEAS_VALUE})
+
+            if recist_response_concept is None and recist_not_evaluable_concept is None:
                 log.warning("No response_recist mapping for %r (patient %s)", recist, patient.patient_id)
-            else:
+
+            if recist_response_concept:
                 rows.append(
                     MeasurementRow(
                         measurement_id=self.generate_row_id(
@@ -392,7 +395,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             *tumor_assessments.natural_key(),
                         ),
                         person_id=person_id,
-                        measurement_concept_id=int(concept.concept_id),
+                        measurement_concept_id=recist_response_concept.concept_id,
                         measurement_date=date,
                         measurement_datetime=datetime_value,
                         measurement_type_concept_id=ecrf_concept,
@@ -401,12 +404,39 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     )
                 )
 
+            if recist_not_evaluable_concept:
+                recist_concept = self.concepts.lookup_structural("response_recist")
+                if recist_concept is None:
+                    log.warning("No structural concept found for response_recist")
+                else:
+                    rows.append(
+                        MeasurementRow(
+                            measurement_id=self.generate_row_id(
+                                patient.patient_id,
+                                Patient.Collections.TUMOR_ASSESSMENTS,
+                                TumorAssessment.Fields.RECIST_RESPONSE,
+                                *tumor_assessments.natural_key(),
+                            ),
+                            person_id=person_id,
+                            measurement_concept_id=recist_concept.concept_id,
+                            value_as_concept_id=recist_not_evaluable_concept.concept_id,
+                            measurement_date=date,
+                            measurement_datetime=datetime_value,
+                            measurement_type_concept_id=ecrf_concept,
+                            visit_occurrence_id=visit_occurrence_id,
+                            measurement_source_value=recist[:50],
+                        )
+                    )
+
         irecist = tumor_assessments.irecist_response
         if irecist is not None:
-            concept = self.concepts.lookup_static("response_irecist", irecist, domains={OmopDomain.MEASUREMENTS})
-            if concept is None:
+            irecist_response_concept = self.concepts.lookup_static("response_irecist", irecist, domains={OmopDomain.MEASUREMENTS})
+            irecist_not_evaluable_concept = self.concepts.lookup_static("response_irecist", irecist, domains={OmopDomain.MEAS_VALUE})
+
+            if irecist_response_concept is None and irecist_not_evaluable_concept is None:
                 log.warning("No response_irecist mapping for %r (patient %s)", irecist, patient.patient_id)
-            else:
+
+            if irecist_response_concept:
                 rows.append(
                     MeasurementRow(
                         measurement_id=self.generate_row_id(
@@ -416,7 +446,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             *tumor_assessments.natural_key(),
                         ),
                         person_id=person_id,
-                        measurement_concept_id=int(concept.concept_id),
+                        measurement_concept_id=irecist_response_concept.concept_id,
                         measurement_date=date,
                         measurement_datetime=datetime_value,
                         measurement_type_concept_id=ecrf_concept,
@@ -425,12 +455,39 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     )
                 )
 
+            if irecist_not_evaluable_concept:
+                irecist_concept = self.concepts.lookup_structural("response_irecist")
+                if irecist_concept is None:
+                    log.warning("No structural concept found for response_irecist")
+                else:
+                    rows.append(
+                        MeasurementRow(
+                            measurement_id=self.generate_row_id(
+                                patient.patient_id,
+                                Patient.Collections.TUMOR_ASSESSMENTS,
+                                TumorAssessment.Fields.IRECIST_RESPONSE,
+                                *tumor_assessments.natural_key(),
+                            ),
+                            person_id=person_id,
+                            measurement_concept_id=irecist_concept.concept_id,
+                            value_as_concept_id=irecist_not_evaluable_concept.concept_id,
+                            measurement_date=date,
+                            measurement_datetime=datetime_value,
+                            measurement_type_concept_id=ecrf_concept,
+                            visit_occurrence_id=visit_occurrence_id,
+                            measurement_source_value=irecist[:50],
+                        )
+                    )
+
         rano = tumor_assessments.rano_response
         if rano is not None:
-            concept = self.concepts.lookup_static("response_rano", rano, domains={OmopDomain.MEASUREMENTS})
-            if concept is None:
+            rano_response_concept = self.concepts.lookup_static("response_rano", rano, domains={OmopDomain.MEASUREMENTS})
+            rano_not_evaluable_concept = self.concepts.lookup_static("response_rano", rano, domains={OmopDomain.MEAS_VALUE})
+
+            if rano_response_concept is None and rano_not_evaluable_concept is None:
                 log.warning("No response_rano mapping for %r (patient %s)", rano, patient.patient_id)
-            else:
+
+            if rano_response_concept:
                 rows.append(
                     MeasurementRow(
                         measurement_id=self.generate_row_id(
@@ -440,7 +497,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             *tumor_assessments.natural_key(),
                         ),
                         person_id=person_id,
-                        measurement_concept_id=int(concept.concept_id),
+                        measurement_concept_id=rano_response_concept.concept_id,
                         measurement_date=date,
                         measurement_datetime=datetime_value,
                         measurement_type_concept_id=ecrf_concept,
@@ -448,6 +505,30 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_source_value=rano[:50],
                     )
                 )
+
+            if rano_not_evaluable_concept:
+                rano_concept = self.concepts.lookup_structural("response_rano")
+                if rano_concept is None:
+                    log.warning("No structural concept found for response_rano")
+                else:
+                    rows.append(
+                        MeasurementRow(
+                            measurement_id=self.generate_row_id(
+                                patient.patient_id,
+                                Patient.Collections.TUMOR_ASSESSMENTS,
+                                TumorAssessment.Fields.RANO_RESPONSE,
+                                *tumor_assessments.natural_key(),
+                            ),
+                            person_id=person_id,
+                            measurement_concept_id=rano_concept.concept_id,
+                            value_as_concept_id=rano_not_evaluable_concept.concept_id,
+                            measurement_date=date,
+                            measurement_datetime=datetime_value,
+                            measurement_type_concept_id=ecrf_concept,
+                            visit_occurrence_id=visit_occurrence_id,
+                            measurement_source_value=rano[:50],
+                        )
+                    )
 
         return rows
 

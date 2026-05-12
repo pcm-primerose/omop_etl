@@ -131,6 +131,9 @@ def structural_index() -> dict[str, StructuralConcept]:
         "c30_q29": _structural("c30_q29", 701367, "measurement"),
         # EQ5D VAS
         "eq5d_qol_score": _structural("eq5d_qol_score", 42537274, "measurement"),
+        "response_recist": _structural("response_recist", 734317, "measurement"),
+        "response_irecist": _structural("response_irecist", 734318, "measurement"),
+        "response_ranop": _structural("response_rano", 734345, "measurement"),
     }
 
 
@@ -165,16 +168,25 @@ def static_index() -> dict[tuple[str, str], StaticConcept]:
         ("eq5d_q2_answer_code", "3"): _static("eq5d_q2_answer_code", "3", 742353, "measurement"),
         ("eq5d_q2_answer_code", "4"): _static("eq5d_q2_answer_code", "4", 742354, "measurement"),
         ("eq5d_q2_answer_code", "5"): _static("eq5d_q2_answer_code", "5", 742355, "measurement"),
-        # tumor-response scales
+        # tumor-response scales:
+        # recist
+        ("response_recist", "not evaluable"): _static("response_recist", "Not evaluable", 45878793, "Meas value"),
+        ("response_recist", "not evaluable (ne)"): _static("response_recist", "Not evaluable (NE)", 45878793, "Meas value"),
         ("response_recist", "complete response (cr)"): _static("response_recist", "complete response (cr)", 1634772, "measurement"),
         ("response_recist", "partial response (pr)"): _static("response_recist", "partial response (pr)", 1633368, "measurement"),
         ("response_recist", "stable disease (sd)"): _static("response_recist", "stable disease (sd)", 1634680, "measurement"),
         ("response_recist", "progressive disease (pd)"): _static("response_recist", "progressive disease (pd)", 1633597, "measurement"),
+        # irecist
+        ("response_irecist", "not evaluable"): _static("response_irecist", "Not evaluable", 45878793, "Meas value"),
+        ("response_irecist", "not evaluable (ne)"): _static("response_irecist", "Not evaluable (NE)", 45878793, "Meas value"),
         ("response_irecist", "icomplete response (cr)"): _static("response_irecist", "icomplete response (cr)", 1633954, "measurement"),
         ("response_irecist", "ipartial response (pr)"): _static("response_irecist", "ipartial response (pr)", 1635284, "measurement"),
         ("response_irecist", "istable disease"): _static("response_irecist", "istable disease", 1635887, "measurement"),
         ("response_irecist", "iconfirmed progressive disease"): _static("response_irecist", "iconfirmed progressive disease", 1633423, "measurement"),
         ("response_irecist", "iunconfirmed progressive disease"): _static("response_irecist", "iunconfirmed progressive disease", 1633423, "measurement"),
+        # rano
+        ("response_rano", "not evaluable"): _static("response_rano", "Not evaluable", 45878793, "Meas value"),
+        ("response_rano", "not evaluable (ne)"): _static("response_rano", "Not evaluable (NE)", 45878793, "Meas value"),
         ("response_rano", "complete response (cr)"): _static("response_rano", "complete response (cr)", 1634853, "measurement"),
         ("response_rano", "partial response (pr)"): _static("response_rano", "partial response (pr)", 1634574, "measurement"),
         ("response_rano", "stable disease (sd)"): _static("response_rano", "stable disease (sd)", 1633447, "measurement"),

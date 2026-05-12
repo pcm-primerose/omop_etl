@@ -302,7 +302,7 @@ class TestTumorAssessmentRows:
     def test_unmapped_response_is_skipped(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [
-            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="Not Evaluable (NE)"),
+            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="invalid"),
         ]
 
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
@@ -311,6 +311,47 @@ class TestTumorAssessmentRows:
         assert len(rows) == 1
         assert rows[0].measurement_concept_id == 4084390
         assert rows[0].value_as_number == 28.987
+
+    def test_only_not_evaluable(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.tumor_assessments = [
+            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="Not Evaluable (NE)"),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        # size row and Not Evaluable row
+        assert len(rows) == 2
+        assert rows[0].measurement_concept_id == 4084390  # lesion size
+        assert rows[0].value_as_number == 28.987
+        assert rows[1].measurement_concept_id == 734317  # RECIST structural
+        assert rows[1].value_as_concept_id == 45878793  # NE qualifier
+        assert rows[1].value_as_number is None
+
+    def test_not_evaluable_and_evaluable_produce_four_rows(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.tumor_assessments = [
+            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="Stable Disease (SD)"),
+            _make_tumor_assessments(dt.date(2040, 12, 22), "V06", size=300.0, recist="Not Evaluable"),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        # each TumorAssessment produces its own size row + its recist row: 4 total
+        assert len(rows) == 4
+
+        # V05: size & precoordinated SD response
+        assert rows[0].measurement_concept_id == 4084390  # lesion size
+        assert rows[0].value_as_number == 28.987
+        assert rows[1].measurement_concept_id == 1634680  # RECIST SD precoordinated
+        assert rows[1].value_as_concept_id is None
+
+        # V06: size & NE (structural RECIST and NE qualifier)
+        assert rows[2].measurement_concept_id == 4084390
+        assert rows[2].value_as_number == 300.0
+        assert rows[3].measurement_concept_id == 734317
+        assert rows[3].value_as_concept_id == 45878793
+        assert rows[3].value_as_number is None
 
     def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
