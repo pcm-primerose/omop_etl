@@ -341,6 +341,10 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         measurement_concept_id stores both scale and answer (same pattern as EQ5D),
         value_as_concept_id stays NULL.
 
+        If response scale is Not Evaluable, use separate branch with structural lookup
+        for measurement concept id and value as concept id is then the NE Meas Value response concept,
+        so any Meas Value concept for this lookup key means assessment was Not Evaluable.
+
         If date is missing the instance is skipped entirely and no rows are emitted.
         """
         date = tumor_assessments.date
