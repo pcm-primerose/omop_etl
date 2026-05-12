@@ -116,14 +116,25 @@ class TestCaseInsensitiveLookups:
             result = service.lookup_static("sex", "M", domains={domain_filter})
             assert result is not None, f"filter {domain_filter!r} should match"
 
-    def test_domain_filter_miss_is_case_insensitive(self, static_index):
-        """Wrong-domain filter misses regardless of case."""
+    def test_domain_filter_rejects_regardless_of_case(self, static_index):
+        """Wrong-domain filter returns None regardless of case."""
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "M", domains={"Procedure"})
+        for domain_filter in ("procedure", "PROCEDURE", "Procedure"):
+            result = service.lookup_static("sex", "M", domains={domain_filter})
+            assert result is None, f"filter {domain_filter!r} should reject"
 
-        assert result is None
-        assert len(service.result.missed["static"]) == 1
+    def test_filter_reject_is_not_recorded_as_miss(self, static_index):
+        """
+        An entry exists in the index but the requested filter rejects it.
+        This is a caller-side flow event, a builder is asking the wrong domain question,
+        and not a data-quality gap, so it must not be recorded in the missed-lookup log.
+        """
+        service = ConceptLookupService(static_index=static_index)
+
+        service.lookup_static("sex", "M", domains={"Procedure"})
+
+        assert len(service.result.missed["static"]) == 0
 
     def test_vocab_filter_matches(self, static_index):
         service = ConceptLookupService(static_index=static_index)

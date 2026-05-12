@@ -157,7 +157,7 @@ class ConceptLookupService:
             validity=c.validity,
         )
         if not _concept_matches_filter(concept, domains, vocabs, validity):
-            self._result.record_miss("static", value_set, local_value)
+            # concept mapped but rejected by filter
             return None
 
         self._result.record_match("static", value_set, local_value, concept)
@@ -198,7 +198,7 @@ class ConceptLookupService:
             validity=c.validity,
         )
         if not _concept_matches_filter(concept, domains, vocabs, validity):
-            self._result.record_miss("structural", value_set, "")
+            # concept mapped but rejected by filter
             return None
 
         self._result.record_match("structural", value_set, "", concept)

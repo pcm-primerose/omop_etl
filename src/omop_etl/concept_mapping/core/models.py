@@ -6,7 +6,7 @@ LookupType = Literal["static", "structural", "semantic"]
 
 
 def _norm(v: str | None) -> str:
-    """Lowercase + strip a CSV value, defaulting None to empty string."""
+    """Lowercase and strip a CSV value, defaulting None to empty string."""
     return (v or "").lower().strip()
 
 
