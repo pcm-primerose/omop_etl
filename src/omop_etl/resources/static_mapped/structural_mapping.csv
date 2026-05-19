@@ -1,4 +1,7 @@
 value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
+no,4188540,373067005,No,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+yes,4188539,373066001,Yes,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+adverse_event_outcome,4231813,405533003,Adverse incident outcome,Clinical Finding,Standard,Valid,Observation,SNOMED
 ecog,36305384,89247-1,ECOG Performance Status score,Clinical Observation,Standard,Valid,Measurement,LOINC
 lesion_size,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED
 number_of_lesions,4085855,246206008,Number of lesions,Observable Entity,Standard,Valid,Observation,SNOMED

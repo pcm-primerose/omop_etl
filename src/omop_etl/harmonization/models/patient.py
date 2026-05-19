@@ -46,6 +46,7 @@ class Patient(TrackedValidated):
         NUMBER_OF_ADVERSE_EVENTS = "number_of_adverse_events"
         NUMBER_OF_SERIOUS_ADVERSE_EVENTS = "number_of_serious_adverse_events"
         HAS_CLINICAL_BENEFIT_AT_WEEK_16 = "has_clinical_benefit_at_week_16"
+        CLINICAL_BENEFIT_AT_WEEK_16_DATE = "clinical_benefit_at_week_16_date"
         END_OF_TREATMENT_REASON = "end_of_treatment_reason"
         END_OF_TREATMENT_DATE = "end_of_treatment_date"
 
@@ -86,6 +87,7 @@ class Patient(TrackedValidated):
         self._number_of_adverse_events: int | None = None
         self._number_of_serious_adverse_events: int | None = None
         self._has_clinical_benefit_at_week_16: bool | None = None
+        self._clinical_benefit_at_week_16_date: dt.date | None = None
         self._end_of_treatment_reason: str | None = None
         self._end_of_treatment_date: dt.date | None = None
 
@@ -275,6 +277,18 @@ class Patient(TrackedValidated):
             prop=self.__class__.has_clinical_benefit_at_week_16,
             value=value,
             validator=StrictValidators.validate_optional_bool,
+        )
+
+    @property
+    def clinical_benefit_at_week_16_date(self) -> dt.date | None:
+        return self._clinical_benefit_at_week_16_date
+
+    @clinical_benefit_at_week_16_date.setter
+    def clinical_benefit_at_week_16_date(self, value: dt.date | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.clinical_benefit_at_week_16_date,
+            value=value,
+            validator=StrictValidators.validate_optional_date,
         )
 
     @property

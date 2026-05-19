@@ -1,5 +1,6 @@
 value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
 lost_to_followup,True,4163894,399307001,Lost to follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
+cdm_field,condition_occurrence.condition_occurrence_id,1147127,CDM183,condition_occurrence.condition_occurrence_id,Field,Standard,Valid,Metadata,CDM
 sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
 sex,female,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
@@ -132,15 +133,15 @@ eq5d_q5_answer_code,4,742369,OMOP5181579,EuroQol five dimension five level anxie
 eq5d_q5_answer_code,5,742370,OMOP5181580,EuroQol five dimension five level anxiety depression score: 5 (I am extremely anxious or depressed),Precoordinated pair,Standard,Valid,Measurement,OMOP Extension
 eot_reason,Disease progression,1617595,97509-4,Cancer disease progression,Clinical Observation,Standard,Valid,Observation,LOINC
 eot_reason,Normal completion according to cohort-specific manual,44788181,15501000000100,Completed successfully,Qualifier Value,Standard,Valid,Observation,SNOMED
-eot_reason,Other,35821954,100418-5,Other reason,Answer,Standard,Valid,Observation,UK Biobank
-eot_reason,Adverse event/Toxicity,441207,62014003,Adverse reaction to drug,Disorder,Standard,Valid,Observation,SNOMED
+eot_reason,Other,9177,74964007,Other,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+eot_reason,Adverse event/Toxicity,45884383,LA7266-5,Adverse event,Answer,Standard,Valid,Meas Value,LOINC
 eot_reason,Symptomatic deterioration,4111347,285384003,General health deterioration,Clinical Finding,Standard,Valid,Observation,SNOMED
-eot_reason,Patient refusal,45773084,703427001,Refusal of treatment by patient against dental advice,Context-dependent,Standard,Valid,Observation,SNOMED
+eot_reason,Patient refusal,45878680,LA4389-8,Refused,Answer,Standard,Valid,Meas Value,LOINC
 eot_reason,Withdrawn by PI,44810920,871401000000109,Withdrawn from research study,Clinical Finding,Standard,Valid,Observation,SNOMED
 eot_reason_code,2,1617595,97509-4,Cancer disease progression,Clinical Observation,Standard,Valid,Observation,LOINC
 eot_reason_code,7,44788181,15501000000100,Completed successfully,Qualifier Value,Standard,Valid,Observation,SNOMED
-eot_reason_code,88,35821954,100418-5,Other reason,Answer,Standard,Valid,Observation,UK Biobank
-eot_reason_code,1,441207,62014003,Adverse reaction to drug,Disorder,Standard,Valid,Observation,SNOMED
+eot_reason_code,88,9177,74964007,Other,Qualifier Value,Standard,Valid,Meas Value,SNOMED
+eot_reason_code,1,45884383,LA7266-5,Adverse event,Answer,Standard,Valid,Meas Value,LOINC
 eot_reason_code,6,4111347,285384003,General health deterioration,Clinical Finding,Standard,Valid,Observation,SNOMED
-eot_reason_code,3,45773084,703427001,Refusal of treatment by patient against dental advice,Context-dependent,Standard,Valid,Observation,SNOMED
+eot_reason_code,3,45878680,LA4389-8,Refused,Answer,Standard,Valid,Meas Value,LOINC
 eot_reason_code,5,44810920,871401000000109,Withdrawn from research study,Clinical Finding,Standard,Valid,Observation,SNOMED

@@ -1,5 +1,4 @@
 import re
-from deprecated import deprecated
 import polars as pl
 from logging import getLogger
 
@@ -180,14 +179,18 @@ class ImpressHarmonizer(BaseHarmonizer):
         colname = Patient.Scalars.HAS_CLINICAL_BENEFIT_AT_WEEK_16
         timepoint = "V03"
 
+        # todo: consider emitting date of the benefit record
+
         benefit = (
             self.data.select(
                 "SubjectId",
                 "RA_RATIMRESCD",
                 "RA_RAiMODCD",
+                "RA_EventId",
+                "RA_EventDate",
                 "RNRSP_RNRSPCLCD",
                 "RNRSP_EventId",
-                "RA_EventId",
+                "RNRSP_EventDate",
             )
             .filter(pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null()))
             .filter((pl.col("RA_EventId") == timepoint) | (pl.col("RNRSP_EventId") == timepoint))
@@ -221,24 +224,18 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_evaluable_for_efficacy_analysis(self) -> pl.DataFrame | None:
         """
         Filtering criteria:
-            Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
-            For IV cycles, the cycle end is modeled as the day before the next cycles start.
-            Inclusive length = next_start − start days. Length ≥ 21 qualifies.
-            For oral cycles, length = stop − start days; ≥ 28 qualifies.
+        Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
+        For IV cycles, the cycle end is modeled as the day before the next cycles start.
+        Inclusive length = next_start − start days. Length ≥ 21 qualifies.
+        For oral cycles, length = stop − start days; ≥ 28 qualifies.
 
         For subjects with oral drugs, the start and end date per cycle is checked directly.
-            If a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
+        If a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
 
         For subjects without oral drugs, cycle stop date is set to start date of next cycle and needs to last 21 days or more.
-            Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
-            each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
-            assumes no malformed dates, because imputing would change the length.
-
-        Old filteing criteria:
-            Patients marked as evaluable for efficacy analysis needs to have:
-                - sufficient treatment length for any cycle (21 days for IV, 28 days for oral) and *either one of*:
-                - tumor assessment after week 4 (patient has any tumor assessment with EventId==V04 in RA, RCNT, RTNTMNT, RNRSP)
-                - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
+        Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
+        each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
+        assumes no malformed dates, because imputing would change the length.
         """
         colname = Patient.Scalars.EVALUABLE_FOR_EFFICACY_ANALYSIS
         evaluability_data = self.data.select(
@@ -248,16 +245,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             "TR_TRTNO",
             "TR_TRC1_DT",
             "TR_TRCYNCD",
-            # not currently used:
-            # "RA_EventDate",
-            # "RA_EventId",
-            # "RNRSP_EventDate",
-            # "RNRSP_EventId",
-            # "RCNT_EventDate",
-            # "RCNT_EventId",
-            # "RNTMNT_EventDate",
-            # "RNTMNT_EventId",
-            # "EOT_EventDate",
         )
 
         def oral_treatment_lengths() -> pl.DataFrame:
@@ -305,35 +292,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
             return iv_sufficient_treatment_length
-
-        @deprecated
-        def eot_filter() -> pl.DataFrame:
-            has_ended_treatment = evaluability_data.group_by("SubjectId").agg(
-                pl.any_horizontal(PolarsParsers.to_optional_utf8(pl.col(["EOT_EventDate"])).str.len_bytes() > 0).any().alias("has_clinical_assessment"),
-            )
-            return has_ended_treatment
-
-        @deprecated
-        def tumor_assessment() -> pl.DataFrame:
-            # need to add V04 filter (if this is to be used again)
-            has_tumor_assessment_week_4 = evaluability_data.group_by("SubjectId").agg(
-                pl.any_horizontal(
-                    PolarsParsers.to_optional_utf8(
-                        pl.col(
-                            [
-                                "RA_EventDate",
-                                "RNRSP_EventDate",
-                                "RCNT_EventDate",
-                                "RNTMNT_EventDate",
-                            ],
-                        ),
-                    ).str.len_bytes()
-                    > 0,
-                )
-                .any()
-                .alias("has_tumor_assessment"),
-            )
-            return has_tumor_assessment_week_4
 
         def _merge_evaluability() -> pl.DataFrame:
             base = evaluability_data.select("SubjectId").unique()

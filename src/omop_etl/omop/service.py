@@ -5,6 +5,7 @@ from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
 from omop_etl.omop.builders.measurement import MeasurementBuilder
+from omop_etl.omop.builders.observation import ObservationBuilder
 from omop_etl.omop.builders.person import PersonBuilder
 from omop_etl.omop.builders.observation_period import ObservationPeriodBuilder
 from omop_etl.omop.builders.cdm_source import CdmSourceBuilder
@@ -37,6 +38,7 @@ class OmopService:
             ConditionOccurrenceBuilder(concepts),
             ProcedureOccurrenceBuilder(concepts),
             MeasurementBuilder(concepts),
+            ObservationBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
