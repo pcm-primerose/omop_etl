@@ -11,52 +11,57 @@ from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
 
-_WEEK_16 = dt.timedelta(weeks=16)
-
 
 class ObservationBuilder(OmopBuilder[ObservationRow]):
     """
     Builds observation rows from patient scalars, the lost-to-followup singleton,
     and adverse-event-derived facts (outcome, was_serious, turned_serious_date).
-    All observation_concept_id domains must NOT be Condition, Procedure, Drug,
+    All observation_concept_id domains must not be in Condition, Procedure, Drug,
     Specimen, Measurement, or Device.
 
-    Three row shapes:
 
-    1. Unmapped source attribute (no topic concept available for the field):
-       observation_concept_id = 0, observation_source_value = source field name,
-       value_as_concept_id / value_as_string / value_source_value carry the
-       normalized + raw source value. Used for evaluable_for_efficacy_analysis,
-       has_clinical_benefit_at_week_16, end_of_treatment_reason.
+    There are three patterns used:
 
-    2. Mapped observation topic (a Standard concept names the topic):
-       observation_concept_id = topic concept, observation_source_value =
-       source field name, value_as_concept_id carries the answer/result.
-       Used for lost_to_followup ("Lost to follow-up" topic).
+    1. For evaluable_for_efficacy_analysis, has_clinical_benfit_at_week_*
+    and end_of_treatment_reason there is no observation_concept_id,
+    it's set to 0. The source field name is tracked in observation_source_value,
+    and value_as_concept_id, value_as_string and value_source_value has
+    the raw and normalized source values.
 
-    3. AE-derived (shapes 1 or 2, plus FK linkage):
-       observation_event_id + obs_event_field_concept_id link back to the
-       condition_occurrence row produced by ConditionOccurrenceBuilder via
-       BuildContext.condition_id_by_ae_sequence_id. Used for AE outcome,
-       AE was_serious, AE turned_serious_date.
+    2. For lost_to_followup the observation_concept_id is mapped,
+    observation_source_value has the field name, and value_as_concept_id has
+    the result (answer).
 
-    Emit policy: a row is only skipped when the source value or a required
-    date is missing. When a concept lookup misses (topic OR value), the row
-    is still emitted with concept_id=0 — CDM convention for "result present
-    in source but unmapped" — and the raw literal is preserved in
-    value_source_value / observation_source_value so the fact stays
-    queryable. Yes/No is resolved via the `yes` / `no` structural Meas
-    Value concepts.
+    3. For AE-derived fields, AE outcome, AE was_serious and AE turned_serious_date,
+    the same occurs as the first two patterns, but they are linked back to the
+    source AE record from ConditionOccurrenceBuilder,
+    using FKs stored in observation_event_id and obs_event_field_concept_id,
+    produced by BuildContext.condition_id_by_ae_sequence_id.
+
+    A row is only skipped when the source value or a required date is missing.
+    When a concept lookup misses, the row is still emitted with concept_id=0,
+    and the raw literal is stored in value_source_value or observation_source_value.
     """
 
     table_name: ClassVar[str] = "observation"
+    week_16: ClassVar[dt.timedelta] = dt.timedelta(weeks=16)
 
     def build(self, ctx: BuildContext) -> list[ObservationRow]:
+        """
+        Emit observation rows for the patient. Order: scalar attributes
+        (evaluable, clinical_benefit, eot_reason), the lost_to_followup
+        singleton, then per-AE rows (outcome, was_serious, turned_serious_date).
+        observation_type_concept_id is the ecrf Type Concept, raises if the
+        structural entry is missing.
+        """
         patient = ctx.patient
         person_id = ctx.person_id
 
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        observation_type_concept_id = ecrf.concept_id if ecrf else 0
+        if ecrf is None:
+            raise RuntimeError("Missing ecrf concept in structural mapping")
+
+        observation_type_concept_id = ecrf.concept_id
 
         rows: list[ObservationRow] = []
         rows.extend(self._build_evaluable(patient, person_id, observation_type_concept_id))
@@ -73,7 +78,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
 
     def _yes_no_concept_id(self, value: bool) -> int:
         """
-        Resolve True to Yes / False to No via the structural Meas Value
+        Resolve True to Yes and False to No via the structural Meas Value
         concepts. Returns 0 when the mapping is missing.
         """
         concept = self.concepts.lookup_structural("yes" if value else "no", domains={OmopDomain.MEAS_VALUE})
@@ -93,10 +98,10 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         obs_event_field_concept_id: int | None = None,
     ) -> ObservationRow:
         """
-        Compose a boolean observation row. Standardizes the source/value
+        Compose a boolean observation row. Standardizes the source-value
         encoding for all boolean fields (evaluable, clinical_benefit,
         lost_to_followup, AE was_serious) so the columns can't drift
-        between sites.
+        between callsites.
         """
         return ObservationRow(
             observation_id=observation_id,
@@ -118,6 +123,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         person_id: int,
         observation_type_concept_id: int,
     ) -> list[ObservationRow]:
+        """
+        Unmapped source attribute: observation_concept_id = 0,
+        observation_source_value = field name, value_as_concept_id = Yes/No.
+        Dated to treatment_start_date (no clearer event date exists; the
+        evaluability decision is informed by treatment activity since start).
+        """
         value = patient.evaluable_for_efficacy_analysis
         date = patient.treatment_start_date
         if value is None:
@@ -153,7 +164,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         Clinical benefit at W16. Uses the dedicated
         `clinical_benefit_at_week_16_date` scalar if set, otherwise falls back
         to `treatment_start_date + 16 weeks`.
-        todo: Switch to a ClinicalBenefit singleton when extending to other timepoints.
+        todo: Switch to a ClinicalBenefit singleton, fallback to w16 date if missing date from singleton
         """
         value = patient.has_clinical_benefit_at_week_16
         if value is None:
@@ -168,7 +179,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     patient.patient_id,
                 )
                 return []
-            date = start + _WEEK_16
+            date = start + self.week_16
 
         return [
             self._bool_observation(
@@ -191,9 +202,9 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         observation_type_concept_id: int,
     ) -> list[ObservationRow]:
         """
-        Shape 1 (unmapped source attribute): observation_concept_id = 0,
+        Unmapped source attribute: observation_concept_id = 0,
         observation_source_value = field name, value_as_concept_id = mapped
-        reason (or 0 if unmapped), value_as_string + value_source_value
+        reason (or 0 if unmapped), value_as_string and value_source_value
         preserve the raw reason text.
         """
         reason = patient.end_of_treatment_reason
@@ -230,6 +241,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         person_id: int,
         observation_type_concept_id: int,
     ) -> list[ObservationRow]:
+        """
+        observation_concept_id is the "Lost to follow-up" concept from the
+        lost_to_followup static value set, falls back to 0 when the mapping is missing.
+        value_as_concept_id is the Yes/No concept, observation_source_value is the field name and
+        value_source_value carries the boolean literal. Date is date_lost_to_followup.
+        """
         followup = patient.lost_to_followup
         if followup is None:
             return []
@@ -271,11 +288,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         ctx: BuildContext,
     ) -> list[ObservationRow]:
         """
-        Shape 2 or 3: topic concept (structural `adverse_event_outcome`) +
-        answer concept (static `adverse_event_outcome,<text>`). Both
-        lookups fall back to 0 when missing — the row is still emitted as
+        Topic concept is the structural lookup for adverse_event_outcome,
+        answer concept is the static lookup for adverse_event_outcome values.
+        Both lookups fall back to 0 when missing and the row is still emitted as
         long as outcome and start_date are present, with the raw value
-        preserved in value_source_value.
+        preserved in value_source_value, linked to Condition AE record.
         """
         raw_outcome = ae.outcome
         date = ae.start_date
@@ -320,6 +337,13 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         index: int,
         ctx: BuildContext,
     ) -> list[ObservationRow]:
+        """
+        Unmapped source attribute and AE FK: observation_concept_id = 0,
+        observation_source_value = "was_serious", value_as_concept_id = Yes/No concept,
+        observation_event_id and obs_event_field_concept_id point at the
+        AE's condition_occurrence row. Emits for both True and False so the
+        explicit assessment is preserved. Dated is AE.start_date.
+        """
         was_serious = ae.was_serious
         if was_serious is None:
             return []
@@ -359,7 +383,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
     ) -> list[ObservationRow]:
         """
         AE turned-serious flag. Encoded as a Yes observation on
-        `turned_serious_date`; value_source_value carries the ISO date so
+        turned_serious_date, value_source_value carries the ISO date so
         consumers can reconstruct the event without re-querying.
         Not using _bool_observation because value_source_value differs
         (date string, not "true").
@@ -403,8 +427,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         AE-derived observation row. Returns (None, None) when the AE has no
         sequence_id or no published condition_occurrence row. Raises if the
         `cdm_field` static entry for condition_occurrence.condition_occurrence_id
-        is missing — this is required infrastructure for AE-attributed
-        observations.
+        is missing, this is required for AE-attributed observations.
         """
         sequence_id = ae.sequence_id
         if sequence_id is None:
