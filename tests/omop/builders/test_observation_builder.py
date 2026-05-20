@@ -4,6 +4,7 @@ import pytest
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.observation import ObservationBuilder
@@ -141,20 +142,29 @@ class TestEvaluableForEfficacy:
 
 class TestClinicalBenefit:
     """
-    Pattern 1 (e.g. evaluable):
-    Prefers clinical_benefit_at_week_16_date scalar, falls back to treatment_start + 16w.
+    Pattern 1 (no topic concept): concept_id=0, observation_source_value
+    encodes the week as `has_clinical_benefit_at_week_<N>`, value_as_concept_id
+    is Yes/No concepts, observation_date is the singleton's date.
     """
 
-    def test_uses_clinical_benefit_date_scalar_when_set(self, static_index, structural_index):
+    def _make_singleton(  # noqa
+        self,
+        *,
+        has_benefit: bool | None,
+        week: int | None = 16,
+        date: dt.date | None = dt.date(2023, 4, 20),
+    ) -> ClinicalBenefit:
+        cb = ClinicalBenefit(patient_id=PID)
+        cb.week = week
+        cb.has_benefit = has_benefit
+        cb.date = date
+        return cb
+
+    def test_emits_row_with_yes_for_true(self, static_index, structural_index):
         _with_yes_no(structural_index)
         concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(
-            PID,
-            TRIAL,
-            has_clinical_benefit_at_week_16=True,
-            clinical_benefit_at_week_16_date=dt.date(2023, 4, 20),
-            treatment_start_date=dt.date(2023, 1, 1),
-        )
+        patient = create_patient(PID, TRIAL)
+        patient.clinical_benefit = self._make_singleton(has_benefit=True)
 
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
@@ -163,41 +173,77 @@ class TestClinicalBenefit:
         assert row.observation_concept_id == 0
         assert row.observation_date == dt.date(2023, 4, 20)
         assert row.observation_source_value == "has_clinical_benefit_at_week_16"
+        assert row.observation_source_concept_id == 0
         assert row.value_as_concept_id == YES_CID
         assert row.value_source_value == "true"
 
-    def test_falls_back_to_treatment_start_plus_16_weeks(self, static_index, structural_index):
+    def test_emits_row_with_no_for_false(self, static_index, structural_index):
         _with_yes_no(structural_index)
         concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(
-            PID,
-            TRIAL,
-            has_clinical_benefit_at_week_16=True,
-            treatment_start_date=dt.date(2023, 1, 1),
+        patient = create_patient(PID, TRIAL)
+        patient.clinical_benefit = self._make_singleton(has_benefit=False)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].value_as_concept_id == NO_CID
+        assert rows[0].value_source_value == "false"
+
+    def test_source_value_encodes_week_for_other_timepoints(self, static_index, structural_index):
+        """Week 24 from another source produces: `has_clinical_benefit_at_week_24`."""
+        _with_yes_no(structural_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.clinical_benefit = self._make_singleton(
+            has_benefit=True,
+            week=24,
+            date=dt.date(2023, 6, 1),
         )
 
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
-        assert rows[0].observation_date == dt.date(2023, 1, 1) + dt.timedelta(weeks=16)
+        assert rows[0].observation_source_value == "has_clinical_benefit_at_week_24"
+        assert rows[0].observation_date == dt.date(2023, 6, 1)
 
-    def test_skipped_when_value_is_none(self, static_index, structural_index):
+    def test_singleton_absent_returns_empty(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(PID, TRIAL, treatment_start_date=dt.date(2023, 1, 1))
+        patient = create_patient(PID, TRIAL)
 
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
 
-    def test_skipped_when_no_date_available(self, static_index, structural_index, caplog):
+    def test_skipped_when_has_benefit_is_none(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(PID, TRIAL, has_clinical_benefit_at_week_16=True)
+        patient = create_patient(PID, TRIAL)
+        patient.clinical_benefit = self._make_singleton(has_benefit=None)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert rows == []
+
+    def test_skipped_when_date_is_none(self, static_index, structural_index, caplog):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.clinical_benefit = self._make_singleton(has_benefit=True, date=None)
 
         with caplog.at_level(logging.WARNING):
             rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
-        assert any("clinical_benefit_at_week_16_date" in rec.message for rec in caplog.records)
+        assert any("no date" in rec.message for rec in caplog.records)
+
+    def test_skipped_when_week_is_none(self, static_index, structural_index, caplog):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.clinical_benefit = self._make_singleton(has_benefit=True, week=None)
+
+        with caplog.at_level(logging.WARNING):
+            rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert rows == []
+        assert any("no week" in rec.message for rec in caplog.records)
 
 
 class TestEndOfTreatmentReason:
@@ -605,10 +651,15 @@ class TestCombinedSources:
             TRIAL,
             treatment_start_date=dt.date(2023, 1, 10),
             evaluable_for_efficacy_analysis=True,
-            has_clinical_benefit_at_week_16=False,
             end_of_treatment_reason="Other",
             end_of_treatment_date=dt.date(2023, 8, 1),
         )
+
+        cb = ClinicalBenefit(patient_id=PID)
+        cb.week = 16
+        cb.has_benefit = False
+        cb.date = dt.date(2023, 4, 25)
+        patient.clinical_benefit = cb
 
         followup = FollowUp(patient_id=PID)
         followup.lost_to_followup = True

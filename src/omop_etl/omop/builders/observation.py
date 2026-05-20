@@ -44,7 +44,6 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
     """
 
     table_name: ClassVar[str] = "observation"
-    week_16: ClassVar[dt.timedelta] = dt.timedelta(weeks=16)
 
     def build(self, ctx: BuildContext) -> list[ObservationRow]:
         """
@@ -161,35 +160,44 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         observation_type_concept_id: int,
     ) -> list[ObservationRow]:
         """
-        Clinical benefit at W16. Uses the dedicated
-        `clinical_benefit_at_week_16_date` scalar if set, otherwise falls back
-        to `treatment_start_date + 16 weeks`.
-        todo: Switch to a ClinicalBenefit singleton, fallback to w16 date if missing date from singleton
+        Clinical benefit at a source-specific timepoint. Read from the
+        ClinicalBenefit singleton, date is authoritative (no fallback).
+        observation_source_value encodes the week
+        (e.g. "has_clinical_benefit_at_week_16") so downstream queries
+        can filter by timepoint.
         """
-        value = patient.has_clinical_benefit_at_week_16
-        if value is None:
+        cb = patient.clinical_benefit
+        if cb is None:
+            return []
+        has_benefit = cb.has_benefit
+        date = cb.date
+        week = cb.week
+        if has_benefit is None:
+            return []
+        if date is None:
+            log.warning(
+                "Skipping clinical_benefit for %s: ClinicalBenefit singleton has no date",
+                patient.patient_id,
+            )
+            return []
+        if week is None:
+            log.warning(
+                "Skipping clinical_benefit for %s: ClinicalBenefit singleton has no week",
+                patient.patient_id,
+            )
             return []
 
-        date = patient.clinical_benefit_at_week_16_date
-        if date is None:
-            start = patient.treatment_start_date
-            if start is None:
-                log.warning(
-                    "Skipping has_clinical_benefit_at_week_16 for %s: no clinical_benefit_at_week_16_date and no treatment_start_date",
-                    patient.patient_id,
-                )
-                return []
-            date = start + self.week_16
-
+        field_name = f"has_clinical_benefit_at_week_{week}"
         return [
             self._bool_observation(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
-                    Patient.Scalars.HAS_CLINICAL_BENEFIT_AT_WEEK_16,
+                    Patient.Singletons.CLINICAL_BENEFIT,
+                    *cb.natural_key(),
                 ),
                 person_id=person_id,
-                field_name=Patient.Scalars.HAS_CLINICAL_BENEFIT_AT_WEEK_16,
-                value=value,
+                field_name=field_name,
+                value=has_benefit,
                 date=date,
                 observation_type_concept_id=observation_type_concept_id,
             )
