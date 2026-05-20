@@ -1,6 +1,5 @@
 import datetime as dt
 import logging
-
 import pytest
 
 from omop_etl.concept_mapping.service import ConceptLookupService
@@ -34,7 +33,7 @@ def _with_yes_no(structural_index: dict) -> dict:
 
 
 def _with_cdm_field(static_index: dict) -> dict:
-    """`cdm_field` static entry for AE → condition_occurrence FK linkage."""
+    """cdm_field static entry for AE: condition_occurrence FK linkage."""
     static_index[("cdm_field", "condition_occurrence.condition_occurrence_id")] = _static(
         "cdm_field",
         "condition_occurrence.condition_occurrence_id",
@@ -64,8 +63,10 @@ class TestObservationBuilder:
 
 
 class TestEvaluableForEfficacy:
-    """Shape 1 (unmapped source attribute): concept_id=0, source_value=field
-    name, value_source_value=lowercase literal."""
+    """
+    Pattern 1 (unmapped source attribute):
+    concept_id=0, source_value=field name, value_source_value=lowercase literal.
+    """
 
     def test_true_emits_row_with_yes_value(self, static_index, structural_index):
         _with_yes_no(structural_index)
@@ -139,8 +140,10 @@ class TestEvaluableForEfficacy:
 
 
 class TestClinicalBenefit:
-    """Shape 1, like evaluable. Prefers `clinical_benefit_at_week_16_date`
-    scalar; falls back to treatment_start + 16w."""
+    """
+    Pattern 1 (e.g. evaluable):
+    Prefers clinical_benefit_at_week_16_date scalar, falls back to treatment_start + 16w.
+    """
 
     def test_uses_clinical_benefit_date_scalar_when_set(self, static_index, structural_index):
         _with_yes_no(structural_index)
@@ -198,9 +201,11 @@ class TestClinicalBenefit:
 
 
 class TestEndOfTreatmentReason:
-    """Shape 1: concept_id=0, field name in source_value, mapped reason concept
+    """
+    Pattern 1: concept_id=0, field name in source_value, mapped reason concept
     in value_as_concept_id (or 0 if unmapped), raw reason preserved in both
-    value_as_string and value_source_value."""
+    value_as_string and value_source_value.
+    """
 
     def test_mapped_reason_emits_row(self, static_index, structural_index):
         static_index[("eot_reason", "disease progression")] = _static("eot_reason", "disease progression", 1617595, "observation")
@@ -225,8 +230,10 @@ class TestEndOfTreatmentReason:
         assert row.value_source_value == "Disease progression"
 
     def test_unmapped_reason_emits_row_with_value_concept_zero(self, static_index, structural_index):
-        """No static mapping → row still emits, value_as_concept_id=0, raw
-        reason preserved in value_as_string + value_source_value."""
+        """
+        No static mapping: row still emits, value_as_concept_id=0, raw
+        reason preserved in value_as_string and value_source_value.
+        """
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
             PID,
@@ -257,8 +264,10 @@ class TestEndOfTreatmentReason:
 
 
 class TestLostToFollowup:
-    """Shape 2 (mapped topic): concept_id=Lost-to-follow-up,
-    source_value=field name, value_source_value=lowercase literal."""
+    """
+    Pattern 2 (mapped topic): concept_id=Lost-to-follow-up,
+    source_value=field name, value_source_value=lowercase literal.
+    """
 
     def test_lost_to_followup_true_emits_row(self, static_index, structural_index):
         _with_yes_no(structural_index)
@@ -321,12 +330,12 @@ class TestLostToFollowup:
 
 
 class TestAdverseEventOutcome:
-    """Shape 2/3: topic concept (structural `adverse_event_outcome`) +
-    answer concept (static `adverse_event_outcome,<text>`). Either lookup
+    """Pattern 2 and 3: topic concept (structural adverse_event_outcome) and
+    answer concept (static adverse_event_outcome,<text>). Either lookup
     can miss and the row still emits with concept_id=0 fallback, as long
     as outcome and start_date are present. FK-linked."""
 
-    def _make_patient(self, outcome: str | None) -> Patient:
+    def _make_patient(self, outcome: str | None) -> Patient:  # noqa
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
         ae.term = "Fever"
@@ -359,8 +368,10 @@ class TestAdverseEventOutcome:
         assert row.obs_event_field_concept_id == CDM_FIELD_CID
 
     def test_topic_structural_missing_falls_back_to_zero(self, static_index, structural_index):
-        """No topic structural → concept_id=0 but row still emits with mapped
-        value and raw outcome preserved in value_source_value."""
+        """
+        No topic structural: concept_id=0 but row still emits with mapped
+        value and raw outcome preserved in value_source_value.
+        """
         _with_cdm_field(static_index)
         static_index[("adverse_event_outcome", "recovering/resolving")] = _static("adverse_event_outcome", "recovering/resolving", 1074213, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
@@ -377,8 +388,10 @@ class TestAdverseEventOutcome:
         assert row.value_source_value == "Recovering/resolving"
 
     def test_value_static_missing_falls_back_to_zero(self, static_index, structural_index):
-        """No static mapping for the outcome text → value_as_concept_id=0,
-        row still emits with topic concept and raw outcome preserved."""
+        """
+        No static mapping for the outcome text: value_as_concept_id=0,
+        row still emits with topic concept and raw outcome preserved.
+        """
         _with_ae_outcome_topic(structural_index)
         _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
@@ -395,8 +408,10 @@ class TestAdverseEventOutcome:
         assert row.value_source_value == "Some unmapped outcome"
 
     def test_both_lookups_missing_emits_zero_row_with_raw_value(self, static_index, structural_index):
-        """Worst case: no mappings at all, row still emits with both
-        concept ids 0 and value_source_value preserving the raw text."""
+        """
+        Worst case: no mappings at all, row still emits with both
+        concept ids 0 and value_source_value preserving the raw text.
+        """
         _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Some outcome")
@@ -422,10 +437,12 @@ class TestAdverseEventOutcome:
 
 
 class TestAdverseEventWasSerious:
-    """Shape 3: concept_id=0 + FK linkage. Emits for both True and False
-    (records the assessment either way)."""
+    """
+    Pattern 3: concept_id=0 and FK linkage. Emits for both True and False
+    (records the assessment either way).
+    """
 
-    def _make_patient(self, was_serious: bool | None) -> Patient:
+    def _make_patient(self, was_serious: bool | None) -> Patient:  # noqa
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
         ae.term = "Fever"
@@ -479,8 +496,10 @@ class TestAdverseEventWasSerious:
         assert rows == []
 
     def test_no_fk_when_no_condition_row_published(self, static_index, structural_index, caplog):
-        """AE with sequence_id but no published condition_occurrence row:
-        observation still emits, FK fields left blank, warning logged."""
+        """
+        AE with sequence_id but no published condition_occurrence row:
+        observation still emits, FK fields left blank, warning logged.
+        """
         _with_yes_no(structural_index)
         _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
@@ -517,8 +536,9 @@ class TestAdverseEventWasSerious:
         assert any("missing sequence_id" in rec.message for rec in caplog.records)
 
     def test_raises_when_cdm_field_missing_but_fk_resolvable(self, static_index, structural_index):
-        """cdm_field is required infrastructure: builder raises rather than
-        emit a partially-linked row when the static entry is missing."""
+        """
+        cdm_field is required: builder raises.
+        """
         _with_yes_no(structural_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(True)
@@ -612,8 +632,8 @@ class TestCombinedSources:
         rows_a = ObservationBuilder(concepts).build(ctx_a)
         rows_b = ObservationBuilder(concepts).build(ctx_b)
 
-        # 4 scalars/singleton (evaluable + clinical_benefit + eot + lost_to_followup)
-        # + 3 AE-derived (outcome, was_serious, turned_serious) = 7 rows
+        # 4 scalars/singleton (evaluable, clinical_benefit, eot, lost_to_followup)
+        # and 3 AE-derived (outcome, was_serious, turned_serious) = 7 rows
         assert len(rows_a) == 7
         ids = [r.observation_id for r in rows_a]
         assert len(ids) == len(set(ids)), "All observation_ids must be unique"

@@ -10,6 +10,7 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
@@ -45,8 +46,6 @@ class Patient(TrackedValidated):
         HAS_ANY_ADVERSE_EVENTS = "has_any_adverse_events"
         NUMBER_OF_ADVERSE_EVENTS = "number_of_adverse_events"
         NUMBER_OF_SERIOUS_ADVERSE_EVENTS = "number_of_serious_adverse_events"
-        HAS_CLINICAL_BENEFIT_AT_WEEK_16 = "has_clinical_benefit_at_week_16"
-        CLINICAL_BENEFIT_AT_WEEK_16_DATE = "clinical_benefit_at_week_16_date"
         END_OF_TREATMENT_REASON = "end_of_treatment_reason"
         END_OF_TREATMENT_DATE = "end_of_treatment_date"
 
@@ -54,6 +53,7 @@ class Patient(TrackedValidated):
         TUMOR_TYPE = "tumor_type"
         STUDY_DRUGS = "study_drugs"
         BIOMARKERS = "biomarkers"
+        CLINICAL_BENEFIT = "clinical_benefit"
         LOST_TO_FOLLOWUP = "lost_to_followup"
         ECOG_BASELINE = "ecog_baseline"
         TUMOR_ASSESSMENT_BASELINE = "tumor_assessment_baseline"
@@ -86,8 +86,6 @@ class Patient(TrackedValidated):
         self._has_any_adverse_events: bool | None = None
         self._number_of_adverse_events: int | None = None
         self._number_of_serious_adverse_events: int | None = None
-        self._has_clinical_benefit_at_week_16: bool | None = None
-        self._clinical_benefit_at_week_16_date: dt.date | None = None
         self._end_of_treatment_reason: str | None = None
         self._end_of_treatment_date: dt.date | None = None
 
@@ -95,6 +93,7 @@ class Patient(TrackedValidated):
         self._tumor_type: TumorType | None = None
         self._study_drugs: StudyDrugs | None = None
         self._biomarkers: Biomarkers | None = None
+        self._clinical_benefit: ClinicalBenefit | None = None
         self._lost_to_followup: FollowUp | None = None
         self._ecog_baseline: EcogBaseline | None = None
         self._tumor_assessment_baseline: TumorAssessmentBaseline | None = None
@@ -268,30 +267,6 @@ class Patient(TrackedValidated):
         )
 
     @property
-    def has_clinical_benefit_at_week_16(self) -> bool | None:
-        return self._has_clinical_benefit_at_week_16
-
-    @has_clinical_benefit_at_week_16.setter
-    def has_clinical_benefit_at_week_16(self, value: bool | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.has_clinical_benefit_at_week_16,
-            value=value,
-            validator=StrictValidators.validate_optional_bool,
-        )
-
-    @property
-    def clinical_benefit_at_week_16_date(self) -> dt.date | None:
-        return self._clinical_benefit_at_week_16_date
-
-    @clinical_benefit_at_week_16_date.setter
-    def clinical_benefit_at_week_16_date(self, value: dt.date | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.clinical_benefit_at_week_16_date,
-            value=value,
-            validator=StrictValidators.validate_optional_date,
-        )
-
-    @property
     def end_of_treatment_reason(self) -> str | None:
         return self._end_of_treatment_reason
 
@@ -357,6 +332,20 @@ class Patient(TrackedValidated):
             field_name=setter_name(self.__class__.biomarkers),
         )
         self.updated_fields.add(Biomarkers.__name__)
+
+    @property
+    def clinical_benefit(self) -> ClinicalBenefit | None:
+        return self._clinical_benefit
+
+    @clinical_benefit.setter
+    def clinical_benefit(self, value: ClinicalBenefit | None) -> None:
+        self._clinical_benefit = self.validate_singleton(
+            value,
+            item_type=ClinicalBenefit,
+            patient_id=self._patient_id,
+            field_name=setter_name(self.__class__.clinical_benefit),
+        )
+        self.updated_fields.add(ClinicalBenefit.__name__)
 
     @property
     def lost_to_followup(self) -> FollowUp | None:
@@ -670,7 +659,6 @@ class Patient(TrackedValidated):
             f"number_of_serious_adverse_events={self.number_of_serious_adverse_events}{delim} "
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis}{delim} "
             f"treatment_start_date={self.treatment_start_date}{delim} "
-            f"has_clinical_benefit_at_week16={self.has_clinical_benefit_at_week_16}{delim} "
             f"end_of_treatment_reason={self.end_of_treatment_reason}{delim} "
             f"end_of_treatment_date={self.end_of_treatment_date}{delim} "
             # singletons
@@ -678,6 +666,7 @@ class Patient(TrackedValidated):
             f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
             f"biomarkers={self.biomarkers}{delim} "
             f"ecog={self.ecog_baseline}{delim} "
+            f"clinical_benefit={self.clinical_benefit}{delim} "
             f"lost_to_followup={self.lost_to_followup}{delim} "
             f"best_overall_response={self.best_overall_response}{delim} "
             # collections

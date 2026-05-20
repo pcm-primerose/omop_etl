@@ -8,6 +8,7 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
@@ -169,17 +170,19 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return sae_counts
 
-    @scalar()
-    def _process_has_clinical_benefit_at_week_16(self) -> pl.DataFrame | None:
+    @singleton(ClinicalBenefit)
+    def _process_clinical_benefit(self) -> pl.DataFrame:
         """
-        Clinical benefit at W16 (visit 3).
-        Note: If patient has iRecist *and* Recist at same assessment,
-        iRecist evaluation takes precedence as it's a more specific assessment.
+        Clinical benefit at W16 at visit 3.
+        Priority for the answer and its date: iRecist (RA_RAiMODCD) > Recist
+        (RA_RATIMRESCD) > RNRSP_RNRSPCLCD. iRecist and Recist both date from
+        RA_EventDate, RNRSP uses RNRSP_EventDate. When no source registers a
+        benefit, the row is False and the date falls back to whichever V03
+        date is available (coalesce RA_EventDate, RNRSP_EventDate). Collapsed
+        to one row per SubjectId.
         """
-        colname = Patient.Scalars.HAS_CLINICAL_BENEFIT_AT_WEEK_16
+        cols = ClinicalBenefit.Fields
         timepoint = "V03"
-
-        # todo: consider emitting date of the benefit record
 
         benefit = (
             self.data.select(
@@ -195,15 +198,37 @@ class ImpressHarmonizer(BaseHarmonizer):
             .filter(pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null()))
             .filter((pl.col("RA_EventId") == timepoint) | (pl.col("RNRSP_EventId") == timepoint))
             .with_columns(
-                pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
+                row_has_benefit=pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
                 .then(True)
-                .when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
+                .when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
                 .then(True)
                 .when(PolarsParsers.to_optional_int64(pl.col("RNRSP_RNRSPCLCD")).le(3))
                 .then(True)
-                .otherwise(False)
-                .alias(colname)
+                .otherwise(False),
+                row_date=pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
+                .then(PolarsParsers.to_optional_date("RA_EventDate"))
+                .when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
+                .then(PolarsParsers.to_optional_date("RA_EventDate"))
+                .when(PolarsParsers.to_optional_int64(pl.col("RNRSP_RNRSPCLCD")).le(3))
+                .then(PolarsParsers.to_optional_date("RNRSP_EventDate"))
+                .otherwise(
+                    pl.coalesce(
+                        PolarsParsers.to_optional_date("RA_EventDate"),
+                        PolarsParsers.to_optional_date("RNRSP_EventDate"),
+                    )
+                ),
             )
+            .group_by("SubjectId")
+            .agg(
+                pl.col("row_has_benefit").any().alias(cols.HAS_BENEFIT),
+                pl.col("row_date").filter(pl.col("row_has_benefit")).first().alias("date_from_benefit"),
+                pl.col("row_date").first().alias("date_fallback"),
+            )
+            .with_columns(
+                pl.coalesce("date_from_benefit", "date_fallback").alias(cols.DATE),
+                pl.lit(16, dtype=pl.Int64).alias(cols.WEEK),
+            )
+            .select("SubjectId", cols.WEEK, cols.HAS_BENEFIT, cols.DATE)
         )
 
         return benefit

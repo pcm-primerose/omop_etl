@@ -1706,42 +1706,50 @@ class ClinicalBenefitRow:
     RNRSP_RNRSPCLCD: int | None = None
     RNRSP_EventId: str | None = None
     RA_EventId: str | None = None
+    RA_EventDate: str | None = None
+    RNRSP_EventDate: str | None = None
 
 
 @pytest.fixture
-def has_clinical_benefit_at_week_16_fixture() -> pl.DataFrame:
+def clinical_benefit_fixture() -> pl.DataFrame:
     rows: List[ClinicalBenefitRow] = [
         ClinicalBenefitRow(
             "recist_le3",
             RA_RATIMRESCD=3,
             RA_EventId="V03",
+            RA_EventDate="2023-04-01",
         ),
         ClinicalBenefitRow(
             "recist_gt3",
             RA_RATIMRESCD=4,
             RA_EventId="V03",
+            RA_EventDate="2023-04-02",
         ),
         ClinicalBenefitRow(
             "irecist_le3",
             RA_RAiMODCD=2,
             RA_EventId="V03",
+            RA_EventDate="2023-04-03",
         ),
         ClinicalBenefitRow(
             "rano_le3",
             RNRSP_RNRSPCLCD=3,
             RNRSP_EventId="V03",
+            RNRSP_EventDate="2023-04-04",
         ),
         ClinicalBenefitRow(
             "both_present",
             RA_RATIMRESCD=4,
             RA_RAiMODCD=3,
             RA_EventId="V03",
+            RA_EventDate="2023-04-05",
         ),
         ClinicalBenefitRow("v03_no_codes", RA_EventId="V03"),
         ClinicalBenefitRow(
             "not_v03",
             RA_RATIMRESCD=2,
             RA_EventId="V02",
+            RA_EventDate="2023-04-06",
         ),
     ]
 

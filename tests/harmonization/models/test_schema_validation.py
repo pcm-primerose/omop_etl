@@ -9,6 +9,7 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
@@ -71,6 +72,7 @@ ALL_DOMAIN_CLASSES = [
     BestOverallResponse,
     Biomarkers,
     C30,
+    ClinicalBenefit,
     ConcomitantMedication,
     EcogBaseline,
     EQ5D,
