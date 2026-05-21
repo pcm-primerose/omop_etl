@@ -1,5 +1,4 @@
 import re
-from deprecated import deprecated
 import polars as pl
 from logging import getLogger
 
@@ -9,12 +8,13 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
+from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
@@ -170,14 +170,18 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return sae_counts
 
-    @scalar()
-    def _process_has_clinical_benefit_at_week_16(self) -> pl.DataFrame | None:
+    @singleton(ClinicalBenefit)
+    def _process_clinical_benefit(self) -> pl.DataFrame:
         """
-        Clinical benefit at W16 (visit 3).
-        Note: If patient has iRecist *and* Recist at same assessment,
-        iRecist evaluation takes precedence as it's a more specific assessment.
+        Clinical benefit at W16 at visit 3.
+        Priority for the answer and its date: iRecist (RA_RAiMODCD) > Recist
+        (RA_RATIMRESCD) > RNRSP_RNRSPCLCD. iRecist and Recist both date from
+        RA_EventDate, RNRSP uses RNRSP_EventDate. When no source registers a
+        benefit, the row is False and the date falls back to whichever V03
+        date is available (coalesce RA_EventDate, RNRSP_EventDate). Collapsed
+        to one row per SubjectId.
         """
-        colname = Patient.Scalars.HAS_CLINICAL_BENEFIT_AT_WEEK_16
+        cols = ClinicalBenefit.Fields
         timepoint = "V03"
 
         benefit = (
@@ -185,22 +189,46 @@ class ImpressHarmonizer(BaseHarmonizer):
                 "SubjectId",
                 "RA_RATIMRESCD",
                 "RA_RAiMODCD",
+                "RA_EventId",
+                "RA_EventDate",
                 "RNRSP_RNRSPCLCD",
                 "RNRSP_EventId",
-                "RA_EventId",
+                "RNRSP_EventDate",
             )
             .filter(pl.any_horizontal(pl.all().exclude("SubjectId").is_not_null()))
             .filter((pl.col("RA_EventId") == timepoint) | (pl.col("RNRSP_EventId") == timepoint))
             .with_columns(
-                pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
+                row_has_benefit=pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
                 .then(True)
-                .when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
+                .when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
                 .then(True)
                 .when(PolarsParsers.to_optional_int64(pl.col("RNRSP_RNRSPCLCD")).le(3))
                 .then(True)
-                .otherwise(False)
-                .alias(colname)
+                .otherwise(False),
+                row_date=pl.when(PolarsParsers.to_optional_int64(pl.col("RA_RAiMODCD")).le(3))
+                .then(PolarsParsers.to_optional_date("RA_EventDate"))
+                .when(PolarsParsers.to_optional_int64(pl.col("RA_RATIMRESCD")).le(3))
+                .then(PolarsParsers.to_optional_date("RA_EventDate"))
+                .when(PolarsParsers.to_optional_int64(pl.col("RNRSP_RNRSPCLCD")).le(3))
+                .then(PolarsParsers.to_optional_date("RNRSP_EventDate"))
+                .otherwise(
+                    pl.coalesce(
+                        PolarsParsers.to_optional_date("RA_EventDate"),
+                        PolarsParsers.to_optional_date("RNRSP_EventDate"),
+                    )
+                ),
             )
+            .group_by("SubjectId")
+            .agg(
+                pl.col("row_has_benefit").any().alias(cols.HAS_BENEFIT),
+                pl.col("row_date").filter(pl.col("row_has_benefit")).first().alias("date_from_benefit"),
+                pl.col("row_date").first().alias("date_fallback"),
+            )
+            .with_columns(
+                pl.coalesce("date_from_benefit", "date_fallback").alias(cols.DATE),
+                pl.lit(16, dtype=pl.Int64).alias(cols.WEEK),
+            )
+            .select("SubjectId", cols.WEEK, cols.HAS_BENEFIT, cols.DATE)
         )
 
         return benefit
@@ -221,24 +249,18 @@ class ImpressHarmonizer(BaseHarmonizer):
     def _process_evaluable_for_efficacy_analysis(self) -> pl.DataFrame | None:
         """
         Filtering criteria:
-            Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
-            For IV cycles, the cycle end is modeled as the day before the next cycles start.
-            Inclusive length = next_start − start days. Length ≥ 21 qualifies.
-            For oral cycles, length = stop − start days; ≥ 28 qualifies.
+        Any patient having valid treatment for sufficient length (21 days IV, 28 days oral).
+        For IV cycles, the cycle end is modeled as the day before the next cycles start.
+        Inclusive length = next_start − start days. Length ≥ 21 qualifies.
+        For oral cycles, length = stop − start days; ≥ 28 qualifies.
 
         For subjects with oral drugs, the start and end date per cycle is checked directly.
-            If a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
+        If a subject has any cycle lasting 28 days or more they are marked as having sufficient treatment length
 
         For subjects without oral drugs, cycle stop date is set to start date of next cycle and needs to last 21 days or more.
-            Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
-            each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
-            assumes no malformed dates, because imputing would change the length.
-
-        Old filteing criteria:
-            Patients marked as evaluable for efficacy analysis needs to have:
-                - sufficient treatment length for any cycle (21 days for IV, 28 days for oral) and *either one of*:
-                - tumor assessment after week 4 (patient has any tumor assessment with EventId==V04 in RA, RCNT, RTNTMNT, RNRSP)
-                - clinical assessment (patient has stopped treatment: EventDate from EOT sheet)
+        Note: this means subjects with just one cycle are marked as non-evaluable since cycle end cannot be determined.
+        each cycle is grouped by treatment number, any treatment having a cycle with sufficient length marks subject as evaluable.
+        assumes no malformed dates, because imputing would change the length.
         """
         colname = Patient.Scalars.EVALUABLE_FOR_EFFICACY_ANALYSIS
         evaluability_data = self.data.select(
@@ -248,16 +270,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             "TR_TRTNO",
             "TR_TRC1_DT",
             "TR_TRCYNCD",
-            # not currently used:
-            # "RA_EventDate",
-            # "RA_EventId",
-            # "RNRSP_EventDate",
-            # "RNRSP_EventId",
-            # "RCNT_EventDate",
-            # "RCNT_EventId",
-            # "RNTMNT_EventDate",
-            # "RNTMNT_EventId",
-            # "EOT_EventDate",
         )
 
         def oral_treatment_lengths() -> pl.DataFrame:
@@ -305,35 +317,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             )
 
             return iv_sufficient_treatment_length
-
-        @deprecated
-        def eot_filter() -> pl.DataFrame:
-            has_ended_treatment = evaluability_data.group_by("SubjectId").agg(
-                pl.any_horizontal(PolarsParsers.to_optional_utf8(pl.col(["EOT_EventDate"])).str.len_bytes() > 0).any().alias("has_clinical_assessment"),
-            )
-            return has_ended_treatment
-
-        @deprecated
-        def tumor_assessment() -> pl.DataFrame:
-            # need to add V04 filter (if this is to be used again)
-            has_tumor_assessment_week_4 = evaluability_data.group_by("SubjectId").agg(
-                pl.any_horizontal(
-                    PolarsParsers.to_optional_utf8(
-                        pl.col(
-                            [
-                                "RA_EventDate",
-                                "RNRSP_EventDate",
-                                "RCNT_EventDate",
-                                "RNTMNT_EventDate",
-                            ],
-                        ),
-                    ).str.len_bytes()
-                    > 0,
-                )
-                .any()
-                .alias("has_tumor_assessment"),
-            )
-            return has_tumor_assessment_week_4
 
         def _merge_evaluability() -> pl.DataFrame:
             base = evaluability_data.select("SubjectId").unique()
@@ -534,6 +517,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 s2cd=PolarsParsers.to_optional_int64(pl.col("COH_COHALLO2__2CD")),
                 s3=PolarsParsers.to_optional_utf8(pl.col("COH_COHALLO2__3")).str.strip_chars(),
                 s3cd=PolarsParsers.to_optional_int64(pl.col("COH_COHALLO2__3CD")),
+                date=PolarsParsers.to_optional_date(pl.col("COH_EventDate")),
             )
             # require at least one present
             .filter(
@@ -584,7 +568,12 @@ class ImpressHarmonizer(BaseHarmonizer):
             .sort("_row")
             .unique(subset=["SubjectId"], keep="last")
             .select(
-                "SubjectId", cols.PRIMARY_TREATMENT_DRUG, cols.PRIMARY_TREATMENT_DRUG_CODE, cols.SECONDARY_TREATMENT_DRUG, cols.SECONDARY_TREATMENT_DRUG_CODE
+                "SubjectId",
+                cols.PRIMARY_TREATMENT_DRUG,
+                cols.PRIMARY_TREATMENT_DRUG_CODE,
+                cols.SECONDARY_TREATMENT_DRUG,
+                cols.SECONDARY_TREATMENT_DRUG_CODE,
+                cols.DATE,
             )
         )
 
@@ -719,9 +708,9 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return merged
 
-    @collection(PreviousTreatments, order_by=("start_date",), require_order_by=True)
+    @collection(PreviousTreatment, order_by=("start_date",), require_order_by=True)
     def _process_previous_treatments(self) -> pl.DataFrame | None:
-        cols = PreviousTreatments.Fields
+        cols = PreviousTreatment.Fields
         ct_base = self.data.select(
             "SubjectId",
             "CT_CTTYPE",
@@ -1024,7 +1013,11 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return filtered
 
-    @collection(AdverseEvent, order_by=("start_date",), require_order_by=True)
+    @collection(
+        AdverseEvent,
+        order_by=("start_date", "sequence_id"),
+        require_order_by=True,
+    )
     def _process_adverse_events(self) -> pl.DataFrame | None:
         cols = AdverseEvent.Fields
         ae_base = self.data.select(
@@ -1044,6 +1037,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "AE_AESERCD",
             "AE_SAEEXP1CD",
             "AE_SAEEXP2CD",
+            "AE_AESPID",
             "FU_FUPDEDAT",
             "TR_TRNAME",
             "TR_TRTNO",
@@ -1054,6 +1048,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 PolarsParsers.to_optional_date(pl.col("AE_AESTDAT")).alias(cols.START_DATE),
                 PolarsParsers.to_optional_date(pl.col("AE_AEENDAT")).alias(cols.END_DATE),
                 PolarsParsers.to_optional_date(pl.col("AE_SAESTDAT")).alias(cols.TURNED_SERIOUS_DATE),
+                PolarsParsers.to_optional_int64(pl.col("AE_AESPID")).alias(cols.SEQUENCE_ID),
                 PolarsParsers.int_to_bool(
                     true_int=1,
                     false_int=0,
@@ -1137,6 +1132,7 @@ class ImpressHarmonizer(BaseHarmonizer):
                 cols.TREATMENT_2_NAME,
                 cols.WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_1,
                 cols.WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_2,
+                cols.SEQUENCE_ID,
             )
         )
 

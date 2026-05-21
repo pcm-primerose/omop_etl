@@ -66,6 +66,7 @@ class CollectionSpec(SpecBase):
     order_by: tuple[str, ...] = ()
     require_order_by: bool = False
     items_col: str = "items"
+    on_natural_key_conflict: Literal["error", "warn"] = "warn"
 
 
 # union type for all specs
@@ -82,6 +83,37 @@ def _derived_name(fn: Callable[..., Any]) -> str:
     """Strip the conventional `_process_` prefix to get the logical spec name."""
     name: str = getattr(fn, "__name__")
     return name.removeprefix("_process_")
+
+
+def _check_natural_key_conflicts(
+    objs: list[DomainBase],
+    *,
+    patient_id: str,
+    item_type: type[DomainBase],
+    policy: Literal["error", "warn"],
+) -> None:
+    """
+    Detect natural-key collisions where the rows have differing data.
+
+    Identical duplicates (same NK, same data) are assumed to be deduplicated
+    upstream by the collection processor, so this only flags conflicts.
+    Keeps the first occurrence.
+    """
+    seen: dict[tuple, DomainBase] = {}
+    fields = item_type.data_fields()
+    for obj in objs:
+        nk = obj.natural_key()
+        prior = seen.get(nk)
+        if prior is None:
+            seen[nk] = obj
+            continue
+        if all(getattr(prior, f) == getattr(obj, f) for f in fields):
+            continue
+        diffs = {f: (getattr(prior, f), getattr(obj, f)) for f in fields if getattr(prior, f) != getattr(obj, f)}
+        msg = f"{item_type.__name__} natural-key conflict for patient {patient_id}: NK={nk} has conflicting values: {diffs}"
+        if policy == "error":
+            raise ValueError(msg)
+        log.warning(msg)
 
 
 def scalar(
@@ -166,6 +198,7 @@ def collection(
     skip_missing_patients: bool = False,
     subject_col: str = "SubjectId",
     strict_schema: bool | None = None,
+    on_natural_key_conflict: Literal["error", "warn"] = "warn",
 ) -> Callable[[_F], _F]:
     """
     Decorator: register a method as a collection-domain processor.
@@ -187,6 +220,7 @@ def collection(
             skip_missing_patients=skip_missing_patients,
             subject_col=subject_col,
             strict_schema=strict_schema,
+            on_natural_key_conflict=on_natural_key_conflict,
         )
         setattr(fn, _SPEC_ATTR, spec)
         return fn
@@ -418,6 +452,7 @@ class BaseHarmonizer(ABC):
                     items_col=spec.items_col,
                     skip_missing_patients=spec.skip_missing_patients,
                     mode=spec.mode,
+                    on_natural_key_conflict=spec.on_natural_key_conflict,
                 )
 
             elif isinstance(spec, SingletonSpec):
@@ -595,6 +630,7 @@ class BaseHarmonizer(ABC):
         item_type: type[DomainBase],
         patients: dict[str, Patient],
         mode: Literal["replace", "extend"] = "replace",
+        on_natural_key_conflict: Literal["error", "warn"] = "warn",
     ) -> None:
         """
         Instantiate collection domain models onto Patient after schema validation.
@@ -611,6 +647,9 @@ class BaseHarmonizer(ABC):
            item_type: Target domain class (used to resolve Patient attribute).
            patients: Map of patient_id to Patient instance.
            mode: "replace" overwrites, "extend" appends to existing collection.
+           on_natural_key_conflict: "warn" logs a warning when two instances share a natural key
+               but differ in other field values; "error" raises ValueError. Identical duplicates
+               (same NK, same data) are assumed to be deduplicated upstream.
         """
         target_attr = Patient.get_attr_for_type(item_type)
         build = builder or item_type.from_row
@@ -626,6 +665,14 @@ class BaseHarmonizer(ABC):
                 objs = [build(sid, s) for s in items]
             except Exception as e:
                 raise ValueError(f"{item_type.__name__} collection hydration failed for {sid=}") from e
+
+            if item_type.NATURAL_KEY_FIELDS:
+                _check_natural_key_conflicts(
+                    objs,
+                    patient_id=sid,
+                    item_type=item_type,
+                    policy=on_natural_key_conflict,
+                )
 
             if mode == "extend":
                 existing = getattr(patient, target_attr, ()) or ()

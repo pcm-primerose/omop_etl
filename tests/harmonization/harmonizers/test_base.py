@@ -491,6 +491,80 @@ class TestHydrateCollectionField:
         assert [i.name for i in all_built] == ["a", "b"]
 
 
+class TestNaturalKeyConflictDetection:
+    """Uses MedicalHistory (NATURAL_KEY_FIELDS = (start_date, sequence_id)) as the test domain."""
+
+    def _mh_row(self, *, start_date, sequence_id, term="hypertension", end_date=None, status=None, status_code=None):  # noqa
+        return {
+            "term": term,
+            "sequence_id": sequence_id,
+            "start_date": start_date,
+            "end_date": end_date,
+            "status": status,
+            "status_code": status_code,
+        }
+
+    def _packed(self, items):  # noqa
+        return pl.DataFrame({"SubjectId": ["p1"], "items": [items]})
+
+    def test_identical_duplicates_pass_silently(self, caplog):
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [
+            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1),
+            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1),
+        ]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=MedicalHistory,
+                patients=patients,
+            )
+        assert not any("natural-key conflict" in r.message for r in caplog.records)
+
+    def test_conflicting_data_logs_warning_by_default(self, caplog):
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [
+            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="hypertension"),
+            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="diabetes"),
+        ]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=MedicalHistory,
+                patients=patients,
+            )
+        warnings = [r for r in caplog.records if "natural-key conflict" in r.message]
+        assert len(warnings) == 1
+        assert "p1" in warnings[0].message
+        assert "term" in warnings[0].message
+
+    def test_conflicting_data_raises_under_error_policy(self):
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [
+            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="hypertension"),
+            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="diabetes"),
+        ]
+        with pytest.raises(ValueError, match="natural-key conflict"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=MedicalHistory,
+                patients=patients,
+                on_natural_key_conflict="error",
+            )
+
+    def test_empty_natural_key_skips_check(self, mock_simple_domain_attr, caplog):
+        """Domains without NATURAL_KEY_FIELDS bypass the conflict check entirely."""
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [{"name": "a", "value": 1}, {"name": "a", "value": 2}]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                pl.DataFrame({"SubjectId": ["p1"], "items": [items]}),
+                item_type=SimpleDomain,
+                patients=patients,
+            )
+        assert not any("natural-key conflict" in r.message for r in caplog.records)
+
+
 class TestHydrateScalar:
     def test_sets_scalar_attribute(self):
         """Scalar value should be set on patient."""

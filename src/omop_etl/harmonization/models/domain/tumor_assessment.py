@@ -36,6 +36,9 @@ class TumorAssessment(DomainBase):
         self._event_id: str | None = None
         self.updated_fields: Set[str] = set()
 
+    INVARIANT_FIELDS = (Fields.ASSESSMENT_TYPE,)
+    NATURAL_KEY_FIELDS = (Fields.DATE, Fields.EVENT_ID)
+
     @property
     def patient_id(self) -> str:
         return self._patient_id

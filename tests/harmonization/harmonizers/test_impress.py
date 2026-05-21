@@ -750,9 +750,9 @@ class TestProcessPreviousTreatments:
         df = h._process_previous_treatments()
         assert df is not None
 
-        from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+        from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 
-        expected_cols = {"SubjectId"} | set(PreviousTreatments.data_fields())
+        expected_cols = {"SubjectId"} | set(PreviousTreatment.data_fields())
         assert set(df.columns) == expected_cols
 
     def test_extracts_treatment_values(self, previous_treatment_fixture):
@@ -1581,35 +1581,45 @@ class TestProcessBestOverallResponse:
         assert row.item(0, "date") == dt.date(1900, 4, 1)
 
 
-class TestProcessClinicalBenefitAtWeek16:
-    def test_returns_expected_columns(self, has_clinical_benefit_at_week_16_fixture):
-        h = ImpressHarmonizer(data=has_clinical_benefit_at_week_16_fixture, trial_id="T")
-        df = h._process_has_clinical_benefit_at_week_16()
+class TestProcessClinicalBenefit:
+    def test_returns_expected_columns(self, clinical_benefit_fixture):
+        h = ImpressHarmonizer(data=clinical_benefit_fixture, trial_id="T")
+        df = h._process_clinical_benefit()
         assert df is not None
 
-        assert "SubjectId" in df.columns
-        assert "has_clinical_benefit_at_week_16" in df.columns
+        assert df.columns == ["SubjectId", "week", "has_benefit", "date"]
+
+    def test_week_is_16_for_impress(self, clinical_benefit_fixture):
+        h = ImpressHarmonizer(data=clinical_benefit_fixture, trial_id="T")
+        df = h._process_clinical_benefit()
+        assert df is not None
+        assert df["week"].unique().to_list() == [16]
 
     @pytest.mark.parametrize(
-        "sid, expected",
+        "sid, expected_benefit, expected_date",
         [
-            pytest.param("recist_le3", True, id="single criterion: RECIST <=3"),
-            pytest.param("recist_gt3", False, id="single criterion: RECIST >3"),
-            pytest.param("irecist_le3", True, id="single criterion: iRECIST <=3"),
-            pytest.param("rano_le3", True, id="single criterion: RANO <=3"),
-            pytest.param("both_present", True, id="multi criterion present"),
-            pytest.param("v03_no_codes", False, id="V03 visit but no benefit codes"),
-            pytest.param("not_v03", None, id="non-V03 visit -> filtered out"),
+            pytest.param("recist_le3", True, dt.date(2023, 4, 1), id="RECIST <=3: RA_EventDate"),
+            pytest.param("recist_gt3", False, dt.date(2023, 4, 2), id="RECIST >3: fallback to RA_EventDate"),
+            pytest.param("irecist_le3", True, dt.date(2023, 4, 3), id="iRECIST <=3: RA_EventDate"),
+            pytest.param("rano_le3", True, dt.date(2023, 4, 4), id="RANO <=3: RNRSP_EventDate"),
+            pytest.param("both_present", True, dt.date(2023, 4, 5), id="multi criterion present: RA_EventDate"),
+            pytest.param("v03_no_codes", False, None, id="V03 visit but no benefit codes, no dates"),
+            pytest.param("not_v03", None, None, id="non-V03 visit: filtered out"),
         ],
     )
-    def test_clinical_benefit__at_week_16_values(self, has_clinical_benefit_at_week_16_fixture, sid, expected):
-        h = ImpressHarmonizer(data=has_clinical_benefit_at_week_16_fixture, trial_id="T")
-        df = h._process_has_clinical_benefit_at_week_16()
+    def test_clinical_benefit_values_and_dates(self, clinical_benefit_fixture, sid, expected_benefit, expected_date):
+        h = ImpressHarmonizer(data=clinical_benefit_fixture, trial_id="T")
+        df = h._process_clinical_benefit()
         assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
-        actual = None if row.height == 0 else row.item(0, "has_clinical_benefit_at_week_16")
-        assert actual is expected
+        if expected_benefit is None:
+            assert row.height == 0
+            return
+        actual_benefit = row.item(0, "has_benefit")
+        actual_date = row.item(0, "date")
+        assert actual_benefit is expected_benefit
+        assert actual_date == expected_date
 
 
 class TestProcessEotReason:
@@ -1676,13 +1686,13 @@ class TestImpressSpecContracts:
         "treatment_start_last_cycle": "last_treatment_start_fixture",
         "treatment_start_date": "treatment_start_fixture",
         "evaluable_for_efficacy_analysis": "evaluability_fixture",
-        "has_clinical_benefit_at_week_16": "has_clinical_benefit_at_week_16_fixture",
         "end_of_treatment_reason": "end_of_treatment_reason_fixture",
         "end_of_treatment_date": "treatment_stop_fixture",
         # singletons
         "tumor_type": "tumor_type_fixture",
         "study_drugs": "study_drugs_fixture",
         "biomarkers": "biomarkers_fixture",
+        "clinical_benefit": "clinical_benefit_fixture",
         "lost_to_followup": "lost_to_followup_fixture",
         "ecog_baseline": "ecog_fixture",
         "baseline_tumor_assessment": "baseline_tumor_assessment_fixture",

@@ -212,6 +212,7 @@ class StudyDrugsRow:
     COH_COHALLO2__2CD: str | None = None
     COH_COHALLO2__3: str | None = None
     COH_COHALLO2__3CD: str | None = None
+    COH_EventDate: str | None = None
 
 
 @pytest.fixture
@@ -223,6 +224,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1__2CD="31",
             COH_COHALLO2__2="Tafinlar",
             COH_COHALLO2__2CD="10",
+            COH_EventDate="2021-06-01",
         ),
         StudyDrugsRow(
             "sd1_match_sd2_match",
@@ -230,6 +232,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1CD="99",
             COH_COHALLO2="some drug 2",
             COH_COHALLO2CD="1",
+            COH_EventDate="2022-06-01",
         ),
         StudyDrugsRow(
             "sd1_mismatch1_sd2_mismatch1_2",
@@ -237,6 +240,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1CD="10",
             COH_COHALLO2__2="mismatch_1_2",
             COH_COHALLO2__2CD="12",
+            COH_EventDate="2023-06-01",
         ),
         StudyDrugsRow(
             "sd1_mismatch2_sd2_mismatch2_1",
@@ -244,6 +248,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO1__2CD="50",
             COH_COHALLO2="mismatch_2_1",
             COH_COHALLO2CD="60",
+            COH_EventDate="2024-06-01",
         ),
         StudyDrugsRow(
             "sd_collision",
@@ -253,6 +258,7 @@ def study_drugs_fixture() -> pl.DataFrame:
             COH_COHALLO2__2CD="5",
             COH_COHALLO2__3="some_drug_3_2",
             COH_COHALLO2__3CD="999",
+            COH_EventDate="2025-06-01",
         ),
     ]
 
@@ -1459,6 +1465,7 @@ class AdverseEventRow:
     FU_FUPDEDAT: str | None = None
     TR_TRNAME: str | None = None
     TR_TRTNO: int | None = None
+    AE_AESPID: int | None = None
 
 
 @pytest.fixture
@@ -1484,6 +1491,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_AETRT2="Drug B",
             TR_TRNAME="Regimen X",
             TR_TRTNO="1",  # type: ignore
+            AE_AESPID=1,
         ),
         AdverseEventRow(
             "serious_fill_end_from_death",
@@ -1499,6 +1507,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             FU_FUPDEDAT="1900-02-01",
             TR_TRNAME="Regimen Y",
             TR_TRTNO=2,
+            AE_AESPID=1,
         ),
         AdverseEventRow(
             "multi",
@@ -1509,6 +1518,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_AESERCD=0,
             AE_AEREL1CD=2,
             AE_AEREL2CD=4,
+            AE_AESPID=1,
         ),
         AdverseEventRow(
             "multi",
@@ -1519,6 +1529,7 @@ def adverse_events_fixture() -> pl.DataFrame:
             AE_SAEEXP1CD=2,
             AE_SAEEXP2CD=1,
             AE_AEREL2CD=1,
+            AE_AESPID=2,
         ),
     ]
 
@@ -1695,42 +1706,50 @@ class ClinicalBenefitRow:
     RNRSP_RNRSPCLCD: int | None = None
     RNRSP_EventId: str | None = None
     RA_EventId: str | None = None
+    RA_EventDate: str | None = None
+    RNRSP_EventDate: str | None = None
 
 
 @pytest.fixture
-def has_clinical_benefit_at_week_16_fixture() -> pl.DataFrame:
+def clinical_benefit_fixture() -> pl.DataFrame:
     rows: List[ClinicalBenefitRow] = [
         ClinicalBenefitRow(
             "recist_le3",
             RA_RATIMRESCD=3,
             RA_EventId="V03",
+            RA_EventDate="2023-04-01",
         ),
         ClinicalBenefitRow(
             "recist_gt3",
             RA_RATIMRESCD=4,
             RA_EventId="V03",
+            RA_EventDate="2023-04-02",
         ),
         ClinicalBenefitRow(
             "irecist_le3",
             RA_RAiMODCD=2,
             RA_EventId="V03",
+            RA_EventDate="2023-04-03",
         ),
         ClinicalBenefitRow(
             "rano_le3",
             RNRSP_RNRSPCLCD=3,
             RNRSP_EventId="V03",
+            RNRSP_EventDate="2023-04-04",
         ),
         ClinicalBenefitRow(
             "both_present",
             RA_RATIMRESCD=4,
             RA_RAiMODCD=3,
             RA_EventId="V03",
+            RA_EventDate="2023-04-05",
         ),
         ClinicalBenefitRow("v03_no_codes", RA_EventId="V03"),
         ClinicalBenefitRow(
             "not_v03",
             RA_RATIMRESCD=2,
             RA_EventId="V02",
+            RA_EventDate="2023-04-06",
         ),
     ]
 

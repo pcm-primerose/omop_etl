@@ -243,3 +243,31 @@ class MeasurementRow:
 
     def validate(self):
         validate_required_fields(self)
+
+
+@pd_dataclass(frozen=True, slots=True)
+class ObservationRow:
+    observation_id: int
+    person_id: int
+    observation_concept_id: int
+    observation_date: dt.date
+    observation_type_concept_id: int
+    observation_datetime: dt.datetime | None = None
+    value_as_number: float | None = None
+    value_as_string: Annotated[str | None, pd_field(max_length=60)] = None
+    value_as_concept_id: int | None = None
+    qualifier_concept_id: int | None = None
+    unit_concept_id: int | None = None
+    provider_id: int | None = None
+    visit_occurrence_id: int | None = None
+    visit_detail_id: int | None = None
+    observation_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    observation_source_concept_id: int | None = None
+    unit_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    qualifier_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    value_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    observation_event_id: int | None = None
+    obs_event_field_concept_id: int | None = None
+
+    def validate(self):
+        validate_required_fields(self)

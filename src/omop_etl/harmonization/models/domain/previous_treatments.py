@@ -5,7 +5,7 @@ from omop_etl.harmonization.core.validators import StrictValidators
 from omop_etl.harmonization.models.domain.base import DomainBase
 
 
-class PreviousTreatments(DomainBase):
+class PreviousTreatment(DomainBase):
     class Fields:
         TREATMENT = "treatment"
         TREATMENT_CODE = "treatment_code"
@@ -23,6 +23,9 @@ class PreviousTreatments(DomainBase):
         self._end_date: dt.date | None = None
         self._additional_treatment: str | None = None
         self.updated_fields: Set[str] = set()
+
+    INVARIANT_FIELDS = (Fields.TREATMENT,)
+    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.TREATMENT_SEQUENCE_NUMBER)
 
     @property
     def patient_id(self) -> str:

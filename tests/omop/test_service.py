@@ -4,7 +4,7 @@ from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatments
+from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -83,7 +83,7 @@ class TestOmopServiceOrchestration:
             ),
             SemanticEntry(
                 "p1",
-                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatments.Fields.TREATMENT),
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
                 0,
                 4301351,
                 "surgery",
@@ -127,7 +127,7 @@ class TestOmopServiceOrchestration:
         concom.sequence_id = 1
         patient.concomitant_medications = [concom]
 
-        prev = PreviousTreatments(patient_id="p1")
+        prev = PreviousTreatment(patient_id="p1")
         prev.treatment = "Surgery"
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]

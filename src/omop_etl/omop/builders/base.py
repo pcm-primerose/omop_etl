@@ -20,6 +20,8 @@ class BuildContext:
     patient: Patient
     person_id: int
     visit_id_by_date: dict[dt.date, int] = field(default_factory=dict)
+    condition_id_by_ae_sequence_id: dict[int, int] = field(default_factory=dict)
+    condition_id_primary_cancer: int | None = None
 
 
 class OmopBuilder(ABC, Generic[T]):
@@ -67,7 +69,7 @@ class OmopBuilder(ABC, Generic[T]):
         self.populate_context(rows, ctx)
         return rows
 
-    def generate_row_id(self, *key_parts: str | None) -> int:
+    def generate_row_id(self, *key_parts: int | str | float | dt.date | None) -> int:
         """
         Deterministic row ID from key parts, using SHA1 hashing with builder's
         namespace to create a reproducible 63-bit integer ID.

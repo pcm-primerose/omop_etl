@@ -62,7 +62,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         meta=_meta,
     )
 
-    print(f"Harmonized: {harmonized_result.patients[0:10]}")
+    # print(f"Harmonized: {harmonized_result.patients[0:10]}")
 
     # run semantic mapping
     semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
@@ -89,7 +89,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     tables: OmopTables = omop_service.build(harmonized_result.patients)
 
     # todo: remove
-    print(f"built tables: {tables}")
+    # print(f"built tables: {tables}")
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")

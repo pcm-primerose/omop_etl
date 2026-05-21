@@ -22,6 +22,8 @@ class Biomarkers(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
+    NATURAL_KEY_FIELDS = (Fields.DATE,)
+
     @property
     def gene_and_mutation(self) -> str | None:
         return self._gene_and_mutation

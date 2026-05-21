@@ -93,7 +93,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
-            date.strftime(format="%Y%m%d"),
+            *baseline.natural_key(),
         )
 
         return VisitOccurrenceRow(
@@ -120,7 +120,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Collections.TUMOR_ASSESSMENTS,
-            date.strftime(format="%Y%m%d"),
+            *assessment.natural_key(),
         )
 
         return VisitOccurrenceRow(

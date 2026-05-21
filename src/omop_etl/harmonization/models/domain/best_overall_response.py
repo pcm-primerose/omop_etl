@@ -11,14 +11,15 @@ class BestOverallResponse(DomainBase):
         CODE = "code"
         DATE = "date"
 
-    INVARIANT_FIELDS = (Fields.RESPONSE,)
-
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
         self._response: str | None = None
         self._code: int | None = None
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
+
+    INVARIANT_FIELDS = (Fields.RESPONSE,)
+    NATURAL_KEY_FIELDS = (Fields.DATE,)
 
     @property
     def patient_id(self) -> str:

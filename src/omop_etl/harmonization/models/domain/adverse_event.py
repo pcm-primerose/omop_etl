@@ -19,6 +19,7 @@ class AdverseEvent(DomainBase):
         OUTCOME = "outcome"
         START_DATE = "start_date"
         END_DATE = "end_date"
+        SEQUENCE_ID = "sequence_id"
         WAS_SERIOUS = "was_serious"
         TURNED_SERIOUS_DATE = "turned_serious_date"
         RELATED_TO_TREATMENT_1_STATUS = "related_to_treatment_1_status"
@@ -29,6 +30,7 @@ class AdverseEvent(DomainBase):
         WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_2 = "was_serious_grade_expected_treatment_2"
 
     INVARIANT_FIELDS = (Fields.TERM,)
+    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.SEQUENCE_ID)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -37,6 +39,7 @@ class AdverseEvent(DomainBase):
         self._outcome: str | None = None
         self._start_date: dt.date | None = None
         self._end_date: dt.date | None = None
+        self._sequence_id: int | None = None
         self._was_serious: bool | None = None
         self._turned_serious_date: dt.date | None = None
         self._related_to_treatment_1_status: RelatedStatus | None = None
@@ -109,6 +112,18 @@ class AdverseEvent(DomainBase):
             prop=self.__class__.end_date,
             value=value,
             validator=StrictValidators.validate_optional_date,
+        )
+
+    @property
+    def sequence_id(self) -> int | None:
+        return self._sequence_id
+
+    @sequence_id.setter
+    def sequence_id(self, value: int | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.sequence_id,
+            value=value,
+            validator=StrictValidators.validate_optional_int,
         )
 
     @property
@@ -218,6 +233,7 @@ class AdverseEvent(DomainBase):
             f"outcome={self.outcome!r}{delim} "
             f"start_date={self.start_date!r}{delim} "
             f"end_date={self.end_date!r}{delim} "
+            f"sequence_id={self.sequence_id!r}{delim}"
             f"was_serious={self.was_serious!r}{delim} "
             f"turned_serious_date={self.turned_serious_date!r}{delim} "
             f"related_to_treatment_1_status={self.related_to_treatment_1_status!r}{delim} "

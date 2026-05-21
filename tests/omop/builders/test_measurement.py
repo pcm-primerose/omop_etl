@@ -13,8 +13,12 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
+import pytest
+
 from tests.omop.conftest import (
     SemanticEntry,
+    _static,
+    _structural,
     create_build_context,
     create_patient,
     create_semantic_index,
@@ -302,7 +306,7 @@ class TestTumorAssessmentRows:
     def test_unmapped_response_is_skipped(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [
-            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="Not Evaluable (NE)"),
+            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="invalid"),
         ]
 
         rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
@@ -311,6 +315,47 @@ class TestTumorAssessmentRows:
         assert len(rows) == 1
         assert rows[0].measurement_concept_id == 4084390
         assert rows[0].value_as_number == 28.987
+
+    def test_only_not_evaluable(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.tumor_assessments = [
+            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="Not Evaluable (NE)"),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        # size row and Not Evaluable row
+        assert len(rows) == 2
+        assert rows[0].measurement_concept_id == 4084390  # lesion size
+        assert rows[0].value_as_number == 28.987
+        assert rows[1].measurement_concept_id == 734317  # RECIST structural
+        assert rows[1].value_as_concept_id == 45878793  # NE qualifier
+        assert rows[1].value_as_number is None
+
+    def test_not_evaluable_and_evaluable_produce_four_rows(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        patient.tumor_assessments = [
+            _make_tumor_assessments(dt.date(2040, 11, 22), "V05", size=28.987, recist="Stable Disease (SD)"),
+            _make_tumor_assessments(dt.date(2040, 12, 22), "V06", size=300.0, recist="Not Evaluable"),
+        ]
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        # each TumorAssessment produces its own size row + its recist row: 4 total
+        assert len(rows) == 4
+
+        # V05: size & precoordinated SD response
+        assert rows[0].measurement_concept_id == 4084390  # lesion size
+        assert rows[0].value_as_number == 28.987
+        assert rows[1].measurement_concept_id == 1634680  # RECIST SD precoordinated
+        assert rows[1].value_as_concept_id is None
+
+        # V06: size & NE (structural RECIST and NE qualifier)
+        assert rows[2].measurement_concept_id == 4084390
+        assert rows[2].value_as_number == 300.0
+        assert rows[3].measurement_concept_id == 734317
+        assert rows[3].value_as_concept_id == 45878793
+        assert rows[3].value_as_number is None
 
     def test_missing_date_returns_empty_for_instance(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
@@ -589,7 +634,7 @@ class TestEQ5DRows:
         assert row_1.person_id == PERSON_ID
         assert row_1.measurement_date == dt.date(2040, 5, 1)
         assert row_1.measurement_datetime == dt.datetime(2040, 5, 1)
-        assert row_1.measurement_id == 3952701007853139582
+        assert row_1.measurement_id == 5607913108096982206  # fixme: assert on expected hash from collection's natural key instead
 
         # q2 level 5
         row_2 = rows[1]
@@ -1448,3 +1493,185 @@ class TestMedicalHistoryMeasurementRows:
         rows_2 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
 
         assert rows_1[0].measurement_id == rows_2[0].measurement_id
+
+
+CDM_FIELD_CID = 1147127
+UNIT_MM_CID = 8588
+
+
+def _with_cdm_field(static_index: dict) -> dict:
+    """Add the cdm_field static entry used to identify the FK target field."""
+    static_index[("cdm_field", "condition_occurrence.condition_occurrence_id")] = _static(
+        "cdm_field",
+        "condition_occurrence.condition_occurrence_id",
+        CDM_FIELD_CID,
+        "metadata",
+    )
+    return static_index
+
+
+def _with_millimeter(structural_index: dict) -> dict:
+    """Add the millimeter unit concept (UCUM) so lesion-size rows can populate unit_concept_id."""
+    structural_index["millimeter"] = _structural("millimeter", UNIT_MM_CID, "unit")
+    return structural_index
+
+
+class TestPrimaryCancerFKConsumption:
+    """
+    MeasurementBuilder consumes BuildContext.condition_id_primary_cancer
+    (published by ConditionOccurrenceBuilder) to set
+    measurement_event_id + meas_event_field_concept_id on lesion-size
+    (TumorAssessmentBaseline + TumorAssessment) and biomarker rows.
+
+    Cancer modifier rows (lesion size as Dimension of Tumor, biomarkers) link
+    back to the primary cancer condition via measurement_event_id +
+    meas_event_field_concept_id, per oncology CDM guidelines.
+    """
+
+    @staticmethod
+    def _baseline_patient() -> Patient:
+        patient = create_patient(PID, TRIAL)
+        baseline = TumorAssessmentBaseline(PID)
+        baseline.target_lesion_size = 41
+        baseline.target_lesion_measurement_date = dt.date(2040, 4, 19)
+        patient.tumor_assessment_baseline = baseline
+        return patient
+
+    def test_baseline_lesion_size_links_to_primary_cancer(self, static_index, structural_index):
+        _with_cdm_field(static_index)
+        _with_millimeter(structural_index)
+        patient = self._baseline_patient()
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_primary_cancer = 12345
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
+
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.measurement_event_id == 12345
+        assert row.meas_event_field_concept_id == CDM_FIELD_CID
+        assert row.unit_concept_id == UNIT_MM_CID
+
+    def test_baseline_lesion_size_no_fk_when_primary_cancer_not_published(self, static_index, structural_index):
+        _with_millimeter(structural_index)
+        patient = self._baseline_patient()
+        ctx = create_build_context(patient, PERSON_ID)
+        # ctx.condition_id_primary_cancer left as None
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
+
+        assert len(rows) == 1
+        assert rows[0].measurement_event_id is None
+        assert rows[0].meas_event_field_concept_id is None
+        # unit_concept_id is independent of FK linkage: still populated
+        assert rows[0].unit_concept_id == UNIT_MM_CID
+
+    def test_baseline_lesion_size_unit_missing_falls_back_to_none(self, static_index, structural_index):
+        """structural index without millimeter: unit_concept_id is None."""
+        patient = self._baseline_patient()
+        ctx = create_build_context(patient, PERSON_ID)
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
+
+        assert len(rows) == 1
+        assert rows[0].unit_concept_id is None
+
+    def test_baseline_lesion_size_raises_when_primary_cancer_published_but_cdm_field_missing(self, static_index, structural_index):
+        """If a primary cancer condition is published, the cdm_field entry is required"""
+        _with_millimeter(structural_index)
+        patient = self._baseline_patient()
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_primary_cancer = 12345
+
+        with pytest.raises(RuntimeError, match="cdm_field"):
+            MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
+
+    def test_tumor_assessment_lesion_size_links_to_primary_cancer(self, static_index, structural_index):
+        _with_cdm_field(static_index)
+        _with_millimeter(structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.tumor_assessments = [
+            _make_tumor_assessments(dt.date(2040, 6, 14), "V03", size=20.5),
+        ]
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_primary_cancer = 67890
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
+
+        size_rows = [r for r in rows if r.measurement_concept_id == 4084390]
+        assert len(size_rows) == 1
+        assert size_rows[0].measurement_event_id == 67890
+        assert size_rows[0].meas_event_field_concept_id == CDM_FIELD_CID
+        assert size_rows[0].unit_concept_id == UNIT_MM_CID
+
+    def test_biomarker_links_to_primary_cancer(self, static_index, structural_index):
+        _with_cdm_field(static_index)
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                leaf_index=None,
+                concept_id=4000,
+                name="braf non-v600",
+                domain="measurement",
+            )
+        )
+        patient = create_patient(PID, TRIAL)
+        biomarkers = Biomarkers(PID)
+        biomarkers.cohort_target_mutation = "BRAF non-V600"
+        biomarkers.date = dt.date(2040, 1, 1)
+        patient.biomarkers = biomarkers
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_primary_cancer = 77777
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(ctx)
+
+        assert len(rows) == 1
+        assert rows[0].measurement_event_id == 77777
+        assert rows[0].meas_event_field_concept_id == CDM_FIELD_CID
+
+    def test_biomarker_no_fk_when_primary_cancer_not_published(self, static_index, structural_index):
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                leaf_index=None,
+                concept_id=4000,
+                name="braf non-v600",
+                domain="measurement",
+            )
+        )
+        patient = create_patient(PID, TRIAL)
+        biomarkers = Biomarkers(PID)
+        biomarkers.cohort_target_mutation = "BRAF non-V600"
+        biomarkers.date = dt.date(2040, 1, 1)
+        patient.biomarkers = biomarkers
+        ctx = create_build_context(patient, PERSON_ID)
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(ctx)
+
+        assert len(rows) == 1
+        assert rows[0].measurement_event_id is None
+        assert rows[0].meas_event_field_concept_id is None
+
+    def test_non_cancer_modifier_rows_have_no_fk(self, static_index, structural_index):
+        """
+        ECOG, C30, EQ5D, AE-measurement, MH-measurement rows are not
+        cancer modifiers and should not link to primary cancer.
+        Verified here on ECOG (AE/MH rows are tested elsewhere).
+        """
+        _with_cdm_field(static_index)
+        patient = create_patient(PID, TRIAL)
+        ecog = EcogBaseline(PID)
+        ecog.grade = 1
+        ecog.date = dt.date(2040, 1, 1)
+        patient.ecog_baseline = ecog
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_primary_cancer = 99999
+
+        rows = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
+
+        assert len(rows) == 1
+        # ECOG rows are not cancer modifiers: no FK
+        assert rows[0].measurement_event_id is None
+        assert rows[0].meas_event_field_concept_id is None
