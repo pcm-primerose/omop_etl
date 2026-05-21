@@ -1,0 +1,215 @@
+source_tumor_type_name,frequency,harmonized_tumor_type_name,tumor_subtype,general_tumor_type,comment
+"79F, METASTATIC CARCINOMA OF ANUS, HER2 AMPLIFIED",1,Anal cancer,,Anal cancer
+acinic cell carsinoma,1,Acinic cell carcinoma,Acinic cell carcinoma,Salivary gland cancer
+Adenoic cystic carcinoma,1,Adenoid cystic carcinoma,,Adenoid cystic carcinoma
+Adrenocortical carcinoma,1,Adrenocortical carcinoma,,Adrenocortical carcinoma
+ALK-POSITIVE LARGE B-CELL LYMPHOMA,1,Large B-cell lymphoma,Large B-cell lymphoma,Haematological cancer
+ameloblastoma,1,Ameloblastoma,,Ameloblastoma
+Ameloblastoma,1,Ameloblastoma,,Ameloblastoma
+AML,1,AML,AML,Haematological cancer
+anal,1,Anal cancer,,Anal cancer
+anal canal squamous cell ca,1,Anal cancer,,Anal cancer
+Anal cancer,1,Anal cancer,,Anal cancer
+Anal carcinoma,2,Anal cancer,,Anal cancer
+ANAPLASTIC ALK-POSITIVE LARGE CELL LYMPHOMA,1,Anaplastic large cell lymphoma,Anaplastic large cell lymphoma,Haematological cancer
+Anaplastic large cell lymphoma,2,Anaplastic large cell lymphoma,Anaplastic large cell lymphoma,Haematological cancer
+anaplastic thyroid cancer,1,Anaplastic thyroid cancer,Anaplastic thyroid cancer,Thyroid cancer
+Apocrine carcinoma,1,Apocrine carcinoma,,Apocrine carcinoma
+Astrocytoma,1,Astrocytoma,Astrocytoma,CNS
+bile duct & gall bladder,1,Cholangiocarcinoma,,Cholangiocarcinoma
+bile duct & gallbladder,5,Cholangiocarcinoma,,Cholangiocarcinoma
+bile duct and gallbladder,1,Cholangiocarcinoma,,Cholangiocarcinoma
+Biliary tract carcinoma,2,Cholangiocarcinoma,,Cholangiocarcinoma
+Biliary tract carcinoma/galbladder carcinoma,1,Cholangiocarcinoma,,Cholangiocarcinoma
+bladder & urinary tract,6,Urothelial cancer,,Urothelial cancer
+Bladder / urinary tract cancer,2,Urothelial cancer,,Urothelial cancer
+Bladder cancer,3,Urothelial cancer,,Urothelial cancer
+Bladder/Urinary Tract Cancer,2,Urothelial cancer,,Urothelial cancer
+brain ependymoma,1,Ependymoma,Ependymoma,CNS
+breast,6,Breast cancer,,Breast cancer
+Breast cancer,9,Breast cancer,,Breast cancer
+Breast Cancer,1,Breast cancer,,Breast cancer
+"breast, non-TNBC",1,Breast cancer,,Breast cancer
+"breast, TNBC",1,Breast cancer,,Breast cancer
+Central Nervous System/Brain,4,CNS,,CNS
+cervical cancer,2,Cervical cancer,Cervical cancer,Gynaecological cancer
+Cervical cancer,5,Cervical cancer,Cervical cancer,Gynaecological cancer
+Cervical Cancer,2,Cervical cancer,Cervical cancer,Gynaecological cancer
+cervix,1,Cervical cancer,Cervical cancer,Gynaecological cancer
+Cholangio carcinoma,5,Cholangiocarcinoma,,Cholangiocarcinoma
+Cholangiocarcicoma,1,Cholangiocarcinoma,,Cholangiocarcinoma
+Cholangiocarcinoma,16,Cholangiocarcinoma,,Cholangiocarcinoma
+chordoma,1,Chordoma,,Chordoma
+CLEAR CELL ADENOCARCINOMA OF THE LEFT URETER,1,Urothelial cancer,,Urothelial cancer
+Clear cell odontogenic carcinoma,1,Clear cell odontogenic carcinoma,,Clear cell odontogenic carcinoma
+CLL,1,CLL,CLL,Haematological cancer
+CNS tumor,1,CNS,,CNS
+Colorectal Cancer,5,Colorectal cancer,Colorectal cancer,Intestinal cancer
+conjuctival melanoma (eye),1,Conjunctival melanoma,Conjunctival melanoma,Ocular melanoma
+CRC,21,Colorectal cancer,Colorectal cancer,Intestinal cancer
+CRPC,2,Prostate cancer,,Prostate cancer
+CUP,11,CUP,,CUP
+Duodenal carcinoma,1,Duodenal carcinoma,Duodenal carcinoma,Intestinal cancer
+Eccrine carcinoma,1,Eccrine carcinoma,,Eccrine carcinoma
+endometrial,2,Endometrial cancer,Endometrial cancer,Gynaecological cancer
+Endometrial caccer,1,Endometrial cancer,Endometrial cancer,Gynaecological cancer
+Endometrial cancer,6,Endometrial cancer,Endometrial cancer,Gynaecological cancer
+Endometrial/Uterine Cancer,2,Endometrial cancer,Endometrial cancer,Gynaecological cancer
+endometroid ovary cancer,1,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+Erdheim Chester,1,Erdheim-Chester Disease,Erdheim-Chester Disease,Histiocytosis
+Erdheim Chester / Histiocytic,1,Erdheim-Chester Disease,Erdheim-Chester Disease,Histiocytosis
+"ERDHEIM CHESTER DISEASE - HISTIOCYTOSIS",1,Erdheim-Chester Disease,Erdheim-Chester Disease,Histiocytosis
+"ERDHEIM CHESTER DISEASE (ORBITAL, CARDIAC AND BONE INVOLVEMENT)",1,Erdheim-Chester Disease,Erdheim-Chester Disease,Histiocytosis
+"ERDHEIM CHESTER DISEASE, BRAF V600E MUTATION",1,Erdheim-Chester Disease,Erdheim-Chester Disease,Histiocytosis
+esophageal,1,Esophageal cancer,Esophageal cancer,Upper GI-cancer
+Esophageal,1,Esophageal cancer,Esophageal cancer,Upper GI-cancer
+Esophageal cancer,2,Esophageal cancer,Esophageal cancer,Upper GI-cancer
+Esophageal_Gastric cancer,1,Esophageal or gastric cancer,Esophageal or gastric cancer,Upper GI-cancer
+esophagus,3,Esophageal cancer,Esophageal cancer,Upper GI-cancer
+esophagus ca,1,Esophageal cancer,Esophageal cancer,Upper GI-cancer
+Fallopian tube cancer,1,Fallopian tube cancer,Fallopian tube cancer,Gynaecological cancer
+Fallopian Tube Cancer,1,Fallopian tube cancer,Fallopian tube cancer,Gynaecological cancer
+FALLOPIAN TUBE CANCER,1,Fallopian tube cancer,Fallopian tube cancer,Gynaecological cancer
+gallbladder ca,1,Cholangiocarcinoma,,Cholangiocarcinoma
+gastric,1,Gastroesophageal junction cancer,Gastroesophageal junction cancer,Upper GI-cancer
+Gastric cancer,1,Gastroesophageal junction cancer,Gastroesophageal junction cancer,Upper GI-cancer
+Gastroesophageal Cancer,3,Gastroesophageal junction cancer,Gastroesophageal junction cancer,Upper GI-cancer
+GBM,6,Glioblastoma,Glioblastoma,CNS
+GEJ,5,Gastroesophageal junction cancer,Gastroesophageal junction cancer,Upper GI-cancer
+GEJ carcinoma,1,Gastroesophageal junction cancer,Gastroesophageal junction cancer,Upper GI-cancer
+Germ cell cancer,1,Germ cell tumor,,Germ cell tumor
+germ cell tumor,2,Germ cell tumor,,Germ cell tumor
+gist,1,GIST,,GIST
+GIST,2,GIST,,GIST
+glioblastoma,1,Glioblastoma,Glioblastoma,CNS
+Glioblastoma Multiforme,1,Glioblastoma,Glioblastoma,CNS
+glioma (high grade),2,High-grade glioma,High-grade glioma,CNS
+Glioneuronal_Neuronal Tumor,1,Glioneuronal tumor,Glioneuronal tumor,CNS
+Goblet cell carcinoma,1,Goblet cell carcinoma,Goblet cell carcinoma,Intestinal cancer
+Grade 3 glioma,1,Grade 3 glioma,Grade 3 glioma,CNS
+grade II glioma,1,Grade 2 glioma,Grade 2 glioma,CNS
+grade III glioma,3,Grade 3 glioma,Grade 3 glioma,CNS
+Gynaecological tumors,2,Gynaecological cancer,,Gynaecological cancer
+Hairy cell leukaemia,1,Hairy cell leukemia,Hairy cell leukemia,Haematological cancer
+HAIRY CELL LEUKAEMIA,1,Hairy cell leukemia,Hairy cell leukemia,Haematological cancer
+Hairy cell leukemia,1,Hairy cell leukemia,Hairy cell leukemia,Haematological cancer
+HAIRY CELL LEUKEMIA,1,Hairy cell leukemia,Hairy cell leukemia,Haematological cancer
+HCC,1,Hepatocellular carcinoma,,Hepatocellular carcinoma
+head & neck,4,Head and neck cancer,,Head and neck cancer
+Head and Neck Cancer,5,Head and neck cancer,,Head and neck cancer
+Hepatobiliary Cancer,6,Cholangiocarcinoma,,Cholangiocarcinoma
+Hidradenocarcinoma,1,Hidradenocarcinoma,,Hidradenocarcinoma
+High grade glioma,11,High-grade glioma,High-grade glioma,CNS
+HIGH GRADE GLIOMA,1,High-grade glioma,High-grade glioma,CNS
+high grade serose ovary ca,4,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+HNnonSCC,1,Head and neck cancer,,Head and neck cancer
+HNSCC,3,Head and neck cancer,,Head and neck cancer
+intestinal,5,Intestinal cancer,,Intestinal cancer
+intestinal adecoca,1,Intestinal cancer,,Intestinal cancer
+Kidney Cancer,1,Kidney cancer,,Kidney cancer
+Langerhans Cell Histiocytosis,1,Langerhans cell histiocytosis,Langerhans cell histiocytosis,Histiocytosis
+LANGERHANS CELL HISTIOCYTOSIS,1,Langerhans cell histiocytosis,Langerhans cell histiocytosis,Histiocytosis
+LANGERHANS CELL HISTO HISTIOCYTOSIS,1,Langerhans cell histiocytosis,Langerhans cell histiocytosis,Histiocytosis
+Langerhans cells histocytosis,1,Langerhans cell histiocytosis,Langerhans cell histiocytosis,Histiocytosis
+LGSOC,2,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+Low grade glioma,1,Low-grade glioma,Low-grade glioma,CNS
+low grade ovarian serose ca,1,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+lung ca,4,Lung cancer,,Lung cancer
+Lymphoma,1,Lymphoma,Lymphoma,Haematological cancer
+Malignant Pleural Mesothelioma,1,Mesothelioma,,Mesothelioma
+MALIGNANT TUMOUR OF UNKNOWN ORIGIN,1,CUP,,CUP
+MDS,2,MDS,MDS,Haematological cancer
+Melanocytic tumor,1,Melanocytic tumor,,Melanocytic tumor
+melanoma,3,Melanoma,Melanoma,Skin cancer
+Melanoma,3,Melanoma,Melanoma,Skin cancer
+mesothelioma,1,Mesothelioma,,Mesothelioma
+Metastatic adenocarcinoma of left parotid,1,Parotid gland carcinoma,Parotid gland carcinoma,Salivary gland cancer
+METASTATIC ADENOCARCINOMA OF LIKELY PANCREATIC ORIGIN,1,Pancreatic cancer,,Pancreatic cancer
+METASTATIC AMPULLARY ADENOCARCINOMA,1,Ampullary cancer,Ampullary cancer,Intestinal cancer
+METASTATIC ANAL CANCER,1,Anal cancer,,Anal cancer
+METASTATIC BASALOID PSEUDO-CRIBIFORM EPITHELOID CARCINOMA,1,Epitheloid carcinoma,,Epitheloid carcinoma
+METASTATIC LUNG ADENOCARCINOMA,1,Lung cancer,,Lung cancer
+METASTATIC PERITONEAL MESOTHELIOMA,1,Mesothelioma,,Mesothelioma
+metastatic ventricular ca,1,Ventricular cancer,Ventricular cancer,CNS
+MM,1,Multiple Myeloma,Multiple Myeloma,Haematological cancer
+MPM,1,Mesothelioma,,Mesothelioma
+Multifocal glioma,1,Glioma,Glioma,CNS
+NEC,11,Neuro-endocrine carcinoma,,Neuro-endocrine carcinoma
+NEC (gastrointestinal),1,Neuro-endocrine carcinoma,,Neuro-endocrine carcinoma
+NET,7,Neuro-endocrine tumor,,Neuro-endocrine tumor
+Neuroendocrine and Adrenal Tumour,2,Neuro-endocrine tumor,,Neuro-endocrine tumor
+NON-HODGKIN'S LYMPHOMA,1,Non-Hodgkin lymphoma,Non-Hodgkin lymphoma,Haematological cancer
+NON-LANGERHANS HISTIOCYTIC DISORDER (ERDHEIM-CHESTER DISEASE),1,Erdheim-Chester Disease,Erdheim-Chester Disease,Histiocytosis
+Non-Small Cell Lung Cancer,27,NSCLC,NSCLC,Lung cancer
+NSCLC,24,NSCLC,NSCLC,Lung cancer
+NUD,1,CUP,,CUP
+Occult Primary or Cancer of Unknown Primary,2,CUP,,CUP
+ORAL CAVITY SQUAMOUS CARCINOMA,1,Head and neck cancer,,Head and neck cancer
+ovarian,7,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+ovarian ca,1,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+Ovarian cancer,12,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+Ovarian Cancer,2,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+ovarian mucinous carsinoma,1,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+ovario ca,1,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+Ovario high grade clear cell carcinoma (HGCC),1,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+Ovary high grade serose cancer (HGSC),1,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+ovary low grade serous cancer,3,Ovarian cancer,Ovarian cancer,Gynaecological cancer
+pancreas,5,Pancreatic cancer,,Pancreatic cancer
+pancreatic cancer,2,Pancreatic cancer,,Pancreatic cancer
+Pancreatic cancer,8,Pancreatic cancer,,Pancreatic cancer
+Pancreatic Cancer,3,Pancreatic cancer,,Pancreatic cancer
+Papillary craniofaryngeoma,1,Papillary craniofaryngeoma,Papillary craniofaryngeoma,CNS
+paraganglioma,1,Paraganglioma,Paraganglioma,CNS
+penile,2,Penile cancer,,Penile cancer
+Penile cancer,1,Penile cancer,,Penile cancer
+peritoneal mesothelioma,1,Mesothelioma,,Mesothelioma
+PERITONEAL MESOTHELIOMA,1,Mesothelioma,,Mesothelioma
+pleural mesothelioma,1,Mesothelioma,,Mesothelioma
+Primary brain tumors,2,CNS,,CNS
+prostate,4,Prostate cancer,,Prostate cancer
+Prostate cancer,10,Prostate cancer,,Prostate cancer
+Prostate Cancer,4,Prostate cancer,,Prostate cancer
+Prostate carcinoma,1,Prostate cancer,,Prostate cancer
+PTO,1,CUP,,CUP
+RCC,2,Renal cell carcinoma,,Renal cell carcinoma
+RELAPSED METASTATIC SALIVARY DUCT CARCINOMA (SDC),1,Salivary duct carcinoma,Salivary duct carcinoma,Salivary gland cancer
+Renal Cell Carcinoma,1,Renal cell carcinoma,,Renal cell carcinoma
+salivary duct ca,1,Salivary duct carcinoma,Salivary duct carcinoma,Salivary gland cancer
+Salivary duct carcinoma,2,Salivary duct carcinoma,Salivary duct carcinoma,Salivary gland cancer
+salivary gland,2,Salivary gland cancer,,Salivary gland cancer
+Salivary gland adenocarcinoma,1,Salivary gland cancer,,Salivary gland cancer
+Salivary gland cancer,7,Salivary gland cancer,,Salivary gland cancer
+Salivary gland carcinoma,2,Salivary gland cancer,,Salivary gland cancer
+sarcoma,1,Sarcoma,,Sarcoma
+Sarcoma,4,Sarcoma,,Sarcoma
+SCLC,3,SCLC,SCLC,Lung cancer
+sigma adenocarcinoma (2xquick PD),1,Left-sided adenocarcinoma,,Left-sided adenocarcinoma
+Skin cancer,2,Skin cancer,,Skin cancer
+Small Bowel Carcinoma,3,Small intestine cancer,Small intestine cancer,Intestinal cancer
+Small intestine cancer,4,Small intestine cancer,Small intestine cancer,Intestinal cancer
+soft tissue sarcoma,1,Soft tissue sarcoma,Soft tissue sarcoma,Sarcoma
+stomach adenocarsinoma,1,Gastric cancer,Gastric cancer,Upper GI-cancer
+submandibular cland adenocystic carsinoma,1,Adenoid cystic carcinoma,,Adenoid cystic carcinoma
+synovial sarcoca,1,Synovial sarcoma,Synovial sarcoma,Sarcoma
+thymic,1,Thymoma,,Thymoma
+thyroid,1,Thyroid cancer,,Thyroid cancer
+thyroid cancer,2,Thyroid cancer,,Thyroid cancer
+Thyroid cancer,3,Thyroid cancer,,Thyroid cancer
+Thyroid Cancer,4,Thyroid cancer,,Thyroid cancer
+Thyroid carcinoma,1,Thyroid cancer,,Thyroid cancer
+tongue ca,1,Tongue cancer,,Tongue cancer
+Tumor-agnostic,14,Tumor-agnostic,,Tumor-agnostic
+Tumor agnostic,12,Tumor-agnostic,,Tumor-agnostic
+UCC,1,Urothelial cancer,,Urothelial cancer
+unknown primary adenoid cystic carsinoma,1,Adenoid cystic carcinoma,,Adenoid cystic carcinoma
+Upper GI-tumors,1,Upper GI-cancer,,Upper GI-cancer
+Upper rectal adenocarcinoma,1,Colorectal cancer,Colorectal cancer,Intestinal cancer
+Urothelial cancer,3,Urothelial cancer,,Urothelial cancer
+Uterine cancer,1,Uterine cancer,Uterine cancer,Gynaecological cancer
+uterus endometrial adenocarcinoma,1,Endometrial cancer,Endometrial cancer,Gynaecological cancer
+Uveal melanoma,2,Uveal melanoma,Uveal melanoma,Ocular melanoma
+vaginal adeno carsinoma,2,Vaginal cancer,Vaginal cancer,Gynaecological cancer
+Vaginal cancer,1,Vaginal cancer,Vaginal cancer,Gynaecological cancer
+Vaginal Cancer,1,Vaginal cancer,Vaginal cancer,Gynaecological cancer
+Vulvar Cancer,1,Vulvar cancer,Vulvar cancer,Gynaecological cancer
+Vulvarian cancer,1,Vulvar cancer,Vulvar cancer,Gynaecological cancer

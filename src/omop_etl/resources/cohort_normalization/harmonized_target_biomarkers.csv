@@ -1,4 +1,4 @@
-source_biomarker_name,frequency,normalized_biomarker_name,comment
+source_biomarker_name,frequency,harmonized_biomarker_name,comment
 4q12 amplicon,1,4q12,
 9p24.1 amplicon,1,9p24,
 A775_G776INSYVMA,1,ERBB2,
@@ -33,7 +33,7 @@ C.2313_2324DUP P.(TYR772_ALA775DUP),1,ERBB2,
 Constitutional mismatch repair deficiency disposition (CMMRD),1,CMMRD,
 CMMrd,,CMMRD,
 Double hit in PIK3CA/PTEN,1,PIK3CA,
-Drug screen,1,Drug screen,"the trial must elaborate, might be organoids-based drug screening and not target-drug-match. Think we should keep them separated from other cohorts."
+Drug screen,1,Drug screen,"The trial must elaborate: might be organoid-based drug screening and not target-drug-match. Think we should keep them separated from other cohorts."
 EBB2 amplification,12,ERBB2 ampl,
 EGFR amp,2,EGFR ampl,
 EGFR mut,1,EGFR mut,
