@@ -170,7 +170,7 @@ c0d469b8-2d83-5ef8-a060-3cb5b0f2eef2,CM_CMTRT,Ibuprofen,1,1177480,5640,ibuprofen
 98cea1ff-2517-56c3-af61-bb37270630e4,CM_CMTRT,Kaliumklorid,1,19049105,8591,potassium chloride,Ingredient,Standard,Valid,Drug,RxNorm Extension
 4000804f-b2bb-52b8-859e-8747b20d8124,CM_CMTRT,Fiasp (Insulin),1,1567198,51428,"insulin aspart, human",Ingredient,Standard,Valid,Drug,RxNorm
 fc4de2f6-c822-542e-8392-53cf03842961,CM_CMTRT,Cimetidin,1,997276,2541,cimetidine,Ingredient,Standard,Valid,Drug,RxNorm
-9261aa9a-b652-5d50-b109-b5c92b058ae2,COH_COHCTN,BRAF Non-V600 activating mutations,12,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
+9261aa9a-b652-5d50-b109-b5c92b058ae2,COH_COHCTN,c,12,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 a683d456-51bb-52f1-8dcb-b88cfe79add6,COH_COHCTN,BRAF Non-V600activating mutations,1,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 8d9cba99-2d8f-5254-8226-cc57d315adc7,COH_COHTMN,BRAF Non-V600 activating mutations,13,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC
 4bf9b6d6-5f7e-5c8e-b424-16b4885158df,COH_GENMUT1,BRAF activating mutations,13,3039156,53844-7,BRAF gene targeted mutation analysis in Blood or Tissue by Molecular genetics method,Lab Test,Standard,Valid,Measurement,LOINC

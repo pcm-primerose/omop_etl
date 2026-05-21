@@ -593,3 +593,83 @@ class TestAdverseEventFKLinkage:
 
         assert ctx_a.condition_id_by_ae_sequence_id == ctx_b.condition_id_by_ae_sequence_id
         assert ctx_a.condition_id_by_ae_sequence_id != {}
+
+
+class TestPrimaryCancerFKPublication:
+    """
+    Oncology CDM guideline: cancer-modifier Measurement rows (dimensions,
+    biomarkers, optional future metastasis/node/stage) should link back to the
+    primary cancer's condition_occurrence_id. ConditionOccurrenceBuilder
+    publishes that id from the tumor_type emission.
+    """
+
+    @staticmethod
+    def _tumor_semantic(concept_id: int) -> SemanticEntry:
+        return SemanticEntry(
+            patient_id=PID,
+            field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+            leaf_index=None,
+            concept_id=concept_id,
+            name="neoplasm",
+            domain="condition",
+        )
+
+    def test_publishes_primary_cancer_id_from_tumor_type(self, static_index, structural_index):
+        semantic = create_semantic_index(self._tumor_semantic(4000))
+        concepts = ConceptLookupService(static_index, structural_index, semantic)
+        patient = create_patient(PID, TRIAL)
+        tumor = TumorType(patient_id=PID)
+        tumor.icd10_code = "C50.9"
+        tumor.date = dt.date(2022, 6, 1)
+        patient.tumor_type = tumor
+        ctx = create_build_context(patient, PERSON_ID)
+
+        rows = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+
+        tumor_row = next(r for r in rows if r.condition_concept_id == 4000)
+        assert ctx.condition_id_primary_cancer == tumor_row.condition_occurrence_id
+
+    def test_no_primary_cancer_id_when_tumor_type_absent(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        ctx = create_build_context(patient, PERSON_ID)
+
+        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+
+        assert ctx.condition_id_primary_cancer is None
+
+    def test_no_primary_cancer_id_when_tumor_unmapped(self, static_index, structural_index):
+        """Tumor type present but no semantic match: no row and no FK published."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        tumor = TumorType(patient_id=PID)
+        tumor.icd10_code = "C99.99"
+        tumor.date = dt.date(2022, 6, 1)
+        patient.tumor_type = tumor
+        ctx = create_build_context(patient, PERSON_ID)
+
+        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+
+        assert ctx.condition_id_primary_cancer is None
+
+    def test_multi_concept_tumor_picks_first_row_deterministically(self, static_index, structural_index):
+        """Two semantic matches for the tumor: two rows, FK is first row's id."""
+        semantic = create_semantic_index(
+            self._tumor_semantic(4000),
+            self._tumor_semantic(4001),
+        )
+        concepts = ConceptLookupService(static_index, structural_index, semantic)
+        patient = create_patient(PID, TRIAL)
+        tumor = TumorType(patient_id=PID)
+        tumor.icd10_code = "C50.9"
+        tumor.date = dt.date(2022, 6, 1)
+        patient.tumor_type = tumor
+        ctx_a = create_build_context(patient, PERSON_ID)
+        ctx_b = create_build_context(patient, PERSON_ID)
+
+        rows_a = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx_a)
+        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx_b)
+
+        assert len(rows_a) == 2
+        assert ctx_a.condition_id_primary_cancer == rows_a[0].condition_occurrence_id
+        assert ctx_a.condition_id_primary_cancer == ctx_b.condition_id_primary_cancer

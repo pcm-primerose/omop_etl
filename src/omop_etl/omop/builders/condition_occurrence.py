@@ -26,9 +26,11 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
     def __init__(self, concepts: ConceptLookupService):
         super().__init__(concepts)
         self._ae_to_condition_id: dict[int, int] = {}
+        self._primary_cancer_condition_id: int | None = None
 
     def build(self, ctx: BuildContext) -> list[ConditionOccurrenceRow]:
         self._ae_to_condition_id = {}
+        self._primary_cancer_condition_id = None
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[ConditionOccurrenceRow] = []
@@ -36,7 +38,12 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         condition_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
         if patient.tumor_type is not None:
-            rows.extend(self._build_tumor_type_rows(patient, person_id, patient.tumor_type, condition_type_concept_id))
+            tumor_rows = self._build_tumor_type_rows(patient, person_id, patient.tumor_type, condition_type_concept_id)
+            if tumor_rows:
+                # multi-concept tumor mappings produce multiple rows: pick the
+                # first deterministically (collection already sorted by NK).
+                self._primary_cancer_condition_id = tumor_rows[0].condition_occurrence_id
+            rows.extend(tumor_rows)
 
         for idx, mh in enumerate(patient.medical_histories):
             rows.extend(self._build_medical_history_rows(patient, person_id, mh, idx, condition_type_concept_id))
@@ -48,10 +55,15 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
 
     def populate_context(self, rows: list[ConditionOccurrenceRow], ctx: BuildContext) -> None:
         """
-        Publish AE.sequence_id to condition_occurrence_id from accumulated mapping from build,
-        so other builders (e.g. Observation) can set field concept/event ids from AEs (e.g. was_serious, turned_serious_data).
+        Publish two pieces of cross-builder state:
+        - condition_id_by_ae_sequence_id: AE.sequence_id: condition_occurrence_id,
+          for ObservationBuilder's was_serious / turned_serious_date FK linkage.
+        - condition_id_primary_cancer: condition_occurrence_id of the tumor-type
+          row, for MeasurementBuilder's measurement_event_id linkage on lesion-size
+          and biomarker rows (per oncology CDM guideline).
         """
         ctx.condition_id_by_ae_sequence_id.update(self._ae_to_condition_id)
+        ctx.condition_id_primary_cancer = self._primary_cancer_condition_id
 
     def _build_tumor_type_rows(
         self,

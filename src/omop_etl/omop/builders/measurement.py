@@ -35,9 +35,34 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
     - value_as_number: is the numeric result where the source provides one.
     - visit_occurrence_id: is linked by date via ctx.visit_id_by_date (populated
       by the visit_occurrence builder, which must run before this).
+    - measurement_event_id: linked to cancer condtion from ctx.condition_id_primary_cancer
+      which is populated by the ConditionOccurrence builder (must run before this builder).
+    - meas_event_field_concept_id: links to condition occurrence field concept for the
+      measurement_event_id FK.
     """
 
     table_name: ClassVar[str] = "measurement"
+
+    def _primary_cancer_fk(self, ctx: BuildContext) -> tuple[int | None, int | None]:
+        """
+        Resolve (measurement_event_id, meas_event_field_concept_id) for
+        linking a measurement back to the patient's primary cancer
+        condition_occurrence row, per oncology CDM guideline.
+        Returns (None, None) when no primary cancer condition has been
+        published, raises if the cdm_field static entry is missing
+        (required once a primary cancer is published).
+        """
+        event_id = ctx.condition_id_primary_cancer
+        if event_id is None:
+            return None, None
+        field_concept = self.concepts.lookup_static(
+            "cdm_field",
+            "condition_occurrence.condition_occurrence_id",
+            domains={"Metadata"},
+        )
+        if field_concept is None:
+            raise RuntimeError("Missing cdm_field mapping for condition_occurrence.condition_occurrence_id")
+        return event_id, field_concept.concept_id
 
     def build(self, ctx: BuildContext) -> list[MeasurementRow]:
         patient = ctx.patient
@@ -249,6 +274,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
             datetime_value = dt.datetime(date.year, date.month, date.day)
             visit_occurrence_id = ctx.visit_id_by_date.get(date)
+            event_id, field_concept_id = self._primary_cancer_fk(ctx)
             return [
                 MeasurementRow(
                     measurement_id=self.generate_row_id(
@@ -265,6 +291,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                     measurement_type_concept_id=ecrf_concept,
                     visit_occurrence_id=visit_occurrence_id,
                     measurement_source_value=source_value[:50],
+                    measurement_event_id=event_id,
+                    meas_event_field_concept_id=field_concept_id,
                 )
                 for concept in matches
             ]
@@ -301,6 +329,10 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             log.warning("No lesion_size structural concept for %s", patient.patient_id)
             return []
 
+        unit = self.concepts.lookup_structural("millimeter", domains={"Unit"})
+        unit_concept_id = unit.concept_id if unit else None
+        event_id, field_concept_id = self._primary_cancer_fk(ctx)
+
         row_id = self.generate_row_id(
             patient.patient_id,
             Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
@@ -316,8 +348,11 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 measurement_datetime=dt.datetime(date.year, date.month, date.day),
                 measurement_type_concept_id=ecrf_concept,
                 value_as_number=float(size),
+                unit_concept_id=unit_concept_id,
                 visit_occurrence_id=ctx.visit_id_by_date.get(date),
                 measurement_source_value=str(size)[0:50],
+                measurement_event_id=event_id,
+                meas_event_field_concept_id=field_concept_id,
             )
         ]
 
@@ -361,6 +396,9 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         if size is not None:
             lesion = self.concepts.lookup_structural("lesion_size", domains={OmopDomain.MEASUREMENTS})
             if lesion is not None:
+                unit = self.concepts.lookup_structural("millimeter", domains={"Unit"})
+                unit_concept_id = unit.concept_id if unit else None
+                event_id, field_concept_id = self._primary_cancer_fk(ctx)
                 rows.append(
                     MeasurementRow(
                         measurement_id=self.generate_row_id(
@@ -375,8 +413,11 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_datetime=datetime_value,
                         measurement_type_concept_id=ecrf_concept,
                         value_as_number=size,
+                        unit_concept_id=unit_concept_id,
                         visit_occurrence_id=visit_occurrence_id,
                         measurement_source_value=str(size)[:50],
+                        measurement_event_id=event_id,
+                        meas_event_field_concept_id=field_concept_id,
                     )
                 )
 

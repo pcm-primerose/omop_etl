@@ -21,6 +21,7 @@ class BuildContext:
     person_id: int
     visit_id_by_date: dict[dt.date, int] = field(default_factory=dict)
     condition_id_by_ae_sequence_id: dict[int, int] = field(default_factory=dict)
+    condition_id_primary_cancer: int | None = None
 
 
 class OmopBuilder(ABC, Generic[T]):

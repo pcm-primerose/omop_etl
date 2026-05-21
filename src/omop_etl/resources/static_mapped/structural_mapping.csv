@@ -3,7 +3,8 @@ no,4188540,373067005,No,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 yes,4188539,373066001,Yes,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 adverse_event_outcome,4231813,405533003,Adverse incident outcome,Clinical Finding,Standard,Valid,Observation,SNOMED
 ecog,36305384,89247-1,ECOG Performance Status score,Clinical Observation,Standard,Valid,Measurement,LOINC
-lesion_size,4084390,246116008,Lesion size,Observable Entity,Standard,Valid,Measurement,SNOMED
+lesion_size,36768664,OMOP4998340,Dimension of Tumor,Dimension,Standard,Valid,Measurement,Cancer Modifier
+millimeter,8588,mm,millimeter,Unit,Standard,Valid,Unit,UCUM
 number_of_lesions,4085855,246206008,Number of lesions,Observable Entity,Standard,Valid,Observation,SNOMED
 response_recist,734317,RECIST,RECIST finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier
 response_irecist,734318,iRECIST,iRECIST finding,Staging/Grading,Classification,Valid,Measurement,Cancer Modifier

@@ -147,8 +147,8 @@ class TestClinicalBenefit:
     is Yes/No concepts, observation_date is the singleton's date.
     """
 
-    def _make_singleton(  # noqa
-        self,
+    @staticmethod
+    def _make_singleton(
         *,
         has_benefit: bool | None,
         week: int | None = 16,
