@@ -12,7 +12,9 @@ class ObservationPeriodBuilder(OmopBuilder[ObservationPeriodRow]):
     def build(self, ctx: BuildContext) -> list[ObservationPeriodRow]:
         patient = ctx.patient
         treatment_start_date = patient.treatment_start_date
-        treatment_end_date = patient.end_of_treatment_date or patient.treatment_start_last_cycle
+        eot = patient.end_of_treatment
+        eot_date = eot.date if eot else None
+        treatment_end_date = eot_date or patient.treatment_start_last_cycle
         if treatment_start_date is None:
             return []
         if treatment_end_date is None:

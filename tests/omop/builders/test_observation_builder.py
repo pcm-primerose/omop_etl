@@ -5,6 +5,7 @@ import pytest
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
+from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment, TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.observation import ObservationBuilder
@@ -246,67 +247,153 @@ class TestClinicalBenefit:
         assert any("no week" in rec.message for rec in caplog.records)
 
 
-class TestEndOfTreatmentReason:
+TRIAL_COMPLETION_CID = 40482840
+
+
+class TestEndOfTreatment:
     """
-    Pattern 1: concept_id=0, field name in source_value, mapped reason concept
-    in value_as_concept_id (or 0 if unmapped), raw reason preserved in both
-    value_as_string and value_source_value.
+    Reads the EndOfTreatment singleton and branches on status:
+    - COMPLETED: topic = trial_completion (40482840), no value_as_concept_id.
+    - WITHDRAWN: topic = patient_withdrawn (4087907),
+      value_as_concept_id = mapped eot_reason concept (or 0).
     """
 
-    def test_mapped_reason_emits_row(self, static_index, structural_index):
-        static_index[("eot_reason", "disease progression")] = _static("eot_reason", "disease progression", 1617595, "observation")
+    @staticmethod
+    def _make_eot(
+        *,
+        status: TrialOutcomeStatus | None,
+        reason: str | None = None,
+        date: dt.date | None = dt.date(2023, 8, 1),
+    ) -> EndOfTreatment:
+        eot = EndOfTreatment(patient_id=PID)
+        eot.status = status
+        eot.reason = reason
+        eot.date = date
+        return eot
+
+    @staticmethod
+    def _with_trial_completion(structural_index: dict) -> dict:
+        structural_index["trial_completion"] = _structural("trial_completion", TRIAL_COMPLETION_CID, "observation")
+        return structural_index
+
+    def test_completed_status_emits_completion_shape(self, static_index, structural_index):
+        self._with_trial_completion(structural_index)
         concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(
-            PID,
-            TRIAL,
-            end_of_treatment_reason="Disease progression",
-            end_of_treatment_date=dt.date(2023, 8, 1),
+        patient = create_patient(PID, TRIAL)
+        patient.end_of_treatment = self._make_eot(
+            status=TrialOutcomeStatus.COMPLETED,
+            reason="Normal completion according to cohort-specific manual",
         )
 
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
-        assert row.observation_concept_id == 0
+        assert row.observation_concept_id == TRIAL_COMPLETION_CID
         assert row.observation_date == dt.date(2023, 8, 1)
-        assert row.observation_source_value == "end_of_treatment_reason"
+        assert row.value_as_concept_id is None
+        assert row.observation_source_value == "end_of_treatment"
         assert row.observation_source_concept_id == 0
+        assert row.value_as_string == "Normal completion according to cohort-specific manual"
+        assert row.value_source_value == "Normal completion according to cohort-specific man"  # truncated to 50
+
+    def test_completion_topic_missing_falls_back_to_zero(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.end_of_treatment = self._make_eot(
+            status=TrialOutcomeStatus.COMPLETED,
+            reason="Normal completion",
+        )
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].observation_concept_id == 0
+        assert rows[0].value_as_concept_id is None
+
+    def test_withdrawn_with_mapped_reason_emits_withdrawal_shape(self, static_index, structural_index):
+        static_index[("eot_reason", "disease progression")] = _static("eot_reason", "disease progression", 1617595, "observation")
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.end_of_treatment = self._make_eot(
+            status=TrialOutcomeStatus.WITHDRAWN,
+            reason="Disease progression",
+        )
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.observation_concept_id == PATIENT_WITHDRAWN_CID
+        assert row.observation_date == dt.date(2023, 8, 1)
         assert row.value_as_concept_id == 1617595
+        assert row.observation_source_value == "end_of_treatment"
         assert row.value_as_string == "Disease progression"
         assert row.value_source_value == "Disease progression"
 
-    def test_unmapped_reason_emits_row_with_value_concept_zero(self, static_index, structural_index):
-        """
-        No static mapping: row still emits, value_as_concept_id=0, raw
-        reason preserved in value_as_string and value_source_value.
-        """
+    def test_withdrawn_with_unmapped_reason_emits_value_zero(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(
-            PID,
-            TRIAL,
-            end_of_treatment_reason="Some new reason not in mapping",
-            end_of_treatment_date=dt.date(2023, 8, 1),
+        patient = create_patient(PID, TRIAL)
+        patient.end_of_treatment = self._make_eot(
+            status=TrialOutcomeStatus.WITHDRAWN,
+            reason="Some unmapped reason",
         )
 
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
-        row = rows[0]
-        assert row.observation_concept_id == 0
-        assert row.value_as_concept_id == 0
-        assert row.value_as_string == "Some new reason not in mapping"
-        assert row.value_source_value == "Some new reason not in mapping"[:50]
-        assert row.observation_source_value == "end_of_treatment_reason"
+        assert rows[0].observation_concept_id == PATIENT_WITHDRAWN_CID
+        assert rows[0].value_as_concept_id == 0
+        assert rows[0].value_as_string == "Some unmapped reason"
 
-    def test_skipped_without_eot_date(self, static_index, structural_index, caplog):
+    def test_withdrawal_topic_missing_falls_back_to_zero(self, static_index, structural_index):
+        # remove patient_withdrawn from the fixture
+        structural_index.pop("patient_withdrawn", None)
         concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(PID, TRIAL, end_of_treatment_reason="Disease progression")
+        patient = create_patient(PID, TRIAL)
+        patient.end_of_treatment = self._make_eot(
+            status=TrialOutcomeStatus.WITHDRAWN,
+            reason="Other",
+        )
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].observation_concept_id == 0
+        assert rows[0].value_as_concept_id == 0
+
+    def test_singleton_absent_returns_empty(self, static_index, structural_index):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert rows == []
+
+    def test_status_none_returns_empty(self, static_index, structural_index):
+        """Singleton with date but no status (e.g. date inferred from treatment cycles only): no row."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.end_of_treatment = self._make_eot(status=None, reason=None)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert rows == []
+
+    def test_missing_date_skips(self, static_index, structural_index, caplog):
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.end_of_treatment = self._make_eot(
+            status=TrialOutcomeStatus.WITHDRAWN,
+            reason="Other",
+            date=None,
+        )
 
         with caplog.at_level(logging.WARNING):
             rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
-        assert any("end_of_treatment_date" in rec.message for rec in caplog.records)
+        assert any("no date" in rec.message for rec in caplog.records)
 
 
 PATIENT_WITHDRAWN_CID = 4087907
@@ -679,8 +766,6 @@ class TestCombinedSources:
             TRIAL,
             treatment_start_date=dt.date(2023, 1, 10),
             evaluable_for_efficacy_analysis=True,
-            end_of_treatment_reason="Other",
-            end_of_treatment_date=dt.date(2023, 8, 1),
         )
 
         cb = ClinicalBenefit(patient_id=PID)
@@ -688,6 +773,12 @@ class TestCombinedSources:
         cb.has_benefit = False
         cb.date = dt.date(2023, 4, 25)
         patient.clinical_benefit = cb
+
+        eot = EndOfTreatment(patient_id=PID)
+        eot.status = TrialOutcomeStatus.WITHDRAWN
+        eot.reason = "Other"
+        eot.date = dt.date(2023, 8, 1)
+        patient.end_of_treatment = eot
 
         followup = FollowUp(patient_id=PID)
         followup.lost_to_followup = True

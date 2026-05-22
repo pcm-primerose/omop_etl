@@ -3,6 +3,7 @@ from logging import getLogger
 from typing import ClassVar
 
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.end_of_treatment import TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.base import BuildContext, OmopBuilder
@@ -65,7 +66,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         rows: list[ObservationRow] = []
         rows.extend(self._build_evaluable(patient, person_id, observation_type_concept_id))
         rows.extend(self._build_clinical_benefit(patient, person_id, observation_type_concept_id))
-        rows.extend(self._build_eot_reason(patient, person_id, observation_type_concept_id))
+        rows.extend(self._build_end_of_treatment(patient, person_id, observation_type_concept_id))
         rows.extend(self._build_lost_to_followup(patient, person_id, observation_type_concept_id))
 
         for idx, ae in enumerate(patient.adverse_events):
@@ -203,43 +204,83 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             )
         ]
 
-    def _build_eot_reason(
+    def _build_end_of_treatment(
         self,
         patient: Patient,
         person_id: int,
         observation_type_concept_id: int,
     ) -> list[ObservationRow]:
         """
-        Unmapped source attribute: observation_concept_id = 0,
-        observation_source_value = field name, value_as_concept_id = mapped
-        reason (or 0 if unmapped), value_as_string and value_source_value
-        preserve the raw reason text.
+        EOT reason mappings branch on EndOfTreatment singleton status field.
+
+        - COMPLETED: observation_concept_id = structural
+          `trial_completion` to "Completion of clinical trial",
+          `value_as_concept_id` is None.
+        - WITHDRAWN: observation_concept_id = structural
+          `patient_withdrawn` to "Patient withdrawn from trial",
+          `value_as_concept_id` = mapped `eot_reason` reason concept
+          (or 0 if unmapped).
+
+        Both shapes preserve the raw reason in `value_as_string` +
+        `value_source_value` and use the singleton's field name in
+        `observation_source_value`. Both topic concepts fall back to 0
+        when the structural lookup is missing.
+
+        Skipped when the singleton is None, when status is None or when date is None.
         """
-        reason = patient.end_of_treatment_reason
-        date = patient.end_of_treatment_date
-        if reason is None:
+        eot = patient.end_of_treatment
+        if eot is None:
+            return []
+
+        status = eot.status
+        date = eot.date
+        reason = eot.reason
+        if status is None:
             return []
         if date is None:
-            log.warning("Skipping end_of_treatment_reason for %s: missing end_of_treatment_date", patient.patient_id)
+            log.warning("Skipping end_of_treatment for %s: singleton has no date", patient.patient_id)
             return []
 
-        concept = self.concepts.lookup_static("eot_reason", reason)
+        row_id = self.generate_row_id(
+            patient.patient_id,
+            Patient.Singletons.END_OF_TREATMENT,
+            *eot.natural_key(),
+        )
+        value_as_string = reason[:60] if reason else None
+        value_source_value = reason[:50] if reason else None
 
+        if status is TrialOutcomeStatus.COMPLETED:
+            topic = self.concepts.lookup_structural("trial_completion")
+            return [
+                ObservationRow(
+                    observation_id=row_id,
+                    person_id=person_id,
+                    observation_concept_id=topic.concept_id if topic else 0,
+                    observation_date=date,
+                    observation_type_concept_id=observation_type_concept_id,
+                    value_as_concept_id=None,
+                    value_as_string=value_as_string,
+                    observation_source_value=Patient.Singletons.END_OF_TREATMENT,
+                    observation_source_concept_id=0,
+                    value_source_value=value_source_value,
+                )
+            ]
+
+        # WITHDRAWN status
+        topic = self.concepts.lookup_structural("patient_withdrawn")
+        withdrawal_reason = self.concepts.lookup_static("eot_reason", reason) if reason else None
         return [
             ObservationRow(
-                observation_id=self.generate_row_id(
-                    patient.patient_id,
-                    Patient.Scalars.END_OF_TREATMENT_REASON,
-                ),
+                observation_id=row_id,
                 person_id=person_id,
-                observation_concept_id=0,
+                observation_concept_id=topic.concept_id if topic else 0,
                 observation_date=date,
                 observation_type_concept_id=observation_type_concept_id,
-                value_as_concept_id=concept.concept_id if concept else 0,
-                value_as_string=reason[:60],
-                observation_source_value=Patient.Scalars.END_OF_TREATMENT_REASON,
+                value_as_concept_id=withdrawal_reason.concept_id if withdrawal_reason else 0,
+                value_as_string=value_as_string,
+                observation_source_value=Patient.Singletons.END_OF_TREATMENT,
                 observation_source_concept_id=0,
-                value_source_value=reason[:50],
+                value_source_value=value_source_value,
             )
         ]
 
@@ -271,7 +312,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             return []
 
         value = followup.lost_to_followup
-        if value is not True:
+        if not value:
             # None or False: no withdrawal event to record
             return []
 
