@@ -1,5 +1,5 @@
 value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
-lost_to_followup,True,4163894,399307001,Lost to follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
+lost_to_followup,True,44811247,873211000000106,Lost to clinical trial follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
 cdm_field,condition_occurrence.condition_occurrence_id,1147127,CDM183,condition_occurrence.condition_occurrence_id,Field,Standard,Valid,Metadata,CDM
 sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender

@@ -117,6 +117,8 @@ def _static(value_set: str, local_value: str, concept_id: int, domain_id: str) -
 def structural_index() -> dict[str, StructuralConcept]:
     return {
         "ecrf": _structural("ecrf", 32817, "type concept"),
+        "observation_period": _structural("observation_period", 44814723, "type concept"),
+        "patient_withdrawn": _structural("patient_withdrawn", 4087907, "observation"),
         "outpatient_visit": _structural("outpatient_visit", 9202, "visit"),
         "iv": _structural("iv", 4171047, "route"),
         "oral": _structural("oral", 4132161, "route"),

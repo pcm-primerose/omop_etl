@@ -26,12 +26,14 @@ class TestObservationPeriodBuilder:
 
         rows = ObservationPeriodBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
+        print(f"rows: {rows}")
+
         assert len(rows) == 1
         row = rows[0]
         assert row.person_id == PERSON_ID
         assert row.observation_period_start_date == dt.date(2023, 1, 1)
         assert row.observation_period_end_date == dt.date(2023, 6, 30)
-        assert row.period_type_concept_id == 32817
+        assert row.period_type_concept_id == 44814723
 
     def test_missing_treatment_start_returns_empty(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)

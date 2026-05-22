@@ -66,6 +66,7 @@ class OmopDomain(str, Enum):
     OBSERVATIONS = "observations"
     DEVICE = "device"
     MEAS_VALUE = "meas value"
+    TYPE_CONCEPT = "type concept"
 
 
 @dataclass(frozen=True, slots=True)

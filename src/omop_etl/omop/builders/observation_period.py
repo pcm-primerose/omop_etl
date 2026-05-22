@@ -18,7 +18,7 @@ class ObservationPeriodBuilder(OmopBuilder[ObservationPeriodRow]):
         if treatment_end_date is None:
             return []
 
-        observation_type = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
+        observation_type = self.concepts.lookup_structural("observation_period")
         period_type_concept_id = int(observation_type.concept_id) if observation_type else 0
         period_id = self.generate_row_id(patient.patient_id)
 

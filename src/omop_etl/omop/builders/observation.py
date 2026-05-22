@@ -250,39 +250,54 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         observation_type_concept_id: int,
     ) -> list[ObservationRow]:
         """
-        observation_concept_id is the "Lost to follow-up" concept from the
-        lost_to_followup static value set, falls back to 0 when the mapping is missing.
-        value_as_concept_id is the Yes/No concept, observation_source_value is the field name and
-        value_source_value carries the boolean literal. Date is date_lost_to_followup.
+        Encoded per clinical-trials CDM guideline as a "Patient withdrawn
+        from trial" observation with the withdrawal reason in
+        value_as_concept_id:
+        - observation_concept_id: structural `patient_withdrawn`: 4087907
+          "Patient withdrawn from trial" (or 0 if missing).
+        - value_as_concept_id: static `lost_to_followup,True`: 44811247
+          "Lost to clinical trial follow-up" (or 0 if missing).
+        - observation_date: `date_lost_to_followup`.
+        - observation_source_value: field name "lost_to_followup".
+        - value_source_value: "true".
+
+        Emit policy: only when lost_to_followup is True. False means the
+        patient was NOT lost to follow-up, no withdrawal event to record,
+        so no row (absence of row = not withdrawn under closed-world
+        semantics).
         """
         followup = patient.lost_to_followup
         if followup is None:
             return []
 
         value = followup.lost_to_followup
-        date = followup.date_lost_to_followup
-        if value is None:
+        if value is not True:
+            # None or False: no withdrawal event to record
             return []
+
+        date = followup.date_lost_to_followup
         if date is None:
             log.warning("Skipping lost_to_followup for %s: missing date_lost_to_followup", patient.patient_id)
             return []
 
-        concept = self.concepts.lookup_static(FollowUp.Fields.LOST_TO_FOLLOWUP, str(value))
-        observation_concept_id = concept.concept_id if concept else 0
+        topic = self.concepts.lookup_structural("patient_withdrawn")
+        reason = self.concepts.lookup_static(FollowUp.Fields.LOST_TO_FOLLOWUP, str(value))
 
         return [
-            self._bool_observation(
+            ObservationRow(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Singletons.LOST_TO_FOLLOWUP,
                     *followup.natural_key(),
                 ),
                 person_id=person_id,
-                field_name=Patient.Singletons.LOST_TO_FOLLOWUP,
-                value=value,
-                date=date,
+                observation_concept_id=topic.concept_id if topic else 0,
+                observation_date=date,
                 observation_type_concept_id=observation_type_concept_id,
-                observation_concept_id=observation_concept_id,
+                value_as_concept_id=reason.concept_id if reason else 0,
+                observation_source_value=Patient.Singletons.LOST_TO_FOLLOWUP,
+                observation_source_concept_id=0,
+                value_source_value=str(value).lower(),
             )
         ]
 

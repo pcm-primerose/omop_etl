@@ -309,49 +309,79 @@ class TestEndOfTreatmentReason:
         assert any("end_of_treatment_date" in rec.message for rec in caplog.records)
 
 
+PATIENT_WITHDRAWN_CID = 4087907
+LOST_TO_FU_REASON_CID = 44811247
+
+
 class TestLostToFollowup:
     """
-    Pattern 2 (mapped topic): concept_id=Lost-to-follow-up,
-    source_value=field name, value_source_value=lowercase literal.
+    Clinical-trials CDM shape (Topic 1 / item 5 of the delta):
+    observation_concept_id is `patient_withdrawn` → "Patient withdrawn
+    from trial" (4087907), value_as_concept_id is the withdrawal reason
+    `lost_to_followup,True` → "Lost to clinical trial follow-up"
+    (44811247). Only emitted when lost_to_followup is True.
     """
 
-    def test_lost_to_followup_true_emits_row(self, static_index, structural_index):
-        _with_yes_no(structural_index)
-        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", 4163894, "observation")
+    @staticmethod
+    def _make_followup(value: bool | None, date: dt.date | None = dt.date(2023, 12, 1)) -> FollowUp:
+        followup = FollowUp(patient_id=PID)
+        followup.lost_to_followup = value
+        followup.date_lost_to_followup = date
+        return followup
+
+    def test_lost_to_followup_true_emits_withdrawal_row(self, static_index, structural_index):
+        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", LOST_TO_FU_REASON_CID, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        followup = FollowUp(patient_id=PID)
-        followup.lost_to_followup = True
-        followup.date_lost_to_followup = dt.date(2023, 12, 1)
-        patient.lost_to_followup = followup
+        patient.lost_to_followup = self._make_followup(True)
 
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         row = rows[0]
-        assert row.observation_concept_id == 4163894
+        assert row.observation_concept_id == PATIENT_WITHDRAWN_CID
         assert row.observation_date == dt.date(2023, 12, 1)
-        assert row.value_as_concept_id == YES_CID
+        assert row.value_as_concept_id == LOST_TO_FU_REASON_CID
         assert row.observation_source_value == "lost_to_followup"
         assert row.observation_source_concept_id == 0
         assert row.value_source_value == "true"
 
-    def test_lost_to_followup_false_emits_row_with_no_value(self, static_index, structural_index):
-        _with_yes_no(structural_index)
+    def test_topic_concept_missing_falls_back_to_zero(self, static_index, structural_index):
+        """No patient_withdrawn structural: concept_id=0, row still emits with reason."""
+        # remove the patient_withdrawn structural concept from the fixture
+        structural_index.pop("patient_withdrawn", None)
+        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", LOST_TO_FU_REASON_CID, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        followup = FollowUp(patient_id=PID)
-        followup.lost_to_followup = False
-        followup.date_lost_to_followup = dt.date(2023, 12, 1)
-        patient.lost_to_followup = followup
+        patient.lost_to_followup = self._make_followup(True)
 
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert len(rows) == 1
         assert rows[0].observation_concept_id == 0
-        assert rows[0].value_as_concept_id == NO_CID
-        assert rows[0].observation_source_value == "lost_to_followup"
-        assert rows[0].value_source_value == "false"
+        assert rows[0].value_as_concept_id == LOST_TO_FU_REASON_CID
+
+    def test_reason_concept_missing_falls_back_to_zero(self, static_index, structural_index):
+        """No lost_to_followup static: value_as_concept_id=0, row still emits with topic."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.lost_to_followup = self._make_followup(True)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(rows) == 1
+        assert rows[0].observation_concept_id == PATIENT_WITHDRAWN_CID
+        assert rows[0].value_as_concept_id == 0
+
+    def test_lost_to_followup_false_emits_nothing(self, static_index, structural_index):
+        """False means the patient's not lost to follow-up: no withdrawal event to record."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.lost_to_followup = self._make_followup(False)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert rows == []
 
     def test_singleton_absent_returns_empty(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -364,9 +394,7 @@ class TestLostToFollowup:
     def test_missing_date_skips(self, static_index, structural_index, caplog):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        followup = FollowUp(patient_id=PID)
-        followup.lost_to_followup = True
-        patient.lost_to_followup = followup
+        patient.lost_to_followup = self._make_followup(True, date=None)
 
         with caplog.at_level(logging.WARNING):
             rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
@@ -642,7 +670,7 @@ class TestCombinedSources:
         _with_cdm_field(static_index)
         _with_ae_outcome_topic(structural_index)
         static_index[("eot_reason", "other")] = _static("eot_reason", "other", 35821954, "observation")
-        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", 4163894, "observation")
+        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", LOST_TO_FU_REASON_CID, "observation")
         static_index[("adverse_event_outcome", "fatal")] = _static("adverse_event_outcome", "fatal", 4236718, "observation")
 
         concepts = ConceptLookupService(static_index, structural_index)
