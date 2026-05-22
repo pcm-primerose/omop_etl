@@ -1762,55 +1762,89 @@ class EOTRow:
     SubjectId: str
     EOT_EOTREOT: str | None = None
     EOT_EOTDAT: str | None = None
+    TR_TRCYNCD: str | None = None
+    TR_TROSTPDT: str | None = None
+    TR_TRC1_DT: str | None = None
 
 
 @pytest.fixture
-def end_of_treatment_reason_fixture() -> pl.DataFrame:
+def end_of_treatment_fixture() -> pl.DataFrame:
+    """
+    Drives _process_end_of_treatment. Covers: completion-text to COMPLETED,
+    various non-completion reasons to WITHDRAWN, whitespace handling,
+    date precedence (EOT > oral_stop > iv_start), date-only patients
+    (status=None), reason-only patients (date=None), and patients with
+    no EOT info at all (filtered out).
+    """
     rows: List[EOTRow] = [
+        # COMPLETED status
         EOTRow(
-            "reason_trim",
-            EOT_EOTREOT="  Progression  ",
+            "completed",
+            EOT_EOTREOT="Normal completion according to cohort-specific manual",
+            EOT_EOTDAT="1900-06-30",
         ),
+        EOTRow(
+            "completed_case_insensitive",
+            EOT_EOTREOT="  normal completion according to cohort-specific manual  ",
+            EOT_EOTDAT="1900-06-29",
+        ),
+        # WITHDRAWN status: various reasons
+        EOTRow(
+            "withdrawn_progression",
+            EOT_EOTREOT="Disease progression",
+            EOT_EOTDAT="1900-05-15",
+        ),
+        EOTRow(
+            "withdrawn_toxicity",
+            EOT_EOTREOT="  Toxicity  ",
+            EOT_EOTDAT="1900-05-16",
+        ),
+        # Date precedence: EOT_EOTDAT wins over TR_*
+        EOTRow(
+            "date_precedence_eot",
+            EOT_EOTREOT="Other",
+            EOT_EOTDAT="1900-01-02",
+        ),
+        EOTRow(
+            "date_precedence_eot",
+            TR_TROSTPDT="1900-01-01",
+            TR_TRCYNCD="1",
+        ),
+        # Date-only: TR_*-derived date, no reason, status=None, date from precedence
+        EOTRow(
+            "date_only_oral_stop",
+            TR_TROSTPDT="1900-08-01",
+            TR_TRCYNCD="1",
+        ),
+        EOTRow(
+            "date_only_iv_start",
+            TR_TRC1_DT="1900-09-01",
+            TR_TRCYNCD="1",
+        ),
+        # Reason-only (no usable date)
+        EOTRow(
+            "reason_only",
+            EOT_EOTREOT="Other",
+        ),
+        # Whitespace / empty / None reasons
         EOTRow(
             "reason_empty_string",
             EOT_EOTREOT="",
+            EOT_EOTDAT="1900-01-01",
         ),
         EOTRow(
             "reason_whitespace_only",
             EOT_EOTREOT="   ",
-        ),
-        EOTRow(
-            "reason_none",
-            EOT_EOTREOT=None,
-        ),
-        EOTRow(
-            "reason_multi_overwrite",
-            EOT_EOTREOT="Toxicity",
-        ),
-        EOTRow(
-            "reason_multi_overwrite",
-            EOT_EOTREOT="Patient decision",
-        ),
-        EOTRow(
-            "date_valid",
             EOT_EOTDAT="1900-01-01",
         ),
+        # No data at all: filtered out by the processor
+        EOTRow("empty"),
+        # Invalid TR rows (TR_TRCYNCD != 1) don't contribute to date
         EOTRow(
-            "date_empty_string",
-            EOT_EOTDAT="",
-        ),
-        EOTRow(
-            "date_invalid",
-            EOT_EOTDAT="not a date",
-        ),
-        EOTRow("date_none"),
-        EOTRow(
-            "date_multi_overwrite",
-            EOT_EOTDAT="1900-01-01",
-        ),
-        EOTRow(
-            "date_multi_overwrite",
-            EOT_EOTDAT="1901-01-01",
+            "invalid_tr_row_skipped",
+            EOT_EOTREOT="Other",
+            TR_TROSTPDT="1900-01-01",
+            # TR_TRCYNCD missing: not valid
         ),
     ]
 

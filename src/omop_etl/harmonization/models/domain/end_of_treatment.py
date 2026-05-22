@@ -8,22 +8,17 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 class TrialOutcomeStatus(str, Enum):
     """
-    Standardized trial-outcome status, aligned with the OHDSI Clinical
-    Trials WG (trial enrollment and trial outcome).
+    Standardized trial-outcome status.
 
-    - COMPLETED: the patient completed the trial protocol to specification
-      per the trial's own completion definition. For IMPRESS this is the
-      EOT reason "Normal completion according to cohort-specific manual".
+    - COMPLETED: patient completed the trial protocol to specification,
+      per the trial's own completion definition (e.g. for IMPRESS this is the
+      EOT reason "Normal completion according to cohort-specific manual").
     - WITHDRAWN: the patient ended treatment for any other recorded
       reason (e.g. disease progression, adverse event, patient decision,
-      investigator decision, lost to follow-up). The specific
-      reason text is preserved on the singleton's `reason` field and
-      mapped to a value_as_concept_id by the observation builder.
+      investigator decision, lost to follow-up).
 
     Each trial's harmonizer is responsible for deciding which source
     signal (text, source code, or combined logic) maps to which status.
-    The categorization is trial-specific, but the resulting enum value
-    is standardized so the OMOP builder can stay trial-agnostic.
     """
 
     COMPLETED = "completed"

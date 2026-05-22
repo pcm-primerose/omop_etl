@@ -13,6 +13,7 @@ from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -46,14 +47,13 @@ class Patient(TrackedValidated):
         HAS_ANY_ADVERSE_EVENTS = "has_any_adverse_events"
         NUMBER_OF_ADVERSE_EVENTS = "number_of_adverse_events"
         NUMBER_OF_SERIOUS_ADVERSE_EVENTS = "number_of_serious_adverse_events"
-        END_OF_TREATMENT_REASON = "end_of_treatment_reason"
-        END_OF_TREATMENT_DATE = "end_of_treatment_date"
 
     class Singletons:
         TUMOR_TYPE = "tumor_type"
         STUDY_DRUGS = "study_drugs"
         BIOMARKERS = "biomarkers"
         CLINICAL_BENEFIT = "clinical_benefit"
+        END_OF_TREATMENT = "end_of_treatment"
         LOST_TO_FOLLOWUP = "lost_to_followup"
         ECOG_BASELINE = "ecog_baseline"
         TUMOR_ASSESSMENT_BASELINE = "tumor_assessment_baseline"
@@ -86,14 +86,13 @@ class Patient(TrackedValidated):
         self._has_any_adverse_events: bool | None = None
         self._number_of_adverse_events: int | None = None
         self._number_of_serious_adverse_events: int | None = None
-        self._end_of_treatment_reason: str | None = None
-        self._end_of_treatment_date: dt.date | None = None
 
         # singletons
         self._tumor_type: TumorType | None = None
         self._study_drugs: StudyDrugs | None = None
         self._biomarkers: Biomarkers | None = None
         self._clinical_benefit: ClinicalBenefit | None = None
+        self._end_of_treatment: EndOfTreatment | None = None
         self._lost_to_followup: FollowUp | None = None
         self._ecog_baseline: EcogBaseline | None = None
         self._tumor_assessment_baseline: TumorAssessmentBaseline | None = None
@@ -266,30 +265,6 @@ class Patient(TrackedValidated):
             validator=StrictValidators.validate_optional_int,
         )
 
-    @property
-    def end_of_treatment_reason(self) -> str | None:
-        return self._end_of_treatment_reason
-
-    @end_of_treatment_reason.setter
-    def end_of_treatment_reason(self, value: str | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.end_of_treatment_reason,
-            value=value,
-            validator=StrictValidators.validate_optional_str,
-        )
-
-    @property
-    def end_of_treatment_date(self) -> dt.date | None:
-        return self._end_of_treatment_date
-
-    @end_of_treatment_date.setter
-    def end_of_treatment_date(self, value: dt.date | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.end_of_treatment_date,
-            value=value,
-            validator=StrictValidators.validate_optional_date,
-        )
-
     # singletons
     @property
     def tumor_type(self) -> TumorType | None:
@@ -346,6 +321,20 @@ class Patient(TrackedValidated):
             field_name=setter_name(self.__class__.clinical_benefit),
         )
         self.updated_fields.add(ClinicalBenefit.__name__)
+
+    @property
+    def end_of_treatment(self) -> EndOfTreatment | None:
+        return self._end_of_treatment
+
+    @end_of_treatment.setter
+    def end_of_treatment(self, value: EndOfTreatment | None) -> None:
+        self._end_of_treatment = self.validate_singleton(
+            value,
+            item_type=EndOfTreatment,
+            patient_id=self._patient_id,
+            field_name=setter_name(self.__class__.end_of_treatment),
+        )
+        self.updated_fields.add(EndOfTreatment.__name__)
 
     @property
     def lost_to_followup(self) -> FollowUp | None:
@@ -659,14 +648,13 @@ class Patient(TrackedValidated):
             f"number_of_serious_adverse_events={self.number_of_serious_adverse_events}{delim} "
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis}{delim} "
             f"treatment_start_date={self.treatment_start_date}{delim} "
-            f"end_of_treatment_reason={self.end_of_treatment_reason}{delim} "
-            f"end_of_treatment_date={self.end_of_treatment_date}{delim} "
             # singletons
             f"tumor_type={self.tumor_type}{delim} "
             f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
             f"biomarkers={self.biomarkers}{delim} "
             f"ecog={self.ecog_baseline}{delim} "
             f"clinical_benefit={self.clinical_benefit}{delim} "
+            f"end_of_treatment={self.end_of_treatment}{delim} "
             f"lost_to_followup={self.lost_to_followup}{delim} "
             f"best_overall_response={self.best_overall_response}{delim} "
             # collections

@@ -12,6 +12,7 @@ from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -75,6 +76,7 @@ ALL_DOMAIN_CLASSES = [
     ClinicalBenefit,
     ConcomitantMedication,
     EcogBaseline,
+    EndOfTreatment,
     EQ5D,
     FollowUp,
     MedicalHistory,

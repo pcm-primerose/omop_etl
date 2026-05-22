@@ -831,40 +831,6 @@ class TestProcessTreatmentStartDate:
         assert actual == expected
 
 
-class TestProcessEndOfTreatmentDate:
-    def test_returns_expected_columns(self, treatment_stop_fixture):
-        h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
-        df = h._process_end_of_treatment_date()
-        assert df is not None
-
-        assert "SubjectId" in df.columns
-        assert "end_of_treatment_date" in df.columns
-
-    @pytest.mark.parametrize(
-        "sid, expected",
-        [
-            pytest.param("eot_precedence", dt.date(1900, 1, 2), id="EOT date wins over treatment-stop date"),
-            pytest.param("multirow", dt.date(1900, 1, 1), id="picks max date over multiple rows"),
-            pytest.param(
-                "invalid_row_doesnt_count",
-                dt.date(1900, 1, 1),
-                id="invalid row's date ignored even though later",
-            ),
-            pytest.param("empty", None, id="no rows -> filtered"),
-            pytest.param("missing_treatment_empty_str", None, id="empty TR_TROSTPDT -> filtered"),
-            pytest.param("missing_treatment_eot_empty_str", None, id="empty EOT_EOTDAT -> filtered"),
-        ],
-    )
-    def test_end_of_treatment_date_values(self, treatment_stop_fixture, sid, expected):
-        h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
-        df = h._process_end_of_treatment_date()
-        assert df is not None
-
-        row = df.filter(pl.col("SubjectId") == sid)
-        actual = None if row.height == 0 else row.item(0, "end_of_treatment_date")
-        assert actual == expected
-
-
 class TestProcessTreatmentStartLastCycle:
     def test_returns_expected_columns(self, last_treatment_start_fixture):
         h = ImpressHarmonizer(data=last_treatment_start_fixture, trial_id="T")
@@ -1622,43 +1588,118 @@ class TestProcessClinicalBenefit:
         assert actual_date == expected_date
 
 
-class TestProcessEotReason:
-    def test_returns_expected_columns(self, end_of_treatment_reason_fixture):
-        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
-        df = h._process_end_of_treatment_reason()
+class TestProcessEndOfTreatment:
+    def test_returns_expected_columns(self, end_of_treatment_fixture):
+        h = ImpressHarmonizer(data=end_of_treatment_fixture, trial_id="T")
+        df = h._process_end_of_treatment()
         assert df is not None
 
-        assert "SubjectId" in df.columns
-        assert "end_of_treatment_reason" in df.columns
+        assert df.columns == ["SubjectId", "status", "reason", "date"]
 
     @pytest.mark.parametrize(
-        "sid, expected",
+        "sid, expected_status, expected_reason, expected_date",
         [
-            pytest.param("reason_trim", "Progression", id="whitespace trimmed"),
-            pytest.param("reason_empty_string", None, id="empty string -> filtered"),
-            pytest.param("reason_whitespace_only", None, id="whitespace only -> filtered"),
-            pytest.param("reason_none", None, id="None -> filtered"),
+            pytest.param(
+                "completed",
+                "completed",
+                "Normal completion according to cohort-specific manual",
+                dt.date(1900, 6, 30),
+                id="completion text: COMPLETED status",
+            ),
+            pytest.param(
+                "completed_case_insensitive",
+                "completed",
+                "normal completion according to cohort-specific manual",
+                dt.date(1900, 6, 29),
+                id="case-insensitive + whitespace stripped completion",
+            ),
+            pytest.param(
+                "withdrawn_progression",
+                "withdrawn",
+                "Disease progression",
+                dt.date(1900, 5, 15),
+                id="non-completion reason: WITHDRAWN status",
+            ),
+            pytest.param(
+                "withdrawn_toxicity",
+                "withdrawn",
+                "Toxicity",
+                dt.date(1900, 5, 16),
+                id="whitespace stripped on reason",
+            ),
+            pytest.param(
+                "date_precedence_eot",
+                "withdrawn",
+                "Other",
+                dt.date(1900, 1, 2),
+                id="EOT_EOTDAT wins over TR_TROSTPDT",
+            ),
+            pytest.param(
+                "date_only_oral_stop",
+                None,
+                None,
+                dt.date(1900, 8, 1),
+                id="no reason: status=None, oral stop date wins",
+            ),
+            pytest.param(
+                "date_only_iv_start",
+                None,
+                None,
+                dt.date(1900, 9, 1),
+                id="no reason: status=None, IV start date used",
+            ),
+            pytest.param(
+                "reason_only",
+                "withdrawn",
+                "Other",
+                None,
+                id="reason without date: status set, date=None",
+            ),
+            pytest.param(
+                "reason_empty_string",
+                None,
+                None,
+                dt.date(1900, 1, 1),
+                id="empty reason: status=None, date kept",
+            ),
+            pytest.param(
+                "reason_whitespace_only",
+                None,
+                None,
+                dt.date(1900, 1, 1),
+                id="whitespace-only reason: status=None, date kept",
+            ),
+            pytest.param(
+                "empty",
+                None,
+                None,
+                None,
+                id="no data at all: filtered out",
+            ),
+            pytest.param(
+                "invalid_tr_row_skipped",
+                "withdrawn",
+                "Other",
+                None,
+                id="invalid TR row (TRCYNCD missing): date excluded",
+            ),
         ],
     )
-    def test_eot_reason_values(self, end_of_treatment_reason_fixture, sid, expected):
-        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
-        df = h._process_end_of_treatment_reason()
+    def test_end_of_treatment_values(self, end_of_treatment_fixture, sid, expected_status, expected_reason, expected_date):
+        h = ImpressHarmonizer(data=end_of_treatment_fixture, trial_id="T")
+        df = h._process_end_of_treatment()
         assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
-        actual = None if row.height == 0 else row.item(0, "end_of_treatment_reason")
-        assert actual == expected
+        # subjects with no EOT info at all are filtered out
+        if expected_status is None and expected_reason is None and expected_date is None:
+            assert row.height == 0
+            return
 
-    def test_multi_row_subject_keeps_all_rows(self, end_of_treatment_reason_fixture):
-        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
-        df = h._process_end_of_treatment_reason()
-        assert df is not None
-
-        rows = df.filter(pl.col("SubjectId") == "reason_multi_overwrite")
-        assert rows.height == 2
-
-        reasons = rows["end_of_treatment_reason"].to_list()
-        assert reasons == ["Toxicity", "Patient decision"]
+        assert row.height == 1
+        assert row.item(0, "status") == expected_status
+        assert row.item(0, "reason") == expected_reason
+        assert row.item(0, "date") == expected_date
 
 
 class TestImpressSpecContracts:
@@ -1686,9 +1727,8 @@ class TestImpressSpecContracts:
         "treatment_start_last_cycle": "last_treatment_start_fixture",
         "treatment_start_date": "treatment_start_fixture",
         "evaluable_for_efficacy_analysis": "evaluability_fixture",
-        "end_of_treatment_reason": "end_of_treatment_reason_fixture",
-        "end_of_treatment_date": "treatment_stop_fixture",
         # singletons
+        "end_of_treatment": "end_of_treatment_fixture",
         "tumor_type": "tumor_type_fixture",
         "study_drugs": "study_drugs_fixture",
         "biomarkers": "biomarkers_fixture",
@@ -1742,19 +1782,4 @@ class TestImpressSpecContracts:
             f"Spec {spec.name!r} did not populate {target!r} on any patient when "
             f"run on {fixture_name}. Either the processor produced empty output "
             f"for this fixture, or the spec is wired to the wrong target."
-        )
-
-    def test_eot_reason_uses_on_duplicate_last(self):
-        """
-        eot_reason is the only impress scalar with a non-default `on_duplicate`,
-        since the scalar can have colissions across multiple sheets,
-        source rows for the same subject are emitted in order where the last one wins.
-        """
-        spec = next((s for s in ImpressHarmonizer.SPECS if s.name == "end_of_treatment_reason"), None)
-        assert spec is not None, "end_of_treatment_reason spec missing from ImpressHarmonizer.SPECS"
-        assert isinstance(spec, ScalarSpec)
-        assert spec.on_duplicate == "last", (
-            f"eot_reason must use on_duplicate='last' (got {spec.on_duplicate!r}). "
-            "If this is intentionally changing, update: "
-            "TestProcessEotReason::test_multi_row_subject_keeps_all_rows too."
         )

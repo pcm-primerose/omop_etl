@@ -11,6 +11,7 @@ from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment, TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -233,18 +234,6 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return benefit
 
-    @scalar(on_duplicate="last")
-    def _process_end_of_treatment_reason(self) -> pl.DataFrame | None:
-        colname = Patient.Scalars.END_OF_TREATMENT_REASON
-        end_of_treatment_reason = (
-            self.data.select("SubjectId", "EOT_EOTREOT")
-            .with_columns(
-                PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars().alias(colname),
-            )
-            .filter(pl.col("end_of_treatment_reason").is_not_null())
-        )
-        return end_of_treatment_reason
-
     @scalar()
     def _process_evaluable_for_efficacy_analysis(self) -> pl.DataFrame | None:
         """
@@ -354,50 +343,74 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return treatment_start_data
 
-    @scalar()
-    def _process_end_of_treatment_date(self) -> pl.DataFrame | None:
-        colname = Patient.Scalars.END_OF_TREATMENT_DATE
-        treatment_stop_data = (
+    @singleton(EndOfTreatment)
+    def _process_end_of_treatment(self) -> pl.DataFrame:
+        """
+        Build the EndOfTreatment singleton per patient.
+
+        Status (TrialOutcomeStatus enum):
+        - COMPLETED when the EOT reason text matches IMPRESS's
+          completion signal: "Normal completion according to
+          cohort-specific manual" (case-insensitive, whitespace-stripped).
+        - WITHDRAWN when any other non-empty reason is present.
+        - None when no EOT reason is recorded.
+
+        Reason: raw text from EOT_EOTREOT (whitespace-stripped).
+
+        Date precedence:
+        EOT_EOTDAT > latest valid TR_TROSTPDT (oral stop) > latest valid
+        TR_TRC1_DT (IV start). A row is emitted as long as a date OR a
+        reason is present: the singleton may have date=None when only a
+        reason exists, or status=None when only a date is inferred from
+        treatment cycles.
+        """
+        cols = EndOfTreatment.Fields
+        completion_text = "normal completion according to cohort-specific manual"
+
+        eot = (
             self.data.select(
                 "SubjectId",
+                "EOT_EOTREOT",
                 "TR_TRCYNCD",
                 "TR_TROSTPDT",
                 "TR_TRC1_DT",
                 "EOT_EOTDAT",
             )
             .with_columns(
+                row_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
                 valid=PolarsParsers.to_optional_int64(pl.col("TR_TRCYNCD")).eq(1),
                 eot_date=PolarsParsers.to_optional_date(pl.col("EOT_EOTDAT").cast(pl.Utf8)),
                 oral_stop=PolarsParsers.to_optional_date(pl.col("TR_TROSTPDT").cast(pl.Utf8)),
                 iv_start=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT").cast(pl.Utf8)),
             )
-            # only valid TR rows for oral/IV
             .with_columns(
                 oral_stop_valid=pl.when(pl.col("valid")).then(pl.col("oral_stop")).otherwise(None),
                 iv_start_valid=pl.when(pl.col("valid")).then(pl.col("iv_start")).otherwise(None),
             )
             .group_by("SubjectId")
             .agg(
+                # last non-null reason per patient
+                reason=pl.col("row_reason").drop_nulls().last(),
                 last_eot=pl.col("eot_date").max(),
                 last_oral=pl.col("oral_stop_valid").max(),
                 last_iv=pl.col("iv_start_valid").max(),
             )
             .with_columns(
-                # precedence: EOT > oral > IV
-                pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]).alias(colname),
-                treatment_end_source=(
-                    pl.when(pl.col("last_eot").is_not_null())
-                    .then(pl.lit("EOT"))
-                    .when(pl.col("last_oral").is_not_null())
-                    .then(pl.lit("ORAL_STOP"))
-                    .when(pl.col("last_iv").is_not_null())
-                    .then(pl.lit("IV_START"))
-                    .otherwise(pl.lit(None))
-                ),
+                pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]).alias(cols.DATE),
+                pl.when(pl.col("reason").is_null())
+                .then(pl.lit(None, dtype=pl.Utf8))
+                .when(pl.col("reason").str.to_lowercase() == completion_text)
+                .then(pl.lit(TrialOutcomeStatus.COMPLETED.value))
+                .otherwise(pl.lit(TrialOutcomeStatus.WITHDRAWN.value))
+                .alias(cols.STATUS),
             )
+            .rename({"reason": cols.REASON})
+            # skip patients with no EOT info: neither reason nor any date
+            .filter(pl.col(cols.REASON).is_not_null() | pl.col(cols.DATE).is_not_null())
+            .select("SubjectId", cols.STATUS, cols.REASON, cols.DATE)
         )
 
-        return treatment_stop_data
+        return eot
 
     @scalar()
     def _process_treatment_start_last_cycle(self) -> pl.DataFrame | None:
