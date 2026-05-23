@@ -66,6 +66,11 @@ adverse_event_outcome,Not recovered/not resolved,1074284,1339036001,Persistent a
 adverse_event_outcome,Recovered/resolved,1447896,1352007006,Complete recovery from adverse event,Clinical Finding,Standard,Valid,Observation,SNOMED
 adverse_event_outcome,Recovered/resolved with sequelae,1074130,1335890004,Recovered from adverse event with sequelae,Clinical Finding,Standard,Valid,Observation,SNOMED
 adverse_event_outcome,Fatal,4236718,405535005,Adverse incident resulting in death,Clinical Finding,Standard,Valid,Observation,SNOMED
+expectedness,true,1472143,LA34756-9,Expected,Answer,Standard,Valid,Meas Value,LOINC
+expectedness,false,1472269,LA34757-7,Not Expected,Answer,Standard,Valid,Meas Value,LOINC
+relatedness,related,36032695,LA31343-9,Related,Answer,Standard,Valid,Meas Value,LOINC
+relatedness,not_related,1094365,LA34422-8,Not related,Answer,Standard,Valid,Meas Value,LOINC
+relatedness,unknown,45877986,LA4489-6,Unknown,Answer,Standard,Valid,Meas Value,LOINC
 c30_answer,Not at all,45883172,LA6568-5,Not at all,Answer,Standard,Valid,Meas Value,LOINC
 c30_answer,A little,45876949,LA13940-4,A little,Answer,Standard,Valid,Meas Value,LOINC
 c30_answer,Quite a bit,45884456,LA13902-4,Quite a bit,Answer,Standard,Valid,Meas Value,LOINC

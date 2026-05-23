@@ -3,7 +3,7 @@ import logging
 import pytest
 
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent, RelatedStatus
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment, TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.followup import FollowUp
@@ -403,9 +403,9 @@ LOST_TO_FU_REASON_CID = 44811247
 class TestLostToFollowup:
     """
     Clinical-trials CDM shape (Topic 1 / item 5 of the delta):
-    observation_concept_id is `patient_withdrawn` → "Patient withdrawn
+    observation_concept_id is `patient_withdrawn`: "Patient withdrawn
     from trial" (4087907), value_as_concept_id is the withdrawal reason
-    `lost_to_followup,True` → "Lost to clinical trial follow-up"
+    `lost_to_followup,True`: "Lost to clinical trial follow-up"
     (44811247). Only emitted when lost_to_followup is True.
     """
 
@@ -749,6 +749,334 @@ class TestAdverseEventTurnedSerious:
         rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
         assert rows == []
+
+
+# CTCAE grade-N precoordinated severity concepts (Standard, SNOMED).
+GRADE_1_CID = 763790
+GRADE_2_CID = 765927
+GRADE_3_CID = 763791
+GRADE_4_CID = 765765
+GRADE_5_CID = 765766
+# Relatedness Meas Value Answer concepts (LOINC).
+RELATED_CID = 36032695
+NOT_RELATED_CID = 1094365
+UNKNOWN_REL_CID = 45877986
+# Expectedness Meas Value Answer concepts (LOINC).
+EXPECTED_CID = 1472143
+NOT_EXPECTED_CID = 1472269
+
+
+def _with_ae_severity(static_index: dict) -> dict:
+    """`adverse_event_code` static rows: grade 1..5: precoordinated CTCAE concepts."""
+    for grade, cid in ((1, GRADE_1_CID), (2, GRADE_2_CID), (3, GRADE_3_CID), (4, GRADE_4_CID), (5, GRADE_5_CID)):
+        static_index[("adverse_event_code", str(grade))] = _static("adverse_event_code", str(grade), cid, "observation")
+    return static_index
+
+
+def _with_relatedness(static_index: dict) -> dict:
+    static_index[("relatedness", "related")] = _static("relatedness", "related", RELATED_CID, "meas value")
+    static_index[("relatedness", "not_related")] = _static("relatedness", "not_related", NOT_RELATED_CID, "meas value")
+    static_index[("relatedness", "unknown")] = _static("relatedness", "unknown", UNKNOWN_REL_CID, "meas value")
+    return static_index
+
+
+def _with_expectedness(static_index: dict) -> dict:
+    static_index[("expectedness", "true")] = _static("expectedness", "true", EXPECTED_CID, "meas value")
+    static_index[("expectedness", "false")] = _static("expectedness", "false", NOT_EXPECTED_CID, "meas value")
+    return static_index
+
+
+class TestAdverseEventSeverity:
+    """
+    CTCAE severity modifier: observation_concept_id is the
+    precoordinated grade-N concept (from `adverse_event_code` static
+    lookup), value_as_concept_id is None, value_source_value is the
+    grade integer as string. FK-linked to the AE's condition_occurrence row.
+    """
+
+    @staticmethod
+    def _make_patient(grade: int | None, sequence_id: int | None = 42) -> Patient:
+        patient = create_patient(PID, TRIAL)
+        ae = AdverseEvent(patient_id=PID)
+        ae.term = "Fever"
+        ae.start_date = dt.date(2023, 5, 1)
+        ae.grade = grade
+        ae.sequence_id = sequence_id
+        patient.adverse_events = [ae]
+        return patient
+
+    def test_emits_row_for_grade(self, static_index, structural_index):
+        _with_ae_severity(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(grade=3)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 777
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        severity_rows = [r for r in rows if r.observation_source_value == "severity"]
+        assert len(severity_rows) == 1
+        row = severity_rows[0]
+        assert row.observation_concept_id == GRADE_3_CID
+        assert row.observation_date == dt.date(2023, 5, 1)
+        assert row.value_as_concept_id is None
+        assert row.value_source_value == "3"
+        assert row.observation_event_id == 777
+        assert row.obs_event_field_concept_id == CDM_FIELD_CID
+
+    def test_skipped_when_grade_is_none(self, static_index, structural_index):
+        _with_ae_severity(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(grade=None)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert all(r.observation_source_value != "severity" for r in rows)
+
+    def test_falls_back_to_zero_when_grade_unmapped(self, static_index, structural_index):
+        """No adverse_event_code static entry: concept_id=0, row still emits."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(grade=3)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        severity_rows = [r for r in rows if r.observation_source_value == "severity"]
+        assert len(severity_rows) == 1
+        assert severity_rows[0].observation_concept_id == 0
+        assert severity_rows[0].value_source_value == "3"
+
+
+class TestAdverseEventRelatedness:
+    """
+    One observation row per non-None
+    related_to_treatment_<N>_status. observation_concept_id=0,
+    value_as_concept_id = mapped relatedness concept,
+    qualifier_source_value = treatment_<N>_name. FK-linked.
+    """
+
+    @staticmethod
+    def _make_patient(
+        *,
+        status_1: RelatedStatus | None = None,
+        status_2: RelatedStatus | None = None,
+        name_1: str | None = "Vemurafenib",
+        name_2: str | None = None,
+        sequence_id: int = 42,
+    ) -> Patient:
+        patient = create_patient(PID, TRIAL)
+        ae = AdverseEvent(patient_id=PID)
+        ae.term = "Fever"
+        ae.start_date = dt.date(2023, 5, 1)
+        ae.related_to_treatment_1_status = status_1
+        ae.related_to_treatment_2_status = status_2
+        ae.treatment_1_name = name_1
+        ae.treatment_2_name = name_2
+        ae.sequence_id = sequence_id
+        patient.adverse_events = [ae]
+        return patient
+
+    def test_emits_one_row_per_set_treatment_status(self, static_index, structural_index):
+        _with_relatedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(
+            status_1=RelatedStatus.RELATED,
+            status_2=RelatedStatus.NOT_RELATED,
+            name_1="Vemurafenib",
+            name_2="Cobimetinib",
+        )
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        rel_rows = [r for r in rows if r.observation_source_value and r.observation_source_value.startswith("related_to_treatment_")]
+        assert len(rel_rows) == 2
+        by_field = {r.observation_source_value: r for r in rel_rows}
+        assert by_field["related_to_treatment_1"].value_as_concept_id == RELATED_CID
+        assert by_field["related_to_treatment_1"].value_source_value == "related"
+        assert by_field["related_to_treatment_1"].qualifier_source_value == "Vemurafenib"
+        assert by_field["related_to_treatment_1"].observation_event_id == 555
+        assert by_field["related_to_treatment_1"].obs_event_field_concept_id == CDM_FIELD_CID
+        assert by_field["related_to_treatment_2"].value_as_concept_id == NOT_RELATED_CID
+        assert by_field["related_to_treatment_2"].value_source_value == "not_related"
+        assert by_field["related_to_treatment_2"].qualifier_source_value == "Cobimetinib"
+
+    def test_unknown_status_maps_to_unknown_concept(self, static_index, structural_index):
+        _with_relatedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(status_1=RelatedStatus.UNKNOWN)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        rel_rows = [r for r in rows if r.observation_source_value == "related_to_treatment_1"]
+        assert len(rel_rows) == 1
+        assert rel_rows[0].value_as_concept_id == UNKNOWN_REL_CID
+        assert rel_rows[0].value_source_value == "unknown"
+
+    def test_none_status_emits_no_row(self, static_index, structural_index):
+        _with_relatedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(status_1=None, status_2=None)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert all(not (r.observation_source_value or "").startswith("related_to_treatment_") for r in rows)
+
+    def test_one_set_one_none(self, static_index, structural_index):
+        _with_relatedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(status_1=RelatedStatus.RELATED, status_2=None)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        rel_rows = [r for r in rows if (r.observation_source_value or "").startswith("related_to_treatment_")]
+        assert len(rel_rows) == 1
+        assert rel_rows[0].observation_source_value == "related_to_treatment_1"
+
+    def test_value_concept_falls_back_to_zero_when_unmapped(self, static_index, structural_index):
+        """No relatedness static lookup: value_as_concept_id=0, row still emits."""
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(status_1=RelatedStatus.RELATED)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        rel_rows = [r for r in rows if r.observation_source_value == "related_to_treatment_1"]
+        assert len(rel_rows) == 1
+        assert rel_rows[0].value_as_concept_id == 0
+        assert rel_rows[0].value_source_value == "related"
+
+    def test_treatment_name_none_yields_null_qualifier(self, static_index, structural_index):
+        _with_relatedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(status_1=RelatedStatus.RELATED, name_1=None)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        rel_rows = [r for r in rows if r.observation_source_value == "related_to_treatment_1"]
+        assert len(rel_rows) == 1
+        assert rel_rows[0].qualifier_source_value is None
+
+
+class TestAdverseEventExpectedness:
+    """
+    One observation row per non-None
+    was_serious_grade_expected_treatment_<N>. Uses LOINC Expected /
+    Not Expected concepts in value_as_concept_id. FK-linked.
+    """
+
+    @staticmethod
+    def _make_patient(
+        *,
+        expected_1: bool | None = None,
+        expected_2: bool | None = None,
+        name_1: str | None = "Vemurafenib",
+        name_2: str | None = None,
+        sequence_id: int = 42,
+    ) -> Patient:
+        patient = create_patient(PID, TRIAL)
+        ae = AdverseEvent(patient_id=PID)
+        ae.term = "Fever"
+        ae.start_date = dt.date(2023, 5, 1)
+        ae.was_serious_grade_expected_treatment_1 = expected_1
+        ae.was_serious_grade_expected_treatment_2 = expected_2
+        ae.treatment_1_name = name_1
+        ae.treatment_2_name = name_2
+        ae.sequence_id = sequence_id
+        patient.adverse_events = [ae]
+        return patient
+
+    def test_true_maps_to_expected_concept(self, static_index, structural_index):
+        _with_expectedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(expected_1=True)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        exp_rows = [r for r in rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
+        assert len(exp_rows) == 1
+        row = exp_rows[0]
+        assert row.observation_concept_id == 0
+        assert row.value_as_concept_id == EXPECTED_CID
+        assert row.value_source_value == "true"
+        assert row.qualifier_source_value == "Vemurafenib"
+        assert row.observation_event_id == 555
+        assert row.obs_event_field_concept_id == CDM_FIELD_CID
+
+    def test_false_maps_to_not_expected_concept(self, static_index, structural_index):
+        _with_expectedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(expected_1=False)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        exp_rows = [r for r in rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
+        assert len(exp_rows) == 1
+        assert exp_rows[0].value_as_concept_id == NOT_EXPECTED_CID
+        assert exp_rows[0].value_source_value == "false"
+
+    def test_both_treatments_emit_two_rows(self, static_index, structural_index):
+        _with_expectedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(expected_1=True, expected_2=False, name_1="Vemurafenib", name_2="Cobimetinib")
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        exp_rows = [r for r in rows if (r.observation_source_value or "").startswith("was_serious_grade_expected_treatment_")]
+        assert len(exp_rows) == 2
+        by_field = {r.observation_source_value: r for r in exp_rows}
+        assert by_field["was_serious_grade_expected_treatment_1"].value_as_concept_id == EXPECTED_CID
+        assert by_field["was_serious_grade_expected_treatment_1"].qualifier_source_value == "Vemurafenib"
+        assert by_field["was_serious_grade_expected_treatment_2"].value_as_concept_id == NOT_EXPECTED_CID
+        assert by_field["was_serious_grade_expected_treatment_2"].qualifier_source_value == "Cobimetinib"
+
+    def test_none_emits_no_row(self, static_index, structural_index):
+        _with_expectedness(static_index)
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(expected_1=None, expected_2=None)
+
+        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert all(not (r.observation_source_value or "").startswith("was_serious_grade_expected_treatment_") for r in rows)
+
+    def test_value_concept_falls_back_to_zero_when_unmapped(self, static_index, structural_index):
+        """No expectedness static: value_as_concept_id=0, row still emits."""
+        _with_cdm_field(static_index)
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = self._make_patient(expected_1=True)
+        ctx = create_build_context(patient, PERSON_ID)
+        ctx.condition_id_by_ae_sequence_id[42] = 555
+
+        rows = ObservationBuilder(concepts).build(ctx)
+
+        exp_rows = [r for r in rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
+        assert len(exp_rows) == 1
+        assert exp_rows[0].value_as_concept_id == 0
+        assert exp_rows[0].value_source_value == "true"
 
 
 class TestCombinedSources:

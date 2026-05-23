@@ -73,6 +73,9 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             rows.extend(self._build_ae_outcome(patient, person_id, observation_type_concept_id, ae, idx, ctx))
             rows.extend(self._build_ae_was_serious(patient, person_id, observation_type_concept_id, ae, idx, ctx))
             rows.extend(self._build_ae_turned_serious(patient, person_id, observation_type_concept_id, ae, idx, ctx))
+            rows.extend(self._build_ae_severity(patient, person_id, observation_type_concept_id, ae, idx, ctx))
+            rows.extend(self._build_ae_relatedness(patient, person_id, observation_type_concept_id, ae, idx, ctx))
+            rows.extend(self._build_ae_expected(patient, person_id, observation_type_concept_id, ae, idx, ctx))
 
         return rows
 
@@ -478,6 +481,188 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 obs_event_field_concept_id=field_concept_id,
             )
         ]
+
+    def _build_ae_severity(
+        self,
+        patient: Patient,
+        person_id: int,
+        observation_type_concept_id: int,
+        ae: AdverseEvent,
+        index: int,
+        ctx: BuildContext,
+    ) -> list[ObservationRow]:
+        """
+        CTCAE severity modifier observation. The grade-N concepts in the
+        `adverse_event_code` static lookup are precoordinated severity
+        concepts (CTCAE grade 1 = Mild, ..., 5 = Death). Yhey encode
+        both topic and severity level. Use directly as
+        `observation_concept_id`, `value_as_concept_id` stays None.
+
+        FK-linked to the AE's condition_occurrence row (the one emitted
+        by ConditionOccurrenceBuilder._build_adverse_event_rows for the
+        same AE.sequence_id).
+
+        Skipped when grade or start_date is None.
+        """
+        grade = ae.grade
+        if grade is None:
+            return []
+        date = ae.start_date
+        if date is None:
+            log.warning("Skipping AE %d severity for %s: missing start_date", index, patient.patient_id)
+            return []
+
+        topic = self.concepts.lookup_static("adverse_event_code", str(grade))
+        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
+
+        return [
+            ObservationRow(
+                observation_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Collections.ADVERSE_EVENTS,
+                    *ae.natural_key(),
+                    AdverseEvent.Fields.GRADE,
+                ),
+                person_id=person_id,
+                observation_concept_id=topic.concept_id if topic else 0,
+                observation_date=date,
+                observation_type_concept_id=observation_type_concept_id,
+                value_as_concept_id=None,
+                observation_source_value="severity",
+                observation_source_concept_id=0,
+                value_source_value=str(grade),
+                observation_event_id=event_id,
+                obs_event_field_concept_id=field_concept_id,
+            )
+        ]
+
+    def _build_ae_relatedness(
+        self,
+        patient: Patient,
+        person_id: int,
+        observation_type_concept_id: int,
+        ae: AdverseEvent,
+        index: int,
+        ctx: BuildContext,
+    ) -> list[ObservationRow]:
+        """
+        Per-treatment relatedness modifier observation. Emits 0–2 rows
+        per AE, one per non-None `related_to_treatment_<N>_status`.
+
+        observation_concept_id = 0 (no Standard topic concept for
+        drug-causality assessment in current vocab). Field name
+        ("related_to_treatment_1" / "_2") in `observation_source_value`,
+        mapped relatedness concept (Related / Not related / Unknown)
+        in `value_as_concept_id`, enum value in `value_source_value`,
+        and the corresponding `treatment_<N>_name` drug string in
+        `qualifier_source_value` for context.
+
+        FK-linked to the AE's condition_occurrence row. Whole method
+        skipped when start_date is None; per-treatment row skipped when
+        status is None.
+        """
+        date = ae.start_date
+        if date is None:
+            return []
+
+        pairs = (
+            (1, ae.related_to_treatment_1_status, ae.treatment_1_name),
+            (2, ae.related_to_treatment_2_status, ae.treatment_2_name),
+        )
+        rows: list[ObservationRow] = []
+        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
+
+        for treatment_num, status, treatment_name in pairs:
+            if status is None:
+                continue
+            status_value = status.value
+            field_name = f"related_to_treatment_{treatment_num}"
+            concept = self.concepts.lookup_static("relatedness", status_value)
+            rows.append(
+                ObservationRow(
+                    observation_id=self.generate_row_id(
+                        patient.patient_id,
+                        Patient.Collections.ADVERSE_EVENTS,
+                        *ae.natural_key(),
+                        field_name,
+                    ),
+                    person_id=person_id,
+                    observation_concept_id=0,
+                    observation_date=date,
+                    observation_type_concept_id=observation_type_concept_id,
+                    value_as_concept_id=concept.concept_id if concept else 0,
+                    observation_source_value=field_name,
+                    observation_source_concept_id=0,
+                    value_source_value=status_value,
+                    qualifier_source_value=treatment_name[:50] if treatment_name else None,
+                    observation_event_id=event_id,
+                    obs_event_field_concept_id=field_concept_id,
+                )
+            )
+        return rows
+
+    def _build_ae_expected(
+        self,
+        patient: Patient,
+        person_id: int,
+        observation_type_concept_id: int,
+        ae: AdverseEvent,
+        index: int,
+        ctx: BuildContext,
+    ) -> list[ObservationRow]:
+        """
+        Per-treatment expectedness modifier observation. Emits 0–2 rows
+        per AE, one per non-None `was_serious_grade_expected_treatment_<N>`.
+        Uses the LOINC Expected (1472143) / Not Expected (1472269) Meas Value
+        concepts via `expectedness` static lookup.
+
+        observation_concept_id = 0. Field name in
+        `observation_source_value`, mapped Expected/Not-Expected
+        concept in `value_as_concept_id`, boolean literal in
+        `value_source_value`, treatment drug name in
+        `qualifier_source_value`.
+
+        FK-linked to the AE's condition_occurrence row.
+        """
+        date = ae.start_date
+        if date is None:
+            return []
+
+        pairs = (
+            (1, ae.was_serious_grade_expected_treatment_1, ae.treatment_1_name),
+            (2, ae.was_serious_grade_expected_treatment_2, ae.treatment_2_name),
+        )
+        rows: list[ObservationRow] = []
+        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
+
+        for treatment_num, expected, treatment_name in pairs:
+            if expected is None:
+                continue
+            field_name = f"was_serious_grade_expected_treatment_{treatment_num}"
+            value_literal = str(expected).lower()
+            concept = self.concepts.lookup_static("expectedness", value_literal)
+            rows.append(
+                ObservationRow(
+                    observation_id=self.generate_row_id(
+                        patient.patient_id,
+                        Patient.Collections.ADVERSE_EVENTS,
+                        *ae.natural_key(),
+                        field_name,
+                    ),
+                    person_id=person_id,
+                    observation_concept_id=0,
+                    observation_date=date,
+                    observation_type_concept_id=observation_type_concept_id,
+                    value_as_concept_id=concept.concept_id if concept else 0,
+                    observation_source_value=field_name,
+                    observation_source_concept_id=0,
+                    value_source_value=value_literal,
+                    qualifier_source_value=treatment_name[:50] if treatment_name else None,
+                    observation_event_id=event_id,
+                    obs_event_field_concept_id=field_concept_id,
+                )
+            )
+        return rows
 
     def _ae_fk(
         self,
