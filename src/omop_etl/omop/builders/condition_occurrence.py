@@ -8,6 +8,7 @@ from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import ConditionOccurrenceRow
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
@@ -21,7 +22,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
     No rows emitted for unmapped source values.
     """
 
-    table_name: ClassVar[str] = "condition_occurrence"
+    table_name: ClassVar[str] = OmopTables.CONDITION_OCCURRENCE
 
     def __init__(self, concepts: ConceptLookupService):
         super().__init__(concepts)

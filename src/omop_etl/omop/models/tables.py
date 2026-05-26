@@ -1,10 +1,11 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from omop_etl.omop.models.rows import (
     PersonRow,
     ObservationPeriodRow,
+    ObservationRow,
     CdmSourceRow,
     VisitOccurrenceRow,
     DrugExposureRow,
@@ -28,10 +29,29 @@ class OmopTables:
     Rows with duplicate natural keys are logged and skipped.
 
     A field of a given row used to build tables is considered required if not optional.
+
+    Class-level constants (CDM_SOURCE, PERSON, ...) are the canonical OMOP
+    table names used by builders' `table_name` class var, by `OmopRowRef.table`,
+    and by `BuildContext.publish_rows / resolve_rows` calls.
     """
+
+    CDM_SOURCE: ClassVar[str] = "cdm_source"
+    CONDITION_OCCURRENCE: ClassVar[str] = "condition_occurrence"
+    DRUG_EXPOSURE: ClassVar[str] = "drug_exposure"
+    MEASUREMENT: ClassVar[str] = "measurement"
+    OBSERVATION: ClassVar[str] = "observation"
+    OBSERVATION_PERIOD: ClassVar[str] = "observation_period"
+    PERSON: ClassVar[str] = "person"
+    PROCEDURE_OCCURRENCE: ClassVar[str] = "procedure_occurrence"
+    VISIT_OCCURRENCE: ClassVar[str] = "visit_occurrence"
 
     _tables: dict[str, list[Any]] = field(default_factory=dict)
     _seen_keys: dict[str, set[tuple]] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def values(cls) -> set[str]:
+        """Set of all known OMOP table-name constants."""
+        return {v for k, v in vars(cls).items() if not k.startswith("_") and isinstance(v, str)}
 
     def extend(self, table_name: str, rows: list[Any]) -> None:
         """Extend a table with multiple rows, deduplicating by natural key."""
@@ -90,33 +110,37 @@ class OmopTables:
 
     @property
     def person(self) -> list[PersonRow]:
-        return self._tables.get("person", [])
+        return self._tables.get(self.PERSON, [])
 
     @property
     def observation_period(self) -> list[ObservationPeriodRow]:
-        return self._tables.get("observation_period", [])
+        return self._tables.get(self.OBSERVATION_PERIOD, [])
 
     @property
     def cdm_source(self) -> CdmSourceRow | None:
-        rows = self._tables.get("cdm_source", [])
+        rows = self._tables.get(self.CDM_SOURCE, [])
         return rows[0] if rows else None
 
     @property
     def visit_occurrence(self) -> list[VisitOccurrenceRow]:
-        return self._tables.get("visit_occurrence", [])
+        return self._tables.get(self.VISIT_OCCURRENCE, [])
 
     @property
     def drug_exposure(self) -> list[DrugExposureRow]:
-        return self._tables.get("drug_exposure", [])
+        return self._tables.get(self.DRUG_EXPOSURE, [])
 
     @property
     def condition_occurrence(self) -> list[ConditionOccurrenceRow]:
-        return self._tables.get("condition_occurrence", [])
+        return self._tables.get(self.CONDITION_OCCURRENCE, [])
 
     @property
     def procedure_occurrence(self) -> list[ProcedureOccurrenceRow]:
-        return self._tables.get("procedure_occurrence", [])
+        return self._tables.get(self.PROCEDURE_OCCURRENCE, [])
 
     @property
     def measurement(self) -> list[MeasurementRow]:
-        return self._tables.get("measurement", [])
+        return self._tables.get(self.MEASUREMENT, [])
+
+    @property
+    def observation(self) -> list[ObservationRow]:
+        return self._tables.get(self.OBSERVATION, [])
