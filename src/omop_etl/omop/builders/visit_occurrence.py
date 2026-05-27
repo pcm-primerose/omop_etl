@@ -5,16 +5,18 @@ from logging import getLogger
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
+from omop_etl.omop.models.rows import VisitOccurrenceRow
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.omop.builders.base import (
     BuildContext,
     BuildResult,
     OmopBuilder,
-    OmopRowReference,
+)
+from omop_etl.omop.core.linkage import (
     RowPublication,
     visit_source_ref,
+    OmopRowReference,
 )
-from omop_etl.omop.models.rows import VisitOccurrenceRow
-from omop_etl.omop.models.tables import OmopTables
 
 log = getLogger(__name__)
 

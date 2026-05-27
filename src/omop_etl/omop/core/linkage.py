@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Final, TypeVar, Hashable, Generic
+from typing import TypeVar, Hashable, Generic
 import datetime as dt
 
 from omop_etl.harmonization.models.patient import Patient
@@ -73,20 +73,14 @@ class OmopRowReference:
 @dataclass(frozen=True, slots=True)
 class LinkTarget:
     """
-    Resolved FK target for OMOP event-link columns.
+    Resolved target for OMOP event-link columns.
 
-    `event_id` is the target row's primary key, and `field_concept_id`
-    identifies which CDM field it points to, e.g.
-    condition_occurrence.condition_occurrence_id.
-    Both are `None` for an intentionally unlinked row.
+    Represents a real published OMOP row that can be referenced by a consumer
+    row's event-link fields.
     """
 
-    event_id: int | None
-    field_concept_id: int | None
-
-    def __post_init__(self) -> None:
-        if (self.event_id is None) != (self.field_concept_id is None):
-            raise ValueError("LinkTarget must be either fully linked (event_id and field_concept_id set) or fully unlinked (both None)")
+    event_id: int
+    field_concept_id: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,10 +122,3 @@ def visit_source_ref(patient_id: str, date: dt.date) -> SourceReference:
     """SourceReference for the visit-occurrence-by-date anchor."""
     # TODO: remove once visits are modeled as a Patient attribute.
     return SourceReference(patient_id, SourceAnchors.VISIT_DATE, (date,))
-
-
-# builders resolve:
-# targets = self._resolve_link_targets(...) or UNLINKED_TARGETS
-type LinkTargets = tuple[LinkTarget, ...]
-
-UNLINKED_TARGETS: Final[LinkTargets] = (LinkTarget(event_id=None, field_concept_id=None),)

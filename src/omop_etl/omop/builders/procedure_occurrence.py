@@ -4,10 +4,14 @@ from logging import getLogger
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
 from omop_etl.omop.models.rows import ProcedureOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
+from omop_etl.omop.builders.base import (
+    BuildContext,
+    BuildResult,
+    OmopBuilder,
+)
 
 log = getLogger(__name__)
 

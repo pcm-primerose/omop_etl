@@ -5,17 +5,19 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.omop.models.rows import ConditionOccurrenceRow
+from omop_etl.omop.models.tables import OmopTables
+from omop_etl.semantic_mapping.core.models import OmopDomain
 from omop_etl.omop.builders.base import (
     BuildContext,
     BuildResult,
     OmopBuilder,
-    OmopRowReference,
-    RowPublication,
     SourceReference,
 )
-from omop_etl.omop.models.rows import ConditionOccurrenceRow
-from omop_etl.omop.models.tables import OmopTables
-from omop_etl.semantic_mapping.core.models import OmopDomain
+from omop_etl.omop.core.linkage import (
+    RowPublication,
+    OmopRowReference,
+)
 
 log = getLogger(__name__)
 

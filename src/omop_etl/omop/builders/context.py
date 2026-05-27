@@ -3,12 +3,14 @@ from typing import Sequence
 import datetime as dt
 
 from omop_etl.harmonization.models.patient import Patient
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.omop.builders.base import (
-    OmopRowReference,
     SourceReference,
+)
+from omop_etl.omop.core.linkage import (
+    OmopRowReference,
     visit_source_ref,
 )
-from omop_etl.omop.models.tables import OmopTables
 
 
 @dataclass

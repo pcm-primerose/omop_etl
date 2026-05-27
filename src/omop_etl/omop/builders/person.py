@@ -1,9 +1,13 @@
 import datetime as dt
 from typing import ClassVar
 
-from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
 from omop_etl.omop.models.rows import PersonRow
 from omop_etl.omop.models.tables import OmopTables
+from omop_etl.omop.builders.base import (
+    BuildContext,
+    BuildResult,
+    OmopBuilder,
+)
 
 
 class PersonBuilder(OmopBuilder[PersonRow]):

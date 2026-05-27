@@ -11,6 +11,7 @@ from omop_etl.omop.core.id_generator import (
 from omop_etl.omop.core.linkage import (
     BuildResult,
     SourceReference,
+    LinkTarget,
 )
 
 T = TypeVar("T")
@@ -47,6 +48,7 @@ class OmopBuilder(ABC, Generic[T]):
         result = self.build(ctx)
         for pub in result.publications:
             ctx.publish_rows(pub.target_table, pub.source_ref, pub.rows)
+
         return result.rows
 
     def generate_row_id(self, patient_id: str, *key_parts) -> int:
@@ -58,11 +60,13 @@ class OmopBuilder(ABC, Generic[T]):
         None-drop collisions.
         """
         namespace = self.id_namespace or self.table_name
+
         payload = json.dumps(
             [patient_id, *(normalize_row_id_part(p) for p in key_parts)],
             ensure_ascii=False,
             separators=(",", ":"),
         )
+
         return sha1_bigint(namespace, payload)
 
     def _resolve_link_targets(
@@ -72,34 +76,37 @@ class OmopBuilder(ABC, Generic[T]):
         target_table: str,
         source_ref: SourceReference,
         cdm_field_local: str | None = None,
-    ) -> tuple[tuple[int, int], ...]:
+    ) -> tuple[LinkTarget, ...]:
         """Resolve `(target_row_id, cdm_field_concept_id)` pairs for FK linkage
         from rows previously published under `source_ref` in `target_table`.
         Returns `()` if nothing was published.
 
-        Each pair maps 1:1 to the FK columns on the consumer row (e.g.
-        `observation_event_id` + `obs_event_field_concept_id`). The number
-        of pairs is the number of consumer rows that should be emitted per
-        source fact (1:N expansion).
-
         `cdm_field_local` defaults to the OMOP-convention PK column,
-        `f"{target_table}.{target_table}_id"`, which is the right value for
-        linking to a published row's primary key. Pass an explicit value to
-        link to a non-PK column.
+        `f"{target_table}.{target_table}_id"`.
 
-        Policy for "no targets" is handled at callsite:
-          - emit-anyway:  `targets = self._resolve_link_targets(...) or ((None, None),)`
-          - skip-on-miss: `if not targets: return []`
-
+        Policy for "no targets" is handled at callsite (builders).
         Raises RuntimeError if the cdm_field static is missing while rows
         are published (required mapping for the FK shape).
         """
         rows = ctx.resolve_rows(target_table, source_ref)
         if not rows:
             return ()
+
         if cdm_field_local is None:
             cdm_field_local = f"{target_table}.{target_table}_id"
-        field_concept = self.concepts.lookup_static("cdm_field", cdm_field_local, domains={"Metadata"})
+
+        field_concept = self.concepts.lookup_static(
+            value_set="cdm_field",
+            local_value=cdm_field_local,
+            domains={"Metadata"},
+        )
         if field_concept is None:
             raise RuntimeError(f"Missing cdm_field mapping for {cdm_field_local}")
-        return tuple((row.row_id, field_concept.concept_id) for row in rows)
+
+        return tuple(
+            LinkTarget(
+                event_id=row.row_id,
+                field_concept_id=field_concept.concept_id,
+            )
+            for row in rows
+        )
