@@ -4,8 +4,9 @@ from logging import getLogger
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
-from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
 from omop_etl.omop.models.rows import ProcedureOccurrenceRow
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
@@ -19,9 +20,9 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
     No rows emitted for unmapped source values.
     """
 
-    table_name: ClassVar[str] = "procedure_occurrence"
+    table_name: ClassVar[str] = OmopTables.PROCEDURE_OCCURRENCE
 
-    def build(self, ctx: BuildContext) -> list[ProcedureOccurrenceRow]:
+    def build(self, ctx: BuildContext) -> BuildResult[ProcedureOccurrenceRow]:
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[ProcedureOccurrenceRow] = []
@@ -40,7 +41,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         for idx, mh in enumerate(patient.medical_histories):
             rows.extend(self._build_medical_history_rows(patient, person_id, mh, idx, procedure_type_concept_id))
 
-        return rows
+        return BuildResult(rows=tuple(rows))
 
     def _build_previous_treatment_main_rows(
         self,

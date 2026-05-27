@@ -5,8 +5,9 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
-from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
 from omop_etl.omop.models.rows import DrugExposureRow
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
@@ -24,9 +25,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
     unmapped terms would land in a-priori. See tests for more details.
     """
 
-    table_name: ClassVar[str] = "drug_exposure"
+    table_name: ClassVar[str] = OmopTables.DRUG_EXPOSURE
 
-    def build(self, ctx: BuildContext) -> list[DrugExposureRow]:
+    def build(self, ctx: BuildContext) -> BuildResult[DrugExposureRow]:
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[DrugExposureRow] = []
@@ -48,7 +49,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         for idx, concom in enumerate(patient.concomitant_medications):
             rows.extend(self._build_concomitant_medication_rows(patient, person_id, concom, idx, drug_type_concept_id))
 
-        return rows
+        return BuildResult(rows=tuple(rows))
 
     def _build_treatment_cycle_rows(
         self,
@@ -124,7 +125,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         return [
             DrugExposureRow(
-                drug_exposure_id=self.generate_row_id(*base_row_id_parts, concept.concept_id),
+                drug_exposure_id=self.generate_row_id(*base_row_id_parts, str(concept.concept_id)),
                 person_id=person_id,
                 drug_concept_id=concept.concept_id,
                 drug_exposure_start_date=start_date,

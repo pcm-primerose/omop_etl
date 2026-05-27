@@ -1,12 +1,18 @@
 from typing import ClassVar
 from logging import getLogger
 
-from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
-from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.builders.base import (
+    BuildContext,
+    BuildResult,
+    OmopBuilder,
+    OmopRowReference,
+    RowPublication,
+    SourceReference,
+)
 from omop_etl.omop.models.rows import ConditionOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
@@ -20,51 +26,83 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
     CDM policy: only records whose source values map to concepts with a domain of
     "Condition" should go in this table (CDM 5.4 condition_occurrence ETL conventions).
     No rows emitted for unmapped source values.
+
+    Publishes emitted rows via `BuildResult.publications` so downstream builders
+    (e.g. Observation AE modifiers) can resolve FK targets by `SourceRef`.
+    Multi-concept source instances publish all emitted rows.
     """
 
     table_name: ClassVar[str] = OmopTables.CONDITION_OCCURRENCE
 
-    def __init__(self, concepts: ConceptLookupService):
-        super().__init__(concepts)
-        self._ae_to_condition_id: dict[int, int] = {}
-        self._primary_cancer_condition_id: int | None = None
-
-    def build(self, ctx: BuildContext) -> list[ConditionOccurrenceRow]:
-        self._ae_to_condition_id = {}
-        self._primary_cancer_condition_id = None
+    def build(self, ctx: BuildContext) -> BuildResult[ConditionOccurrenceRow]:
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[ConditionOccurrenceRow] = []
+        publications: list[RowPublication] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
         condition_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
-        if patient.tumor_type is not None:
+        tumor_type = patient.tumor_type
+        if tumor_type is None:
+            return BuildResult(
+                rows=(),
+            )
+
+        if tumor_type is not None:
             tumor_rows = self._build_tumor_type_rows(patient, person_id, patient.tumor_type, condition_type_concept_id)
             if tumor_rows:
-                # multi-concept tumor mappings produce multiple rows: pick the
-                # first deterministically (collection already sorted by NK).
-                self._primary_cancer_condition_id = tumor_rows[0].condition_occurrence_id
+                publications.append(
+                    self._row_publication(
+                        patient.patient_id,
+                        Patient.Singletons.TUMOR_TYPE,
+                        tumor_type.natural_key(),
+                        tumor_rows,
+                    )
+                )
             rows.extend(tumor_rows)
 
         for idx, mh in enumerate(patient.medical_histories):
             rows.extend(self._build_medical_history_rows(patient, person_id, mh, idx, condition_type_concept_id))
 
         for idx, ae in enumerate(patient.adverse_events):
-            rows.extend(self._build_adverse_event_rows(patient, person_id, ae, idx, condition_type_concept_id))
+            ae_rows = self._build_adverse_event_rows(patient, person_id, ae, idx, condition_type_concept_id)
+            if ae_rows:
+                publications.append(
+                    self._row_publication(
+                        patient.patient_id,
+                        Patient.Collections.ADVERSE_EVENTS,
+                        ae.natural_key(),
+                        ae_rows,
+                    )
+                )
+            rows.extend(ae_rows)
 
-        return rows
+        return BuildResult(rows=tuple(rows), publications=tuple(publications))
 
-    def populate_context(self, rows: list[ConditionOccurrenceRow], ctx: BuildContext) -> None:
+    @staticmethod
+    def _row_publication(
+        patient_id: str,
+        source_kind: str,
+        natural_key: tuple,
+        condition_rows: list[ConditionOccurrenceRow],
+    ) -> RowPublication:
         """
-        Publish two pieces of cross-builder state:
-        - condition_id_by_ae_sequence_id: AE.sequence_id: condition_occurrence_id,
-          for ObservationBuilder's was_serious / turned_serious_date FK linkage.
-        - condition_id_primary_cancer: condition_occurrence_id of the tumor-type
-          row, for MeasurementBuilder's measurement_event_id linkage on lesion-size
-          and biomarker rows (per oncology CDM guideline).
+        Wrap a list of condition_occurrence rows as a RowPublication anchored
+        on (patient_id, source_kind, natural_key). publish_rows sorts internally
+        by (primary_concept_id, row_id) for deterministic modifier expansion.
         """
-        ctx.condition_id_by_ae_sequence_id.update(self._ae_to_condition_id)
-        ctx.condition_id_primary_cancer = self._primary_cancer_condition_id
+        return RowPublication(
+            target_table=OmopTables.CONDITION_OCCURRENCE,
+            source_ref=SourceReference(patient_id, source_kind, natural_key),
+            rows=tuple(
+                OmopRowReference(
+                    table=OmopTables.CONDITION_OCCURRENCE,
+                    row_id=row.condition_occurrence_id,
+                    primary_concept_id=row.condition_concept_id,
+                )
+                for row in condition_rows
+            ),
+        )
 
     def _build_tumor_type_rows(
         self,
@@ -183,14 +221,6 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping adverse event %d for %s: missing start_date", index, patient.patient_id)
             return []
 
-        sequence_id = ae.sequence_id
-        if sequence_id is None:
-            log.warning(
-                "Adverse event %d for %s is missing sequence_id, emitting row but no FK link will be published for observation_event_id",
-                index,
-                patient.patient_id,
-            )
-
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
@@ -200,7 +230,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         if not matches:
             return []
 
-        ae_rows = [
+        return [
             ConditionOccurrenceRow(
                 condition_occurrence_id=self.generate_row_id(
                     patient.patient_id,
@@ -217,11 +247,3 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             )
             for concept in matches
         ]
-
-        # accumulate AE.sequence_id to first emitted condition_occurrence_id
-        # multi-concept AE links to the first row deterministically
-        # AEs without sequence_id are warned above and are emitted without linkage
-        if sequence_id is not None:
-            self._ae_to_condition_id[sequence_id] = ae_rows[0].condition_occurrence_id
-
-        return ae_rows

@@ -12,6 +12,7 @@ from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessmen
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.models.rows import MeasurementRow
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
 from omop_etl.omop.builders.base import (
     BuildContext,
@@ -41,7 +42,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
       measurement_event_id FK.
     """
 
-    table_name: ClassVar[str] = "measurement"
+    table_name: ClassVar[str] = OmopTables.MEASUREMENT
 
     def _primary_cancer_fk(self, ctx: BuildContext) -> tuple[int | None, int | None]:
         """

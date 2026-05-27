@@ -25,7 +25,7 @@ class PreviousTreatment(DomainBase):
         self.updated_fields: Set[str] = set()
 
     INVARIANT_FIELDS = (Fields.TREATMENT,)
-    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.TREATMENT_SEQUENCE_NUMBER)
+    NATURAL_KEY_FIELDS = (Fields.TREATMENT, Fields.START_DATE, Fields.TREATMENT_SEQUENCE_NUMBER)
 
     @property
     def patient_id(self) -> str:

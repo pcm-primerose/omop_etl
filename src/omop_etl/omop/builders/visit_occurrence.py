@@ -5,21 +5,39 @@ from logging import getLogger
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.builders.base import (
+    BuildContext,
+    BuildResult,
+    OmopBuilder,
+    OmopRowReference,
+    RowPublication,
+    visit_source_ref,
+)
 from omop_etl.omop.models.rows import VisitOccurrenceRow
+from omop_etl.omop.models.tables import OmopTables
 
 log = getLogger(__name__)
 
 
 class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
-    """Builds visit_occurrence rows from tumor assessment baseline and tumor assessments."""
+    """
+    Builds visit_occurrence rows from tumor assessment baseline and tumor assessments.
 
-    table_name: ClassVar[str] = "visit_occurrence"
+    Publishes each emitted row under `SourceRef(patient_id, SourceAnchors.VISIT_DATE,
+    (date,))` so downstream builders can resolve visit_occurrence_id by date via
+    `ctx.resolve_visit_id(date)`.
+    """
 
-    def build(self, ctx: BuildContext) -> list[VisitOccurrenceRow]:
+    # todo: after adding Visits domain model, refactor to not use SourceAnchor
+    #   (as then visit dates are part of domain model)
+
+    table_name: ClassVar[str] = OmopTables.VISIT_OCCURRENCE
+
+    def build(self, ctx: BuildContext) -> BuildResult[VisitOccurrenceRow]:
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[VisitOccurrenceRow] = []
+        publications: list[RowPublication] = []
         outpatient = self.concepts.lookup_structural("outpatient_visit", domains={"Visit"})
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
         visit_concept_id = int(outpatient.concept_id) if outpatient else 0
@@ -42,6 +60,7 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             if row is not None:
                 prev_visit_id = row.visit_occurrence_id
                 rows.append(row)
+                publications.append(self._publish(patient, row))
 
         # grouping by date: multiple assessment rows from the same physical encounter,
         # e.g. target and non-target lesion measurements, or same visit recorded with
@@ -60,20 +79,27 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
                 visit_type_concept_id,
                 prev_visit_id,
             )
-            if row is not None:
-                seen_dates.add(assessment_date)
-                prev_visit_id = row.visit_occurrence_id
-                rows.append(row)
+            seen_dates.add(assessment_date)
+            prev_visit_id = row.visit_occurrence_id
+            rows.append(row)
+            publications.append(self._publish(patient, row))
 
-        return rows
+        return BuildResult(rows=tuple(rows), publications=tuple(publications))
 
-    def populate_context(self, rows: list[VisitOccurrenceRow], ctx: BuildContext) -> None:
-        """
-        Index-emitted visits by start_date, allows downstream builders to resolve
-        visit_occurrence_id from: `ctx.visit_id_by_date.get(date)`.
-        """
-        for row in rows:
-            ctx.visit_id_by_date[row.visit_start_date] = row.visit_occurrence_id
+    @staticmethod
+    def _publish(patient: Patient, row: VisitOccurrenceRow) -> RowPublication:
+        # todo: refactor after adding Visits domain model
+        return RowPublication(
+            target_table=OmopTables.VISIT_OCCURRENCE,
+            source_ref=visit_source_ref(patient.patient_id, row.visit_start_date),
+            rows=(
+                OmopRowReference(
+                    table=OmopTables.VISIT_OCCURRENCE,
+                    row_id=row.visit_occurrence_id,
+                    primary_concept_id=row.visit_concept_id,
+                ),
+            ),
+        )
 
     def _build_baseline_row(
         self,

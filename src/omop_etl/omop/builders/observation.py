@@ -6,8 +6,14 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.end_of_treatment import TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.builders.base import BuildContext, OmopBuilder
+from omop_etl.omop.builders.base import (
+    BuildContext,
+    BuildResult,
+    OmopBuilder,
+    SourceReference,
+)
 from omop_etl.omop.models.rows import ObservationRow
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
@@ -16,43 +22,45 @@ log = getLogger(__name__)
 class ObservationBuilder(OmopBuilder[ObservationRow]):
     """
     Builds observation rows from patient scalars, the lost-to-followup singleton,
-    and adverse-event-derived facts (outcome, was_serious, turned_serious_date).
-    All observation_concept_id domains must not be in Condition, Procedure, Drug,
-    Specimen, Measurement, or Device.
+    and adverse-event-derived facts (outcome, was_serious, turned_serious_date,
+    severity, relatedness, expectedness). All observation_concept_id domains
+    must not be in Condition, Procedure, Drug, Specimen, Measurement, or Device.
 
+    Three patterns:
 
-    There are three patterns used:
+    1. Unmapped scalar source attributes (evaluable_for_efficacy_analysis,
+       has_clinical_benefit_at_week_*, end_of_treatment_reason):
+       observation_concept_id=0, source field name in observation_source_value,
+       value goes into value_as_concept_id / value_as_string / value_source_value.
 
-    1. For evaluable_for_efficacy_analysis, has_clinical_benfit_at_week_*
-    and end_of_treatment_reason there is no observation_concept_id,
-    it's set to 0. The source field name is tracked in observation_source_value,
-    and value_as_concept_id, value_as_string and value_source_value has
-    the raw and normalized source values.
+    2. Mapped lost_to_followup singleton: observation_concept_id is the topic
+       concept, value_as_concept_id is the answer concept.
 
-    2. For lost_to_followup the observation_concept_id is mapped,
-    observation_source_value has the field name, and value_as_concept_id has
-    the result (answer).
-
-    3. For AE-derived fields, AE outcome, AE was_serious and AE turned_serious_date,
-    the same occurs as the first two patterns, but they are linked back to the
-    source AE record from ConditionOccurrenceBuilder,
-    using FKs stored in observation_event_id and obs_event_field_concept_id,
-    produced by BuildContext.condition_id_by_ae_sequence_id.
+    3. AE-derived modifier rows (outcome, was_serious, turned_serious, severity,
+       relatedness, expectedness): same shape as 1/2, plus FK linkage to the
+       AE's condition_occurrence row(s) via observation_event_id +
+       obs_event_field_concept_id. Resolved via `_resolve_link_targets` over
+       the AE's SourceReference: when an AE produces N condition_occurrence
+       rows (multi-concept mapping), each modifier expands to N rows with the
+       target row_id in the PK hash for distinctness. Emit-anyway policy:
+       modifier rows are emitted even when the AE produced no condition row,
+       with observation_event_id=None and obs_event_field_concept_id=None
+       (the assessment exists regardless of linkage).
 
     A row is only skipped when the source value or a required date is missing.
     When a concept lookup misses, the row is still emitted with concept_id=0,
     and the raw literal is stored in value_source_value or observation_source_value.
     """
 
-    table_name: ClassVar[str] = "observation"
+    table_name: ClassVar[str] = OmopTables.OBSERVATION
 
-    def build(self, ctx: BuildContext) -> list[ObservationRow]:
+    def build(self, ctx: BuildContext) -> BuildResult[ObservationRow]:
         """
         Emit observation rows for the patient. Order: scalar attributes
         (evaluable, clinical_benefit, eot_reason), the lost_to_followup
-        singleton, then per-AE rows (outcome, was_serious, turned_serious_date).
-        observation_type_concept_id is the ecrf Type Concept, raises if the
-        structural entry is missing.
+        singleton, then per-AE rows (outcome, was_serious, turned_serious_date,
+        severity, relatedness, expectedness). observation_type_concept_id is
+        the ecrf Type Concept; raises if the structural entry is missing.
         """
         patient = ctx.patient
         person_id = ctx.person_id
@@ -72,12 +80,27 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         for idx, ae in enumerate(patient.adverse_events):
             rows.extend(self._build_ae_outcome(patient, person_id, observation_type_concept_id, ae, idx, ctx))
             rows.extend(self._build_ae_was_serious(patient, person_id, observation_type_concept_id, ae, idx, ctx))
-            rows.extend(self._build_ae_turned_serious(patient, person_id, observation_type_concept_id, ae, idx, ctx))
+            rows.extend(self._build_ae_turned_serious(patient, person_id, observation_type_concept_id, ae, ctx))
             rows.extend(self._build_ae_severity(patient, person_id, observation_type_concept_id, ae, idx, ctx))
-            rows.extend(self._build_ae_relatedness(patient, person_id, observation_type_concept_id, ae, idx, ctx))
-            rows.extend(self._build_ae_expected(patient, person_id, observation_type_concept_id, ae, idx, ctx))
+            rows.extend(self._build_ae_relatedness(patient, person_id, observation_type_concept_id, ae, ctx))
+            rows.extend(self._build_ae_expected(patient, person_id, observation_type_concept_id, ae, ctx))
 
-        return rows
+        return BuildResult(rows=tuple(rows))
+
+    def _ae_link_targets(self, patient: Patient, ae: AdverseEvent, ctx: BuildContext) -> tuple[tuple[int | None, int | None], ...]:
+        """
+        Resolve `(target_row_id, cdm_field_concept_id)` pairs for the AE's
+        published condition_occurrence rows. Returns `((None, None),)` when
+        nothing was published, emit-anyway policy for AE modifier rows."""
+        return self._resolve_link_targets(
+            ctx,
+            target_table=OmopTables.CONDITION_OCCURRENCE,
+            source_ref=SourceReference(
+                patient.patient_id,
+                Patient.Collections.ADVERSE_EVENTS,
+                ae.natural_key(),
+            ),
+        ) or ((None, None),)
 
     def _yes_no_concept_id(self, value: bool) -> int:
         """
@@ -359,7 +382,9 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         answer concept is the static lookup for adverse_event_outcome values.
         Both lookups fall back to 0 when missing and the row is still emitted as
         long as outcome and start_date are present, with the raw value
-        preserved in value_source_value, linked to Condition AE record.
+        preserved in value_source_value. Linked back to the AE's
+        condition_occurrence row(s): multi-concept AE expands to one row per
+        target.
         """
         raw_outcome = ae.outcome
         date = ae.start_date
@@ -372,8 +397,6 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         topic_concept = self.concepts.lookup_structural("adverse_event_outcome")
         outcome_concept = self.concepts.lookup_static("adverse_event_outcome", raw_outcome)
 
-        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
-
         return [
             ObservationRow(
                 observation_id=self.generate_row_id(
@@ -381,6 +404,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     Patient.Collections.ADVERSE_EVENTS,
                     *ae.natural_key(),
                     AdverseEvent.Fields.OUTCOME,
+                    target_row_id,
                 ),
                 person_id=person_id,
                 observation_concept_id=topic_concept.concept_id if topic_concept else 0,
@@ -390,9 +414,10 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 observation_source_value=AdverseEvent.Fields.OUTCOME,
                 observation_source_concept_id=0,
                 value_source_value=str(raw_outcome)[:50],
-                observation_event_id=event_id,
-                obs_event_field_concept_id=field_concept_id,
+                observation_event_id=target_row_id,
+                obs_event_field_concept_id=cdm_field_concept_id,
             )
+            for target_row_id, cdm_field_concept_id in self._ae_link_targets(patient, ae, ctx)
         ]
 
     def _build_ae_was_serious(
@@ -406,10 +431,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
     ) -> list[ObservationRow]:
         """
         Unmapped source attribute and AE FK: observation_concept_id = 0,
-        observation_source_value = "was_serious", value_as_concept_id = Yes/No concept,
+        observation_source_value = "was_serious", value_as_concept_id = Yes/No,
         observation_event_id and obs_event_field_concept_id point at the
-        AE's condition_occurrence row. Emits for both True and False so the
-        explicit assessment is preserved. Dated is AE.start_date.
+        AE's condition_occurrence row(s). Emits for both True and False so the
+        explicit assessment is preserved. Dated to AE.start_date. Multi-concept
+        AE expands to one row per target.
         """
         was_serious = ae.was_serious
         if was_serious is None:
@@ -419,8 +445,6 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             log.warning("Skipping AE %d was_serious for %s: missing start_date", index, patient.patient_id)
             return []
 
-        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
-
         return [
             self._bool_observation(
                 observation_id=self.generate_row_id(
@@ -428,15 +452,17 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     Patient.Collections.ADVERSE_EVENTS,
                     *ae.natural_key(),
                     AdverseEvent.Fields.WAS_SERIOUS,
+                    target_row_id,
                 ),
                 person_id=person_id,
                 field_name=AdverseEvent.Fields.WAS_SERIOUS,
                 value=was_serious,
                 date=date,
                 observation_type_concept_id=observation_type_concept_id,
-                observation_event_id=event_id,
-                obs_event_field_concept_id=field_concept_id,
+                observation_event_id=target_row_id,
+                obs_event_field_concept_id=cdm_field_concept_id,
             )
+            for target_row_id, cdm_field_concept_id in self._ae_link_targets(patient, ae, ctx)
         ]
 
     def _build_ae_turned_serious(
@@ -445,7 +471,6 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         person_id: int,
         observation_type_concept_id: int,
         ae: AdverseEvent,
-        index: int,
         ctx: BuildContext,
     ) -> list[ObservationRow]:
         """
@@ -453,13 +478,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         turned_serious_date, value_source_value carries the ISO date so
         consumers can reconstruct the event without re-querying.
         Not using _bool_observation because value_source_value differs
-        (date string, not "true").
+        (date string, not "true"). Multi-concept AE expands to one row per
+        target.
         """
         date = ae.turned_serious_date
         if date is None:
             return []
-
-        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
 
         return [
             ObservationRow(
@@ -468,6 +492,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     Patient.Collections.ADVERSE_EVENTS,
                     *ae.natural_key(),
                     AdverseEvent.Fields.TURNED_SERIOUS_DATE,
+                    target_row_id,
                 ),
                 person_id=person_id,
                 observation_concept_id=0,
@@ -477,9 +502,10 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 observation_source_value=AdverseEvent.Fields.TURNED_SERIOUS_DATE,
                 observation_source_concept_id=0,
                 value_source_value=date.isoformat(),
-                observation_event_id=event_id,
-                obs_event_field_concept_id=field_concept_id,
+                observation_event_id=target_row_id,
+                obs_event_field_concept_id=cdm_field_concept_id,
             )
+            for target_row_id, cdm_field_concept_id in self._ae_link_targets(patient, ae, ctx)
         ]
 
     def _build_ae_severity(
@@ -494,13 +520,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         """
         CTCAE severity modifier observation. The grade-N concepts in the
         `adverse_event_code` static lookup are precoordinated severity
-        concepts (CTCAE grade 1 = Mild, ..., 5 = Death). Yhey encode
-        both topic and severity level. Use directly as
-        `observation_concept_id`, `value_as_concept_id` stays None.
+        concepts (CTCAE grade 1 = Mild, ..., 5 = Death). They encode
+        both topic and severity level, so use directly as
+        `observation_concept_id`; `value_as_concept_id` stays None.
 
-        FK-linked to the AE's condition_occurrence row (the one emitted
-        by ConditionOccurrenceBuilder._build_adverse_event_rows for the
-        same AE.sequence_id).
+        FK-linked to the AE's condition_occurrence row(s): multi-concept AE
+        expands to one row per target.
 
         Skipped when grade or start_date is None.
         """
@@ -513,7 +538,6 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             return []
 
         topic = self.concepts.lookup_static("adverse_event_code", str(grade))
-        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
 
         return [
             ObservationRow(
@@ -522,6 +546,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     Patient.Collections.ADVERSE_EVENTS,
                     *ae.natural_key(),
                     AdverseEvent.Fields.GRADE,
+                    target_row_id,
                 ),
                 person_id=person_id,
                 observation_concept_id=topic.concept_id if topic else 0,
@@ -531,9 +556,10 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 observation_source_value="severity",
                 observation_source_concept_id=0,
                 value_source_value=str(grade),
-                observation_event_id=event_id,
-                obs_event_field_concept_id=field_concept_id,
+                observation_event_id=target_row_id,
+                obs_event_field_concept_id=cdm_field_concept_id,
             )
+            for target_row_id, cdm_field_concept_id in self._ae_link_targets(patient, ae, ctx)
         ]
 
     def _build_ae_relatedness(
@@ -542,12 +568,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         person_id: int,
         observation_type_concept_id: int,
         ae: AdverseEvent,
-        index: int,
         ctx: BuildContext,
     ) -> list[ObservationRow]:
         """
-        Per-treatment relatedness modifier observation. Emits 0–2 rows
-        per AE, one per non-None `related_to_treatment_<N>_status`.
+        Per-treatment relatedness modifier observation. Emits 0-2 rows per AE
+        per target condition_occurrence row, one per non-None
+        `related_to_treatment_<N>_status`.
 
         observation_concept_id = 0 (no Standard topic concept for
         drug-causality assessment in current vocab). Field name
@@ -557,7 +583,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         and the corresponding `treatment_<N>_name` drug string in
         `qualifier_source_value` for context.
 
-        FK-linked to the AE's condition_occurrence row. Whole method
+        FK-linked to the AE's condition_occurrence row(s). Whole method
         skipped when start_date is None; per-treatment row skipped when
         status is None.
         """
@@ -569,8 +595,8 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             (1, ae.related_to_treatment_1_status, ae.treatment_1_name),
             (2, ae.related_to_treatment_2_status, ae.treatment_2_name),
         )
+        link_targets = self._ae_link_targets(patient, ae, ctx)
         rows: list[ObservationRow] = []
-        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
 
         for treatment_num, status, treatment_name in pairs:
             if status is None:
@@ -578,27 +604,29 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             status_value = status.value
             field_name = f"related_to_treatment_{treatment_num}"
             concept = self.concepts.lookup_static("relatedness", status_value)
-            rows.append(
-                ObservationRow(
-                    observation_id=self.generate_row_id(
-                        patient.patient_id,
-                        Patient.Collections.ADVERSE_EVENTS,
-                        *ae.natural_key(),
-                        field_name,
-                    ),
-                    person_id=person_id,
-                    observation_concept_id=0,
-                    observation_date=date,
-                    observation_type_concept_id=observation_type_concept_id,
-                    value_as_concept_id=concept.concept_id if concept else 0,
-                    observation_source_value=field_name,
-                    observation_source_concept_id=0,
-                    value_source_value=status_value,
-                    qualifier_source_value=treatment_name[:50] if treatment_name else None,
-                    observation_event_id=event_id,
-                    obs_event_field_concept_id=field_concept_id,
+            for target_row_id, cdm_field_concept_id in link_targets:
+                rows.append(
+                    ObservationRow(
+                        observation_id=self.generate_row_id(
+                            patient.patient_id,
+                            Patient.Collections.ADVERSE_EVENTS,
+                            *ae.natural_key(),
+                            field_name,
+                            target_row_id,
+                        ),
+                        person_id=person_id,
+                        observation_concept_id=0,
+                        observation_date=date,
+                        observation_type_concept_id=observation_type_concept_id,
+                        value_as_concept_id=concept.concept_id if concept else 0,
+                        observation_source_value=field_name,
+                        observation_source_concept_id=0,
+                        value_source_value=status_value,
+                        qualifier_source_value=treatment_name[:50] if treatment_name else None,
+                        observation_event_id=target_row_id,
+                        obs_event_field_concept_id=cdm_field_concept_id,
+                    )
                 )
-            )
         return rows
 
     def _build_ae_expected(
@@ -607,14 +635,14 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         person_id: int,
         observation_type_concept_id: int,
         ae: AdverseEvent,
-        index: int,
         ctx: BuildContext,
     ) -> list[ObservationRow]:
         """
-        Per-treatment expectedness modifier observation. Emits 0–2 rows
-        per AE, one per non-None `was_serious_grade_expected_treatment_<N>`.
-        Uses the LOINC Expected (1472143) / Not Expected (1472269) Meas Value
-        concepts via `expectedness` static lookup.
+        Per-treatment expectedness modifier observation. Emits 0-2 rows per
+        AE per target condition_occurrence row, one per non-None
+        `was_serious_grade_expected_treatment_<N>`. Uses the LOINC Expected
+        (1472143) / Not Expected (1472269) Meas Value concepts via
+        `expectedness` static lookup.
 
         observation_concept_id = 0. Field name in
         `observation_source_value`, mapped Expected/Not-Expected
@@ -622,7 +650,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         `value_source_value`, treatment drug name in
         `qualifier_source_value`.
 
-        FK-linked to the AE's condition_occurrence row.
+        FK-linked to the AE's condition_occurrence row(s).
         """
         date = ae.start_date
         if date is None:
@@ -632,8 +660,8 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             (1, ae.was_serious_grade_expected_treatment_1, ae.treatment_1_name),
             (2, ae.was_serious_grade_expected_treatment_2, ae.treatment_2_name),
         )
+        link_targets = self._ae_link_targets(patient, ae, ctx)
         rows: list[ObservationRow] = []
-        event_id, field_concept_id = self._ae_fk(ae, patient, index, ctx)
 
         for treatment_num, expected, treatment_name in pairs:
             if expected is None:
@@ -641,67 +669,27 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             field_name = f"was_serious_grade_expected_treatment_{treatment_num}"
             value_literal = str(expected).lower()
             concept = self.concepts.lookup_static("expectedness", value_literal)
-            rows.append(
-                ObservationRow(
-                    observation_id=self.generate_row_id(
-                        patient.patient_id,
-                        Patient.Collections.ADVERSE_EVENTS,
-                        *ae.natural_key(),
-                        field_name,
-                    ),
-                    person_id=person_id,
-                    observation_concept_id=0,
-                    observation_date=date,
-                    observation_type_concept_id=observation_type_concept_id,
-                    value_as_concept_id=concept.concept_id if concept else 0,
-                    observation_source_value=field_name,
-                    observation_source_concept_id=0,
-                    value_source_value=value_literal,
-                    qualifier_source_value=treatment_name[:50] if treatment_name else None,
-                    observation_event_id=event_id,
-                    obs_event_field_concept_id=field_concept_id,
+            for target_row_id, cdm_field_concept_id in link_targets:
+                rows.append(
+                    ObservationRow(
+                        observation_id=self.generate_row_id(
+                            patient.patient_id,
+                            Patient.Collections.ADVERSE_EVENTS,
+                            *ae.natural_key(),
+                            field_name,
+                            target_row_id,
+                        ),
+                        person_id=person_id,
+                        observation_concept_id=0,
+                        observation_date=date,
+                        observation_type_concept_id=observation_type_concept_id,
+                        value_as_concept_id=concept.concept_id if concept else 0,
+                        observation_source_value=field_name,
+                        observation_source_concept_id=0,
+                        value_source_value=value_literal,
+                        qualifier_source_value=treatment_name[:50] if treatment_name else None,
+                        observation_event_id=target_row_id,
+                        obs_event_field_concept_id=cdm_field_concept_id,
+                    )
                 )
-            )
         return rows
-
-    def _ae_fk(
-        self,
-        ae: AdverseEvent,
-        patient: Patient,
-        index: int,
-        ctx: BuildContext,
-    ) -> tuple[int | None, int | None]:
-        """
-        Resolve (observation_event_id, obs_event_field_concept_id) for an
-        AE-derived observation row. Returns (None, None) when the AE has no
-        sequence_id or no published condition_occurrence row. Raises if the
-        `cdm_field` static entry for condition_occurrence.condition_occurrence_id
-        is missing, this is required for AE-attributed observations.
-        """
-        sequence_id = ae.sequence_id
-        if sequence_id is None:
-            log.warning(
-                "AE %d for %s missing sequence_id: cannot link observation to condition_occurrence",
-                index,
-                patient.patient_id,
-            )
-            return None, None
-
-        event_id = ctx.condition_id_by_ae_sequence_id.get(sequence_id)
-        if event_id is None:
-            log.warning(
-                "AE %d for %s missing event_id: cannot link observation to condition_occurrence",
-                index,
-                patient.patient_id,
-            )
-            return None, None
-
-        field_concept = self.concepts.lookup_static(
-            "cdm_field",
-            "condition_occurrence.condition_occurrence_id",
-            domains={"Metadata"},
-        )
-        if field_concept is None:
-            raise RuntimeError("Missing cdm_field mapping for condition_occurrence.condition_occurrence_id")
-
-        return event_id, field_concept.concept_id
