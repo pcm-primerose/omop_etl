@@ -11,61 +11,49 @@ from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
+from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.core.linkage import (
+    BuildResult,
+    LinkTarget,
+    SourceReference,
+)
 from omop_etl.omop.models.rows import MeasurementRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
-from omop_etl.omop.builders.base import (
-    BuildContext,
-    OmopBuilder,
-)
 
 log = getLogger(__name__)
 
 
 class MeasurementBuilder(OmopBuilder[MeasurementRow]):
     """
-    Builds measurement rows from ECOG, tumor-assessment baseline, tumor assessment instances,
-    C30/EQ5D, biomarkers, and adverse-event terms that map to the Measurement domain.
+    Builds measurement rows from ECOG, tumor-assessment baseline, tumor assessment
+    instances, C30/EQ5D, biomarkers, and free-text terms (medical history, AE)
+    that map to the Measurement domain.
 
     CDM 5.4 policy:
     - measurement_concept_id: must be in measurement domain. Rows are skipped if no
       Measurement concept is available.
-    - value_as_concept_id: is Meas Value domain: NULL when the source has no
+    - value_as_concept_id: in Meas Value domain. NULL when the source has no
       categorical result, 0 when there is a categorical result but no mapping,
       otherwise the mapped concept id.
-    - value_as_number: is the numeric result where the source provides one.
-    - visit_occurrence_id: is linked by date via ctx.visit_id_by_date (populated
-      by the visit_occurrence builder, which must run before this).
-    - measurement_event_id: linked to cancer condtion from ctx.condition_id_primary_cancer
-      which is populated by the ConditionOccurrence builder (must run before this builder).
-    - meas_event_field_concept_id: links to condition occurrence field concept for the
-      measurement_event_id FK.
+    - value_as_number: the numeric result where the source provides one.
+    - visit_occurrence_id: resolved by date via `ctx.resolve_visit_id(date)`
+      (visit_occurrence builder must run before this).
+    - measurement_event_id: linked to the patient's primary cancer
+      condition_occurrence row(s) for lesion-size and biomarker rows, per
+      oncology CDM guideline. Resolved via `_resolve_link_targets` over the
+      tumor_type SourceReference; multi-concept tumor expands lesion/biomarker
+      rows 1:N with target row_id in the PK hash. Emit-anyway policy enforced
+      at the callsite: rows are emitted even when no primary cancer row is
+      published.
+    - meas_event_field_concept_id: cdm_field concept for the FK column
+      (`condition_occurrence.condition_occurrence_id` by default).
     """
 
     table_name: ClassVar[str] = OmopTables.MEASUREMENT
 
-    def _primary_cancer_fk(self, ctx: BuildContext) -> tuple[int | None, int | None]:
-        """
-        Resolve (measurement_event_id, meas_event_field_concept_id) for
-        linking a measurement back to the patient's primary cancer
-        condition_occurrence row, per oncology CDM guideline.
-        Returns (None, None) when no primary cancer condition has been
-        published, raises if the cdm_field static entry is missing
-        (required once a primary cancer is published).
-        """
-        event_id = ctx.condition_id_primary_cancer
-        if event_id is None:
-            return None, None
-        field_concept = self.concepts.lookup_static(
-            "cdm_field",
-            "condition_occurrence.condition_occurrence_id",
-            domains={"Metadata"},
-        )
-        if field_concept is None:
-            raise RuntimeError("Missing cdm_field mapping for condition_occurrence.condition_occurrence_id")
-        return event_id, field_concept.concept_id
-
-    def build(self, ctx: BuildContext) -> list[MeasurementRow]:
+    def build(self, ctx: BuildContext) -> BuildResult[MeasurementRow]:
         patient = ctx.patient
         person_id = ctx.person_id
 
@@ -75,101 +63,50 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         ecog_baseline = patient.ecog_baseline
         if ecog_baseline is not None:
-            rows.extend(
-                self._build_ecog_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    ecog_baseline,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_ecog_rows(patient, person_id, measurement_type_concept_id, ecog_baseline, ctx))
 
         ta_baseline = patient.tumor_assessment_baseline
         if ta_baseline is not None:
-            rows.extend(
-                self._build_tumor_assessment_baseline_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    ta_baseline,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_tumor_assessment_baseline_rows(patient, person_id, measurement_type_concept_id, ta_baseline, ctx))
 
         for idx, ta in enumerate(patient.tumor_assessments):
-            rows.extend(
-                self._build_tumor_assessment_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    ta,
-                    idx,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_tumor_assessment_rows(patient, person_id, measurement_type_concept_id, ta, idx, ctx))
 
         for idx, c30 in enumerate(patient.c30_collection):
-            rows.extend(
-                self._build_c30_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    c30,
-                    idx,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_c30_rows(patient, person_id, measurement_type_concept_id, c30, idx, ctx))
 
         for idx, eq5d in enumerate(patient.eq5d_collection):
-            rows.extend(
-                self._build_eq5d_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    eq5d,
-                    idx,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_eq5d_rows(patient, person_id, measurement_type_concept_id, eq5d, idx, ctx))
 
         biomarkers = patient.biomarkers
         if biomarkers is not None:
-            rows.extend(
-                self._build_biomarker_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    biomarkers,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_biomarker_rows(patient, person_id, measurement_type_concept_id, biomarkers, ctx))
 
         for idx, mh in enumerate(patient.medical_histories):
-            rows.extend(
-                self._build_medical_history_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    mh,
-                    idx,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_medical_history_rows(patient, person_id, measurement_type_concept_id, mh, idx, ctx))
 
         for idx, ae in enumerate(patient.adverse_events):
-            rows.extend(
-                self._build_adverse_event_rows(
-                    patient,
-                    person_id,
-                    measurement_type_concept_id,
-                    ae,
-                    idx,
-                    ctx,
-                )
-            )
+            rows.extend(self._build_adverse_event_rows(patient, person_id, measurement_type_concept_id, ae, idx, ctx))
 
-        return rows
+        return BuildResult(rows=tuple(rows))
+
+    def _primary_cancer_link_targets(self, patient: Patient, ctx: BuildContext) -> tuple[LinkTarget, ...]:
+        """Resolve LinkTargets for the patient's primary cancer
+        condition_occurrence row(s). Returns () when no tumor singleton or no
+        condition row was published; callers decide whether to emit an
+        unlinked row or skip."""
+        tumor = patient.tumor_type
+        if tumor is None:
+            return ()
+        return self._resolve_link_targets(
+            ctx,
+            target_table=OmopTables.CONDITION_OCCURRENCE,
+            source_ref=SourceReference(
+                patient.patient_id,
+                Patient.Singletons.TUMOR_TYPE,
+                tumor.natural_key(),
+            ),
+        )
 
     def _build_ecog_rows(
         self,
@@ -225,7 +162,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 measurement_datetime=dt.datetime(date.year, date.month, date.day),
                 value_as_number=float(grade),
                 value_as_concept_id=value_as_concept_id,
-                visit_occurrence_id=ctx.visit_id_by_date.get(date),
+                visit_occurrence_id=ctx.resolve_visit_id(date),
                 measurement_source_value=str(grade)[0:50],
             )
         ]
@@ -240,16 +177,20 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
     ) -> list[MeasurementRow]:
         """
         Emits 0-N rows from Biomarkers, one row per matched concept for selected
-        biomarker field in preference chain.
-        Cohort fields are inclusion criteria and are preferred when mapping.
+        biomarker field in preference chain. Cohort fields are inclusion criteria
+        and are preferred when mapping.
 
-        measurement_concept_id is each mapped semantic concept (one row each),
-        can return multiple (meaning multiple rows, decided by semantic mapper).
-        measurement_source_value is the raw biomarker value.
+        measurement_concept_id is each mapped semantic concept; can return
+        multiple rows. measurement_source_value is the raw biomarker value.
+        value_as_number and value_as_concept_id are not set.
 
-        value_as_number and value_as_concept_id is not set.
+        FK-linked to the primary cancer condition_occurrence row(s); when the
+        tumor produces N condition rows, each biomarker concept expands to N
+        rows (cross-product) with the target row_id in the PK. Emit-anyway:
+        when no linkage, biomarker rows are still emitted unlinked.
 
-        Skipped if date is missing, or if no field in chain maps to a measurement concept.
+        Skipped if date is missing or if no field in the chain maps to a
+        measurement concept.
         """
         date = biomarkers.date
         if date is None:
@@ -274,29 +215,42 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 continue
 
             datetime_value = dt.datetime(date.year, date.month, date.day)
-            visit_occurrence_id = ctx.visit_id_by_date.get(date)
-            event_id, field_concept_id = self._primary_cancer_fk(ctx)
-            return [
-                MeasurementRow(
+            visit_occurrence_id = ctx.resolve_visit_id(date)
+            targets = self._primary_cancer_link_targets(patient, ctx)
+
+            def row(
+                concept_id: int,
+                source_value_local: str,
+                event_id: int | None,
+                field_concept_id: int | None,
+            ) -> MeasurementRow:
+                return MeasurementRow(
                     measurement_id=self.generate_row_id(
                         patient.patient_id,
                         Patient.Singletons.BIOMARKERS,
                         field_name,
                         *biomarkers.natural_key(),
-                        concept.concept_id,
+                        concept_id,
+                        event_id,
                     ),
                     person_id=person_id,
-                    measurement_concept_id=concept.concept_id,
+                    measurement_concept_id=concept_id,
                     measurement_date=date,
                     measurement_datetime=datetime_value,
                     measurement_type_concept_id=ecrf_concept,
                     visit_occurrence_id=visit_occurrence_id,
-                    measurement_source_value=source_value[:50],
+                    measurement_source_value=source_value_local[:50],
                     measurement_event_id=event_id,
                     meas_event_field_concept_id=field_concept_id,
                 )
-                for concept in matches
-            ]
+
+            rows: list[MeasurementRow] = []
+            for concept in matches:
+                if not targets:
+                    rows.append(row(concept.concept_id, source_value, None, None))
+                else:
+                    rows.extend(row(concept.concept_id, source_value, t.event_id, t.field_concept_id) for t in targets)
+            return rows
 
         return []
 
@@ -309,9 +263,12 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
         """
-        Emits 0 or 1 row from TumorAssessmentBaseline.
-        measurement_concept_id is the structural lookup for 'lesion_size',
-        value_as_number is the actual size at baseline.
+        Emits 0 to N rows from TumorAssessmentBaseline (N = number of primary
+        cancer condition rows, 1 in the common case). measurement_concept_id is
+        the structural lookup for 'lesion_size', value_as_number is the size at
+        baseline. FK-linked to primary cancer condition_occurrence row(s);
+        multi-concept tumor expands 1:N with target row_id in the PK.
+        Emit-anyway when no linkage.
 
         Skipped if target_lesion_size, target_lesion_measurement_date, or the
         lesion_size structural concept is missing.
@@ -332,17 +289,17 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         unit = self.concepts.lookup_structural("millimeter", domains={"Unit"})
         unit_concept_id = unit.concept_id if unit else None
-        event_id, field_concept_id = self._primary_cancer_fk(ctx)
+        visit_occurrence_id = ctx.resolve_visit_id(date)
 
-        row_id = self.generate_row_id(
-            patient.patient_id,
-            Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
-            TumorAssessmentBaseline.Fields.TARGET_LESION_SIZE,
-            *baseline.natural_key(),
-        )
-        return [
-            MeasurementRow(
-                measurement_id=row_id,
+        def row(event_id: int | None, field_concept_id: int | None) -> MeasurementRow:
+            return MeasurementRow(
+                measurement_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
+                    TumorAssessmentBaseline.Fields.TARGET_LESION_SIZE,
+                    *baseline.natural_key(),
+                    event_id,
+                ),
                 person_id=person_id,
                 measurement_concept_id=lesion.concept_id,
                 measurement_date=date,
@@ -350,12 +307,16 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 measurement_type_concept_id=ecrf_concept,
                 value_as_number=float(size),
                 unit_concept_id=unit_concept_id,
-                visit_occurrence_id=ctx.visit_id_by_date.get(date),
+                visit_occurrence_id=visit_occurrence_id,
                 measurement_source_value=str(size)[0:50],
                 measurement_event_id=event_id,
                 meas_event_field_concept_id=field_concept_id,
             )
-        ]
+
+        targets = self._primary_cancer_link_targets(patient, ctx)
+        if not targets:
+            return [row(event_id=None, field_concept_id=None)]
+        return [row(t.event_id, t.field_concept_id) for t in targets]
 
     def _build_tumor_assessment_rows(
         self,
@@ -367,21 +328,25 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
         """
-        Emits 0-4 rows per TumorAssessment instance.
-        1 row for the absolute target_lesion_size when set, using the structural
-        'lesion_size' lookup as the measurement_concept_id, storing the lesion
-        size in value_as_number.
+        Emits 0 to (N + 3*2) rows per TumorAssessment instance.
+        Up to N rows for the absolute target_lesion_size when set (N = number
+        of primary cancer condition rows, 1 in the common case), using the
+        structural 'lesion_size' lookup as the measurement_concept_id and
+        storing the lesion size in value_as_number. FK-linked to primary
+        cancer condition_occurrence row(s); emit-anyway when no linkage.
 
-        Up to 3 additional rows, one per populated response scale (RECIST, iRECIST,
-        RANO). The responses use precoordinated pair concepts, so the
-        measurement_concept_id stores both scale and answer (same pattern as EQ5D),
-        value_as_concept_id stays NULL.
+        Up to 3 additional rows, one per populated response scale (RECIST,
+        iRECIST, RANO). The responses use precoordinated pair concepts, so the
+        measurement_concept_id stores both scale and answer (same pattern as
+        EQ5D), value_as_concept_id stays NULL. No FK linkage on response rows.
 
-        If response scale is Not Evaluable, use separate branch with structural lookup
-        for measurement concept id and value as concept id is then the NE Meas Value response concept,
-        so any Meas Value concept for this lookup key means assessment was Not Evaluable.
+        If response scale is Not Evaluable, use separate branch with structural
+        lookup for measurement concept id and value as concept id is then the
+        NE Meas Value response concept, so any Meas Value concept for this
+        lookup key means assessment was Not Evaluable.
 
-        If date is missing the instance is skipped entirely and no rows are emitted.
+        If date is missing the instance is skipped entirely and no rows are
+        emitted.
         """
         date = tumor_assessments.date
         if date is None:
@@ -389,24 +354,25 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             return []
 
         rows: list[MeasurementRow] = []
-        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        visit_occurrence_id = ctx.resolve_visit_id(date)
         datetime_value = dt.datetime(date.year, date.month, date.day)
 
-        # absolute target-lesion size
+        # absolute target-lesion size, FK-linked to primary cancer
         size = tumor_assessments.target_lesion_size
         if size is not None:
             lesion = self.concepts.lookup_structural("lesion_size", domains={OmopDomain.MEASUREMENTS})
             if lesion is not None:
                 unit = self.concepts.lookup_structural("millimeter", domains={"Unit"})
                 unit_concept_id = unit.concept_id if unit else None
-                event_id, field_concept_id = self._primary_cancer_fk(ctx)
-                rows.append(
-                    MeasurementRow(
+
+                def lesion_row(event_id: int | None, field_concept_id: int | None) -> MeasurementRow:
+                    return MeasurementRow(
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
                             TumorAssessment.Fields.TARGET_LESION_SIZE,
                             *tumor_assessments.natural_key(),
+                            event_id,
                         ),
                         person_id=person_id,
                         measurement_concept_id=lesion.concept_id,
@@ -420,9 +386,14 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_event_id=event_id,
                         meas_event_field_concept_id=field_concept_id,
                     )
-                )
 
-        # tumor assessment response rows
+                targets = self._primary_cancer_link_targets(patient, ctx)
+                if not targets:
+                    rows.append(lesion_row(event_id=None, field_concept_id=None))
+                else:
+                    rows.extend(lesion_row(t.event_id, t.field_concept_id) for t in targets)
+
+        # tumor assessment response rows (no FK linkage)
         recist = tumor_assessments.recist_response
         if recist is not None:
             recist_response_concept = self.concepts.lookup_static("response_recist", recist, domains={OmopDomain.MEASUREMENTS})
@@ -606,7 +577,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             return []
 
         rows: list[MeasurementRow] = []
-        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        visit_occurrence_id = ctx.resolve_visit_id(date)
         datetime_value = dt.datetime(date.year, date.month, date.day)
 
         for n in range(1, C30.Q_COUNT + 1):
@@ -679,7 +650,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             return []
 
         rows: list[MeasurementRow] = []
-        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        visit_occurrence_id = ctx.resolve_visit_id(date)
         datetime_value = dt.datetime(date.year, date.month, date.day)
 
         for n in range(1, EQ5D.Q_COUNT + 1):
@@ -797,7 +768,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         term = mh.term
         datetime_value = dt.datetime(date.year, date.month, date.day)
-        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        visit_occurrence_id = ctx.resolve_visit_id(date)
         source_value = term[:50] if term is not None else None
 
         qualifier_ids: list[int] = [int(c.concept_id) for c in meas_value_concepts] if meas_value_concepts else [0]
@@ -883,7 +854,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         grade = ae.grade
         term = ae.term
         datetime_value = dt.datetime(date.year, date.month, date.day)
-        visit_occurrence_id = ctx.visit_id_by_date.get(date)
+        visit_occurrence_id = ctx.resolve_visit_id(date)
         value_as_number = float(grade) if grade is not None else None
         source_value = term[:50] if term is not None else None
 

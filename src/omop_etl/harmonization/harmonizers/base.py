@@ -473,7 +473,7 @@ class BaseHarmonizer(ABC):
 
         except Exception as e:
             target = spec.target_attr if isinstance(spec, ScalarSpec) else spec.target_domain.__name__
-            raise ValueError(f"{spec.name}: hydration failed for {target}: {e}") from e
+            raise ValueError(f"Hydration failed for target {target}: spec {e}") from e
 
     def _get_strictness(self, spec: ProcessorSpec) -> bool:
         """Provided spec overrides harmonizer default."""

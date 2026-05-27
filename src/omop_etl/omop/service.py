@@ -2,7 +2,8 @@ from collections.abc import Sequence
 
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.builders.observation import ObservationBuilder
@@ -27,9 +28,11 @@ class OmopService:
 
     def __init__(self, concepts: ConceptLookupService):
         self._concepts = concepts
-        # builders that return context state via populate_context
-        # must run before any downstream consumer that reads that state:
-        # (e.g. VisitOccurrenceBuilder writing ctx.visit_id_by_date)
+        # Builder order matters:
+        # builders whose publications are consumed downstream must run first.
+        # VisitOccurrenceBuilder publishes the date-anchored visit map.
+        # ConditionOccurrenceBuilder publishes AE and primary-cancer rows,
+        # consumed by MeasurementBuilder and ObservationBuilder.
         self._builders: list[OmopBuilder] = [
             VisitOccurrenceBuilder(concepts),
             PersonBuilder(concepts),
@@ -52,11 +55,10 @@ class OmopService:
             ctx = BuildContext(patient=patient, person_id=person_id)
 
             for builder in self._builders:
-                rows = builder.build(ctx)
-                builder.populate_context(rows, ctx)
-                tables.extend(builder.table_name, rows)
+                rows = builder.build_and_populate(ctx)
+                tables.extend(builder.table_name, list(rows))
 
         # singleton metadata row
-        tables.add("cdm_source", CdmSourceBuilder(self._concepts).build())
+        tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts).build())
 
         return tables

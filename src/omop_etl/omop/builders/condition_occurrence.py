@@ -8,15 +8,13 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.omop.models.rows import ConditionOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
-from omop_etl.omop.builders.base import (
-    BuildContext,
-    BuildResult,
-    OmopBuilder,
-    SourceReference,
-)
+from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.core.linkage import (
-    RowPublication,
+    BuildResult,
     OmopRowReference,
+    RowPublication,
+    SourceReference,
 )
 
 log = getLogger(__name__)
@@ -45,13 +43,8 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         condition_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
         tumor_type = patient.tumor_type
-        if tumor_type is None:
-            return BuildResult(
-                rows=(),
-            )
-
         if tumor_type is not None:
-            tumor_rows = self._build_tumor_type_rows(patient, person_id, patient.tumor_type, condition_type_concept_id)
+            tumor_rows = self._build_tumor_type_rows(patient, person_id, tumor_type, condition_type_concept_id)
             if tumor_rows:
                 publications.append(
                     self._row_publication(

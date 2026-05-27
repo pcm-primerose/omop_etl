@@ -680,7 +680,11 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return labeled
 
-    @collection(MedicalHistory, order_by=("start_date",), require_order_by=True)
+    @collection(
+        MedicalHistory,
+        order_by=("start_date",),
+        require_order_by=True,
+    )
     def _process_medical_histories(self) -> pl.DataFrame | None:
         cols = MedicalHistory.Fields
         mh_base = self.data.select(
@@ -721,7 +725,11 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return merged
 
-    @collection(PreviousTreatment, order_by=("start_date",), require_order_by=True)
+    @collection(
+        PreviousTreatment,
+        order_by=("start_date",),
+        require_order_by=True,
+    )
     def _process_previous_treatments(self) -> pl.DataFrame | None:
         cols = PreviousTreatment.Fields
         ct_base = self.data.select(
@@ -762,7 +770,11 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
         return merged
 
-    @collection(TreatmentCycleComponent, order_by=("start_date",), require_order_by=True)
+    @collection(
+        TreatmentCycleComponent,
+        order_by=("start_date",),
+        require_order_by=True,
+    )
     def _process_treatment_cycle(self) -> pl.DataFrame | None:
         cols = TreatmentCycleComponent.Fields
         treatment_cycle_cols = [
@@ -984,7 +996,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             cols.WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE,
         )
 
-    @collection(ConcomitantMedication, order_by=("sequence_id", "start_date"), require_order_by=True)
+    @collection(
+        ConcomitantMedication,
+        order_by=("sequence_id", "start_date"),
+        require_order_by=True,
+    )
     def _process_concomitant_medication(self) -> pl.DataFrame | None:
         cols = ConcomitantMedication.Fields
         cm_base = self.data.select(
@@ -1340,7 +1356,11 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return joined
 
-    @collection(TumorAssessment, order_by=("date",), require_order_by=True)
+    @collection(
+        TumorAssessment,
+        order_by=("date",),
+        require_order_by=True,
+    )
     def _process_tumor_assessments(self) -> pl.DataFrame | None:
         cols = TumorAssessment.Fields
         base = self.data.select(
@@ -1465,7 +1485,11 @@ class ImpressHarmonizer(BaseHarmonizer):
         return process(base)
 
     # TODO: refactor to not use regex later
-    @collection(C30, order_by=("date",), require_order_by=True)
+    @collection(
+        C30,
+        order_by=("date",),
+        require_order_by=True,
+    )
     def _process_c30(self) -> pl.DataFrame | None:
         cols = C30.Fields
         question_text_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)$")
@@ -1514,7 +1538,11 @@ class ImpressHarmonizer(BaseHarmonizer):
         return processed
 
     # TODO: refactor to not use regex later
-    @collection(EQ5D, order_by=("date",), require_order_by=True)
+    @collection(
+        EQ5D,
+        order_by=("date",),
+        require_order_by=True,
+    )
     def _process_eq5d(self) -> pl.DataFrame | None:
         cols = EQ5D.Fields
         question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")

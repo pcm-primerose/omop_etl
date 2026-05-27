@@ -560,6 +560,29 @@ class Patient(TrackedValidated):
 
         # sort by domain natural_key so collections are deterministically ordered on assignment
         items.sort(key=lambda x: x.sort_key())
+
+        # NK-dedup safety net, currently disabled until the harmonizer ships
+        # NK-aware dedup. Today's harmonizer dedups only on full-row identity;
+        # rows with same NK but different non-NK fields (e.g. amended AE
+        # records) land in Patient as duplicates and would crash
+        # BuildContext.publish_rows on the second publication. Re-enable
+        # the block below once the harmonizer enforces NK uniqueness, so
+        # Patient stays the last-line trust boundary:
+        #   Harmonizer resolves duplicate rows
+        #   Patient rejects invalid collections / singletons
+        #   downstream modules trust Patient completely
+        #
+        # if items and getattr(item_type, "NATURAL_KEY_FIELDS", ()):
+        #     seen: set[tuple] = set()
+        #     for item in items:
+        #         nk = item.natural_key()
+        #         if nk in seen:
+        #             raise ValueError(
+        #                 f"{field_name}: duplicate {item_type.__name__} natural_key {nk!r} "
+        #                 f"on patient {patient_id!r}"
+        #             )
+        #         seen.add(nk)
+
         return tuple(items)
 
     @classmethod

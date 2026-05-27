@@ -10,11 +10,13 @@ from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.observation import ObservationBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.linkage import BuildResult
 from tests.omop.conftest import (
     _static,
     _structural,
     create_build_context,
     create_patient,
+    publish_ae_condition,
 )
 
 PID = "p1"
@@ -59,9 +61,9 @@ class TestObservationBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
 
 class TestEvaluableForEfficacy:
@@ -80,10 +82,10 @@ class TestEvaluableForEfficacy:
             treatment_start_date=dt.date(2023, 1, 10),
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == 0
         assert row.observation_date == dt.date(2023, 1, 10)
         assert row.observation_type_concept_id == 32817
@@ -102,11 +104,11 @@ class TestEvaluableForEfficacy:
             treatment_start_date=dt.date(2023, 1, 10),
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].value_as_concept_id == NO_CID
-        assert rows[0].value_source_value == "false"
+        assert len(result.rows) == 1
+        assert result.rows[0].value_as_concept_id == NO_CID
+        assert result.rows[0].value_source_value == "false"
 
     def test_yes_no_missing_falls_back_to_zero(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -117,27 +119,27 @@ class TestEvaluableForEfficacy:
             treatment_start_date=dt.date(2023, 1, 10),
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].value_as_concept_id == 0
+        assert len(result.rows) == 1
+        assert result.rows[0].value_as_concept_id == 0
 
     def test_skipped_when_value_is_none(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL, treatment_start_date=dt.date(2023, 1, 10))
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_skipped_when_treatment_start_date_missing(self, static_index, structural_index, caplog):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL, evaluable_for_efficacy_analysis=True)
 
         with caplog.at_level(logging.WARNING):
-            rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+            result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
         assert any("treatment_start_date" in rec.message for rec in caplog.records)
 
 
@@ -167,10 +169,10 @@ class TestClinicalBenefit:
         patient = create_patient(PID, TRIAL)
         patient.clinical_benefit = self._make_singleton(has_benefit=True)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == 0
         assert row.observation_date == dt.date(2023, 4, 20)
         assert row.observation_source_value == "has_clinical_benefit_at_week_16"
@@ -184,11 +186,11 @@ class TestClinicalBenefit:
         patient = create_patient(PID, TRIAL)
         patient.clinical_benefit = self._make_singleton(has_benefit=False)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].value_as_concept_id == NO_CID
-        assert rows[0].value_source_value == "false"
+        assert len(result.rows) == 1
+        assert result.rows[0].value_as_concept_id == NO_CID
+        assert result.rows[0].value_source_value == "false"
 
     def test_source_value_encodes_week_for_other_timepoints(self, static_index, structural_index):
         """Week 24 from another source produces: `has_clinical_benefit_at_week_24`."""
@@ -201,28 +203,28 @@ class TestClinicalBenefit:
             date=dt.date(2023, 6, 1),
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].observation_source_value == "has_clinical_benefit_at_week_24"
-        assert rows[0].observation_date == dt.date(2023, 6, 1)
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_source_value == "has_clinical_benefit_at_week_24"
+        assert result.rows[0].observation_date == dt.date(2023, 6, 1)
 
     def test_singleton_absent_returns_empty(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_skipped_when_has_benefit_is_none(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.clinical_benefit = self._make_singleton(has_benefit=None)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_skipped_when_date_is_none(self, static_index, structural_index, caplog):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -230,9 +232,9 @@ class TestClinicalBenefit:
         patient.clinical_benefit = self._make_singleton(has_benefit=True, date=None)
 
         with caplog.at_level(logging.WARNING):
-            rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+            result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
         assert any("no date" in rec.message for rec in caplog.records)
 
     def test_skipped_when_week_is_none(self, static_index, structural_index, caplog):
@@ -241,9 +243,9 @@ class TestClinicalBenefit:
         patient.clinical_benefit = self._make_singleton(has_benefit=True, week=None)
 
         with caplog.at_level(logging.WARNING):
-            rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+            result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
         assert any("no week" in rec.message for rec in caplog.records)
 
 
@@ -285,10 +287,10 @@ class TestEndOfTreatment:
             reason="Normal completion according to cohort-specific manual",
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == TRIAL_COMPLETION_CID
         assert row.observation_date == dt.date(2023, 8, 1)
         assert row.value_as_concept_id is None
@@ -305,11 +307,11 @@ class TestEndOfTreatment:
             reason="Normal completion",
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].observation_concept_id == 0
-        assert rows[0].value_as_concept_id is None
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_concept_id == 0
+        assert result.rows[0].value_as_concept_id is None
 
     def test_withdrawn_with_mapped_reason_emits_withdrawal_shape(self, static_index, structural_index):
         static_index[("eot_reason", "disease progression")] = _static("eot_reason", "disease progression", 1617595, "observation")
@@ -320,10 +322,10 @@ class TestEndOfTreatment:
             reason="Disease progression",
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == PATIENT_WITHDRAWN_CID
         assert row.observation_date == dt.date(2023, 8, 1)
         assert row.value_as_concept_id == 1617595
@@ -339,12 +341,12 @@ class TestEndOfTreatment:
             reason="Some unmapped reason",
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].observation_concept_id == PATIENT_WITHDRAWN_CID
-        assert rows[0].value_as_concept_id == 0
-        assert rows[0].value_as_string == "Some unmapped reason"
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_concept_id == PATIENT_WITHDRAWN_CID
+        assert result.rows[0].value_as_concept_id == 0
+        assert result.rows[0].value_as_string == "Some unmapped reason"
 
     def test_withdrawal_topic_missing_falls_back_to_zero(self, static_index, structural_index):
         # remove patient_withdrawn from the fixture
@@ -356,19 +358,19 @@ class TestEndOfTreatment:
             reason="Other",
         )
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].observation_concept_id == 0
-        assert rows[0].value_as_concept_id == 0
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_concept_id == 0
+        assert result.rows[0].value_as_concept_id == 0
 
     def test_singleton_absent_returns_empty(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_status_none_returns_empty(self, static_index, structural_index):
         """Singleton with date but no status (e.g. date inferred from treatment cycles only): no row."""
@@ -376,9 +378,9 @@ class TestEndOfTreatment:
         patient = create_patient(PID, TRIAL)
         patient.end_of_treatment = self._make_eot(status=None, reason=None)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_missing_date_skips(self, static_index, structural_index, caplog):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -390,9 +392,9 @@ class TestEndOfTreatment:
         )
 
         with caplog.at_level(logging.WARNING):
-            rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+            result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
         assert any("no date" in rec.message for rec in caplog.records)
 
 
@@ -422,10 +424,10 @@ class TestLostToFollowup:
         patient = create_patient(PID, TRIAL)
         patient.lost_to_followup = self._make_followup(True)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == PATIENT_WITHDRAWN_CID
         assert row.observation_date == dt.date(2023, 12, 1)
         assert row.value_as_concept_id == LOST_TO_FU_REASON_CID
@@ -442,11 +444,11 @@ class TestLostToFollowup:
         patient = create_patient(PID, TRIAL)
         patient.lost_to_followup = self._make_followup(True)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].observation_concept_id == 0
-        assert rows[0].value_as_concept_id == LOST_TO_FU_REASON_CID
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_concept_id == 0
+        assert result.rows[0].value_as_concept_id == LOST_TO_FU_REASON_CID
 
     def test_reason_concept_missing_falls_back_to_zero(self, static_index, structural_index):
         """No lost_to_followup static: value_as_concept_id=0, row still emits with topic."""
@@ -454,11 +456,11 @@ class TestLostToFollowup:
         patient = create_patient(PID, TRIAL)
         patient.lost_to_followup = self._make_followup(True)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].observation_concept_id == PATIENT_WITHDRAWN_CID
-        assert rows[0].value_as_concept_id == 0
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_concept_id == PATIENT_WITHDRAWN_CID
+        assert result.rows[0].value_as_concept_id == 0
 
     def test_lost_to_followup_false_emits_nothing(self, static_index, structural_index):
         """False means the patient's not lost to follow-up: no withdrawal event to record."""
@@ -466,17 +468,17 @@ class TestLostToFollowup:
         patient = create_patient(PID, TRIAL)
         patient.lost_to_followup = self._make_followup(False)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_singleton_absent_returns_empty(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_missing_date_skips(self, static_index, structural_index, caplog):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -484,9 +486,9 @@ class TestLostToFollowup:
         patient.lost_to_followup = self._make_followup(True, date=None)
 
         with caplog.at_level(logging.WARNING):
-            rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+            result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
         assert any("date_lost_to_followup" in rec.message for rec in caplog.records)
 
 
@@ -513,12 +515,11 @@ class TestAdverseEventOutcome:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Recovering/resolving")
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[1] = 999
+        publish_ae_condition(ctx, patient.adverse_events[0], 999)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == AE_OUTCOME_TOPIC_CID
         assert row.observation_date == dt.date(2023, 5, 1)
         assert row.value_as_concept_id == 1074213
@@ -538,12 +539,11 @@ class TestAdverseEventOutcome:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Recovering/resolving")
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[1] = 999
+        publish_ae_condition(ctx, patient.adverse_events[0], 999)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == 0
         assert row.value_as_concept_id == 1074213
         assert row.value_source_value == "Recovering/resolving"
@@ -558,12 +558,11 @@ class TestAdverseEventOutcome:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Some unmapped outcome")
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[1] = 999
+        publish_ae_condition(ctx, patient.adverse_events[0], 999)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == AE_OUTCOME_TOPIC_CID
         assert row.value_as_concept_id == 0
         assert row.value_source_value == "Some unmapped outcome"
@@ -577,12 +576,11 @@ class TestAdverseEventOutcome:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Some outcome")
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[1] = 999
+        publish_ae_condition(ctx, patient.adverse_events[0], 999)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == 0
         assert row.value_as_concept_id == 0
         assert row.value_source_value == "Some outcome"
@@ -592,9 +590,9 @@ class TestAdverseEventOutcome:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(None)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
 
 class TestAdverseEventWasSerious:
@@ -619,12 +617,11 @@ class TestAdverseEventWasSerious:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(True)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 123456789
+        publish_ae_condition(ctx, patient.adverse_events[0], 123456789)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == 0
         assert row.observation_date == dt.date(2023, 5, 1)
         assert row.value_as_concept_id == YES_CID
@@ -640,43 +637,44 @@ class TestAdverseEventWasSerious:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(False)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 123456789
+        publish_ae_condition(ctx, patient.adverse_events[0], 123456789)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 1
-        assert rows[0].value_as_concept_id == NO_CID
-        assert rows[0].value_source_value == "false"
+        assert len(result.rows) == 1
+        assert result.rows[0].value_as_concept_id == NO_CID
+        assert result.rows[0].value_source_value == "false"
 
     def test_was_serious_none_emits_nothing(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(None)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
-    def test_no_fk_when_no_condition_row_published(self, static_index, structural_index, caplog):
+    def test_no_fk_when_no_condition_row_published(self, static_index, structural_index):
         """
-        AE with sequence_id but no published condition_occurrence row:
-        observation still emits, FK fields left blank, warning logged.
+        AE with no published condition_occurrence row: observation still emits
+        under emit-anyway policy, FK fields left as None.
         """
         _with_yes_no(structural_index)
         _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(True)
         ctx = create_build_context(patient, PERSON_ID)
-        # condition_id_by_ae_sequence_id stays empty
+        # nothing published for this AE under the condition_occurrence target
 
-        with caplog.at_level(logging.WARNING):
-            rows = ObservationBuilder(concepts).build(ctx)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        assert len(rows) == 1
-        assert rows[0].observation_event_id is None
-        assert rows[0].obs_event_field_concept_id is None
-        assert any("missing event_id" in rec.message for rec in caplog.records)
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_event_id is None
+        assert result.rows[0].obs_event_field_concept_id is None
 
-    def test_no_fk_when_ae_missing_sequence_id(self, static_index, structural_index, caplog):
+    def test_no_fk_when_ae_missing_sequence_id(self, static_index, structural_index):
+        """
+        AE without sequence_id: NK is still derivable (term + start_date), but
+        with no upstream publication the observation emits unlinked.
+        """
         _with_yes_no(structural_index)
         _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
@@ -688,24 +686,24 @@ class TestAdverseEventWasSerious:
         patient.adverse_events = [ae]
         ctx = create_build_context(patient, PERSON_ID)
 
-        with caplog.at_level(logging.WARNING):
-            rows = ObservationBuilder(concepts).build(ctx)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        assert len(rows) == 1
-        assert rows[0].observation_event_id is None
-        assert rows[0].obs_event_field_concept_id is None
-        assert any("missing sequence_id" in rec.message for rec in caplog.records)
+        assert len(result.rows) == 1
+        assert result.rows[0].observation_event_id is None
+        assert result.rows[0].obs_event_field_concept_id is None
 
     def test_raises_when_cdm_field_missing_but_fk_resolvable(self, static_index, structural_index):
         """
         cdm_field is required: builder raises.
         """
         _with_yes_no(structural_index)
+        # remove the cdm_field entry from the shared fixture to
+        # hit the missing-mapping error path
+        static_index.pop(("cdm_field", "condition_occurrence.condition_occurrence_id"), None)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(True)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 987654321
-
+        publish_ae_condition(ctx, patient.adverse_events[0], 987654321)
         with pytest.raises(RuntimeError, match="cdm_field"):
             ObservationBuilder(concepts).build(ctx)
 
@@ -723,12 +721,11 @@ class TestAdverseEventTurnedSerious:
         ae.turned_serious_date = dt.date(2023, 5, 5)
         patient.adverse_events = [ae]
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[7] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.observation_concept_id == 0
         assert row.observation_date == dt.date(2023, 5, 5)
         assert row.value_as_concept_id == YES_CID
@@ -746,9 +743,9 @@ class TestAdverseEventTurnedSerious:
         ae.sequence_id = 7
         patient.adverse_events = [ae]
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
 
 # CTCAE grade-N precoordinated severity concepts (Standard, SNOMED).
@@ -766,8 +763,9 @@ EXPECTED_CID = 1472143
 NOT_EXPECTED_CID = 1472269
 
 
+# todo: move to conftest later
 def _with_ae_severity(static_index: dict) -> dict:
-    """`adverse_event_code` static rows: grade 1..5: precoordinated CTCAE concepts."""
+    """`adverse_event_code` static result: grade 1..5: precoordinated CTCAE concepts."""
     for grade, cid in ((1, GRADE_1_CID), (2, GRADE_2_CID), (3, GRADE_3_CID), (4, GRADE_4_CID), (5, GRADE_5_CID)):
         static_index[("adverse_event_code", str(grade))] = _static("adverse_event_code", str(grade), cid, "observation")
     return static_index
@@ -811,13 +809,12 @@ class TestAdverseEventSeverity:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(grade=3)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 777
+        publish_ae_condition(ctx, patient.adverse_events[0], 777)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        severity_rows = [r for r in rows if r.observation_source_value == "severity"]
-        assert len(severity_rows) == 1
-        row = severity_rows[0]
+        severity_result = [r for r in result.rows if r.observation_source_value == "severity"]
+        assert len(severity_result) == 1
+        row = severity_result[0]
         assert row.observation_concept_id == GRADE_3_CID
         assert row.observation_date == dt.date(2023, 5, 1)
         assert row.value_as_concept_id is None
@@ -830,21 +827,21 @@ class TestAdverseEventSeverity:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(grade=None)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert all(r.observation_source_value != "severity" for r in rows)
+        assert all(r.observation_source_value != "severity" for r in result.rows)
 
     def test_falls_back_to_zero_when_grade_unmapped(self, static_index, structural_index):
         """No adverse_event_code static entry: concept_id=0, row still emits."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(grade=3)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        severity_rows = [r for r in rows if r.observation_source_value == "severity"]
-        assert len(severity_rows) == 1
-        assert severity_rows[0].observation_concept_id == 0
-        assert severity_rows[0].value_source_value == "3"
+        severity_result = [r for r in result.rows if r.observation_source_value == "severity"]
+        assert len(severity_result) == 1
+        assert severity_result[0].observation_concept_id == 0
+        assert severity_result[0].value_source_value == "3"
 
 
 class TestAdverseEventRelatedness:
@@ -887,13 +884,12 @@ class TestAdverseEventRelatedness:
             name_2="Cobimetinib",
         )
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        rel_rows = [r for r in rows if r.observation_source_value and r.observation_source_value.startswith("related_to_treatment_")]
-        assert len(rel_rows) == 2
-        by_field = {r.observation_source_value: r for r in rel_rows}
+        rel_result = [r for r in result.rows if r.observation_source_value and r.observation_source_value.startswith("related_to_treatment_")]
+        assert len(rel_result) == 2
+        by_field = {r.observation_source_value: r for r in rel_result}
         assert by_field["related_to_treatment_1"].value_as_concept_id == RELATED_CID
         assert by_field["related_to_treatment_1"].value_source_value == "related"
         assert by_field["related_to_treatment_1"].qualifier_source_value == "Vemurafenib"
@@ -909,14 +905,13 @@ class TestAdverseEventRelatedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.UNKNOWN)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        rel_rows = [r for r in rows if r.observation_source_value == "related_to_treatment_1"]
-        assert len(rel_rows) == 1
-        assert rel_rows[0].value_as_concept_id == UNKNOWN_REL_CID
-        assert rel_rows[0].value_source_value == "unknown"
+        rel_result = [r for r in result.rows if r.observation_source_value == "related_to_treatment_1"]
+        assert len(rel_result) == 1
+        assert rel_result[0].value_as_concept_id == UNKNOWN_REL_CID
+        assert rel_result[0].value_source_value == "unknown"
 
     def test_none_status_emits_no_row(self, static_index, structural_index):
         _with_relatedness(static_index)
@@ -924,9 +919,9 @@ class TestAdverseEventRelatedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=None, status_2=None)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert all(not (r.observation_source_value or "").startswith("related_to_treatment_") for r in rows)
+        assert all(not (r.observation_source_value or "").startswith("related_to_treatment_") for r in result.rows)
 
     def test_one_set_one_none(self, static_index, structural_index):
         _with_relatedness(static_index)
@@ -934,13 +929,12 @@ class TestAdverseEventRelatedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.RELATED, status_2=None)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        rel_rows = [r for r in rows if (r.observation_source_value or "").startswith("related_to_treatment_")]
-        assert len(rel_rows) == 1
-        assert rel_rows[0].observation_source_value == "related_to_treatment_1"
+        rel_result = [r for r in result.rows if (r.observation_source_value or "").startswith("related_to_treatment_")]
+        assert len(rel_result) == 1
+        assert rel_result[0].observation_source_value == "related_to_treatment_1"
 
     def test_value_concept_falls_back_to_zero_when_unmapped(self, static_index, structural_index):
         """No relatedness static lookup: value_as_concept_id=0, row still emits."""
@@ -948,14 +942,13 @@ class TestAdverseEventRelatedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.RELATED)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        rel_rows = [r for r in rows if r.observation_source_value == "related_to_treatment_1"]
-        assert len(rel_rows) == 1
-        assert rel_rows[0].value_as_concept_id == 0
-        assert rel_rows[0].value_source_value == "related"
+        rel_result = [r for r in result.rows if r.observation_source_value == "related_to_treatment_1"]
+        assert len(rel_result) == 1
+        assert rel_result[0].value_as_concept_id == 0
+        assert rel_result[0].value_source_value == "related"
 
     def test_treatment_name_none_yields_null_qualifier(self, static_index, structural_index):
         _with_relatedness(static_index)
@@ -963,13 +956,12 @@ class TestAdverseEventRelatedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.RELATED, name_1=None)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        rel_rows = [r for r in rows if r.observation_source_value == "related_to_treatment_1"]
-        assert len(rel_rows) == 1
-        assert rel_rows[0].qualifier_source_value is None
+        rel_result = [r for r in result.rows if r.observation_source_value == "related_to_treatment_1"]
+        assert len(rel_result) == 1
+        assert rel_result[0].qualifier_source_value is None
 
 
 class TestAdverseEventExpectedness:
@@ -1006,13 +998,12 @@ class TestAdverseEventExpectedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=True)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        exp_rows = [r for r in rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
-        assert len(exp_rows) == 1
-        row = exp_rows[0]
+        exp_result = [r for r in result.rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
+        assert len(exp_result) == 1
+        row = exp_result[0]
         assert row.observation_concept_id == 0
         assert row.value_as_concept_id == EXPECTED_CID
         assert row.value_source_value == "true"
@@ -1026,28 +1017,26 @@ class TestAdverseEventExpectedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=False)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
+        exp_result = [r for r in result.rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
+        assert len(exp_result) == 1
+        assert exp_result[0].value_as_concept_id == NOT_EXPECTED_CID
+        assert exp_result[0].value_source_value == "false"
 
-        exp_rows = [r for r in rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
-        assert len(exp_rows) == 1
-        assert exp_rows[0].value_as_concept_id == NOT_EXPECTED_CID
-        assert exp_rows[0].value_source_value == "false"
-
-    def test_both_treatments_emit_two_rows(self, static_index, structural_index):
+    def test_both_treatments_emit_two_result(self, static_index, structural_index):
         _with_expectedness(static_index)
         _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=True, expected_2=False, name_1="Vemurafenib", name_2="Cobimetinib")
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        exp_rows = [r for r in rows if (r.observation_source_value or "").startswith("was_serious_grade_expected_treatment_")]
-        assert len(exp_rows) == 2
-        by_field = {r.observation_source_value: r for r in exp_rows}
+        exp_result = [r for r in result.rows if (r.observation_source_value or "").startswith("was_serious_grade_expected_treatment_")]
+        assert len(exp_result) == 2
+        by_field = {r.observation_source_value: r for r in exp_result}
         assert by_field["was_serious_grade_expected_treatment_1"].value_as_concept_id == EXPECTED_CID
         assert by_field["was_serious_grade_expected_treatment_1"].qualifier_source_value == "Vemurafenib"
         assert by_field["was_serious_grade_expected_treatment_2"].value_as_concept_id == NOT_EXPECTED_CID
@@ -1059,9 +1048,9 @@ class TestAdverseEventExpectedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=None, expected_2=None)
 
-        rows = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ObservationBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert all(not (r.observation_source_value or "").startswith("was_serious_grade_expected_treatment_") for r in rows)
+        assert all(not (r.observation_source_value or "").startswith("was_serious_grade_expected_treatment_") for r in result.rows)
 
     def test_value_concept_falls_back_to_zero_when_unmapped(self, static_index, structural_index):
         """No expectedness static: value_as_concept_id=0, row still emits."""
@@ -1069,14 +1058,13 @@ class TestAdverseEventExpectedness:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=True)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[42] = 555
+        publish_ae_condition(ctx, patient.adverse_events[0], 555)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        exp_rows = [r for r in rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
-        assert len(exp_rows) == 1
-        assert exp_rows[0].value_as_concept_id == 0
-        assert exp_rows[0].value_source_value == "true"
+        exp_result = [r for r in result.rows if r.observation_source_value == "was_serious_grade_expected_treatment_1"]
+        assert len(exp_result) == 1
+        assert exp_result[0].value_as_concept_id == 0
+        assert exp_result[0].value_source_value == "true"
 
 
 class TestCombinedSources:
@@ -1123,20 +1111,20 @@ class TestCombinedSources:
         patient.adverse_events = [ae]
 
         ctx_a = create_build_context(patient, PERSON_ID)
-        ctx_a.condition_id_by_ae_sequence_id[11] = 42
+        publish_ae_condition(ctx_a, patient.adverse_events[0], 42)
         ctx_b = create_build_context(patient, PERSON_ID)
-        ctx_b.condition_id_by_ae_sequence_id[11] = 42
+        publish_ae_condition(ctx_b, patient.adverse_events[0], 42)
 
-        rows_a = ObservationBuilder(concepts).build(ctx_a)
-        rows_b = ObservationBuilder(concepts).build(ctx_b)
+        result_a = ObservationBuilder(concepts).build(ctx_a)
+        result_b = ObservationBuilder(concepts).build(ctx_b)
 
         # 4 scalars/singleton (evaluable, clinical_benefit, eot, lost_to_followup)
-        # and 3 AE-derived (outcome, was_serious, turned_serious) = 7 rows
-        assert len(rows_a) == 7
-        ids = [r.observation_id for r in rows_a]
+        # and 3 AE-derived (outcome, was_serious, turned_serious) = 7 result
+        assert len(result_a.rows) == 7
+        ids = [r.observation_id for r in result_a.rows]
         assert len(ids) == len(set(ids)), "All observation_ids must be unique"
 
-        ids_b = sorted(r.observation_id for r in rows_b)
+        ids_b = sorted(r.observation_id for r in result_b.rows)
         assert sorted(ids) == ids_b
 
     def test_multiple_adverse_events_each_independent(self, static_index, structural_index):
@@ -1159,13 +1147,13 @@ class TestCombinedSources:
 
         patient.adverse_events = [ae1, ae2]
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_by_ae_sequence_id[1] = 100
-        ctx.condition_id_by_ae_sequence_id[2] = 200
+        # patient.adverse_events is sorted by NK: ae1 ("Fever") sorts before ae2 ("Nausea")
+        publish_ae_condition(ctx, patient.adverse_events[0], 100)
+        publish_ae_condition(ctx, patient.adverse_events[1], 200)
+        result = ObservationBuilder(concepts).build(ctx)
 
-        rows = ObservationBuilder(concepts).build(ctx)
-
-        assert len(rows) == 2
-        by_event_id = {r.observation_event_id: r for r in rows}
+        assert len(result.rows) == 2
+        by_event_id = {r.observation_event_id: r for r in result.rows}
         assert set(by_event_id.keys()) == {100, 200}
         assert by_event_id[100].observation_date == dt.date(2023, 5, 1)
         assert by_event_id[200].observation_date == dt.date(2023, 6, 1)
