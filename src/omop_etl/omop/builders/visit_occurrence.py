@@ -46,6 +46,17 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         # track previous visit for preceding_visit_occurrence_id FK
         prev_visit_id: int | None = None
 
+        # One visit_occurrence per unique date: a visit IS a date in this model.
+        # The baseline singleton is derived from the same eCRF tumor-assessment
+        # source as the assessments collection, so the baseline's date routinely
+        # coincides with the earliest assessment's date (same physical encounter).
+        # seen_dates folds them into one visit (baseline is the anchor); the
+        # colliding assessment's measurements still resolve to this visit by date.
+        # Two genuinely distinct visits on one date would be a source-integrity
+        # problem. (Future: model Visits as a first-class Patient domain so the
+        # builder consumes deduped visit dates directly instead of reconstructing.)
+        seen_dates: set[dt.date] = set()
+
         # baseline singleton
         baseline = patient.tumor_assessment_baseline
         if baseline is not None:
@@ -59,13 +70,13 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             )
             if row is not None:
                 prev_visit_id = row.visit_occurrence_id
+                seen_dates.add(row.visit_start_date)
                 rows.append(row)
                 publications.append(self._publish(patient, row))
 
         # grouping by date: multiple assessment rows from the same physical encounter,
         # e.g. target and non-target lesion measurements, or same visit recorded with
         # different event_ids like "V04" and "W00" produce one visit_occurrence row.
-        seen_dates: set[dt.date] = set()
         for assessment in patient.tumor_assessments:
             assessment_date = assessment.date
             if assessment_date is None or assessment_date in seen_dates:

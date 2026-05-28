@@ -85,19 +85,31 @@ def _derived_name(fn: Callable[..., Any]) -> str:
     return name.removeprefix("_process_")
 
 
-def _check_natural_key_conflicts(
+def _dedup_by_natural_key(
     objs: list[DomainBase],
     *,
     patient_id: str,
     item_type: type[DomainBase],
     policy: Literal["error", "warn"],
-) -> None:
+) -> list[DomainBase]:
     """
-    Detect natural-key collisions where the rows have differing data.
+    Dedup a collection of domain objects by natural key. Identical duplicates
+    are dropped silently. Genuine conflicts (same NK, different non-NK fields)
+    are resolved per `policy`:
 
-    Identical duplicates (same NK, same data) are assumed to be deduplicated
-    upstream by the collection processor, so this only flags conflicts.
-    Keeps the first occurrence.
+      - "warn":  log warning and keep the LAST occurrence (replace earlier).
+        Default policy for forgiving inputs, e.g. amended source records where
+        a later row supersedes an earlier one with the same NK.
+      - "error": raise ValueError on the first conflict.
+
+    Returns the deduplicated list. Order is the input order of each NK's first
+    occurrence (so an unchanged collection round-trips unchanged); the *value*
+    at that position is the last occurrence's data when conflicts exist.
+
+    NK uniqueness within a patient's collection is a hard precondition for
+    downstream cross-builder linkage (SourceReference → published rows is
+    keyed by NK), so this is the canonical pre-filter before assignment to
+    Patient.
     """
     seen: dict[tuple, DomainBase] = {}
     fields = item_type.data_fields()
@@ -108,12 +120,17 @@ def _check_natural_key_conflicts(
             seen[nk] = obj
             continue
         if all(getattr(prior, f) == getattr(obj, f) for f in fields):
+            # identical duplicate, drop silently
             continue
         diffs = {f: (getattr(prior, f), getattr(obj, f)) for f in fields if getattr(prior, f) != getattr(obj, f)}
-        msg = f"{item_type.__name__} natural-key conflict for patient {patient_id}: NK={nk} has conflicting values: {diffs}"
+        msg = f"{item_type.__name__} natural-key conflict for patient {patient_id}: NK={nk} has conflicting values: {diffs}. Keeping last occurrence."
         if policy == "error":
             raise ValueError(msg)
         log.warning(msg)
+        # warn policy: keep last by overwriting (dict assignment preserves the
+        # original insertion position, only updates the value).
+        seen[nk] = obj
+    return list(seen.values())
 
 
 def scalar(
@@ -666,17 +683,20 @@ class BaseHarmonizer(ABC):
             except Exception as e:
                 raise ValueError(f"{item_type.__name__} collection hydration failed for {sid=}") from e
 
+            if mode == "extend":
+                existing = getattr(patient, target_attr, ()) or ()
+                objs = list(existing) + objs
+
+            # Dedup by NK over the final set (post-extend), so cross-batch
+            # conflicts are resolved too. This is the canonical pre-filter that
+            # guarantees Patient receives an NK-unique collection.
             if item_type.NATURAL_KEY_FIELDS:
-                _check_natural_key_conflicts(
+                objs = _dedup_by_natural_key(
                     objs,
                     patient_id=sid,
                     item_type=item_type,
                     policy=on_natural_key_conflict,
                 )
-
-            if mode == "extend":
-                existing = getattr(patient, target_attr, ()) or ()
-                objs = list(existing) + objs
 
             setattr(patient, target_attr, objs)
 

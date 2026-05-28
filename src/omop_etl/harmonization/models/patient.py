@@ -561,29 +561,38 @@ class Patient(TrackedValidated):
         # sort by domain natural_key so collections are deterministically ordered on assignment
         items.sort(key=lambda x: x.sort_key())
 
-        # NK-dedup safety net, currently disabled until the harmonizer ships
-        # NK-aware dedup. Today's harmonizer dedups only on full-row identity;
-        # rows with same NK but different non-NK fields (e.g. amended AE
-        # records) land in Patient as duplicates and would crash
-        # BuildContext.publish_rows on the second publication. Re-enable
-        # the block below once the harmonizer enforces NK uniqueness, so
-        # Patient stays the last-line trust boundary:
-        #   Harmonizer resolves duplicate rows
-        #   Patient rejects invalid collections / singletons
-        #   downstream modules trust Patient completely
-        #
-        # if items and getattr(item_type, "NATURAL_KEY_FIELDS", ()):
-        #     seen: set[tuple] = set()
-        #     for item in items:
-        #         nk = item.natural_key()
-        #         if nk in seen:
-        #             raise ValueError(
-        #                 f"{field_name}: duplicate {item_type.__name__} natural_key {nk!r} "
-        #                 f"on patient {patient_id!r}"
-        #             )
-        #         seen.add(nk)
+        Patient._assert_unique_natural_keys(items, item_type=item_type, patient_id=patient_id, field_name=field_name)
 
         return tuple(items)
+
+    @staticmethod
+    def _assert_unique_natural_keys(
+        items: Sequence[T],
+        *,
+        item_type: type[T],
+        patient_id: str,
+        field_name: str,
+    ) -> None:
+        """
+        NK-uniqueness safety net (trust boundary). The harmonizer resolves
+        duplicate/conflicting source rows during hydration (warn-and-keep-last
+        by default). By the time a collection reaches Patient it must be
+        NK-unique, because cross-builder linkage keys published OMOP rows by
+        (patient_id, source_kind, natural_key); a within-patient NK collision
+        would silently collide in BuildContext.publish_rows.
+
+        Raises ValueError on collision. If this fires, the harmonizer's dedup
+        was bypassed or a caller built a Patient with bad data directly.
+        Domains without NATURAL_KEY_FIELDS are skipped.
+        """
+        if not items or not getattr(item_type, "NATURAL_KEY_FIELDS", ()):
+            return
+        seen: set[tuple] = set()
+        for item in items:
+            nk = item.natural_key()
+            if nk in seen:
+                raise ValueError(f"{field_name}: duplicate {item_type.__name__} natural_key {nk!r} on patient {patient_id!r}")
+            seen.add(nk)
 
     @classmethod
     def get_attr_for_type(cls, item_type: type) -> str:

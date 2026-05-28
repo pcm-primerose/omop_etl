@@ -492,7 +492,9 @@ class TestHydrateCollectionField:
 
 
 class TestNaturalKeyConflictDetection:
-    """Uses MedicalHistory (NATURAL_KEY_FIELDS = (start_date, sequence_id)) as the test domain."""
+    """Uses MedicalHistory (NATURAL_KEY_FIELDS = (term, start_date)) as the test
+    domain. Conflicts are constructed by sharing (term, start_date) and differing
+    in a non-NK field (here: sequence_id)."""
 
     def _mh_row(self, *, start_date, sequence_id, term="hypertension", end_date=None, status=None, status_code=None):  # noqa
         return {
@@ -520,12 +522,14 @@ class TestNaturalKeyConflictDetection:
                 patients=patients,
             )
         assert not any("natural-key conflict" in r.message for r in caplog.records)
+        # identical duplicate collapses to a single instance
+        assert len(patients["p1"].medical_histories) == 1
 
-    def test_conflicting_data_logs_warning_by_default(self, caplog):
+    def test_conflicting_data_logs_warning_and_keeps_last(self, caplog):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="hypertension"),
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="diabetes"),
+            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=1),
+            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=2),
         ]
         with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
             BaseHarmonizer.hydrate_collection_field(
@@ -536,13 +540,17 @@ class TestNaturalKeyConflictDetection:
         warnings = [r for r in caplog.records if "natural-key conflict" in r.message]
         assert len(warnings) == 1
         assert "p1" in warnings[0].message
-        assert "term" in warnings[0].message
+        assert "sequence_id" in warnings[0].message
+        # warn-and-keep-last: collapses to one instance, the later row wins
+        mhs = patients["p1"].medical_histories
+        assert len(mhs) == 1
+        assert mhs[0].sequence_id == 2
 
     def test_conflicting_data_raises_under_error_policy(self):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="hypertension"),
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="diabetes"),
+            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=1),
+            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=2),
         ]
         with pytest.raises(ValueError, match="natural-key conflict"):
             BaseHarmonizer.hydrate_collection_field(
@@ -875,12 +883,13 @@ class TestEndToEndPipeline:
         assert lfu_2.lost_to_followup is True
         assert lfu_2.date_lost_to_followup == dt.date(2024, 5, 1)
 
-        # collection (MedicalHistory), ordered by start_date
+        # collection (MedicalHistory), ordered by natural key (term, start_date);
+        # "diabetes" sorts before "hypertension"
         assert len(p1.medical_histories) == 2
-        assert [mh.term for mh in p1.medical_histories] == ["hypertension", "diabetes"]
-        assert [mh.start_date for mh in p1.medical_histories] == [dt.date(2020, 1, 15), dt.date(2022, 3, 10)]
-        assert p1.medical_histories[0].end_date == dt.date(2021, 6, 1)
-        assert p1.medical_histories[1].end_date is None
+        assert [mh.term for mh in p1.medical_histories] == ["diabetes", "hypertension"]
+        assert [mh.start_date for mh in p1.medical_histories] == [dt.date(2022, 3, 10), dt.date(2020, 1, 15)]
+        assert p1.medical_histories[0].end_date is None
+        assert p1.medical_histories[1].end_date == dt.date(2021, 6, 1)
 
         assert len(p2.medical_histories) == 1
         assert p2.medical_histories[0].term == "asthma"

@@ -197,6 +197,34 @@ class TestDateGrouping:
         assert len(result.rows) == 2
         assert result.rows[0].visit_occurrence_id != result.rows[1].visit_occurrence_id
 
+    # todo: refactor after adding Visits domain model
+    def test_baseline_and_assessment_same_date_collapse_to_one_visit(self, static_index, structural_index):
+        """Regression: the baseline singleton is derived from the same eCRF source
+        as the assessments collection, so its date routinely coincides with the
+        earliest assessment's date. Both must collapse to one visit (one date =
+        one encounter), and publication must not raise a duplicate-publish error."""
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+
+        baseline = TumorAssessmentBaseline(patient_id=PID)
+        baseline.target_lesion_measurement_date = dt.date(2024, 7, 28)
+        patient.tumor_assessment_baseline = baseline
+
+        assessment = TumorAssessment(patient_id=PID)
+        assessment.date = dt.date(2024, 7, 28)
+        assessment.event_id = "UVT"
+        assessment.assessment_type = "recist"
+        patient.tumor_assessments = [assessment]
+
+        ctx = create_build_context(patient, PERSON_ID)
+        # build_and_populate applies publications; must not raise on the shared date
+        rows = VisitOccurrenceBuilder(concepts).build_and_populate(ctx)
+
+        assert len(rows) == 1
+        assert rows[0].visit_start_date == dt.date(2024, 7, 28)
+        # exactly one visit published for that date
+        assert ctx.resolve_visit_id(dt.date(2024, 7, 28)) == rows[0].visit_occurrence_id
+
 
 class TestBaselineAndAssessmentsCombined:
     def test_baseline_and_assessments_combined(self, static_index, structural_index):
