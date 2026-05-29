@@ -584,9 +584,9 @@ class TestHydrateScalar:
 
         df = pl.DataFrame({"SubjectId": ["p1"], "the_value": ["hello"]})
 
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value")
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value")
 
-        assert harmonizer.patient_data["p1"].cohort_name == "hello"
+        assert harmonizer.patient_data["p1"].sex == "hello"
 
     def test_skip_missing_patients(self):
         """skip_missing_patients=True should skip unknown subjects."""
@@ -599,8 +599,8 @@ class TestHydrateScalar:
         df = pl.DataFrame({"SubjectId": ["p1", "unknown"], "the_value": ["a", "b"]})
 
         # should not raise
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", skip_missing_patients=True)
-        assert harmonizer.patient_data["p1"].cohort_name == "a"
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", skip_missing_patients=True)
+        assert harmonizer.patient_data["p1"].sex == "a"
 
     def test_duplicate_error(self):
         """on_duplicate='error' should raise on duplicates."""
@@ -613,7 +613,7 @@ class TestHydrateScalar:
         df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["a", "b"]})
 
         with pytest.raises(ValueError, match="Duplicate scalar"):
-            harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="error")
+            harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", on_duplicate="error")
 
     def test_duplicate_first(self):
         """on_duplicate='first' should keep the first value seen for a subject."""
@@ -625,9 +625,9 @@ class TestHydrateScalar:
 
         df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["first_value", "second_value"]})
 
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="first")
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", on_duplicate="first")
 
-        assert harmonizer.patient_data["p1"].cohort_name == "first_value"
+        assert harmonizer.patient_data["p1"].sex == "first_value"
 
     def test_duplicate_last(self):
         """on_duplicate='last' should overwrite with the last value seen for a subject."""
@@ -639,9 +639,9 @@ class TestHydrateScalar:
 
         df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["first_value", "second_value"]})
 
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="last")
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", on_duplicate="last")
 
-        assert harmonizer.patient_data["p1"].cohort_name == "second_value"
+        assert harmonizer.patient_data["p1"].sex == "second_value"
 
 
 def _noop_processor(h) -> None:  # noqa
@@ -660,7 +660,7 @@ class TestValidateSpecs:
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
                 SPECS = (
-                    ScalarSpec(name="foo", process=_noop_processor, target_attr="cohort_name", value_col="x"),
+                    ScalarSpec(name="foo", process=_noop_processor, target_attr="sex", value_col="x"),
                     ScalarSpec(name="foo", process=_noop_processor, target_attr="sex", value_col="y"),
                 )
 
@@ -680,7 +680,7 @@ class TestValidateSpecs:
         with pytest.raises(ValueError, match="scalar requires value_col"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
-                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="cohort_name"),)
+                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="sex"),)
 
                 def _create_patients(self) -> None:
                     pass
@@ -697,7 +697,7 @@ class TestValidateSpecs:
         with pytest.raises(ValueError, match="subject_col cannot be empty"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
-                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="cohort_name", value_col="x", subject_col=""),)
+                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="sex", value_col="x", subject_col=""),)
 
                 def _create_patients(self) -> None:
                     pass
@@ -730,22 +730,22 @@ class TestRunTemplateMethod:
                 call_order.append("create_patients")
                 self.patient_data["p1"] = Patient(patient_id="p1", trial_id=self.trial_id)
 
-            @scalar(name="first", target_attr="cohort_name", value_col="v")
+            @scalar(name="first", target_attr="sex", value_col="v")
             def _process_first(self) -> pl.DataFrame | None:
                 call_order.append("first")
                 return pl.DataFrame({"SubjectId": ["p1"], "v": ["a"]})
 
-            @scalar(name="second", target_attr="sex", value_col="v")
+            @scalar(name="second", target_attr="age", value_col="v")
             def _process_second(self) -> pl.DataFrame | None:
                 call_order.append("second")
-                return pl.DataFrame({"SubjectId": ["p1"], "v": ["b"]})
+                return pl.DataFrame({"SubjectId": ["p1"], "v": [42]})
 
         harmonizer = TrackedHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
         harmonizer.run()
 
         assert call_order == ["create_patients", "first", "second"]
-        assert harmonizer.patient_data["p1"].cohort_name == "a"
-        assert harmonizer.patient_data["p1"].sex == "b"
+        assert harmonizer.patient_data["p1"].sex == "a"
+        assert harmonizer.patient_data["p1"].age == 42
 
     def test_run_with_empty_patient_data_raises(self):
         class EmptyHarmonizer(BaseHarmonizer):
@@ -764,14 +764,14 @@ class TestRunTemplateMethod:
             def _create_patients(self) -> None:
                 self.patient_data["p1"] = Patient(patient_id="p1", trial_id=self.trial_id)
 
-            @scalar(name="skip", target_attr="cohort_name", value_col="v")
+            @scalar(name="skip", target_attr="sex", value_col="v")
             def _process_skip(self) -> pl.DataFrame | None:
                 return None
 
         harmonizer = SkipHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
         harmonizer.run()  # shouldn't raise
 
-        assert harmonizer.patient_data["p1"].cohort_name is None
+        assert harmonizer.patient_data["p1"].sex is None
 
 
 @dataclass(frozen=True, slots=True)
@@ -781,8 +781,8 @@ class E2ERawRow:
     """
 
     SubjectId: str
-    # scalar source: cohort_name
-    raw_cohort: str | None = None
+    # scalar source: Patient.sex
+    sex: str | None = None
     # singleton source: FollowUp
     raw_lost: bool | None = None
     raw_lost_date: dt.date | None = None
@@ -808,13 +808,8 @@ class E2EHarmonizer(BaseHarmonizer):
             self.patient_data[sid] = Patient(patient_id=sid, trial_id=self.trial_id)
 
     @scalar()
-    def _process_cohort_name(self) -> pl.DataFrame | None:
-        return (
-            self.data.select("SubjectId", "raw_cohort")
-            .filter(pl.col("raw_cohort").is_not_null())
-            .rename({"raw_cohort": "cohort_name"})
-            .unique(subset=["SubjectId"], keep="first")
-        )
+    def _process_sex(self) -> pl.DataFrame | None:
+        return self.data.select("SubjectId", "sex").filter(pl.col("sex").is_not_null()).unique(subset=["SubjectId"], keep="first")
 
     @singleton(FollowUp)
     def _process_lost_to_followup(self) -> pl.DataFrame | None:
@@ -853,10 +848,10 @@ class TestEndToEndPipeline:
     def test_full_pipeline_two_patients(self):
         """Complete pipeline with two patients: p1 has 2 MH rows, p2 has 1."""
         rows = [
-            E2ERawRow("p1", raw_cohort="Cohort A", raw_lost=False),
+            E2ERawRow("p1", sex="female", raw_lost=False),
             E2ERawRow("p1", raw_mh_term="hypertension", raw_mh_start=dt.date(2020, 1, 15), raw_mh_end=dt.date(2021, 6, 1)),
             E2ERawRow("p1", raw_mh_term="diabetes", raw_mh_start=dt.date(2022, 3, 10)),
-            E2ERawRow("p2", raw_cohort="Cohort B", raw_lost=True, raw_lost_date=dt.date(2024, 5, 1)),
+            E2ERawRow("p2", sex="male", raw_lost=True, raw_lost_date=dt.date(2024, 5, 1)),
             E2ERawRow("p2", raw_mh_term="asthma", raw_mh_start=dt.date(2019, 8, 20)),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
@@ -867,8 +862,8 @@ class TestEndToEndPipeline:
         p2 = harmonizer.patient_data["p2"]
 
         # scalar
-        assert p1.cohort_name == "Cohort A"
-        assert p2.cohort_name == "Cohort B"
+        assert p1.sex == "female"
+        assert p2.sex == "male"
 
         # singleton (FollowUp)
         assert p1.lost_to_followup is not None
@@ -897,9 +892,9 @@ class TestEndToEndPipeline:
     def test_patient_with_missing_domains(self):
         """p1 has everything; p2 has only cohort (no FollowUp, no MedicalHistory)."""
         rows = [
-            E2ERawRow("p1", raw_cohort="Cohort A", raw_lost=True),
+            E2ERawRow("p1", sex="female", raw_lost=True),
             E2ERawRow("p1", raw_mh_term="hypertension", raw_mh_start=dt.date(2020, 1, 15)),
-            E2ERawRow("p2", raw_cohort="Cohort B"),
+            E2ERawRow("p2", sex="male"),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
         harmonizer.run()
@@ -908,7 +903,7 @@ class TestEndToEndPipeline:
         p2 = harmonizer.patient_data["p2"]
 
         # p1 has everything
-        assert p1.cohort_name == "Cohort A"
+        assert p1.sex == "female"
         assert p1.lost_to_followup is not None
         lfu = p1.lost_to_followup
         assert lfu is not None
@@ -916,14 +911,14 @@ class TestEndToEndPipeline:
         assert len(p1.medical_histories) == 1
 
         # p2 only has cohort
-        assert p2.cohort_name == "Cohort B"
+        assert p2.sex == "male"
         assert p2.lost_to_followup is None
         assert len(p2.medical_histories) == 0
 
     def test_collection_ordering(self):
         """Medical histories should be sorted by start_date regardless of row insertion order."""
         rows = [
-            E2ERawRow("p1", raw_cohort="Cohort A"),
+            E2ERawRow("p1", sex="female"),
             # intentionally out of order to verify sort
             E2ERawRow("p1", raw_mh_term="third", raw_mh_start=dt.date(2024, 3, 1)),
             E2ERawRow("p1", raw_mh_term="first", raw_mh_start=dt.date(2024, 1, 1)),
@@ -955,15 +950,15 @@ class TestDecoratorRegistration:
                 pass
 
             @scalar()
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            def _process_sex(self) -> pl.DataFrame | None:
                 return None
 
         assert len(H.SPECS) == 1
         spec = H.SPECS[0]
         assert isinstance(spec, ScalarSpec)
-        assert spec.name == "cohort_name"
-        assert spec.target_attr == "cohort_name"
-        assert spec.value_col == "cohort_name"
+        assert spec.name == "sex"
+        assert spec.target_attr == "sex"
+        assert spec.value_col == "sex"
         assert spec.on_duplicate == "error"
 
     def test_scalar_explicit_overrides_win(self):
@@ -971,14 +966,14 @@ class TestDecoratorRegistration:
             def _create_patients(self) -> None:
                 pass
 
-            @scalar(name="custom_name", target_attr="cohort_name", value_col="raw_col", on_duplicate="last")
+            @scalar(name="custom_name", target_attr="sex", value_col="raw_col", on_duplicate="last")
             def _process_anything(self) -> pl.DataFrame | None:
                 return None
 
         spec = H.SPECS[0]
         assert isinstance(spec, ScalarSpec)
         assert spec.name == "custom_name"
-        assert spec.target_attr == "cohort_name"
+        assert spec.target_attr == "sex"
         assert spec.value_col == "raw_col"
         assert spec.on_duplicate == "last"
 
@@ -987,15 +982,15 @@ class TestDecoratorRegistration:
             def _create_patients(self) -> None:
                 pass
 
-            @scalar(target_attr="cohort_name")
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            @scalar(target_attr="sex")
+            def _process_patient_sex(self) -> pl.DataFrame | None:
                 return None
 
         spec = H.SPECS[0]
         assert isinstance(spec, ScalarSpec)
-        assert spec.name == "cohort_name"  # default from method name
-        assert spec.target_attr == "cohort_name"  # explicit
-        assert spec.value_col == "cohort_name"  # default from method name
+        assert spec.name == "patient_sex"  # default from method name
+        assert spec.target_attr == "sex"  # explicit
+        assert spec.value_col == "patient_sex"  # default from method name
 
     def test_specs_collected_in_declaration_order(self):
         class H(BaseHarmonizer):
@@ -1007,14 +1002,14 @@ class TestDecoratorRegistration:
                 return None
 
             @scalar()
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            def _process_date_of_death(self) -> pl.DataFrame | None:
                 return None
 
             @scalar()
             def _process_age(self) -> pl.DataFrame | None:
                 return None
 
-        assert [s.name for s in H.SPECS] == ["sex", "cohort_name", "age"]
+        assert [s.name for s in H.SPECS] == ["sex", "date_of_death", "age"]
 
     def test_undecorated_methods_are_ignored_from_specs(self):
         class H(BaseHarmonizer):
@@ -1113,10 +1108,10 @@ class TestDecoratorRegistration:
                 return None
 
             @scalar()
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            def _process_age(self) -> pl.DataFrame | None:
                 return None
 
-        assert [s.name for s in H.SPECS] == ["sex", "lost_to_followup", "cohort_name"]
+        assert [s.name for s in H.SPECS] == ["sex", "lost_to_followup", "age"]
         assert isinstance(H.SPECS[0], ScalarSpec)
         assert isinstance(H.SPECS[1], SingletonSpec)
         assert isinstance(H.SPECS[2], ScalarSpec)

@@ -9,36 +9,76 @@ from omop_etl.harmonization.harmonizers.base import (
     ScalarSpec,
     SingletonSpec,
 )
+from omop_etl.harmonization.core.cohort_lookups import CohortLookups
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.patient import Patient
 
 
-class TestProcessCohortName:
-    def test_returns_expected_columns(self, cohort_name_fixture):
-        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
-        df = h._process_cohort_name()
+_COHORT_LOOKUPS = CohortLookups(
+    biomarker={"braf non-v600mut": "BRAF Non-V600", "her2exp": "HER2 expression"},
+    cancer_type={"pancreatic": "Pancreatic cancer", "cholangiocarcinoma": "Cholangiocarcinoma"},
+)
+
+
+class TestProcessCohort:
+    @staticmethod
+    def _harmonizer(data: pl.DataFrame) -> ImpressHarmonizer:
+        h = ImpressHarmonizer(data=data, trial_id="T")
+        h.cohort_lookups = _COHORT_LOOKUPS
+        return h
+
+    def test_returns_expected_columns(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
         assert df is not None
+        assert set(df.columns) == {
+            "SubjectId",
+            Cohort.Fields.RAW_NAME,
+            Cohort.Fields.NORMALIZED_NAME,
+            Cohort.Fields.TARGET_BIOMARKER,
+            Cohort.Fields.CANCER_TYPE,
+            Cohort.Fields.DRUGS,
+        }
 
-        assert set(df.columns) == {"SubjectId", "cohort_name"}
-
-    @pytest.mark.parametrize(
-        "sid, expected",
-        [
-            ("cohort_hit_1", "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"),
-            ("cohort_hit_2", "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"),
-            pytest.param("cohort_empty_1", None, id="explicit None"),
-            pytest.param("cohort_empty_2", None, id="empty string"),
-            pytest.param("cohort_empty_3", None, id="missing value"),
-        ],
-    )
-    def test_cohort_name_values(self, cohort_name_fixture, sid, expected):
-        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
-        df = h._process_cohort_name()
+    def test_empty_or_missing_cohortname_filtered_out(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
         assert df is not None
+        sids = set(df.get_column("SubjectId").to_list())
+        assert sids == {"cohort_hit_1", "cohort_unmapped", "cohort_hit_2"}
 
-        row = df.filter(pl.col("SubjectId") == sid)
-        actual = None if row.height == 0 else row.item(0, "cohort_name")
-        assert actual == expected
+    def test_mapped_cohort_harmonizes_parts_and_composes_normalized(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
+        row = df.filter(pl.col("SubjectId") == "cohort_hit_1")
+        assert row.item(0, Cohort.Fields.RAW_NAME) == "BRAF Non-V600mut/Pancreatic/Trametinib + Dabrafenib"
+        assert row.item(0, Cohort.Fields.TARGET_BIOMARKER) == "BRAF Non-V600"
+        assert row.item(0, Cohort.Fields.CANCER_TYPE) == "Pancreatic cancer"
+        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Trametinib", "Dabrafenib"]
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "BRAF Non-V600/Pancreatic cancer/Trametinib + Dabrafenib"
+
+    def test_single_drug_composition(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
+        row = df.filter(pl.col("SubjectId") == "cohort_hit_2")
+        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Pertuzumab"]
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "HER2 expression/Cholangiocarcinoma/Pertuzumab"
+
+    def test_unmapped_parts_leave_normalized_none_but_keep_raw_and_drugs(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
+        row = df.filter(pl.col("SubjectId") == "cohort_unmapped")
+        assert row.item(0, Cohort.Fields.TARGET_BIOMARKER) is None
+        assert row.item(0, Cohort.Fields.CANCER_TYPE) is None
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) is None
+        # raw_name and drugs preserved
+        assert row.item(0, Cohort.Fields.RAW_NAME) == "UnknownMarker/UnknownTumor/DrugX"
+        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["DrugX"]
+
+    def test_hydrates_cohort_singleton_onto_patient(self, cohort_fixture):
+        h = self._harmonizer(cohort_fixture)
+        h._create_patients()
+        h.run_one("cohort")
+        cohort = h.patient_data["cohort_hit_1"].cohort
+        assert cohort is not None
+        assert cohort.normalized_name == "BRAF Non-V600/Pancreatic cancer/Trametinib + Dabrafenib"
+        assert cohort.drugs == ("Trametinib", "Dabrafenib")
 
 
 class TestProcessSex:
@@ -1716,7 +1756,6 @@ class TestImpressSpecContracts:
     # fixture that provides input for that processor
     SPEC_TO_FIXTURE: ClassVar[dict[str, str | None]] = {
         # scalars
-        "cohort_name": "cohort_name_fixture",
         "sex": "gender_fixture",
         "date_of_birth": "age_fixture",
         "age": "age_fixture",
@@ -1728,6 +1767,7 @@ class TestImpressSpecContracts:
         "treatment_start_date": "treatment_start_fixture",
         "evaluable_for_efficacy_analysis": "evaluability_fixture",
         # singletons
+        "cohort": "cohort_fixture",
         "end_of_treatment": "end_of_treatment_fixture",
         "tumor_type": "tumor_type_fixture",
         "study_drugs": "study_drugs_fixture",

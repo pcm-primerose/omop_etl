@@ -10,6 +10,7 @@ from omop_etl.harmonization.models.domain.best_overall_response import BestOvera
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment
@@ -74,6 +75,7 @@ ALL_DOMAIN_CLASSES = [
     Biomarkers,
     C30,
     ClinicalBenefit,
+    Cohort,
     ConcomitantMedication,
     EcogBaseline,
     EndOfTreatment,

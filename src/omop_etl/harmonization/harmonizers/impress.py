@@ -9,6 +9,7 @@ from omop_etl.harmonization.models.domain.best_overall_response import BestOvera
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment, TrialOutcomeStatus
@@ -45,13 +46,67 @@ class ImpressHarmonizer(BaseHarmonizer):
         for pid in patient_ids:
             self.patient_data[pid] = Patient(trial_id=self.trial_id, patient_id=pid)
 
-    @scalar()
-    def _process_cohort_name(self) -> pl.DataFrame | None:
-        colname = Patient.Scalars.COHORT_NAME
-        return self.data.select(
-            "SubjectId",
-            PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).alias(colname),
-        ).filter(pl.col("cohort_name").is_not_null())
+    @singleton(Cohort)
+    def _process_cohort(self) -> pl.DataFrame | None:
+        """
+        Harmonized cohort singleton. Built from the cohort COH columns
+        (not the aggregated COHORTNAME col, can't be safely parsed).
+
+        - raw_name: COH_COHORTNAME
+        - target_biomarker: COH_COHCTN, harmonized using the biomarker dictionary
+        - cancer_type: COH_COHTT, harmonized using the tumor-type dictionary
+        - drugs: non-null COH_COHALLO* cols allocations (not harmonized)
+        - normalized_name: "{biomarker}/{cancer_type}/{drugs}" when both
+          biomarker and cancer type resolve, else None
+        """
+        cols = Cohort.Fields
+        drug_cols = [
+            "COH_COHALLO1",
+            "COH_COHALLO1__2",
+            "COH_COHALLO1__3",
+            "COH_COHALLO2",
+            "COH_COHALLO2__2",
+            "COH_COHALLO2__3",
+        ]
+
+        biomarker_map = self.cohort_lookups.biomarker
+        cancer_type_map = self.cohort_lookups.cancer_type
+
+        df = (
+            self.data.select(
+                "SubjectId",
+                PolarsParsers.to_optional_date(pl.col("COH_EventDate")).alias("_event_date"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).str.strip_chars().alias(cols.RAW_NAME),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHCTN")).str.strip_chars().alias("_raw_biomarker"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHTT")).str.strip_chars().alias("_raw_cancer_type"),
+                *[PolarsParsers.to_optional_utf8(pl.col(c)).str.strip_chars().alias(c) for c in drug_cols],
+            )
+            .filter(pl.col(cols.RAW_NAME).is_not_null())
+            # one cohort per patient: keep the latest by COH event date
+            .sort(["SubjectId", "_event_date"])
+            .unique(subset=["SubjectId"], keep="last")
+        )
+
+        if df.is_empty():
+            return None
+
+        df = df.with_columns(
+            pl.col("_raw_biomarker").str.to_lowercase().replace_strict(biomarker_map, default=None).alias(cols.TARGET_BIOMARKER),
+            pl.col("_raw_cancer_type").str.to_lowercase().replace_strict(cancer_type_map, default=None).alias(cols.CANCER_TYPE),
+            # drugs: collect non-null allocation columns into a list, verbatim
+            pl.concat_list([pl.col(c) for c in drug_cols]).list.drop_nulls().alias(cols.DRUGS),
+        )
+
+        base = pl.concat_str([pl.col(cols.TARGET_BIOMARKER), pl.col(cols.CANCER_TYPE)], separator="/")
+        normalized = (
+            pl.when(pl.col(cols.TARGET_BIOMARKER).is_not_null() & pl.col(cols.CANCER_TYPE).is_not_null())
+            .then(pl.when(pl.col(cols.DRUGS).list.len() > 0).then(pl.concat_str([base, pl.col(cols.DRUGS).list.join(" + ")], separator="/")).otherwise(base))
+            .otherwise(None)
+            .alias(cols.NORMALIZED_NAME)
+        )
+        df = df.with_columns(normalized)
+
+        return df.select("SubjectId", cols.RAW_NAME, cols.NORMALIZED_NAME, cols.TARGET_BIOMARKER, cols.CANCER_TYPE, cols.DRUGS)
 
     @scalar()
     def _process_sex(self) -> pl.DataFrame | None:

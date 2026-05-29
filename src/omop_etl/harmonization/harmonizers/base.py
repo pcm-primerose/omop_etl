@@ -13,6 +13,10 @@ from typing import (
     TypeVar,
 )
 
+from omop_etl.harmonization.core.cohort_lookups import (
+    CohortLookups,
+    load_cohort_lookups,
+)
 from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.models.patient import Patient
@@ -292,6 +296,8 @@ class BaseHarmonizer(ABC):
         self.data = data
         self.trial_id = trial_id
         self.patient_data: dict[str, Patient] = {}
+        # cross-source cohort harmonization dictionaries:
+        self.cohort_lookups: CohortLookups = load_cohort_lookups()
 
     def _has_columns(self, *cols: str) -> bool:
         """Check if all specified columns exist in self.data."""

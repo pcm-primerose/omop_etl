@@ -5,32 +5,54 @@ import polars as pl
 
 
 @dataclass(frozen=True, slots=True)
-class CohortNameRow:
+class CohortRow:
     SubjectId: str
+    COH_EventDate: str | None = None
     COH_COHORTNAME: str | None = None
+    COH_COHCTN: str | None = None  # canonical target name (biomarker)
+    COH_COHTT: str | None = None  # cohort tumor type (cancer type)
+    COH_COHALLO1: str | None = None
+    COH_COHALLO1__2: str | None = None
+    COH_COHALLO1__3: str | None = None
+    COH_COHALLO2: str | None = None
+    COH_COHALLO2__2: str | None = None
+    COH_COHALLO2__3: str | None = None
 
 
 @pytest.fixture(scope="class")
-def cohort_name_fixture() -> pl.DataFrame:
-    rows: List[CohortNameRow] = [
-        CohortNameRow(
+def cohort_fixture() -> pl.DataFrame:
+    rows: List[CohortRow] = [
+        # maps cleanly under lookups used in the test: two drugs
+        CohortRow(
             "cohort_hit_1",
-            "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib",
+            COH_EventDate="2030-01-01",
+            COH_COHORTNAME="BRAF Non-V600mut/Pancreatic/Trametinib + Dabrafenib",
+            COH_COHCTN="BRAF Non-V600mut",
+            COH_COHTT="Pancreatic",
+            COH_COHALLO1="Trametinib",
+            COH_COHALLO1__2="Dabrafenib",
         ),
-        CohortNameRow(
-            "cohort_empty_1",
-            None,
+        # raw biomarker/cancer-type not in the dictionaries: parts + normalized
+        # stay None, but raw_name + drugs are preserved
+        CohortRow(
+            "cohort_unmapped",
+            COH_EventDate="2030-02-01",
+            COH_COHORTNAME="UnknownMarker/UnknownTumor/DrugX",
+            COH_COHCTN="UnknownMarker",
+            COH_COHTT="UnknownTumor",
+            COH_COHALLO1="DrugX",
         ),
-        CohortNameRow(
-            "cohort_empty_2",
-            "",
-        ),
-        CohortNameRow(
-            "cohort_empty_3",
-        ),
-        CohortNameRow(
+        CohortRow("cohort_empty_1", COH_COHORTNAME=None),
+        CohortRow("cohort_empty_2", COH_COHORTNAME=""),
+        CohortRow("cohort_empty_3"),
+        # maps cleanly, single drug
+        CohortRow(
             "cohort_hit_2",
-            "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab",
+            COH_EventDate="2030-03-01",
+            COH_COHORTNAME="HER2exp/Cholangiocarcinoma/Pertuzumab",
+            COH_COHCTN="HER2exp",
+            COH_COHTT="Cholangiocarcinoma",
+            COH_COHALLO1="Pertuzumab",
         ),
     ]
 
