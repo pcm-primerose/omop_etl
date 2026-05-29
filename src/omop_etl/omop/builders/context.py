@@ -72,12 +72,12 @@ class BuildContext:
         """N*M expansion for cross-product linkage."""
         return tuple((left, right) for left in self.resolve_rows(left_table, left_ref) for right in self.resolve_rows(right_table, right_ref))
 
+    # TODO: remove once visits are modeled as a Patient attribute.
     def resolve_visit_id(self, date: dt.date) -> int | None:
         """
         Resolve a visit_occurrence_id by date. Visits are 1:1 by date
         by construction (VisitOccurrenceBuilder skips duplicates).
         """
-        # TODO: remove once visits are modeled as a Patient attribute.
         refs = self.resolve_rows(
             OmopTables.VISIT_OCCURRENCE,
             visit_source_ref(self.patient.patient_id, date),
