@@ -1,6 +1,7 @@
 import polars as pl
 from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
 from omop_etl.harmonization.models.harmonized import HarmonizedData
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.patient import Patient
 
 
@@ -37,12 +38,20 @@ class DrupHarmonizer(BaseHarmonizer):  # noqa
             self.patient_data[patient_id] = Patient(trial_id=self.trial_id, patient_id=patient_id)
 
     def _process_cohort_name(self):
-        """Process cohort names and update patient objects"""
+        """Process cohort names and update patient objects.
+
+        TODO: DRUP cohort normalization not implemented — emits the Cohort
+        singleton with raw_name only (no biomarker/cancer_type/drug parts,
+        no normalized_name). Wire up a DRUP-specific normalization when the
+        DRUP harmonizer is built out.
+        """
         cohort_data = self.data.filter(pl.col("ID") != "NA")
 
         for row in cohort_data.iter_rows(named=True):
             patient_id = row["ID"]
-            cohort_name = row["CohortName"]
+            raw_name = row["CohortName"]
 
             if patient_id in self.patient_data:
-                self.patient_data[patient_id].cohort_name = cohort_name
+                cohort = Cohort(patient_id=patient_id)
+                cohort.raw_name = raw_name
+                self.patient_data[patient_id].cohort = cohort

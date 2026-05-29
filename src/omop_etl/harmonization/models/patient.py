@@ -11,6 +11,7 @@ from omop_etl.harmonization.models.domain.best_overall_response import BestOvera
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment
@@ -36,7 +37,6 @@ class Patient(TrackedValidated):
     _attr_cache: ClassVar[dict[type, str]] = {}
 
     class Scalars:
-        COHORT_NAME = "cohort_name"
         AGE = "age"
         DATE_OF_BIRTH = "date_of_birth"
         SEX = "sex"
@@ -49,6 +49,7 @@ class Patient(TrackedValidated):
         NUMBER_OF_SERIOUS_ADVERSE_EVENTS = "number_of_serious_adverse_events"
 
     class Singletons:
+        COHORT = "cohort"
         TUMOR_TYPE = "tumor_type"
         STUDY_DRUGS = "study_drugs"
         BIOMARKERS = "biomarkers"
@@ -75,7 +76,6 @@ class Patient(TrackedValidated):
         # scalars
         self._patient_id = patient_id
         self._trial_id = trial_id
-        self._cohort_name: str | None = None
         self._age: int | None = None
         self._date_of_birth: dt.date | None = None
         self._sex: str | None = None
@@ -88,6 +88,7 @@ class Patient(TrackedValidated):
         self._number_of_serious_adverse_events: int | None = None
 
         # singletons
+        self._cohort: Cohort | None = None
         self._tumor_type: TumorType | None = None
         self._study_drugs: StudyDrugs | None = None
         self._biomarkers: Biomarkers | None = None
@@ -129,18 +130,6 @@ class Patient(TrackedValidated):
     def trial_id(self, value: str | None) -> None:
         self._set_validated_prop(
             prop=self.__class__.trial_id,
-            value=value,
-            validator=StrictValidators.validate_optional_str,
-        )
-
-    @property
-    def cohort_name(self) -> str | None:
-        return self._cohort_name
-
-    @cohort_name.setter
-    def cohort_name(self, value: str | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.cohort_name,
             value=value,
             validator=StrictValidators.validate_optional_str,
         )
@@ -266,6 +255,20 @@ class Patient(TrackedValidated):
         )
 
     # singletons
+    @property
+    def cohort(self) -> Cohort | None:
+        return self._cohort
+
+    @cohort.setter
+    def cohort(self, value: Cohort | None) -> None:
+        self._cohort = self.validate_singleton(
+            value,
+            item_type=Cohort,
+            patient_id=self._patient_id,
+            field_name=setter_name(self.__class__.cohort),
+        )
+        self.updated_fields.add(Cohort.__name__)
+
     @property
     def tumor_type(self) -> TumorType | None:
         return self._tumor_type
@@ -669,7 +672,6 @@ class Patient(TrackedValidated):
             # sclalars
             f"patient_id={self.patient_id}{delim} "
             f"trial_id={self.trial_id}{delim} "
-            f"cohort_name={self.cohort_name}{delim} "
             f"sex={self.sex}{delim} "
             f"age={self.age}{delim} "
             f"date_of_birth={self.date_of_birth}{delim} "
@@ -681,6 +683,7 @@ class Patient(TrackedValidated):
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis}{delim} "
             f"treatment_start_date={self.treatment_start_date}{delim} "
             # singletons
+            f"cohort={self.cohort}{delim} "
             f"tumor_type={self.tumor_type}{delim} "
             f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
             f"biomarkers={self.biomarkers}{delim} "
