@@ -39,8 +39,13 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         publications: list[RowPublication] = []
         outpatient = self.concepts.lookup_structural("outpatient_visit", domains={"Visit"})
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        visit_concept_id = int(outpatient.concept_id) if outpatient else 0
-        visit_type_concept_id = int(ecrf.concept_id) if ecrf else 0
+        if outpatient is None:
+            raise ValueError(f"Outpatient not found in structural lookup: {outpatient}")
+        if ecrf is None:
+            raise ValueError(f"eCRF concept not found in structural lookup: {ecrf}")
+
+        visit_concept_id = outpatient.concept_id
+        visit_type_concept_id = ecrf.concept_id
 
         # track previous visit for preceding_visit_occurrence_id FK
         prev_visit_id: int | None = None

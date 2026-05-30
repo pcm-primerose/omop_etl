@@ -1235,140 +1235,38 @@ class TestProcessTumorAssessments:
         subject_ids = set(df["SubjectId"].to_list())
         assert "no_signal" not in subject_ids
 
-    # --- absolute target_lesion_size = baseline * (1 + change_from_baseline) ---
-
-    @staticmethod
-    def _frame(rows):
-        from tests.harmonization.conftest import TumorAssessmentRow
-        from dataclasses import asdict, fields
-
-        # all TumorAssessmentRow source columns are str/int-or-None and come from CSV in prod;
-        # pin schema so all-None columns in small test frames don't infer Null dtype.
-        schema = {}
-        for f in fields(TumorAssessmentRow):
-            if f.name in ("RA_RANLBASECD", "RNRSP_RNRSPNLCD"):
-                schema[f.name] = pl.Int64
-            else:
-                schema[f.name] = pl.Utf8
-        return pl.from_dicts([asdict(TumorAssessmentRow(**r)) for r in rows], schema=schema)
-
-    def test_baseline_100_change_minus_50_pct_yields_50(self):
-        df = self._frame(
-            [
-                # baseline row supplies the size only
-                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                # assessment row with -50% change from baseline
-                {
-                    "SubjectId": "s1",
-                    "RA_RARECCH": "-50",
-                    "RA_RABASECH": "-50",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-03-01",
-                    "RA_EventId": "V02",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_baseline_100_change_minus_50_pct_yields_50(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V02"))
+        row = out.filter(pl.col("SubjectId") == "subject_change_minus_50pct")
         assert row.item(0, "target_lesion_size") == 50.0
 
-    def test_baseline_100_change_zero_yields_baseline(self):
-        df = self._frame(
-            [
-                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                {
-                    "SubjectId": "s1",
-                    "RA_RABASECH": "0",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_baseline_100_change_zero_yields_baseline(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
+        row = out.filter(pl.col("SubjectId") == "subject_change_zero")
         assert row.item(0, "target_lesion_size") == 100.0
 
-    def test_subject_without_baseline_yields_none(self):
-        df = self._frame(
-            [
-                # no baseline size row for s1, only an assessment with a change value
-                {
-                    "SubjectId": "s1",
-                    "RA_RABASECH": "-30",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_subject_without_baseline_yields_none(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter(pl.col("SubjectId") == "s1")
+        row = out.filter(pl.col("SubjectId") == "subject_no_baseline_yields_none")
         assert row.item(0, "target_lesion_size") is None
 
-    def test_change_is_none_yields_none(self):
-        df = self._frame(
-            [
-                {"SubjectId": "s1", "RA_RARECBAS": "80", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                # assessment with signal but no change value
-                {
-                    "SubjectId": "s1",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_RATIMRES": "SD",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_change_is_none_yields_none(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
+        row = out.filter(pl.col("SubjectId") == "subject_change_none_yields_none")
         assert row.item(0, "target_lesion_size") is None
 
-    def test_subjects_do_not_cross_contaminate(self):
-        df = self._frame(
-            [
-                # s1 baseline 100, assessment -50%: 50.0
-                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                {
-                    "SubjectId": "s1",
-                    "RA_RABASECH": "-50",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-                # s2 baseline 40, assessment +25%: 50.0 (same arithmetic, different subject)
-                {"SubjectId": "s2", "RA_RARECBAS": "40", "RA_EventDate": "2020-01-05", "RA_EventId": "V00"},
-                {
-                    "SubjectId": "s2",
-                    "RA_RABASECH": "25",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-05",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_subjects_do_not_cross_contaminate(self, tumor_assessments_fixture):
+        # different baselines, same arithmetic result -> per-subject baselines do not bleed
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        s1 = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
-        s2 = out.filter((pl.col("SubjectId") == "s2") & (pl.col("event_id") == "V01"))
-        assert s1.item(0, "target_lesion_size") == 50.0
-        assert s2.item(0, "target_lesion_size") == 50.0
-
-    # --- folded baseline (VI V00) rows ---
+        a = out.filter(pl.col("SubjectId") == "subject_change_minus_50pct")
+        b = out.filter(pl.col("SubjectId") == "subject_change_plus_25pct")
+        assert a.item(0, "target_lesion_size") == 50.0  # 100 * (1 - 0.50)
+        assert b.item(0, "target_lesion_size") == 50.0  # 40 * (1 + 0.25)
 
     @staticmethod
     def _baseline_rows(fixture) -> dict:
@@ -1425,18 +1323,11 @@ class TestProcessTumorAssessments:
         assert "bl_vi_no_date" not in by_subject
         assert "bl_no_vi_has_size" not in by_subject
 
-    # --- single-scale invariant ---
-
-    def test_mixed_assessment_scales_raises(self):
+    # single-scale invariant
+    def test_mixed_assessment_scales_raises(self, tumor_assessments_mixed_scale_fixture):
         # one scale per patient is an invariant: a subject with both RA (RECIST)
         # and RNRSP (RANO) signal must raise rather than cross-contaminate sizes.
-        df = self._frame(
-            [
-                {"SubjectId": "mixed_scale", "RA_RAASSESS1": "RECIST", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                {"SubjectId": "mixed_scale", "RNRSP_TERNCFB": "-10", "RNRSP_EventDate": "2020-02-01", "RNRSP_EventId": "V02"},
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
+        h = ImpressHarmonizer(data=tumor_assessments_mixed_scale_fixture, trial_id="T")
         with pytest.raises(ValueError, match="multiple scales"):
             h._process_tumor_assessments()
 
@@ -1707,7 +1598,6 @@ class TestImpressSpecContracts:
         "clinical_benefit": "clinical_benefit_fixture",
         "lost_to_followup": "lost_to_followup_fixture",
         "ecog_baseline": "ecog_fixture",
-        "baseline_tumor_assessment": "baseline_tumor_assessment_fixture",
         "best_overall_response": "best_overall_response_fixture",
         # collections
         "medical_histories": "medical_history_fixture",

@@ -1441,8 +1441,7 @@ class TumorAssessmentRow:
     # baseline lesion size sources:
     RNRSP_TERNTBAS: str | None = None
     RA_RARECBAS: str | None = None
-    # baseline V00 sources: read by _baseline_tumor_assessment_rows when the
-    # collection processor folds the was_baseline row into the collection
+    # baseline V00 sources:
     VI_VITUMA: str | None = None
     VI_VITUMA__2: str | None = None
     VI_EventId: str | None = None
@@ -1510,8 +1509,6 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             RNRSP_EventDate="1900-04-01",
             RNRSP_EventId="V05",
         ),
-        # --- baseline (VI V00) subjects: folded into the collection as was_baseline rows ---
-        # full baseline: RECIST scale, size from RA *BAS, off-target from RCNT
         TumorAssessmentRow(
             "bl_full_recist",
             VI_VITUMA="RECIST 1.1",
@@ -1524,14 +1521,12 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             RCNT_EventId="V00",
             RCNT_EventDate="2020-01-20",
         ),
-        # VI_VITUMA__2 fallback, scale normalizes to irecist, no size/off-target
         TumorAssessmentRow(
             "bl_vituma2_irecist",
             VI_VITUMA__2="iRECIST",
             VI_EventDate="2020-02-01",
             VI_EventId="V00",
         ),
-        # rano scale, size from RNRSP *BAS
         TumorAssessmentRow(
             "bl_rnrsp_rano",
             VI_VITUMA="RANO (for Glioblastoma)",
@@ -1541,7 +1536,6 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             RNRSP_EventDate="2020-03-02",
             RNRSP_EventId="V02",
         ),
-        # off-target from RNTMNT (RNTMNT_RNTMNTNOB takes precedence over RNTMNT_RNTMNTNO)
         TumorAssessmentRow(
             "bl_rntmnt_offtarget",
             VI_VITUMA="RECIST 1.1",
@@ -1552,18 +1546,56 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             RNTMNT_EventId="V00",
             RNTMNT_EventDate="2020-04-10",
         ),
-        # VI V00 but no date: dropped (the baseline row must carry the V00 date)
         TumorAssessmentRow(
             "bl_vi_no_date",
             VI_VITUMA="RECIST 1.1",
             VI_EventId="V00",
         ),
-        # size source but no VI V00 row: contributes no baseline row
         TumorAssessmentRow(
             "bl_no_vi_has_size",
             RA_RARECBAS="50",
             RA_EventDate="2020-01-01",
             RA_EventId="V02",
+        ),
+        TumorAssessmentRow(
+            "subject_change_minus_50pct",
+            RA_RARECBAS="100",
+            RA_RABASECH="-50",
+            RA_RARECCH="-50",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-03-01",
+            RA_EventId="V02",
+        ),
+        TumorAssessmentRow(
+            "subject_change_zero",
+            RA_RARECBAS="100",
+            RA_RABASECH="0",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-02-01",
+            RA_EventId="V01",
+        ),
+        TumorAssessmentRow(
+            "subject_no_baseline_yields_none",
+            RA_RABASECH="-30",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-02-01",
+            RA_EventId="V01",
+        ),
+        TumorAssessmentRow(
+            "subject_change_none_yields_none",
+            RA_RARECBAS="80",
+            RA_RAASSESS1="RECIST",
+            RA_RATIMRES="SD",
+            RA_EventDate="2020-02-01",
+            RA_EventId="V01",
+        ),
+        TumorAssessmentRow(
+            "subject_change_plus_25pct",
+            RA_RARECBAS="40",
+            RA_RABASECH="25",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-02-05",
+            RA_EventId="V01",
         ),
     ]
 
@@ -1587,6 +1619,18 @@ def tumor_assessments_fixture() -> pl.DataFrame:
         "RNTMNT_EventDate",
     ]
     return pl.from_dicts(records, schema_overrides={c: pl.Utf8 for c in baseline_str_cols})
+
+
+@pytest.fixture
+def tumor_assessments_mixed_scale_fixture() -> pl.DataFrame:
+    """Single subject with both RA (RECIST) and RNRSP (RANO) signal, violating the
+    one-scale-per-patient invariant. Used to assert _process_tumor_assessments raises."""
+    rows: List[TumorAssessmentRow] = [
+        TumorAssessmentRow("mixed_scale", RA_RAASSESS1="RECIST", RA_RARECBAS="100", RA_EventDate="2020-01-01", RA_EventId="V00"),
+        TumorAssessmentRow("mixed_scale", RNRSP_TERNCFB="-10", RNRSP_EventDate="2020-02-01", RNRSP_EventId="V02"),
+    ]
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records)
 
 
 @dataclass(frozen=True, slots=True)
