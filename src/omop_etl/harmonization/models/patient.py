@@ -23,6 +23,7 @@ from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.domain.visit import Visit
 
 log = getLogger(__name__)
 T = TypeVar("T", bound=DomainBase)
@@ -65,6 +66,7 @@ class Patient(TrackedValidated):
         CONCOMITANT_MEDICATIONS = "concomitant_medications"
         ADVERSE_EVENTS = "adverse_events"
         TUMOR_ASSESSMENTS = "tumor_assessments"
+        VISITS = "visits"
         C30_COLLECTION = "c30_collection"
         EQ5D_COLLECTION = "eq5d_collection"
 
@@ -103,6 +105,7 @@ class Patient(TrackedValidated):
         self._concomitant_medications: tuple[ConcomitantMedication, ...] = ()
         self._adverse_events: tuple[AdverseEvent, ...] = ()
         self._tumor_assessments: tuple[TumorAssessment, ...] = ()
+        self._visits: tuple[Visit, ...] = ()
         self._c30_collection: tuple[C30, ...] = ()
         self._eq5d_collection: tuple[EQ5D, ...] = ()
 
@@ -455,6 +458,20 @@ class Patient(TrackedValidated):
         self.updated_fields.add(setter_name(self.__class__.tumor_assessments))
 
     @property
+    def visits(self) -> tuple[Visit, ...]:
+        return self._visits
+
+    @visits.setter
+    def visits(self, value: Sequence[Visit] | None) -> None:
+        self._visits = Patient.validate_collection(
+            value,
+            item_type=Visit,
+            patient_id=self._patient_id,
+            field_name=setter_name(self.__class__.visits),
+        )
+        self.updated_fields.add(setter_name(self.__class__.visits))
+
+    @property
     def c30_collection(self) -> tuple[C30, ...]:
         return self._c30_collection
 
@@ -682,6 +699,7 @@ class Patient(TrackedValidated):
             f"concomitant_medications={self.concomitant_medications}{delim} "
             f"adverse_events={self.adverse_events}{delim} "
             f"tumor_assessments={self.tumor_assessments}{delim} "
+            f"visits={self.visits}{delim} "
             f"EQ5D={self.eq5d_collection}{delim} "
             f"C30={self.c30_collection}"
             f")"

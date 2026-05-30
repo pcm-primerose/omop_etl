@@ -1260,7 +1260,6 @@ class TestProcessTumorAssessments:
         assert row.item(0, "target_lesion_size") is None
 
     def test_subjects_do_not_cross_contaminate(self, tumor_assessments_fixture):
-        # different baselines, same arithmetic result -> per-subject baselines do not bleed
         out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
         a = out.filter(pl.col("SubjectId") == "subject_change_minus_50pct")
@@ -1325,8 +1324,7 @@ class TestProcessTumorAssessments:
 
     # single-scale invariant
     def test_mixed_assessment_scales_raises(self, tumor_assessments_mixed_scale_fixture):
-        # one scale per patient is an invariant: a subject with both RA (RECIST)
-        # and RNRSP (RANO) signal must raise rather than cross-contaminate sizes.
+        # subject with both RA (RECIST) and RNRSP (RANO) signal must raise
         h = ImpressHarmonizer(data=tumor_assessments_mixed_scale_fixture, trial_id="T")
         with pytest.raises(ValueError, match="multiple scales"):
             h._process_tumor_assessments()

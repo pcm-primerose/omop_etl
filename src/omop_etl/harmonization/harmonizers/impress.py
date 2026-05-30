@@ -1268,6 +1268,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             .otherwise(None)
         )
 
+    # todo: latent bug: hard-matches EventId == "V00", so it drops the baseline when the scale sits on "V00VI" (fixtures hide it)
+    #   in real data in prod; there might be "V00" and "V00VI" rows (se plan).
     def _baseline_tumor_assessment_rows(self) -> pl.DataFrame:
         """Build the per-subject baseline assessment row (one per subject).
 
