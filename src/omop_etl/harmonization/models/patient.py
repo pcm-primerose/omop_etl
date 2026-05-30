@@ -22,7 +22,6 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 
 log = getLogger(__name__)
@@ -57,7 +56,6 @@ class Patient(TrackedValidated):
         END_OF_TREATMENT = "end_of_treatment"
         LOST_TO_FOLLOWUP = "lost_to_followup"
         ECOG_BASELINE = "ecog_baseline"
-        TUMOR_ASSESSMENT_BASELINE = "tumor_assessment_baseline"
         BEST_OVERALL_RESPONSE = "best_overall_response"
 
     class Collections:
@@ -96,7 +94,6 @@ class Patient(TrackedValidated):
         self._end_of_treatment: EndOfTreatment | None = None
         self._lost_to_followup: FollowUp | None = None
         self._ecog_baseline: EcogBaseline | None = None
-        self._tumor_assessment_baseline: TumorAssessmentBaseline | None = None
         self._best_overall_response: BestOverallResponse | None = None
 
         # collections
@@ -366,20 +363,6 @@ class Patient(TrackedValidated):
             field_name=setter_name(self.__class__.ecog_baseline),
         )
         self.updated_fields.add(EcogBaseline.__name__)
-
-    @property
-    def tumor_assessment_baseline(self) -> TumorAssessmentBaseline | None:
-        return self._tumor_assessment_baseline
-
-    @tumor_assessment_baseline.setter
-    def tumor_assessment_baseline(self, value: TumorAssessmentBaseline | None) -> None:
-        self._tumor_assessment_baseline = self.validate_singleton(
-            value,
-            item_type=TumorAssessmentBaseline,
-            patient_id=self._patient_id,
-            field_name=setter_name(self.__class__.tumor_assessment_baseline),
-        )
-        self.updated_fields.add(TumorAssessmentBaseline.__name__)
 
     @property
     def best_overall_response(self) -> BestOverallResponse | None:
@@ -685,7 +668,6 @@ class Patient(TrackedValidated):
             # singletons
             f"cohort={self.cohort}{delim} "
             f"tumor_type={self.tumor_type}{delim} "
-            f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
             f"biomarkers={self.biomarkers}{delim} "
             f"ecog={self.ecog_baseline}{delim} "
             f"clinical_benefit={self.clinical_benefit}{delim} "

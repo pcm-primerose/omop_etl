@@ -8,7 +8,6 @@ from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
@@ -165,10 +164,13 @@ class TestEcogBaselineRows:
         ecog_baseline.date = dt.date(1, 1, 1)
         patient.ecog_baseline = ecog_baseline
 
-        tumor_assessment = TumorAssessmentBaseline(PID)
+        # a baseline assessment with no size emits no measurement row of its own
+        tumor_assessment = TumorAssessment(PID)
+        tumor_assessment.was_baseline = True
         tumor_assessment.assessment_type = "recist"
-        tumor_assessment.assessment_date = dt.date(1, 1, 2)
-        patient.tumor_assessment_baseline = tumor_assessment
+        tumor_assessment.date = dt.date(1, 1, 2)
+        tumor_assessment.event_id = "V00"
+        patient.tumor_assessments = [tumor_assessment]
 
         context = create_build_context(patient, PERSON_ID)
 
@@ -193,73 +195,6 @@ class TestEcogBaselineRows:
         assert result_1.rows[0].measurement_id == result_2.rows[0].measurement_id
 
 
-class TestTumorAssessmentBaselineRows:
-    def test_emits_target_lesion_size_row(self, static_index, structural_index):
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.assessment_type = "recist"
-        baseline.assessment_date = dt.date(2040, 4, 1)
-        baseline.target_lesion_size = 41
-        baseline.target_lesion_nadir = 46  # not emitted
-        baseline.target_lesion_measurement_date = dt.date(2040, 4, 19)
-        patient.tumor_assessment_baseline = baseline
-
-        result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
-
-        assert len(result.rows) == 1
-        row = result.rows[0]
-        assert row.person_id == PERSON_ID
-        assert row.measurement_concept_id == 4084390  # lesion_size
-        assert row.measurement_date == dt.date(2040, 4, 19)
-        assert row.measurement_datetime == dt.datetime(2040, 4, 19)
-        assert row.measurement_type_concept_id == 32817
-        assert row.value_as_number == 41.0
-        assert row.value_as_concept_id is None
-        assert row.measurement_source_value == "41"
-
-    def test_missing_size_returns_empty(self, static_index, structural_index):
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.target_lesion_measurement_date = dt.date(2040, 4, 19)
-        patient.tumor_assessment_baseline = baseline
-
-        result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
-        assert result == BuildResult(rows=(), publications=())
-
-    def test_missing_date_returns_empty(self, static_index, structural_index):
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.target_lesion_size = 41
-        patient.tumor_assessment_baseline = baseline
-
-        result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
-        assert result == BuildResult(rows=(), publications=())
-
-    def test_no_structural_concept_returns_empty(self, static_index):
-        # structural index without lesion_size: builder should log and skip the row
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.target_lesion_size = 41
-        baseline.target_lesion_measurement_date = dt.date(2040, 4, 19)
-        patient.tumor_assessment_baseline = baseline
-
-        result = MeasurementBuilder(ConceptLookupService(static_index, {})).build(create_build_context(patient, PERSON_ID))
-        assert result == BuildResult(rows=(), publications=())
-
-    def test_row_id_deterministic(self, static_index, structural_index):
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.target_lesion_size = 41
-        baseline.target_lesion_measurement_date = dt.date(2040, 4, 19)
-        patient.tumor_assessment_baseline = baseline
-
-        context = create_build_context(patient, PERSON_ID)
-        result_1 = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-        result_2 = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(context)
-
-        assert result_1.rows[0].measurement_id == result_2.rows[0].measurement_id
-
-
 def _make_tumor_assessments(
     date: dt.date,
     event_id: str,
@@ -268,10 +203,12 @@ def _make_tumor_assessments(
     recist: str | None = None,
     irecist: str | None = None,
     rano: str | None = None,
+    was_baseline: bool = False,
 ) -> TumorAssessment:
     ta = TumorAssessment(PID)
     ta.date = date
     ta.event_id = event_id
+    ta.was_baseline = was_baseline
     if size is not None:
         ta.target_lesion_size = size
     if recist is not None:
@@ -307,6 +244,25 @@ class TestTumorAssessmentRows:
         assert row_2.value_as_number is None
         assert row_2.value_as_concept_id is None
         assert row_2.measurement_source_value == "Partial Response (PR)"
+
+    def test_baseline_flagged_assessment_emits_lesion_size(self, static_index, structural_index):
+        """
+        The folded baseline (was_baseline) assessment emits its target lesion
+        size like any other assessment, dated at its (V00) date.
+        """
+        patient = create_patient(PID, TRIAL)
+        patient.tumor_assessments = [
+            _make_tumor_assessments(dt.date(2040, 4, 1), "V00", size=41.0, was_baseline=True),
+        ]
+
+        result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
+
+        assert len(result.rows) == 1
+        row = result.rows[0]
+        assert row.measurement_concept_id == 4084390  # lesion_size
+        assert row.measurement_date == dt.date(2040, 4, 1)
+        assert row.value_as_number == 41.0
+        assert row.measurement_source_value == "41.0"
 
     def test_rano_response(self, static_index, structural_index):
         patient = create_patient(PID, TRIAL)
@@ -1559,7 +1515,7 @@ class TestPrimaryCancerFKConsumption:
     MeasurementBuilder consumes BuildContext.condition_id_primary_cancer
     (published by ConditionOccurrenceBuilder) to set
     measurement_event_id + meas_event_field_concept_id on lesion-size
-    (TumorAssessmentBaseline + TumorAssessment) and biomarker result.
+    (baseline + follow-up TumorAssessment) and biomarker result.
 
     Cancer modifier result (lesion size as Dimension of Tumor, biomarkers) link
     back to the primary cancer condition via measurement_event_id +
@@ -1569,10 +1525,9 @@ class TestPrimaryCancerFKConsumption:
     @staticmethod
     def _baseline_patient() -> Patient:
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(PID)
-        baseline.target_lesion_size = 41
-        baseline.target_lesion_measurement_date = dt.date(2040, 4, 19)
-        patient.tumor_assessment_baseline = baseline
+        patient.tumor_assessments = [
+            _make_tumor_assessments(dt.date(2040, 4, 19), "V00", size=41.0, was_baseline=True),
+        ]
         return patient
 
     def test_baseline_lesion_size_links_to_primary_cancer(self, static_index, structural_index):

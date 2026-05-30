@@ -1,6 +1,5 @@
 import datetime as dt
 from typing import ClassVar
-
 import pytest
 import polars as pl
 
@@ -48,6 +47,7 @@ class TestProcessCohort:
 
     def test_mapped_cohort_harmonizes_parts_and_composes_normalized(self, cohort_fixture):
         df = self._harmonizer(cohort_fixture)._process_cohort()
+        assert df is not None
         row = df.filter(pl.col("SubjectId") == "cohort_hit_1")
         assert row.item(0, Cohort.Fields.RAW_NAME) == "BRAF Non-V600mut/Pancreatic/Trametinib + Dabrafenib"
         assert row.item(0, Cohort.Fields.TARGET_BIOMARKER) == "BRAF Non-V600"
@@ -57,12 +57,14 @@ class TestProcessCohort:
 
     def test_single_drug_composition(self, cohort_fixture):
         df = self._harmonizer(cohort_fixture)._process_cohort()
+        assert df is not None
         row = df.filter(pl.col("SubjectId") == "cohort_hit_2")
         assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Pertuzumab"]
         assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "HER2 expression/Cholangiocarcinoma/Pertuzumab"
 
     def test_unmapped_parts_leave_normalized_none_but_keep_raw_and_drugs(self, cohort_fixture):
         df = self._harmonizer(cohort_fixture)._process_cohort()
+        assert df is not None
         row = df.filter(pl.col("SubjectId") == "cohort_unmapped")
         assert row.item(0, Cohort.Fields.TARGET_BIOMARKER) is None
         assert row.item(0, Cohort.Fields.CANCER_TYPE) is None
@@ -649,141 +651,6 @@ class TestProcessSeriousAdverseEventNumber:
         assert actual == expected
 
 
-class TestProcessBaselineTumorAssessment:
-    def test_returns_expected_columns(self, baseline_tumor_assessment_fixture):
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
-
-        expected_cols = {"SubjectId"} | set(TumorAssessmentBaseline.data_fields())
-        assert set(df.columns) == expected_cols
-
-    def test_filters_subjects_without_baseline(self, baseline_tumor_assessment_fixture):
-        """
-        Subjects without enough baseline signal to construct an assessment
-        should be filtered out at the processor level. After hydration the
-        Patient's tumor_assessment_baseline ends up None for these.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        subject_ids = set(df["SubjectId"].to_list())
-        for sid in (
-            "missing_data",
-            "vi_none",
-            "no_ntl",
-            "rntmnt_ntl_wrong_event_id",
-            "rcnt_invalid_int",
-            "missing_baseline_size",
-        ):
-            assert sid not in subject_ids, f"{sid!r} should be filtered out"
-
-    def test_extracts_assessment_type_from_vituma(self, baseline_tumor_assessment_fixture):
-        """
-        Assessment type and date come from one of two source columns:
-        VI_VITUMA (preferred) or VI_VITUMA__2 (fallback). `vi_no_date` is
-        a vituma source with the assessment_date missing.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        # vituma_only: VI_VITUMA primary source
-        row = df.filter(pl.col("SubjectId") == "vituma_only")
-        assert row.item(0, "assessment_type") == "PD"
-        assert row.item(0, "assessment_date") == dt.date(2020, 1, 2)
-
-        # vituma__2_only: VI_VITUMA__2 fallback source (note double underscore)
-        row = df.filter(pl.col("SubjectId") == "vituma__2_only")
-        assert row.item(0, "assessment_type") == "CR"
-        assert row.item(0, "assessment_date") == dt.date(2020, 1, 3)
-
-        # vi_no_date: assessment_type populated, assessment_date null
-        row = df.filter(pl.col("SubjectId") == "vi_no_date")
-        assert row.item(0, "assessment_type") == "SD"
-
-    def test_extracts_off_target_lesions_from_multiple_sources(self, baseline_tumor_assessment_fixture):
-        """
-        Off-target lesion fields can come from RNTMNT_RNTMNTNOB, RCNT_RCNTNOB,
-        or both. The processor picks the appropriate source per subject.
-        `ntl_no_date` has the count but no measurement date.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        # both_ntl_cols: both sources present, picks one
-        row = df.filter(pl.col("SubjectId") == "both_ntl_cols")
-        assert row.item(0, "off_target_lesions_number") == 5
-        assert row.item(0, "off_target_lesion_measurement_date") == dt.date(2020, 2, 1)
-
-        # rntmnt_only: only RNTMNT source
-        row = df.filter(pl.col("SubjectId") == "rntmnt_only")
-        assert row.item(0, "off_target_lesions_number") == 4
-        assert row.item(0, "off_target_lesion_measurement_date") == dt.date(2020, 2, 2)
-
-        # rcnt_only: only RCNT source
-        row = df.filter(pl.col("SubjectId") == "rcnt_only")
-        assert row.item(0, "off_target_lesions_number") == 3
-        assert row.item(0, "off_target_lesion_measurement_date") == dt.date(2020, 2, 4)
-
-        # ntl_no_date: count present, date missing
-        row = df.filter(pl.col("SubjectId") == "ntl_no_date")
-        assert row.item(0, "off_target_lesions_number") == 6
-        assert row.item(0, "off_target_lesion_measurement_date") is None
-
-    def test_extracts_target_lesions_from_multiple_sources(self, baseline_tumor_assessment_fixture):
-        """
-        Target lesion size/nadir/measurement_date can come from RA_* or
-        RNRSP_* source fields. `ra_no_date` and `rnrsp_no_date` have
-        size/nadir but a missing measurement_date.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        # ra_valid: RA source, full data
-        row = df.filter(pl.col("SubjectId") == "ra_valid")
-        assert row.item(0, "target_lesion_size") == 12
-        assert row.item(0, "target_lesion_nadir") == 12
-        assert row.item(0, "target_lesion_measurement_date") == dt.date(2018, 7, 27)
-
-        # rnrsp_valid: RNRSP source, full data
-        row = df.filter(pl.col("SubjectId") == "rnrsp_valid")
-        assert row.item(0, "target_lesion_size") == 20
-        assert row.item(0, "target_lesion_nadir") == 18
-        assert row.item(0, "target_lesion_measurement_date") == dt.date(2019, 1, 1)
-
-        # ra_no_date: RA source, missing date
-        row = df.filter(pl.col("SubjectId") == "ra_no_date")
-        assert row.item(0, "target_lesion_size") == 8
-        assert row.item(0, "target_lesion_nadir") == 7
-        assert row.item(0, "target_lesion_measurement_date") is None
-
-        # rnrsp_no_date: RNRSP source, missing date
-        row = df.filter(pl.col("SubjectId") == "rnrsp_no_date")
-        assert row.item(0, "target_lesion_size") == 9
-        assert row.item(0, "target_lesion_nadir") == 8
-        assert row.item(0, "target_lesion_measurement_date") is None
-
-    def test_multiple_rows_subject(self, baseline_tumor_assessment_fixture):
-        """
-        `multiple_rows` has more than one input row; the processor picks
-        consistent values for the singleton's target lesion fields.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        row = df.filter(pl.col("SubjectId") == "multiple_rows")
-        assert row.item(0, "target_lesion_size") == 9
-        assert row.item(0, "target_lesion_nadir") == 9
-        assert row.item(0, "target_lesion_measurement_date") == dt.date(2020, 1, 1)
-
-
 class TestProcessPreviousTreatments:
     def test_returns_expected_columns(self, previous_treatment_fixture):
         h = ImpressHarmonizer(data=previous_treatment_fixture, trial_id="T")
@@ -1368,14 +1235,7 @@ class TestProcessTumorAssessments:
         subject_ids = set(df["SubjectId"].to_list())
         assert "no_signal" not in subject_ids
 
-
-class TestProcessTumorAssessmentsAbsoluteSize:
-    """Absolute target_lesion_size = baseline_size * (1 + change_from_baseline).
-
-    Baseline is sourced via the shared `_subject_baseline_target_lesion_size`
-    helper (earliest non-null RNRSP_TERNTBAS / RA_RARECBAS per subject); change
-    is the fractional percent-change already computed on the row.
-    """
+    # --- absolute target_lesion_size = baseline * (1 + change_from_baseline) ---
 
     @staticmethod
     def _frame(rows):
@@ -1507,6 +1367,78 @@ class TestProcessTumorAssessmentsAbsoluteSize:
         s2 = out.filter((pl.col("SubjectId") == "s2") & (pl.col("event_id") == "V01"))
         assert s1.item(0, "target_lesion_size") == 50.0
         assert s2.item(0, "target_lesion_size") == 50.0
+
+    # --- folded baseline (VI V00) rows ---
+
+    @staticmethod
+    def _baseline_rows(fixture) -> dict:
+        h = ImpressHarmonizer(data=fixture, trial_id="T")
+        df = h._process_tumor_assessments()
+        assert df is not None
+        baseline = df.filter(pl.col("was_baseline"))
+        return {r["SubjectId"]: r for r in baseline.to_dicts()}
+
+    def test_anchored_on_vi_v00(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        # only subjects with a VI V00 row that has a scale and a valid date
+        assert set(by_subject) == {"bl_full_recist", "bl_vituma2_irecist", "bl_rnrsp_rano", "bl_rntmnt_offtarget"}
+
+    def test_all_rows_flagged_baseline_v00(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        assert all(r["was_baseline"] is True for r in by_subject.values())
+        assert all(r["event_id"] == "V00" for r in by_subject.values())
+        assert all(r["target_lesion_change_from_baseline"] == 0.0 for r in by_subject.values())
+
+    def test_scale_normalized_and_dated_at_v00(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        assert by_subject["bl_full_recist"]["assessment_type"] == "recist"
+        assert by_subject["bl_full_recist"]["date"] == dt.date(2020, 1, 2)
+        assert by_subject["bl_vituma2_irecist"]["assessment_type"] == "irecist"
+        assert by_subject["bl_rnrsp_rano"]["assessment_type"] == "rano"
+
+    def test_target_size_is_float_absolute(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        # full_recist: RA_RARECBAS=12: 12.0 (float)
+        assert by_subject["bl_full_recist"]["target_lesion_size"] == 12.0
+        assert isinstance(by_subject["bl_full_recist"]["target_lesion_size"], float)
+        # rnrsp_rano: RNRSP_TERNTBAS=20: 20.0
+        assert by_subject["bl_rnrsp_rano"]["target_lesion_size"] == 20.0
+        # vituma2_irecist: no size source: None
+        assert by_subject["bl_vituma2_irecist"]["target_lesion_size"] is None
+
+    def test_off_target_baseline_fields(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        # full_recist: RCNT source, RCNT_RCNTNOB=3 on 2020-01-20
+        assert by_subject["bl_full_recist"]["baseline_off_target_lesions_number"] == 3
+        assert by_subject["bl_full_recist"]["baseline_off_target_lesion_measurement_date"] == dt.date(2020, 1, 20)
+        # rntmnt_offtarget: RNTMNT source, RNTMNT_RNTMNTNOB=5 on 2020-04-10
+        assert by_subject["bl_rntmnt_offtarget"]["baseline_off_target_lesions_number"] == 5
+        assert by_subject["bl_rntmnt_offtarget"]["baseline_off_target_lesion_measurement_date"] == dt.date(2020, 4, 10)
+        # no off-target source: None
+        assert by_subject["bl_vituma2_irecist"]["baseline_off_target_lesions_number"] is None
+
+    def test_no_baseline_row_without_vi_v00(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        # follow-up-only subject, VI-V00-without-date, and size-without-VI all
+        # contribute no baseline row
+        assert "recist_full" not in by_subject
+        assert "bl_vi_no_date" not in by_subject
+        assert "bl_no_vi_has_size" not in by_subject
+
+    # --- single-scale invariant ---
+
+    def test_mixed_assessment_scales_raises(self):
+        # one scale per patient is an invariant: a subject with both RA (RECIST)
+        # and RNRSP (RANO) signal must raise rather than cross-contaminate sizes.
+        df = self._frame(
+            [
+                {"SubjectId": "mixed_scale", "RA_RAASSESS1": "RECIST", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
+                {"SubjectId": "mixed_scale", "RNRSP_TERNCFB": "-10", "RNRSP_EventDate": "2020-02-01", "RNRSP_EventId": "V02"},
+            ],
+        )
+        h = ImpressHarmonizer(data=df, trial_id="T")
+        with pytest.raises(ValueError, match="multiple scales"):
+            h._process_tumor_assessments()
 
 
 class TestProcessBestOverallResponse:

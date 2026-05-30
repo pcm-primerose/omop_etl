@@ -1,6 +1,5 @@
 import datetime as dt
 from typing import get_type_hints, get_origin, get_args, Union
-
 import pytest
 
 from omop_etl.harmonization.models.patient import Patient
@@ -21,7 +20,6 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 
 
@@ -86,7 +84,6 @@ ALL_DOMAIN_CLASSES = [
     StudyDrugs,
     TreatmentCycleComponent,
     TumorAssessment,
-    TumorAssessmentBaseline,
     TumorType,
 ]
 

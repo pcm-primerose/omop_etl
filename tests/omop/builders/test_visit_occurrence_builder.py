@@ -2,7 +2,6 @@ import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
 from omop_etl.omop.core.linkage import BuildResult
@@ -14,6 +13,16 @@ from tests.omop.conftest import (
 PID = "p1"
 TRIAL = "test"
 PERSON_ID = sha1_bigint("person", PID)
+
+
+def _baseline(date: dt.date, assessment_type: str = "recist") -> TumorAssessment:
+    """The baseline is the was_baseline assessment (V00) folded into the collection."""
+    ta = TumorAssessment(patient_id=PID)
+    ta.was_baseline = True
+    ta.assessment_type = assessment_type
+    ta.date = date
+    ta.event_id = "V00"
+    return ta
 
 
 class TestVisitOccurrenceBuilder:
@@ -31,14 +40,12 @@ class TestVisitOccurrenceBuilder:
 
 
 class TestBaselineVisitRows:
-    def test_all_fields_from_assessment_date(self, static_index, structural_index):
-        """Check all fields for baseline row with assessment_date."""
+    def test_all_fields_from_baseline_assessment(self, static_index, structural_index):
+        """The was_baseline assessment produces a visit dated at its V00 date."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2023, 1, 15)
-        baseline.assessment_type = "RECIST"
-        patient.tumor_assessment_baseline = baseline
+        baseline = _baseline(dt.date(2023, 1, 15), assessment_type="RECIST")
+        patient.tumor_assessments = [baseline]
 
         result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
@@ -51,42 +58,15 @@ class TestBaselineVisitRows:
         assert row.visit_concept_id == 9202  # outpatient_visit
         assert row.visit_type_concept_id == 32817  # ecrf
 
-    def test_date_fallback_to_target_lesion_measurement(self, static_index, structural_index):
-        """When assessment_date is None, fall back to target_lesion_measurement_date."""
+    def test_baseline_without_date_is_skipped(self, static_index, structural_index):
+        """A baseline assessment with no date produces no visit row."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.target_lesion_measurement_date = dt.date(2023, 2, 20)
-        patient.tumor_assessment_baseline = baseline
-
-        result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
-
-        assert len(result.rows) == 1
-        assert result.rows[0].visit_start_date == dt.date(2023, 2, 20)
-
-    def test_date_fallback_to_off_target_lesion_measurement(self, static_index, structural_index):
-        """
-        When assessment_date and target_lesion_measurement_date are None,
-        fall back to off_target_lesion_measurement_date.
-        """
-        concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.off_target_lesion_measurement_date = dt.date(2023, 3, 10)
-        patient.tumor_assessment_baseline = baseline
-
-        result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
-
-        assert len(result.rows) == 1
-        assert result.rows[0].visit_start_date == dt.date(2023, 3, 10)
-
-    def test_no_dates_skips_baseline(self, static_index, structural_index):
-        """Baseline with no usable dates produces no row."""
-        concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
+        baseline = TumorAssessment(patient_id=PID)
+        baseline.was_baseline = True
         baseline.assessment_type = "RECIST"
-        patient.tumor_assessment_baseline = baseline
+        baseline.event_id = "V00"
+        patient.tumor_assessments = [baseline]
 
         result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
@@ -158,7 +138,7 @@ class TestDateGrouping:
         a1.assessment_type = "RECIST"
         a2 = TumorAssessment(patient_id=PID)
         a2.date = dt.date(2023, 3, 1)
-        a2.event_id = "V04"
+        a2.event_id = "W04"
         a2.assessment_type = "iRECIST"
         patient.tumor_assessments = [a1, a2]
 
@@ -197,24 +177,19 @@ class TestDateGrouping:
         assert len(result.rows) == 2
         assert result.rows[0].visit_occurrence_id != result.rows[1].visit_occurrence_id
 
-    # todo: refactor after adding Visits domain model
     def test_baseline_and_assessment_same_date_collapse_to_one_visit(self, static_index, structural_index):
-        """Regression: the baseline singleton is derived from the same eCRF source
-        as the assessments collection, so its date routinely coincides with the
-        earliest assessment's date. Both must collapse to one visit (one date =
-        one encounter), and publication must not raise a duplicate-publish error."""
+        """The baseline (V00) and a same-date follow-up assessment collapse to one
+        visit (one date = one encounter); publication must not raise a
+        duplicate-publish error."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.target_lesion_measurement_date = dt.date(2024, 7, 28)
-        patient.tumor_assessment_baseline = baseline
-
+        baseline = _baseline(dt.date(2024, 7, 28))
         assessment = TumorAssessment(patient_id=PID)
         assessment.date = dt.date(2024, 7, 28)
         assessment.event_id = "UVT"
         assessment.assessment_type = "recist"
-        patient.tumor_assessments = [assessment]
+        patient.tumor_assessments = [baseline, assessment]
 
         ctx = create_build_context(patient, PERSON_ID)
         # build_and_populate applies publications; must not raise on the shared date
@@ -230,15 +205,12 @@ class TestBaselineAndAssessmentsCombined:
     def test_baseline_and_assessments_combined(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2023, 1, 1)
-        baseline.assessment_type = "Baseline"
-        patient.tumor_assessment_baseline = baseline
+        baseline = _baseline(dt.date(2023, 1, 1), assessment_type="Baseline")
         assessment = TumorAssessment(patient_id=PID)
         assessment.date = dt.date(2023, 2, 1)
         assessment.event_id = "EVT001"
         assessment.assessment_type = "Follow-up"
-        patient.tumor_assessments = [assessment]
+        patient.tumor_assessments = [baseline, assessment]
 
         result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
@@ -247,9 +219,7 @@ class TestBaselineAndAssessmentsCombined:
     def test_row_ids_are_deterministic(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2023, 1, 1)
-        patient.tumor_assessment_baseline = baseline
+        patient.tumor_assessments = [_baseline(dt.date(2023, 1, 1))]
 
         result_a = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
         result_b = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
@@ -261,9 +231,7 @@ class TestPrecedingVisitOccurrenceId:
     def test_single_baseline_has_no_preceding(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2023, 1, 1)
-        patient.tumor_assessment_baseline = baseline
+        patient.tumor_assessments = [_baseline(dt.date(2023, 1, 1))]
 
         result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
@@ -286,12 +254,9 @@ class TestPrecedingVisitOccurrenceId:
         """Assessment's preceding_visit_occurrence_id points to baseline."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2023, 1, 1)
-        patient.tumor_assessment_baseline = baseline
         a = TumorAssessment(patient_id=PID)
         a.date = dt.date(2023, 3, 1)
-        patient.tumor_assessments = [a]
+        patient.tumor_assessments = [_baseline(dt.date(2023, 1, 1)), a]
 
         result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
@@ -303,14 +268,11 @@ class TestPrecedingVisitOccurrenceId:
         """Baseline -> assessment1 -> assessment2, each pointing to the previous."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        baseline = TumorAssessmentBaseline(patient_id=PID)
-        baseline.assessment_date = dt.date(2023, 1, 1)
-        patient.tumor_assessment_baseline = baseline
         a1 = TumorAssessment(patient_id=PID)
         a1.date = dt.date(2023, 3, 1)
         a2 = TumorAssessment(patient_id=PID)
         a2.date = dt.date(2023, 5, 1)
-        patient.tumor_assessments = [a1, a2]
+        patient.tumor_assessments = [_baseline(dt.date(2023, 1, 1)), a1, a2]
 
         result = VisitOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 

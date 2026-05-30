@@ -20,7 +20,6 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.models.patient import Patient
@@ -1250,166 +1249,167 @@ class ImpressHarmonizer(BaseHarmonizer):
             .select("SubjectId", pl.col("_size").alias("baseline_size"))
         )
 
-    @singleton(TumorAssessmentBaseline)
-    def _process_baseline_tumor_assessment(self) -> pl.DataFrame | None:
+    @staticmethod
+    def _normalize_assessment_scale(col: pl.Expr) -> pl.Expr:
+        """Normalize a free-text assessment-scale string (VI VITUMA, e.g. "Recist 1.1")
+        to the vocabulary the collection derives: "irecist" / "recist" / "rano".
+
+        iRECIST is checked before RECIST since "irecist" contains the "recist"
+        substring (mirrors the precedence in _process_tumor_assessments).
         """
-        Get target lesion size at baseline, and off-target lesions.
+        norm = col.cast(pl.Utf8, strict=False).str.strip_chars().str.to_lowercase()
+        return (
+            pl.when(norm.str.contains("irecist"))
+            .then(pl.lit("irecist"))
+            .when(norm.str.contains("rano"))
+            .then(pl.lit("rano"))
+            .when(norm.str.contains("recist"))
+            .then(pl.lit("recist"))
+            .otherwise(None)
+        )
 
-        Assumes tumor assessments are always mutally exclusive, if not, this doesn't work and needs refactoring.
+    def _baseline_tumor_assessment_rows(self) -> pl.DataFrame:
+        """Build the per-subject baseline assessment row (one per subject).
 
-        Also, for the non-target lesions from RCNT each NTL is associated with a distinct date, whereas in RNTMNT NTLs
-        this is not the case. We just want to track the number of NTLs at baseline, so for now using EventDate for
-        both RNTMNT and RCNT, but this is always with a 2-5 week delay after the assessment date for each respective NTL (for some reason).
-        In RNTMNT this is not the case, each NTL at baseline has an assessment date.
-        Could coalesce and take first RCNT data across all lesions in the future if more detailed dates are needed?
+        The baseline is a distinct clinical encounter that lives only in the VI
+        sheet (EventId == "V00", with the assessment scale in VITUMA*). It is
+        dated at the V00 visit date. The baseline target size is back-referenced
+        from the follow-up sheets' *BAS columns via the shared
+        _subject_baseline_target_lesion_size helper (so baseline and follow-up
+        absolute sizes stay in sync).
+        off-target counts come from the RCNT/RNTMNT V00 rows,
+        which keep their own measurement dates.
 
-        For the target lesions there are no separate entries for baseline evals, the earliest assessment with valid date + baseline size
-        is selected.
+        Returns a frame with the full TumorAssessment column set so it can be
+        concatenated with the follow-up rows. Baseline-only fields are populated
+        here, per-assessment fields (responses, progression dates, change-from-
+        nadir, new-lesions flag) are null.
         """
-        cols = TumorAssessmentBaseline.Fields
+        cols = TumorAssessment.Fields
 
         base = self.data.select(
-            [
-                "SubjectId",
-                # tumor assessment type
-                "VI_VITUMA",
-                "VI_VITUMA__2",
-                "VI_EventDate",
-                "VI_EventId",
-                # baseline off-target lesions
-                "RCNT_RCNTNOB",
-                "RCNT_EventDate",
-                "RCNT_EventId",
-                "RNTMNT_RNTMNTNOB",
-                "RNTMNT_RNTMNTNO",
-                "RNTMNT_EventId",
-                "RNTMNT_EventDate",
-                # baseline target lesion size
-                "RNRSP_TERNTBAS",
-                "RNRSP_TERNAD",
-                "RNRSP_EventDate",
-                "RNRSP_EventId",
-                "RA_RARECBAS",
-                "RA_RARECNAD",
-                "RA_EventDate",
-                "RA_EventId",
-            ],
+            "SubjectId",
+            "VI_VITUMA",
+            "VI_VITUMA__2",
+            "VI_EventDate",
+            "VI_EventId",
+            "RCNT_RCNTNOB",
+            "RCNT_EventDate",
+            "RCNT_EventId",
+            "RNTMNT_RNTMNTNOB",
+            "RNTMNT_RNTMNTNO",
+            "RNTMNT_EventId",
+            "RNTMNT_EventDate",
         )
 
-        def tumor_assessment(df: pl.DataFrame) -> pl.DataFrame:
-            return (
-                df.with_columns(
-                    vi_value=pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]),
-                    vi_date=PolarsParsers.to_optional_date(pl.col("VI_EventDate")),
-                )
-                .with_columns(vi_ok=(pl.col("VI_EventId").eq("V00") & pl.col("vi_value").is_not_null()))
-                .filter(pl.col("vi_ok"))
-                .sort(["SubjectId"])
-                .unique("SubjectId", keep="first")
-                .select(
-                    "SubjectId",
-                    pl.col("vi_value").alias(cols.ASSESSMENT_TYPE),
-                    pl.col("vi_date").alias(cols.ASSESSMENT_DATE),
-                )
+        # the V00 VI row defines the baseline: assessment scale and visit date
+        vi = (
+            base.with_columns(
+                vi_value=pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]),
+                vi_date=PolarsParsers.to_optional_date(pl.col("VI_EventDate")),
             )
-
-        # earliest V00 RCNT & RNTMNT row with value and date
-        def off_target_lesions_baseline(df: pl.DataFrame) -> pl.DataFrame:
-            return (
-                df.with_columns(
-                    rnt_ok=pl.col("RNTMNT_EventId") == "V00",
-                    rcnt_ok=pl.col("RCNT_EventId") == "V00",
-                )
-                .with_columns(
-                    rnt_num=pl.when(pl.col("rnt_ok"))
-                    .then(pl.coalesce([pl.col("RNTMNT_RNTMNTNOB"), pl.col("RNTMNT_RNTMNTNO")]).cast(pl.Int64, strict=False))
-                    .otherwise(None),
-                    rnt_date=pl.when(pl.col("rnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RNTMNT_EventDate"))).otherwise(None),
-                    rcnt_num=pl.when(pl.col("rcnt_ok")).then(pl.col("RCNT_RCNTNOB").cast(pl.Int64, strict=False)).otherwise(None),
-                    rcnt_date=pl.when(pl.col("rcnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RCNT_EventDate"))).otherwise(None),
-                )
-                .with_columns(
-                    num_candidate=pl.coalesce([pl.col("rcnt_num"), pl.col("rnt_num")]),
-                    date_candidate=pl.coalesce([pl.col("rcnt_date"), pl.col("rnt_date")]),
-                )
-                .filter(pl.col("num_candidate").is_not_null())
-                .sort(["SubjectId"])
-                .unique("SubjectId", keep="first")
-                .select(
-                    "SubjectId",
-                    pl.col("num_candidate").alias(cols.OFF_TARGET_LESIONS_NUMBER),
-                    pl.col("date_candidate").alias(cols.OFF_TARGET_LESION_MEASUREMENT_DATE),
-                )
-            )
-
-        # earliest row with value and date across RNRSP & RA; size sourced from shared helper
-        # so _process_tumor_assessments sees the exact same per-subject baseline value.
-        def target_lesions_baseline(df: pl.DataFrame) -> pl.DataFrame:
-            nadir_and_date = (
-                df.with_columns(
-                    rnrsp_size=PolarsParsers.to_optional_int64(pl.col("RNRSP_TERNTBAS")),
-                    rnrsp_nadir=PolarsParsers.to_optional_int64(pl.col("RNRSP_TERNAD")),
-                    ra_size=PolarsParsers.to_optional_int64(pl.col("RA_RARECBAS")),
-                    ra_nadir=PolarsParsers.to_optional_int64(pl.col("RA_RARECNAD")),
-                    rnrsp_date=PolarsParsers.to_optional_date(pl.col("RNRSP_EventDate")),
-                    ra_date=PolarsParsers.to_optional_date(pl.col("RA_EventDate")),
-                )
-                .with_columns(
-                    size_candidate=pl.coalesce([pl.col("rnrsp_size"), pl.col("ra_size")]),
-                    nadir_candidate=pl.coalesce([pl.col("rnrsp_nadir"), pl.col("ra_nadir")]),
-                    date_candidate=pl.coalesce([pl.col("rnrsp_date"), pl.col("ra_date")]),
-                )
-                .filter(pl.col("size_candidate").is_not_null())
-                .sort(["SubjectId", "date_candidate"])
-                .unique("SubjectId", keep="first")
-                .select(
-                    "SubjectId",
-                    pl.col("date_candidate").alias(cols.TARGET_LESION_MEASUREMENT_DATE),
-                    pl.col("nadir_candidate").alias(cols.TARGET_LESION_NADIR),
-                )
-            )
-            size = self._subject_baseline_target_lesion_size().rename({"baseline_size": cols.TARGET_LESION_SIZE})
-            return size.join(nadir_and_date, on="SubjectId", how="inner")
-
-        ta = tumor_assessment(base)
-        ntl = off_target_lesions_baseline(base)
-        tl = target_lesions_baseline(base)
-
-        # filter out rows with only None
-        subjects_with_any = pl.concat(
-            [
-                ta.select("SubjectId"),
-                ntl.select("SubjectId"),
-                tl.select("SubjectId"),
-            ],
-        ).unique()
-
-        # anchor join on subjects
-        joined = (
-            subjects_with_any.join(ta, on="SubjectId", how="left")
-            .join(
-                ntl,
-                on="SubjectId",
-                how="left",
-            )
-            .join(
-                tl,
-                on="SubjectId",
-                how="left",
-            )
+            .with_columns(vi_ok=(pl.col("VI_EventId").eq("V00") & pl.col("vi_value").is_not_null()))
+            .filter(pl.col("vi_ok") & pl.col("vi_date").is_not_null())
+            .sort(["SubjectId"])
+            .unique("SubjectId", keep="first")
             .select(
                 "SubjectId",
-                cols.ASSESSMENT_TYPE,
-                cols.ASSESSMENT_DATE,
-                cols.TARGET_LESION_SIZE,
-                cols.TARGET_LESION_NADIR,
-                cols.TARGET_LESION_MEASUREMENT_DATE,
-                cols.OFF_TARGET_LESIONS_NUMBER,
-                cols.OFF_TARGET_LESION_MEASUREMENT_DATE,
+                self._normalize_assessment_scale(pl.col("vi_value")).alias(cols.ASSESSMENT_TYPE),
+                pl.col("vi_date").alias(cols.DATE),
             )
         )
 
-        return joined
+        # off-target lesion count at baseline (earliest V00 RCNT/RNTMNT row)
+        off_target = (
+            base.with_columns(
+                rnt_ok=pl.col("RNTMNT_EventId") == "V00",
+                rcnt_ok=pl.col("RCNT_EventId") == "V00",
+            )
+            .with_columns(
+                rnt_num=pl.when(pl.col("rnt_ok"))
+                .then(pl.coalesce([pl.col("RNTMNT_RNTMNTNOB"), pl.col("RNTMNT_RNTMNTNO")]).cast(pl.Int64, strict=False))
+                .otherwise(None),
+                rnt_date=pl.when(pl.col("rnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RNTMNT_EventDate"))).otherwise(None),
+                rcnt_num=pl.when(pl.col("rcnt_ok")).then(pl.col("RCNT_RCNTNOB").cast(pl.Int64, strict=False)).otherwise(None),
+                rcnt_date=pl.when(pl.col("rcnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RCNT_EventDate"))).otherwise(None),
+            )
+            .with_columns(
+                num_candidate=pl.coalesce([pl.col("rcnt_num"), pl.col("rnt_num")]),
+                date_candidate=pl.coalesce([pl.col("rcnt_date"), pl.col("rnt_date")]),
+            )
+            .filter(pl.col("num_candidate").is_not_null())
+            .sort(["SubjectId"])
+            .unique("SubjectId", keep="first")
+            .select(
+                "SubjectId",
+                pl.col("num_candidate").cast(pl.Int64, strict=False).alias(cols.BASELINE_OFF_TARGET_LESIONS_NUMBER),
+                pl.col("date_candidate").alias(cols.BASELINE_OFF_TARGET_LESION_MEASUREMENT_DATE),
+            )
+        )
+
+        # SubjectId, baseline_size:
+        size = self._subject_baseline_target_lesion_size()
+
+        return (
+            vi.join(off_target, on="SubjectId", how="left")
+            .join(size, on="SubjectId", how="left")
+            .with_columns(
+                pl.col("baseline_size").cast(pl.Float64, strict=False).alias(cols.TARGET_LESION_SIZE),
+                pl.lit(0.0).alias(cols.TARGET_LESION_CHANGE_FROM_BASELINE),
+                pl.lit(None, dtype=pl.Float64).alias(cols.TARGET_LESION_CHANGE_FROM_NADIR),
+                pl.lit(None, dtype=pl.Boolean).alias(cols.WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE),
+                pl.lit(None, dtype=pl.Utf8).alias(cols.RECIST_RESPONSE),
+                pl.lit(None, dtype=pl.Utf8).alias(cols.IRECIST_RESPONSE),
+                pl.lit(None, dtype=pl.Utf8).alias(cols.RANO_RESPONSE),
+                pl.lit(None, dtype=pl.Date).alias(cols.RECIST_DATE_OF_PROGRESSION),
+                pl.lit(None, dtype=pl.Date).alias(cols.IRECIST_DATE_OF_PROGRESSION),
+                pl.lit("V00").alias(cols.EVENT_ID),
+                pl.lit(True).alias(cols.WAS_BASELINE),
+            )
+        )
+
+    def _assert_single_assessment_scale(self) -> None:
+        """Trust-boundary guard: each subject must be on a single assessment scale.
+
+        Absolute target-lesion size is a per-subject baseline (coalesced across the
+        RA and RNRSP sheets in _subject_baseline_target_lesion_size) scaled by each
+        row's change-from-baseline. One scale per patient (the VI_VITUMA* cols),
+        so if a subject had assessments on more than one scale, that single baseline would be applied
+        across scales, cross-contaminating absolute lesion sizes and the derived
+        response endpoints. Raise rather than emit silently wrong measurements.
+        """
+        ra_cols = [
+            "RA_RAASSESS1",
+            "RA_RAASSESS2",
+            "RA_RABASECH",
+            "RA_RARECCH",
+            "RA_RANLBASECD",
+            "RA_RATIMRES",
+            "RA_RAiMOD",
+            "RA_RAPROGDT",
+            "RA_RAiUNPDT",
+            "RA_RARECBAS",
+        ]
+        rnrsp_cols = ["RNRSP_TERNCFB", "RNRSP_TERNCFN", "RNRSP_RNRSPNLCD", "RNRSP_RNRSPCL", "RNRSP_TERNTBAS"]
+
+        def has_signal(columns: list[str]) -> pl.Expr:
+            # null, empty, and whitespace-only cells are "no signal"
+            return pl.any_horizontal([pl.col(c).cast(pl.Utf8, strict=False).str.strip_chars().fill_null("") != "" for c in columns])
+
+        mixed = (
+            self.data.group_by("SubjectId")
+            .agg(_ra=has_signal(ra_cols).any(), _rnrsp=has_signal(rnrsp_cols).any())
+            .filter(pl.col("_ra") & pl.col("_rnrsp"))
+            .get_column("SubjectId")
+            .to_list()
+        )
+        if mixed:
+            raise ValueError(
+                f"Tumor assessments on multiple scales for subject(s) {sorted(mixed)}: "
+                f"RA (RECIST/iRECIST) and RNRSP (RANO) both present. "
+                f"Mixed scales cross-contaminate absolute lesion sizes and "
+                f"response endpoints. Resolve upstream before harmonizing."
+            )
 
     @collection(
         TumorAssessment,
@@ -1418,6 +1418,7 @@ class ImpressHarmonizer(BaseHarmonizer):
     )
     def _process_tumor_assessments(self) -> pl.DataFrame | None:
         cols = TumorAssessment.Fields
+        self._assert_single_assessment_scale()
         base = self.data.select(
             "SubjectId",
             "RA_RAASSESS1",
@@ -1518,26 +1519,40 @@ class ImpressHarmonizer(BaseHarmonizer):
                     ),
                 )
                 .filter(pl.col("has_any"))
-                .select(
-                    "SubjectId",
-                    cols.ASSESSMENT_TYPE,
-                    cols.TARGET_LESION_SIZE,
-                    cols.TARGET_LESION_CHANGE_FROM_BASELINE,
-                    cols.TARGET_LESION_CHANGE_FROM_NADIR,
-                    cols.WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE,
-                    cols.DATE,
-                    cols.RECIST_RESPONSE,
-                    cols.IRECIST_RESPONSE,
-                    cols.RANO_RESPONSE,
-                    cols.RECIST_DATE_OF_PROGRESSION,
-                    cols.IRECIST_DATE_OF_PROGRESSION,
-                    cols.EVENT_ID,
+                # baseline-only fields are null on follow-up rows, was_baseline marks
+                # the V00 row that _baseline_tumor_assessment_rows contributes
+                .with_columns(
+                    pl.lit(False).alias(cols.WAS_BASELINE),
+                    pl.lit(None, dtype=pl.Int64).alias(cols.BASELINE_OFF_TARGET_LESIONS_NUMBER),
+                    pl.lit(None, dtype=pl.Date).alias(cols.BASELINE_OFF_TARGET_LESION_MEASUREMENT_DATE),
                 )
+                .select(unified_columns)
             )
 
             return _processed
 
-        return process(base)
+        unified_columns = [
+            "SubjectId",
+            cols.ASSESSMENT_TYPE,
+            cols.TARGET_LESION_SIZE,
+            cols.TARGET_LESION_CHANGE_FROM_BASELINE,
+            cols.TARGET_LESION_CHANGE_FROM_NADIR,
+            cols.WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE,
+            cols.DATE,
+            cols.RECIST_RESPONSE,
+            cols.IRECIST_RESPONSE,
+            cols.RANO_RESPONSE,
+            cols.RECIST_DATE_OF_PROGRESSION,
+            cols.IRECIST_DATE_OF_PROGRESSION,
+            cols.EVENT_ID,
+            cols.WAS_BASELINE,
+            cols.BASELINE_OFF_TARGET_LESIONS_NUMBER,
+            cols.BASELINE_OFF_TARGET_LESION_MEASUREMENT_DATE,
+        ]
+
+        follow_up = process(base).select(unified_columns)
+        baseline = self._baseline_tumor_assessment_rows().select(unified_columns)
+        return pl.concat([follow_up, baseline], how="vertical_relaxed")
 
     # TODO: refactor to not use regex later
     @collection(

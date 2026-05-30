@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.concomitant_medication import Concomit
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
+from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.service import OmopService
@@ -144,9 +144,12 @@ class TestOmopServiceOrchestration:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        baseline = TumorAssessmentBaseline(patient_id="p1")
-        baseline.assessment_date = dt.date(2023, 1, 10)
-        patient.tumor_assessment_baseline = baseline
+        baseline = TumorAssessment(patient_id="p1")
+        baseline.was_baseline = True
+        baseline.assessment_type = "recist"
+        baseline.date = dt.date(2023, 1, 10)
+        baseline.event_id = "V00"
+        patient.tumor_assessments = [baseline]
 
         tables = OmopService(concepts).build([patient])
 

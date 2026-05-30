@@ -851,147 +851,6 @@ def serious_adverse_event_number_fixture():
 
 
 @dataclass(frozen=True, slots=True)
-class BaselineTumorAssessmentRow:
-    SubjectId: str
-    # VI
-    VI_VITUMA: str | None = None
-    VI_VITUMA__2: str | None = None
-    VI_EventDate: str | None = None
-    VI_EventId: str | None = None
-    # RCNT / RNTMNT
-    RCNT_RCNTNOB: str | None = None
-    RCNT_EventDate: str | None = None
-    RCNT_EventId: str | None = None
-    RNTMNT_RNTMNTNOB: str | None = None
-    RNTMNT_RNTMNTNO: str | None = None
-    RNTMNT_EventId: str | None = None
-    RNTMNT_EventDate: str | None = None
-    # RNRSP / RA
-    RNRSP_TERNTBAS: str | None = None
-    RNRSP_TERNAD: str | None = None
-    RNRSP_EventDate: str | None = None
-    RNRSP_EventId: str | None = None
-    RA_RARECBAS: str | None = None
-    RA_RARECNAD: str | None = None
-    RA_EventDate: str | None = None
-    RA_EventId: str | None = None
-
-
-@pytest.fixture
-def baseline_tumor_assessment_fixture() -> pl.DataFrame:
-    rows: List[BaselineTumorAssessmentRow] = [
-        BaselineTumorAssessmentRow("missing_data"),
-        # VI cases
-        BaselineTumorAssessmentRow(
-            "vituma_only",
-            VI_VITUMA="PD",
-            VI_EventDate="2020-01-02",
-            VI_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "vituma__2_only",
-            VI_VITUMA__2="CR",
-            VI_EventDate="2020-01-03",
-            VI_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow("vi_none"),
-        BaselineTumorAssessmentRow(
-            "vi_no_date",
-            VI_VITUMA="SD",
-            VI_EventId="V00",
-        ),
-        # non-target lesions (RCNT/RNTMNT)
-        BaselineTumorAssessmentRow("no_ntl"),
-        BaselineTumorAssessmentRow(
-            "both_ntl_cols",
-            RNTMNT_RNTMNTNOB="5",
-            RNTMNT_RNTMNTNO="7",
-            RNTMNT_EventId="V00",
-            RNTMNT_EventDate="2020-02-01",
-        ),
-        BaselineTumorAssessmentRow(
-            "rntmnt_only",
-            RNTMNT_RNTMNTNO="4",
-            RNTMNT_EventId="V00",
-            RNTMNT_EventDate="2020-02-02",
-        ),
-        BaselineTumorAssessmentRow(
-            "rntmnt_ntl_wrong_event_id",
-            RNTMNT_RNTMNTNOB="3",
-            RNTMNT_EventId="V01",
-            RNTMNT_EventDate="2020-02-03",
-        ),
-        BaselineTumorAssessmentRow(
-            "rcnt_only",
-            RCNT_RCNTNOB="3",
-            RCNT_EventId="V00",
-            RCNT_EventDate="2020-02-04",
-        ),
-        BaselineTumorAssessmentRow(
-            "rcnt_invalid_int",
-            RCNT_RCNTNOB="abc",
-            RCNT_EventId="V00",
-            RCNT_EventDate="2020-02-05",
-        ),
-        BaselineTumorAssessmentRow(
-            "ntl_no_date",
-            RNTMNT_RNTMNTNOB="6",
-            RNTMNT_EventId="V00",
-        ),
-        # target lesions (RA/RNRSP)
-        BaselineTumorAssessmentRow(
-            "ra_valid",
-            RA_RARECBAS="12",
-            RA_RARECNAD="12",
-            RA_EventDate="2018-07-27",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "rnrsp_valid",
-            RNRSP_TERNTBAS="20",
-            RNRSP_TERNAD="18",
-            RNRSP_EventDate="2019-01-01",
-            RNRSP_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "ra_no_date",
-            RA_RARECBAS="8",
-            RA_RARECNAD="7",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "rnrsp_no_date",
-            RNRSP_TERNTBAS="9",
-            RNRSP_TERNAD="8",
-            RNRSP_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "missing_baseline_size",
-            RA_RARECNAD="11",
-            RA_EventDate="2020-03-01",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "multiple_rows",
-            RA_RARECBAS="10",
-            RA_RARECNAD="10",
-            RA_EventDate="2020-01-03",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "multiple_rows",
-            RA_RARECBAS="9",
-            RA_RARECNAD="9",
-            RA_EventDate="2020-01-01",
-            RA_EventId="V00",
-        ),
-    ]
-
-    records = [asdict(r) for r in rows]
-    return pl.from_dicts(records)
-
-
-@dataclass(frozen=True, slots=True)
 class PreviousTreatmentRow:
     SubjectId: str
     CT_CTTYPE: str | None = None
@@ -1579,9 +1438,22 @@ class TumorAssessmentRow:
     RA_RAiUNPDT: str | None = None
     RA_EventId: str | None = None
     RNRSP_EventId: str | None = None
-    # baseline lesion size sources (used to derive absolute target_lesion_size per assessment)
+    # baseline lesion size sources:
     RNRSP_TERNTBAS: str | None = None
     RA_RARECBAS: str | None = None
+    # baseline V00 sources: read by _baseline_tumor_assessment_rows when the
+    # collection processor folds the was_baseline row into the collection
+    VI_VITUMA: str | None = None
+    VI_VITUMA__2: str | None = None
+    VI_EventId: str | None = None
+    VI_EventDate: str | None = None
+    RCNT_RCNTNOB: str | None = None
+    RCNT_EventDate: str | None = None
+    RCNT_EventId: str | None = None
+    RNTMNT_RNTMNTNOB: str | None = None
+    RNTMNT_RNTMNTNO: str | None = None
+    RNTMNT_EventId: str | None = None
+    RNTMNT_EventDate: str | None = None
 
 
 @pytest.fixture
@@ -1638,10 +1510,83 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             RNRSP_EventDate="1900-04-01",
             RNRSP_EventId="V05",
         ),
+        # --- baseline (VI V00) subjects: folded into the collection as was_baseline rows ---
+        # full baseline: RECIST scale, size from RA *BAS, off-target from RCNT
+        TumorAssessmentRow(
+            "bl_full_recist",
+            VI_VITUMA="RECIST 1.1",
+            VI_EventDate="2020-01-02",
+            VI_EventId="V00",
+            RA_RARECBAS="12",
+            RA_EventDate="2020-01-05",
+            RA_EventId="V02",
+            RCNT_RCNTNOB="3",
+            RCNT_EventId="V00",
+            RCNT_EventDate="2020-01-20",
+        ),
+        # VI_VITUMA__2 fallback, scale normalizes to irecist, no size/off-target
+        TumorAssessmentRow(
+            "bl_vituma2_irecist",
+            VI_VITUMA__2="iRECIST",
+            VI_EventDate="2020-02-01",
+            VI_EventId="V00",
+        ),
+        # rano scale, size from RNRSP *BAS
+        TumorAssessmentRow(
+            "bl_rnrsp_rano",
+            VI_VITUMA="RANO (for Glioblastoma)",
+            VI_EventDate="2020-03-01",
+            VI_EventId="V00",
+            RNRSP_TERNTBAS="20",
+            RNRSP_EventDate="2020-03-02",
+            RNRSP_EventId="V02",
+        ),
+        # off-target from RNTMNT (RNTMNT_RNTMNTNOB takes precedence over RNTMNT_RNTMNTNO)
+        TumorAssessmentRow(
+            "bl_rntmnt_offtarget",
+            VI_VITUMA="RECIST 1.1",
+            VI_EventDate="2020-04-01",
+            VI_EventId="V00",
+            RNTMNT_RNTMNTNOB="5",
+            RNTMNT_RNTMNTNO="7",
+            RNTMNT_EventId="V00",
+            RNTMNT_EventDate="2020-04-10",
+        ),
+        # VI V00 but no date: dropped (the baseline row must carry the V00 date)
+        TumorAssessmentRow(
+            "bl_vi_no_date",
+            VI_VITUMA="RECIST 1.1",
+            VI_EventId="V00",
+        ),
+        # size source but no VI V00 row: contributes no baseline row
+        TumorAssessmentRow(
+            "bl_no_vi_has_size",
+            RA_RARECBAS="50",
+            RA_EventDate="2020-01-01",
+            RA_EventId="V02",
+        ),
     ]
 
     records = [asdict(r) for r in rows]
-    return pl.from_dicts(records)
+    # the baseline-fold helpers do string ops on the *BAS / VI / RCNT / RNTMNT
+    # columns, pin them to Utf8 so all-None columns in this fixture don't infer
+    # the Null dtype, which would break those coalesce/cast expressions
+    baseline_str_cols = [
+        "RNRSP_TERNTBAS",
+        "RA_RARECBAS",
+        "VI_VITUMA",
+        "VI_VITUMA__2",
+        "VI_EventId",
+        "VI_EventDate",
+        "RCNT_RCNTNOB",
+        "RCNT_EventDate",
+        "RCNT_EventId",
+        "RNTMNT_RNTMNTNOB",
+        "RNTMNT_RNTMNTNO",
+        "RNTMNT_EventId",
+        "RNTMNT_EventDate",
+    ]
+    return pl.from_dicts(records, schema_overrides={c: pl.Utf8 for c in baseline_str_cols})
 
 
 @dataclass(frozen=True, slots=True)
