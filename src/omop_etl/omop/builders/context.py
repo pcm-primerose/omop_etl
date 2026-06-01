@@ -1,5 +1,6 @@
 from dataclasses import field, dataclass
 from typing import Sequence
+from logging import getLogger
 import datetime as dt
 
 from omop_etl.harmonization.models.patient import Patient
@@ -7,8 +8,9 @@ from omop_etl.omop.models.tables import OmopTables
 from omop_etl.omop.core.linkage import (
     OmopRowReference,
     SourceReference,
-    visit_source_ref,
 )
+
+log = getLogger(__name__)
 
 
 @dataclass
@@ -24,6 +26,7 @@ class BuildContext:
     patient: Patient
     person_id: int
     published_rows: dict[tuple[str, SourceReference], tuple[OmopRowReference, ...]] = field(default_factory=dict)
+    _warned_unmatched_visit_dates: set[dt.date] = field(default_factory=set, repr=False)
 
     def publish_rows(
         self,
@@ -72,14 +75,28 @@ class BuildContext:
         """N*M expansion for cross-product linkage."""
         return tuple((left, right) for left in self.resolve_rows(left_table, left_ref) for right in self.resolve_rows(right_table, right_ref))
 
-    # TODO: remove once visits are modeled as a Patient attribute.
     def resolve_visit_id(self, date: dt.date) -> int | None:
         """
-        Resolve a visit_occurrence_id by date. Visits are 1:1 by date
-        by construction (VisitOccurrenceBuilder skips duplicates).
+        Resolve a visit_occurrence_id by date against the patient's published
+        Visit rows. Visits are 1:1 by date (NK = (date,)), so date-lookup is
+        NK-lookup. OMOP-endorsed: an event is assigned the visit that subsumes
+        its date (cdm54 §measurement/observation).
+
+        Returns None when no visit covers the date (e.g. a VI/assessment date
+        mismatch). The event is then emitted unlinked, the gap is logged once
+        per (patient, date) as a data-quality signal.
         """
         refs = self.resolve_rows(
             OmopTables.VISIT_OCCURRENCE,
-            visit_source_ref(self.patient.patient_id, date),
+            SourceReference(self.patient.patient_id, Patient.Collections.VISITS, (date,)),
         )
-        return refs[0].row_id if refs else None
+        if refs:
+            return refs[0].row_id
+        if date not in self._warned_unmatched_visit_dates:
+            self._warned_unmatched_visit_dates.add(date)
+            log.warning(
+                "No visit covers %s for patient %s: emitting event unlinked (visit_occurrence_id=None).",
+                date,
+                self.patient.patient_id,
+            )
+        return None

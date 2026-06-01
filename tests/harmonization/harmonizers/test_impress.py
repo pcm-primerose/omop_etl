@@ -1276,9 +1276,21 @@ class TestProcessTumorAssessments:
         return {r["SubjectId"]: r for r in baseline.to_dicts()}
 
     def test_anchored_on_vi_v00(self, tumor_assessments_fixture):
+        """subjects with a VI row carrying a scale (VITUMA) and a valid date."""
         by_subject = self._baseline_rows(tumor_assessments_fixture)
-        # only subjects with a VI V00 row that has a scale and a valid date
-        assert set(by_subject) == {"bl_full_recist", "bl_vituma2_irecist", "bl_rnrsp_rano", "bl_rntmnt_offtarget"}
+        assert set(by_subject) == {"bl_full_recist", "bl_vituma2_irecist", "bl_rnrsp_rano", "bl_rntmnt_offtarget", "bl_v00vi_split"}
+
+    def test_baseline_selected_from_v00vi_by_content(self, tumor_assessments_fixture):
+        """
+        The baseline scale is selected by VITUMA content, so a row labelled
+        "V00VI" (not "V00") that carries the scale still yields a baseline. A
+        literal EventId == "V00" match would drop it, emitting no baseline.
+        """
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        row = by_subject["bl_v00vi_split"]
+        assert row["assessment_type"] == "recist"
+        assert row["date"] == dt.date(2022, 1, 1)
+        assert row["was_baseline"] is True
 
     def test_all_rows_flagged_baseline_v00(self, tumor_assessments_fixture):
         by_subject = self._baseline_rows(tumor_assessments_fixture)
@@ -1328,6 +1340,59 @@ class TestProcessTumorAssessments:
         h = ImpressHarmonizer(data=tumor_assessments_mixed_scale_fixture, trial_id="T")
         with pytest.raises(ValueError, match="multiple scales"):
             h._process_tumor_assessments()
+
+
+class TestProcessVisits:
+    @staticmethod
+    def _visits(fixture) -> pl.DataFrame:
+        df = ImpressHarmonizer(data=fixture, trial_id="T")._process_visits()
+        assert df is not None
+        return df
+
+    def test_returns_expected_columns(self, visits_fixture):
+        from omop_etl.harmonization.models.domain.visit import Visit
+
+        df = self._visits(visits_fixture)
+        assert set(df.columns) == {"SubjectId"} | set(Visit.data_fields())
+
+    def test_single_visit(self, visits_fixture):
+        row = self._visits(visits_fixture).filter(pl.col("SubjectId") == "single")
+        assert row.height == 1
+        assert row.item(0, "date") == dt.date(2021, 1, 1)
+        assert row.item(0, "event_id") == "V00"
+
+    def test_same_date_collapses_to_vituma_row(self, visits_fixture):
+        """
+        V00 shell + V00VI on the same date collapse to one visit, the
+        VITUMA-bearing row's event id wins.
+        """
+        rows = self._visits(visits_fixture).filter(pl.col("SubjectId") == "collapse")
+        assert rows.height == 1
+        assert rows.item(0, "date") == dt.date(2021, 2, 1)
+        assert rows.item(0, "event_id") == "V00VI"
+
+    def test_multiple_distinct_dates(self, visits_fixture):
+        rows = self._visits(visits_fixture).filter(pl.col("SubjectId") == "multi").sort("date")
+        assert rows.height == 3
+        assert rows["date"].to_list() == [
+            dt.date(2021, 3, 1),
+            dt.date(2021, 4, 1),
+            dt.date(2021, 5, 1),
+        ]
+        assert rows["event_id"].to_list() == ["V00", "V02", "EOT"]
+
+    def test_dateless_visit_dropped(self, visits_fixture):
+        assert self._visits(visits_fixture).filter(pl.col("SubjectId") == "no_date").height == 0
+
+    def test_visit_without_vituma_kept(self, visits_fixture):
+        row = self._visits(visits_fixture).filter(pl.col("SubjectId") == "no_vituma")
+        assert row.height == 1
+        assert row.item(0, "event_id") == "V02"
+
+    def test_one_visit_per_date_no_duplicates(self, visits_fixture):
+        df = self._visits(visits_fixture)
+        per_subject_dates = df.group_by("SubjectId", "date").len()
+        assert per_subject_dates["len"].max() == 1
 
 
 class TestProcessBestOverallResponse:
@@ -1604,6 +1669,7 @@ class TestImpressSpecContracts:
         "concomitant_medication": "concomitant_medication_fixture",
         "adverse_events": "adverse_events_fixture",
         "tumor_assessments": "tumor_assessments_fixture",
+        "visits": "visits_fixture",
         "c30": "c30_fixture",
         "eq5d": "eq5d_fixture",
     }

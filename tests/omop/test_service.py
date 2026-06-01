@@ -8,6 +8,7 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.service import OmopService
 from omop_etl.harmonization.models.domain.end_of_treatment import (
@@ -150,6 +151,12 @@ class TestOmopServiceOrchestration:
         baseline.date = dt.date(2023, 1, 10)
         baseline.event_id = "V00"
         patient.tumor_assessments = [baseline]
+
+        # visits drive visit_occurrence, the baseline visit shares the assessment's date
+        visit = Visit(patient_id="p1")
+        visit.date = dt.date(2023, 1, 10)
+        visit.event_id = "V00"
+        patient.visits = [visit]
 
         tables = OmopService(concepts).build([patient])
 

@@ -21,6 +21,7 @@ from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.domain.visit import Visit
 
 
 PATIENT_EXCLUDED_PROPERTIES = {"patient_id", "trial_id"}
@@ -85,6 +86,7 @@ ALL_DOMAIN_CLASSES = [
     TreatmentCycleComponent,
     TumorAssessment,
     TumorType,
+    Visit,
 ]
 
 

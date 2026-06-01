@@ -21,6 +21,7 @@ from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.models.patient import Patient
 
@@ -1268,19 +1269,19 @@ class ImpressHarmonizer(BaseHarmonizer):
             .otherwise(None)
         )
 
-    # todo: latent bug: hard-matches EventId == "V00", so it drops the baseline when the scale sits on "V00VI" (fixtures hide it)
-    #   in real data in prod; there might be "V00" and "V00VI" rows (se plan).
     def _baseline_tumor_assessment_rows(self) -> pl.DataFrame:
         """Build the per-subject baseline assessment row (one per subject).
 
         The baseline is a distinct clinical encounter that lives only in the VI
-        sheet (EventId == "V00", with the assessment scale in VITUMA*). It is
-        dated at the V00 visit date. The baseline target size is back-referenced
-        from the follow-up sheets' *BAS columns via the shared
+        sheet: the row carrying the assessment scale in VITUMA*. It is selected
+        by content (VITUMA* is populated), not by event id — the scale sits on
+        "V00" in some subjects and on "V00VI" in others (a separate VI row that
+        shares the baseline date), so a literal EventId == "V00" match drops it.
+        Dated at that VI row's visit date. The baseline target size is back-
+        referenced from the follow-up sheets' *BAS columns via the shared
         _subject_baseline_target_lesion_size helper (so baseline and follow-up
-        absolute sizes stay in sync).
-        off-target counts come from the RCNT/RNTMNT V00 rows,
-        which keep their own measurement dates.
+        absolute sizes stay in sync). off-target counts come from the
+        RCNT/RNTMNT V00 rows, which keep their own measurement dates.
 
         Returns a frame with the full TumorAssessment column set so it can be
         concatenated with the follow-up rows. Baseline-only fields are populated
@@ -1304,15 +1305,17 @@ class ImpressHarmonizer(BaseHarmonizer):
             "RNTMNT_EventDate",
         )
 
-        # the V00 VI row defines the baseline: assessment scale and visit date
+        # the VITUMA-bearing VI row defines the baseline: assessment scale and
+        # visit date. Selected by content (VITUMA populated), regardless of
+        # whether its event id is "V00" or "V00VI".
         vi = (
             base.with_columns(
                 vi_value=pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]),
                 vi_date=PolarsParsers.to_optional_date(pl.col("VI_EventDate")),
             )
-            .with_columns(vi_ok=(pl.col("VI_EventId").eq("V00") & pl.col("vi_value").is_not_null()))
+            .with_columns(vi_ok=pl.col("vi_value").is_not_null())
             .filter(pl.col("vi_ok") & pl.col("vi_date").is_not_null())
-            .sort(["SubjectId"])
+            .sort(["SubjectId", "vi_date"])
             .unique("SubjectId", keep="first")
             .select(
                 "SubjectId",
@@ -1555,6 +1558,42 @@ class ImpressHarmonizer(BaseHarmonizer):
         follow_up = process(base).select(unified_columns)
         baseline = self._baseline_tumor_assessment_rows().select(unified_columns)
         return pl.concat([follow_up, baseline], how="vertical_relaxed")
+
+    @collection(
+        Visit,
+        order_by=("date",),
+        require_order_by=True,
+    )
+    def _process_visits(self) -> pl.DataFrame | None:
+        """
+        Build the patient's visit timeline from the VI sheet (every visit).
+
+        One Visit per calendar date (NK = (date,)). When the VI sheet records
+        multiple rows on the same date for a subject e.g. an empty "V00"
+        scheduling shell plus the informative "V00VI" row carrying the
+        assessment scale in VITUMA*, they are the same physical encounter under
+        two eCRF event codes and collapse to one Visit.
+
+        Precedence rule: the representative row for a date is the one carrying a VITUMA* value,
+        empty V00 rows collapses into it. Residual same-date rows with no VITUMA* are broken
+        by event id for determinism. Collapsing here (not via dedup keep-last)
+        avoids same-NK conflict warning per subject.
+        """
+        cols = Visit.Fields
+        return (
+            self.data.select("SubjectId", "VI_EventId", "VI_EventDate", "VI_VITUMA", "VI_VITUMA__2")
+            .with_columns(
+                PolarsParsers.to_optional_date(pl.col("VI_EventDate")).alias(cols.DATE),
+                PolarsParsers.to_optional_utf8(pl.col("VI_EventId")).str.strip_chars().alias(cols.EVENT_ID),
+                pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]).is_not_null().alias("_has_vituma"),
+            )
+            .filter(pl.col(cols.DATE).is_not_null())
+            # representative row per (subject, date): VITUMA-bearing wins, then
+            # event id for determinism.
+            .sort(["SubjectId", cols.DATE, "_has_vituma", cols.EVENT_ID], descending=[False, False, True, False])
+            .unique(subset=["SubjectId", cols.DATE], keep="first", maintain_order=True)
+            .select("SubjectId", cols.DATE, cols.EVENT_ID)
+        )
 
     # TODO: refactor to not use regex later
     @collection(

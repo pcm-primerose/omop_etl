@@ -1,8 +1,8 @@
-import datetime as dt
 from typing import ClassVar
 from logging import getLogger
+import datetime as dt
 
-from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
+from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.models.rows import VisitOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
@@ -12,7 +12,7 @@ from omop_etl.omop.core.linkage import (
     BuildResult,
     OmopRowReference,
     RowPublication,
-    visit_source_ref,
+    SourceReference,
 )
 
 log = getLogger(__name__)
@@ -20,15 +20,13 @@ log = getLogger(__name__)
 
 class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
     """
-    Builds visit_occurrence rows from the tumor assessment collection.
+    Builds visit_occurrence rows from the patient's Visit collection,
+    one visit_occurrence per Visit.
 
-    Publishes each emitted row under `SourceRef(patient_id, SourceAnchors.VISIT_DATE,
-    (date,))` so downstream builders can resolve visit_occurrence_id by date via
-    `ctx.resolve_visit_id(date)`.
+    Publishes each row under `SourceReference(patient_id, Collections.VISITS,
+    visit.natural_key())`. The Visit NK is `(date,)`), so downstream builders
+    resolve visit_occurrence_id by date via `ctx.resolve_visit_id(date)`.
     """
-
-    # todo: after adding Visits domain model, refactor to not use SourceAnchor
-    #   (as then visit dates are part of domain model)
 
     table_name: ClassVar[str] = OmopTables.VISIT_OCCURRENCE
 
@@ -47,45 +45,38 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         visit_concept_id = outpatient.concept_id
         visit_type_concept_id = ecrf.concept_id
 
-        # track previous visit for preceding_visit_occurrence_id FK
+        # Visits are date-ordered by natural key, so iterating yields the visit
+        # chain: track the previous visit for preceding_visit_occurrence_id
         prev_visit_id: int | None = None
 
-        # One visit_occurrence per unique date: a visit IS a date in this model.
-        # The baseline is the was_baseline assessment (dated at its V00 visit) and
-        # is ordered first in the collection, so it anchors the visit chain like
-        # any other assessment. seen_dates folds genuinely same-date assessments
-        # (e.g. target + non-target measurements, or a visit recorded under two
-        # event_ids like "V04"/"W00") into one visit_occurrence row.
-        # (Future: model Visits as a first-class Patient domain so the builder
-        # consumes deduped visit dates directly instead of reconstructing)
-        seen_dates: set[dt.date] = set()
-
-        for assessment in patient.tumor_assessments:
-            assessment_date = assessment.date
-            if assessment_date is None or assessment_date in seen_dates:
+        for visit in patient.visits:
+            date = visit.date
+            if date is None:
                 continue
-            row = self._build_assessment_row(
+            row = self._build_visit_row(
                 patient,
                 person_id,
-                assessment,
-                assessment_date,
+                visit,
+                date,
                 visit_concept_id,
                 visit_type_concept_id,
                 prev_visit_id,
             )
-            seen_dates.add(assessment_date)
             prev_visit_id = row.visit_occurrence_id
             rows.append(row)
-            publications.append(self._publish(patient, row))
+            publications.append(self._publish(patient, visit, row))
 
         return BuildResult(rows=tuple(rows), publications=tuple(publications))
 
     @staticmethod
-    def _publish(patient: Patient, row: VisitOccurrenceRow) -> RowPublication:
-        # todo: refactor after adding Visits domain model
+    def _publish(patient: Patient, visit: Visit, row: VisitOccurrenceRow) -> RowPublication:
         return RowPublication(
             target_table=OmopTables.VISIT_OCCURRENCE,
-            source_ref=visit_source_ref(patient.patient_id, row.visit_start_date),
+            source_ref=SourceReference(
+                patient.patient_id,
+                Patient.Collections.VISITS,
+                visit.natural_key(),
+            ),
             rows=(
                 OmopRowReference(
                     table=OmopTables.VISIT_OCCURRENCE,
@@ -95,11 +86,11 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             ),
         )
 
-    def _build_assessment_row(
+    def _build_visit_row(
         self,
         patient: Patient,
         person_id: int,
-        assessment: TumorAssessment,
+        visit: Visit,
         date: dt.date,
         visit_concept_id: int,
         visit_type_concept_id: int,
@@ -107,8 +98,8 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
     ) -> VisitOccurrenceRow:
         row_id = self.generate_row_id(
             patient.patient_id,
-            Patient.Collections.TUMOR_ASSESSMENTS,
-            *assessment.natural_key(),
+            Patient.Collections.VISITS,
+            *visit.natural_key(),
         )
 
         return VisitOccurrenceRow(
@@ -118,6 +109,6 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             visit_start_date=date,
             visit_end_date=date,
             visit_type_concept_id=visit_type_concept_id,
-            visit_source_value=assessment.assessment_type,
+            visit_source_value=visit.event_id,
             preceding_visit_occurrence_id=preceding_visit_id,
         )

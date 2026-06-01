@@ -17,7 +17,7 @@ import pytest
 from omop_etl.omop.core.linkage import (
     BuildResult,
     OmopRowReference,
-    visit_source_ref,
+    SourceReference,
 )
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -65,9 +65,9 @@ class TestMeasurementBuilder:
         """Canonical visit-linkage test for the measurement builder.
 
         Every measurement source uses `ctx.resolve_visit_id(date)`, which reads
-        visit_occurrence rows published by VisitOccurrenceBuilder under
-        `visit_source_ref(patient_id, date)`. Tested once here; negative case
-        is covered by test_visit_id_none_when_no_matches.
+        visit_occurrence rows published by VisitOccurrenceBuilder under the Visit
+        SourceReference `(patient_id, Collections.VISITS, (date,))`. Tested once
+        here, negative case is covered by test_visit_id_none_when_no_matches.
         """
         patient = create_patient(PID, TRIAL)
         ecog = EcogBaseline(PID)
@@ -79,7 +79,7 @@ class TestMeasurementBuilder:
         sentinel = 999_888_777
         context.publish_rows(
             OmopTables.VISIT_OCCURRENCE,
-            visit_source_ref(PID, dt.date(2040, 5, 1)),
+            SourceReference(PID, Patient.Collections.VISITS, (dt.date(2040, 5, 1),)),
             [OmopRowReference(table=OmopTables.VISIT_OCCURRENCE, row_id=sentinel, primary_concept_id=9202)],
         )
 

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import TypeVar, Hashable, Generic
-import datetime as dt
 
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.models.tables import OmopTables
@@ -12,21 +11,6 @@ def _all_str_values(ns) -> set[str]:
     return {v for k, v in vars(ns).items() if not k.startswith("_") and isinstance(v, str)}
 
 
-class SourceAnchors:
-    """
-    Synthetic anchors for SourceReference when the source isn't a Patient
-    attribute. Today only `VISIT_DATE`, used to anchor visit_occurrence rows
-    by start date so downstream builders can resolve by date.
-    """
-
-    # TODO: remove VISIT_DATE once visits are modeled as a Patient attribute.
-    VISIT_DATE = "visit_date"
-
-    @classmethod
-    def values(cls) -> set[str]:
-        return _all_str_values(cls)
-
-
 @dataclass(frozen=True, slots=True)
 class SourceReference:
     """
@@ -34,7 +18,7 @@ class SourceReference:
     natural key). Used as the anchor for cross-builder FK linkage.
 
     `source_kind` must be a `Patient.Collections.*` / `Patient.Singletons.*`
-    constant, or a `SourceAnchors.*` constant.
+    constant.
     """
 
     patient_id: str
@@ -42,11 +26,9 @@ class SourceReference:
     natural_key: tuple[Hashable, ...]
 
     def __post_init__(self):
-        valid = _all_str_values(Patient.Collections) | _all_str_values(Patient.Singletons) | SourceAnchors.values()
+        valid = _all_str_values(Patient.Collections) | _all_str_values(Patient.Singletons)
         if self.source_kind not in valid:
-            raise ValueError(
-                f"Unknown source_kind {self.source_kind!r}; must be one of Patient.Collections.*, Patient.Singletons.*, or SourceAnchors.* constants"
-            )
+            raise ValueError(f"Unknown source_kind {self.source_kind!r}: must be one of Patient.Collections.* or Patient.Singletons.* constants")
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,9 +98,3 @@ class BuildResult(Generic[T]):
 
     rows: tuple[T, ...]
     publications: tuple[RowPublication, ...] = ()
-
-
-def visit_source_ref(patient_id: str, date: dt.date) -> SourceReference:
-    """SourceReference for the visit-occurrence-by-date anchor."""
-    # TODO: remove once visits are modeled as a Patient attribute.
-    return SourceReference(patient_id, SourceAnchors.VISIT_DATE, (date,))

@@ -1551,6 +1551,19 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             VI_VITUMA="RECIST 1.1",
             VI_EventId="V00",
         ),
+        # baseline scale on a "V00VI" row sharing the baseline date with an empty
+        # "V00" row, selected by content (VITUMA populated), not by EventId.
+        TumorAssessmentRow(
+            "bl_v00vi_split",
+            VI_EventId="V00",
+            VI_EventDate="2022-01-01",
+        ),
+        TumorAssessmentRow(
+            "bl_v00vi_split",
+            VI_EventId="V00VI",
+            VI_EventDate="2022-01-01",
+            VI_VITUMA="RECIST 1.1",
+        ),
         TumorAssessmentRow(
             "bl_no_vi_has_size",
             RA_RARECBAS="50",
@@ -1619,6 +1632,42 @@ def tumor_assessments_fixture() -> pl.DataFrame:
         "RNTMNT_EventDate",
     ]
     return pl.from_dicts(records, schema_overrides={c: pl.Utf8 for c in baseline_str_cols})
+
+
+@dataclass(frozen=True, slots=True)
+class VisitRow:
+    SubjectId: str
+    VI_EventId: str | None = None
+    VI_EventDate: str | None = None
+    VI_VITUMA: str | None = None
+    VI_VITUMA__2: str | None = None
+
+
+@pytest.fixture
+def visits_fixture() -> pl.DataFrame:
+    """
+    VI-sheet rows for the visit processor. Covers a single visit, a same-date
+    V00/V00VI collapse (VITUMA-bearing row wins), several distinct-date visits
+    assigned out of order, a dateless row (dropped), and a non-baseline visit
+    with no VITUMA (kept).
+    """
+    rows: List[VisitRow] = [
+        VisitRow("single", VI_EventId="V00", VI_EventDate="2021-01-01", VI_VITUMA="RECIST 1.1"),
+        # same-date collapse: empty shell + informative VITUMA row -> one visit
+        VisitRow("collapse", VI_EventId="V00", VI_EventDate="2021-02-01"),
+        VisitRow("collapse", VI_EventId="V00VI", VI_EventDate="2021-02-01", VI_VITUMA="RECIST 1.1"),
+        # multiple distinct dates, out of order
+        VisitRow("multi", VI_EventId="V02", VI_EventDate="2021-04-01"),
+        VisitRow("multi", VI_EventId="V00", VI_EventDate="2021-03-01", VI_VITUMA="RANO (for Glioblastoma)"),
+        VisitRow("multi", VI_EventId="EOT", VI_EventDate="2021-05-01"),
+        # dateless VI row dropped
+        VisitRow("no_date", VI_EventId="V00", VI_VITUMA="RECIST 1.1"),
+        # non-baseline visit with no VITUMA still a visit
+        VisitRow("no_vituma", VI_EventId="V02", VI_EventDate="2021-06-01"),
+    ]
+    vi_str_cols = ["VI_EventId", "VI_EventDate", "VI_VITUMA", "VI_VITUMA__2"]
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records, schema_overrides={c: pl.Utf8 for c in vi_str_cols})
 
 
 @pytest.fixture
