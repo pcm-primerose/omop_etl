@@ -24,7 +24,7 @@ class MedicalHistory(DomainBase):
         self._status_code: int | None = None
         self.updated_fields: Set[str] = set()
 
-    INVARIANT_FIELDS = (Fields.TERM,)
+    REQUIRED_FIELDS = (Fields.TERM,)
     NATURAL_KEY_FIELDS = (Fields.TERM, Fields.START_DATE)
 
     @property

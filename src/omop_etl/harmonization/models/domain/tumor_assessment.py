@@ -38,13 +38,12 @@ class TumorAssessment(DomainBase):
         self._irecist_date_of_progression: dt.date | None = None
         self._event_id: str | None = None
         # baseline-only fields: populated where was_baseline is True, else None.
-        # they describe the baseline visit, not each assessment.
         self._was_baseline: bool | None = None
         self._baseline_off_target_lesions_number: int | None = None
         self._baseline_off_target_lesion_measurement_date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
-    INVARIANT_FIELDS = (Fields.ASSESSMENT_TYPE,)
+    REQUIRED_FIELDS = (Fields.ASSESSMENT_TYPE, Fields.DATE)
     NATURAL_KEY_FIELDS = (Fields.ASSESSMENT_TYPE, Fields.DATE, Fields.EVENT_ID)
 
     @property

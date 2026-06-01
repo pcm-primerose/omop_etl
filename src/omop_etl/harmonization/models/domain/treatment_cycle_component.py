@@ -28,8 +28,8 @@ class TreatmentCycleComponent(DomainBase):
         REASON_TABLET_NOT_TAKEN = "reason_tablet_not_taken"
         WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE = "was_tablet_taken_to_prescription_in_previous_cycle"
 
-    INVARIANT_FIELDS = (Fields.SOURCE_TREATMENT_NAME,)
-    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.TREATMENT_NUMBER, Fields.CYCLE_NUMBER, Fields.COMPONENT_INDEX)
+    REQUIRED_FIELDS = (Fields.SOURCE_TREATMENT_NAME, Fields.START_DATE)
+    NATURAL_KEY_FIELDS = (Fields.SOURCE_TREATMENT_NAME, Fields.START_DATE, Fields.TREATMENT_NUMBER, Fields.CYCLE_NUMBER, Fields.COMPONENT_INDEX)
 
     def __init__(self, patient_id: str):
         # core

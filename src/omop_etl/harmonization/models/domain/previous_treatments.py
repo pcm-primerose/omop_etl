@@ -24,7 +24,7 @@ class PreviousTreatment(DomainBase):
         self._additional_treatment: str | None = None
         self.updated_fields: Set[str] = set()
 
-    INVARIANT_FIELDS = (Fields.TREATMENT,)
+    REQUIRED_FIELDS = (Fields.TREATMENT,)
     NATURAL_KEY_FIELDS = (Fields.TREATMENT, Fields.START_DATE, Fields.TREATMENT_SEQUENCE_NUMBER)
 
     @property

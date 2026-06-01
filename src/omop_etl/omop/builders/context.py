@@ -94,9 +94,4 @@ class BuildContext:
             return refs[0].row_id
         if date not in self._warned_unmatched_visit_dates:
             self._warned_unmatched_visit_dates.add(date)
-            log.warning(
-                "No visit covers %s for patient %s: emitting event unlinked (visit_occurrence_id=None).",
-                date,
-                self.patient.patient_id,
-            )
         return None

@@ -18,7 +18,7 @@ class BestOverallResponse(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
-    INVARIANT_FIELDS = (Fields.RESPONSE,)
+    REQUIRED_FIELDS = (Fields.RESPONSE,)
     NATURAL_KEY_FIELDS = (Fields.DATE,)
 
     @property

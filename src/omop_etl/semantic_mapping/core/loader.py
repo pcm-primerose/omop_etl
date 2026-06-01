@@ -57,8 +57,7 @@ class LoadSemantics:
             for row in candidates:
                 if row.omop_concept_id in seen:
                     log.warning(
-                        "Collapsing duplicate concept_id %s for source_term '%s' "
-                        "can be caused by case-normalization colission, consider updating mapping file.",
+                        "Collapsing duplicate concept_id=%s for source_term='%s', consider updating mapping file.",
                         row.omop_concept_id,
                         key,
                     )

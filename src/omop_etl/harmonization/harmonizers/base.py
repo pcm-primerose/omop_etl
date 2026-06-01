@@ -99,26 +99,26 @@ def _dedup_by_natural_key(
     """
     Dedup a collection of domain objects by natural key. Identical duplicates
     are dropped silently. Genuine conflicts (same NK, different non-NK fields)
-    are resolved per `policy`:
-
-      - "warn":  log warning and keep the LAST occurrence (replace earlier).
-        Default policy for forgiving inputs, e.g. amended source records where
-        a later row supersedes an earlier one with the same NK.
+    are resolved per policy:
+      - "warn":  log warning and keep the last occurrence (replace earlier).
       - "error": raise ValueError on the first conflict.
 
     Returns the deduplicated list. Order is the input order of each NK's first
-    occurrence (so an unchanged collection round-trips unchanged); the *value*
-    at that position is the last occurrence's data when conflicts exist.
+    occurrence.
 
-    NK uniqueness within a patient's collection is a hard precondition for
-    downstream cross-builder linkage (SourceReference → published rows is
-    keyed by NK), so this is the canonical pre-filter before assignment to
-    Patient.
+    NK uniqueness within a patient domain is a requirement for
+    downstream cross-builder linkage (SourceReference to published rows is keyed by NK).
+    A NK field being `None` means identity is weak, warn per (patient, domain).
     """
     seen: dict[tuple, DomainBase] = {}
     fields = item_type.data_fields()
+    nk_fields = item_type.NATURAL_KEY_FIELDS
+    null_nk_counts: dict[str, int] = {}
     for obj in objs:
         nk = obj.natural_key()
+        for field_name, part in zip(nk_fields, nk):
+            if part is None:
+                null_nk_counts[field_name] = null_nk_counts.get(field_name, 0) + 1
         prior = seen.get(nk)
         if prior is None:
             seen[nk] = obj
@@ -134,6 +134,13 @@ def _dedup_by_natural_key(
         # warn policy: keep last by overwriting (dict assignment preserves the
         # original insertion position, only updates the value).
         seen[nk] = obj
+    if null_nk_counts:
+        log.warning(
+            "%s for patient %s: natural-key field(s) None: %s. Null identity components risk over-collapsing distinct records.",
+            item_type.__name__,
+            patient_id,
+            null_nk_counts,
+        )
     return list(seen.values())
 
 

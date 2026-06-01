@@ -29,7 +29,7 @@ class AdverseEvent(DomainBase):
         WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_1 = "was_serious_grade_expected_treatment_1"
         WAS_SERIOUS_GRADE_EXPECTED_TREATMENT_2 = "was_serious_grade_expected_treatment_2"
 
-    INVARIANT_FIELDS = (Fields.TERM,)
+    REQUIRED_FIELDS = (Fields.TERM,)
     NATURAL_KEY_FIELDS = (Fields.TERM, Fields.START_DATE, Fields.SEQUENCE_ID)
 
     def __init__(self, patient_id: str):

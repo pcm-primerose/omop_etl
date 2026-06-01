@@ -23,7 +23,7 @@ class Visit(DomainBase):
         self._event_id: str | None = None
         self.updated_fields: Set[str] = set()
 
-    INVARIANT_FIELDS = (Fields.DATE,)
+    REQUIRED_FIELDS = (Fields.DATE,)
     NATURAL_KEY_FIELDS = (Fields.DATE,)
 
     @property

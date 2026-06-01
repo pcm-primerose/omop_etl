@@ -28,7 +28,7 @@ class ConcomitantMedication(DomainBase):
         self._sequence_id: int | None = None
         self.updated_fields: Set[str] = set()
 
-    INVARIANT_FIELDS = (Fields.MEDICATION_NAME,)
+    REQUIRED_FIELDS = (Fields.MEDICATION_NAME,)
     NATURAL_KEY_FIELDS = (Fields.MEDICATION_NAME, Fields.START_DATE, Fields.SEQUENCE_ID)
 
     @property

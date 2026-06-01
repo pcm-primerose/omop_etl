@@ -29,7 +29,7 @@ class SimpleDomain(DomainBase):
         NAME = "name"
         VALUE = "value"
 
-    INVARIANT_FIELDS = (Fields.NAME,)
+    REQUIRED_FIELDS = (Fields.NAME,)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -559,6 +559,37 @@ class TestNaturalKeyConflictDetection:
                 patients=patients,
                 on_natural_key_conflict="error",
             )
+
+    def test_none_in_natural_key_warns_but_keeps_record(self, caplog):
+        """
+        A null NK component is weak identity: warn (naming the field), don't
+        drop or raise.
+        """
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [self._mh_row(term="hypertension", start_date=None, sequence_id=1)]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=MedicalHistory,
+                patients=patients,
+            )
+        warnings = [r for r in caplog.records if "natural-key field(s) None" in r.getMessage()]
+        assert len(warnings) == 1
+        assert "p1" in warnings[0].getMessage()
+        assert "start_date" in warnings[0].getMessage()
+        # weak identity warns, doesn't drop
+        assert len(patients["p1"].medical_histories) == 1
+
+    def test_no_none_in_natural_key_is_silent(self, caplog):
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=1)]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=MedicalHistory,
+                patients=patients,
+            )
+        assert not any("natural-key field(s) None" in r.getMessage() for r in caplog.records)
 
     def test_empty_natural_key_skips_check(self, mock_simple_domain_attr, caplog):
         """Domains without NATURAL_KEY_FIELDS bypass the conflict check entirely."""

@@ -27,7 +27,7 @@ class Cohort(DomainBase):
 
     # raw_name is always present, normalized_name can be
     # None when unmapped, so it can't anchor identity.
-    INVARIANT_FIELDS = (Fields.RAW_NAME,)
+    REQUIRED_FIELDS = (Fields.RAW_NAME,)
     NATURAL_KEY_FIELDS = (Fields.RAW_NAME,)
 
     def __init__(self, patient_id: str):

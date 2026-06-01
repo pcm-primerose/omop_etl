@@ -11,9 +11,14 @@ class DomainBase(TrackedValidated, ABC):
     Subclasses must define:
     - `class Fields:` with string constants for canonical field names (schema from processor to domain)
 
-    Subclasses may optionally define:
-    - `INVARIANT_FIELDS` tuple referencing Fields constants for materiality (the domains' invariants) filtering
-    - `NATURAL_KEY_FIELDS` tuple referencing Fields that make up the natural key for the domain subclass
+    Subclasses can optionally define:
+    - `REQUIRED_FIELDS` tuple referencing Fields constants, a record is real if all fields present.
+    - `NATURAL_KEY_FIELDS` tuple referencing Fields that make up the natural key
+      (identity, for dedup and FK linkage).
+
+    REQUIRED_FIELDS and NATURAL_KEY_FIELDS are independent: they usually overlap
+    (the subject is part of the identity) but may diverge when identity is
+    positional/temporal and the subject is content.
     """
 
     # internal cache, use data_fields() method to access
@@ -21,7 +26,7 @@ class DomainBase(TrackedValidated, ABC):
     _schema_validated: ClassVar[bool] = False
 
     # collection and singleton subclasses override
-    INVARIANT_FIELDS: ClassVar[tuple[str, ...]] = ()
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = ()
     NATURAL_KEY_FIELDS: ClassVar[tuple[str, ...]] = ()
 
     @abstractmethod
@@ -38,8 +43,8 @@ class DomainBase(TrackedValidated, ABC):
     def natural_key(self) -> tuple:
         return tuple(getattr(self, f) for f in self.NATURAL_KEY_FIELDS)
 
-    def invariant_fields(self) -> tuple:
-        return tuple(getattr(self, f) for f in self.INVARIANT_FIELDS)
+    def required_fields(self) -> tuple:
+        return tuple(getattr(self, f) for f in self.REQUIRED_FIELDS)
 
     def sort_key(self) -> tuple:
         """None-safe sort key derived from natural_key, None values sort last."""
@@ -77,9 +82,9 @@ class DomainBase(TrackedValidated, ABC):
 
         field_set = set(fields)
 
-        invariant = set(cls.INVARIANT_FIELDS)
-        if invariant and not invariant.issubset(field_set):
-            raise ValueError(f"{cls.__name__}.INVARIANT_FIELDS not a subset of data_fields: {invariant - field_set}")
+        required = set(cls.REQUIRED_FIELDS)
+        if required and not required.issubset(field_set):
+            raise ValueError(f"{cls.__name__}.REQUIRED_FIELDS not a subset of data_fields: {required - field_set}")
 
         natural_key = set(cls.NATURAL_KEY_FIELDS)
         if natural_key and not natural_key.issubset(field_set):
