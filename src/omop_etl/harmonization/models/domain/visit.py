@@ -11,6 +11,10 @@ class Visit(DomainBase):
 
     Identity (NATURAL_KEY_COLUMNS) = (date,): one visit equals one date.
     Validitiy (REQUIRED_COLUMNS) = (date,): a dateless VI row is not a usable visit.
+
+    Fields:
+    - date: date of the visit.
+    - event_id: ID of that visit (e.g. "V02").
     """
 
     class Fields:

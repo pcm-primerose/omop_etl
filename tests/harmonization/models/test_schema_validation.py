@@ -1,5 +1,6 @@
 import datetime as dt
-from typing import get_type_hints, get_origin, get_args, Union
+import re
+from typing import ClassVar, get_type_hints, get_origin, get_args, Union
 import pytest
 
 from omop_etl.harmonization.models.patient import Patient
@@ -106,6 +107,21 @@ class TestDomainSchemaCompleteness:
     @pytest.mark.parametrize("domain_cls", ALL_DOMAIN_CLASSES, ids=lambda c: c.__name__)
     def test_no_extra_domain_fields(self, domain_cls):
         domain_cls.data_fields()  # triggers _ensure_schema that validates
+
+    # questionnaire domains document q1..qN as a range, not per-field
+    DOCSTRING_FIELD_EXEMPT: ClassVar[set[type]] = {C30, EQ5D}
+
+    @pytest.mark.parametrize("domain_cls", ALL_DOMAIN_CLASSES, ids=lambda c: c.__name__)
+    def test_every_field_named_in_docstring(self, domain_cls):
+        """
+        Drift guard: every data field must be named in the class docstring,
+        so the documented Fields list can't silently fall out of sync with the
+        actual fields. Questionnaire domains (q1..qN as a range) are exempt."""
+        if domain_cls in self.DOCSTRING_FIELD_EXEMPT:
+            pytest.skip("questionnaire domain: q-fields documented as a range")
+        doc = domain_cls.__doc__ or ""
+        missing = [f for f in domain_cls.data_fields() if not re.search(rf"\b{re.escape(f)}\b", doc)]
+        assert not missing, f"{domain_cls.__name__} docstring does not name fields: {missing}"
 
 
 SCALAR_TYPES = (str, int, float, bool, dt.date, dt.datetime)

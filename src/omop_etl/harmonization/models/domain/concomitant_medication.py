@@ -6,6 +6,25 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class ConcomitantMedication(DomainBase):
+    """
+    A concomitant medication the patient took during the study.
+
+    Identity (NATURAL_KEY_FIELDS) = (medication_name, start_date, sequence_id): the
+    drug and when it started; sequence_id (a source column, not a calculated index)
+    is a nullable tiebreaker for the same medication on the same date.
+    Validity (REQUIRED_FIELDS) = (medication_name,): the drug name is the anchor.
+
+    Fields:
+    - medication_name: The concomitant drug name.
+    - medication_ongoing: If the medication is still ongoing.
+    - was_taken_due_to_medical_history_event: If medication was taken due to a medical-history condition.
+    - was_taken_due_to_adverse_event: If medication was taken due to an adverse event.
+    - is_adverse_event_ongoing: If the related adverse event is ongoing.
+    - start_date: Start date of concomitant medication.
+    - end_date: End date of concomitant medication.
+    - sequence_id: Source-derived sequence id, nullable same-date tiebreaker.
+    """
+
     class Fields:
         MEDICATION_NAME = "medication_name"
         MEDICATION_ONGOING = "medication_ongoing"

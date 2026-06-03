@@ -51,24 +51,12 @@ DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS, OmopDomain.PROCEDURE, OmopDomain.MEAS_VALUE}),
         tags={"medical_history", "term"},
     ),
-    # biomarkers
+    # biomarker
     FieldConfig(
-        name="biomarkers.gene_and_mutation",
-        field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.GENE_AND_MUTATION),
+        name="biomarkers.target_biomarker",
+        field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
         target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
-        tags={"biomarker", "gene and mutation"},
-    ),
-    FieldConfig(
-        name="biomarkers.cohort_target_name",
-        field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_NAME),
-        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
-        tags={"biomarker", "cohort target name"},
-    ),
-    FieldConfig(
-        name="biomarkers.cohort_target_mutation",
-        field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
-        target=QueryTarget(domains={OmopDomain.CONDITION, OmopDomain.MEASUREMENTS}),
-        tags={"biomarker", "cohort target mutation"},
+        tags={"biomarker", "target biomarker"},
     ),
     # study drugs
     FieldConfig(

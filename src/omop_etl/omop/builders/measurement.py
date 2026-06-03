@@ -170,83 +170,73 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         ctx: BuildContext,
     ) -> list[MeasurementRow]:
         """
-        Emits 0-N rows from Biomarkers, one row per matched concept for selected
-        biomarker field in preference chain. Cohort fields are inclusion criteria
-        and are preferred when mapping.
+        Emits 0-N rows from Biomarkers, one row per matched concept for the
+        target_biomarker.
 
         measurement_concept_id is each mapped semantic concept; can return
-        multiple rows. measurement_source_value is the raw biomarker value.
+        multiple rows. measurement_source_value is the target_biomarker value.
         value_as_number and value_as_concept_id are not set.
 
-        FK-linked to the primary cancer condition_occurrence row(s); when the
+        FK-linked to the primary cancer condition_occurrence row(s), when the
         tumor produces N condition rows, each biomarker concept expands to N
-        rows (cross-product) with the target row_id in the PK. Emit-anyway:
-        when no linkage, biomarker rows are still emitted unlinked.
+        rows (cross-product) with the target row_id in the PK.
+        When no linkage, biomarker rows are still emitted unlinked.
 
-        Skipped if date is missing or if no field in the chain maps to a
-        measurement concept.
+        Skipped if date is missing or target_biomarker doesn't map.
         """
         date = biomarkers.date
         if date is None:
             log.warning("Skipping biomarkers for %s: missing date", patient.patient_id)
             return []
 
-        chain: list[tuple[str, str | None]] = [
-            (Biomarkers.Fields.COHORT_TARGET_MUTATION, biomarkers.cohort_target_mutation),
-            (Biomarkers.Fields.COHORT_TARGET_NAME, biomarkers.cohort_target_name),
-            (Biomarkers.Fields.GENE_AND_MUTATION, biomarkers.gene_and_mutation),
-        ]
-        for field_name, source_value in chain:
-            if source_value is None:
-                continue
-            matches = self.concepts.lookup_semantic(
-                patient.patient_id,
-                (Patient.Singletons.BIOMARKERS, field_name),
-                None,
-                domains={OmopDomain.MEASUREMENTS},
+        target = biomarkers.target_biomarker
+        if target is None:
+            return []
+
+        matches = self.concepts.lookup_semantic(
+            patient.patient_id,
+            (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+            None,
+            domains={OmopDomain.MEASUREMENTS},
+        )
+        if not matches:
+            return []
+
+        datetime_value = dt.datetime(date.year, date.month, date.day)
+        visit_occurrence_id = ctx.resolve_visit_id(date)
+        targets = self._primary_cancer_link_targets(patient, ctx)
+
+        def row(
+            concept_id: int,
+            event_id: int | None,
+            field_concept_id: int | None,
+        ) -> MeasurementRow:
+            return MeasurementRow(
+                measurement_id=self.generate_row_id(
+                    patient.patient_id,
+                    Patient.Singletons.BIOMARKERS,
+                    *biomarkers.natural_key(),
+                    concept_id,
+                    event_id,
+                ),
+                person_id=person_id,
+                measurement_concept_id=concept_id,
+                measurement_date=date,
+                measurement_datetime=datetime_value,
+                measurement_type_concept_id=ecrf_concept,
+                visit_occurrence_id=visit_occurrence_id,
+                measurement_source_value=target[:50],
+                measurement_event_id=event_id,
+                meas_event_field_concept_id=field_concept_id,
             )
-            if not matches:
-                continue
 
-            datetime_value = dt.datetime(date.year, date.month, date.day)
-            visit_occurrence_id = ctx.resolve_visit_id(date)
-            targets = self._primary_cancer_link_targets(patient, ctx)
-
-            def row(
-                concept_id: int,
-                source_value_local: str,
-                event_id: int | None,
-                field_concept_id: int | None,
-            ) -> MeasurementRow:
-                return MeasurementRow(
-                    measurement_id=self.generate_row_id(
-                        patient.patient_id,
-                        Patient.Singletons.BIOMARKERS,
-                        field_name,
-                        *biomarkers.natural_key(),
-                        concept_id,
-                        event_id,
-                    ),
-                    person_id=person_id,
-                    measurement_concept_id=concept_id,
-                    measurement_date=date,
-                    measurement_datetime=datetime_value,
-                    measurement_type_concept_id=ecrf_concept,
-                    visit_occurrence_id=visit_occurrence_id,
-                    measurement_source_value=source_value_local[:50],
-                    measurement_event_id=event_id,
-                    meas_event_field_concept_id=field_concept_id,
-                )
-
-            rows: list[MeasurementRow] = []
-            for concept in matches:
-                if not targets:
-                    rows.append(row(concept.concept_id, source_value, None, None))
-                else:
-                    rows.extend(row(concept.concept_id, source_value, t.event_id, t.field_concept_id) for t in targets)
-            return rows
-
-        return []
+        rows: list[MeasurementRow] = []
+        for concept in matches:
+            if not targets:
+                rows.append(row(concept.concept_id, None, None))
+            else:
+                rows.extend(row(concept.concept_id, t.event_id, t.field_concept_id) for t in targets)
+        return rows
 
     def _build_tumor_assessment_rows(
         self,

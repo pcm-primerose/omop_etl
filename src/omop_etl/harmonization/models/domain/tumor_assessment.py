@@ -18,6 +18,23 @@ class TumorAssessment(DomainBase):
     Validity (REQUIRED_FIELDS) = (assessment_type, date): the scale and the time.
     Outcome fields (responses, lesion size) are conditionally populated by source,
     that's downstream consumers' concern, not model validity.
+
+    Fields:
+    - assessment_type: Scale used to assess the patient's tumor (e.g. RANO).
+    - target_lesion_size: Absolute size of target lesion at this date.
+    - target_lesion_change_from_baseline: Relative change from baseline assessment.
+    - target_lesion_change_from_nadir: Relative change from nadir.
+    - was_new_lesions_registered_after_baseline: If new lesions was registered after baseline.
+    - date: Date of tumor assessment.
+    - recist_response: Recist1.1 scale response.
+    - irecist_response: iRecist scale response.
+    - rano_response: RANO scale reponse.
+    - recist_date_of_progression: Date of progression on Recist1.1 scale.
+    - irecist_date_of_progression: Date of progression on iRecist scale.
+    - event_id: ID for this tumor assessment (e.g. "V02").
+    - was_baseline: If an instance is baseline assessment (only one per patient per assessment).
+    - baseline_off_target_lesions_number: baseline-only, number of off-target lesions at baseline.
+    - baseline_off_target_lesion_measurement_date: baseline-only, measurement date of off-target lesions.
     """
 
     class Fields:

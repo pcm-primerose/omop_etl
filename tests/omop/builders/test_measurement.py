@@ -746,37 +746,23 @@ class TestEQ5DRows:
 
 def _make_biomarkers(
     date: dt.date | None = dt.date(2040, 5, 1),
-    cohort_target_mutation: str | None = None,
-    cohort_target_name: str | None = None,
-    gene_and_mutation: str | None = None,
+    target_biomarker: str | None = None,
 ) -> Biomarkers:
     b = Biomarkers(PID)
     if date is not None:
         b.date = date
-    if cohort_target_mutation is not None:
-        b.cohort_target_mutation = cohort_target_mutation
-    if cohort_target_name is not None:
-        b.cohort_target_name = cohort_target_name
-    if gene_and_mutation is not None:
-        b.gene_and_mutation = gene_and_mutation
+    if target_biomarker is not None:
+        b.target_biomarker = target_biomarker
     return b
 
 
 class TestBiomarkerRows:
-    def test_uses_cohort_target_mutation_when_mapped(self, static_index, structural_index):
-        # most specific field maps, other fields in fallback chain ignored
+    def test_maps_target_biomarker(self, static_index, structural_index):
+        # the builder maps a single resolved target_biomarker
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
-                leaf_index=None,
-                concept_id=4001,
-                name="BRAF V600E mutation",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_NAME),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=4002,
                 name="BRAF pathway",
@@ -784,69 +770,16 @@ class TestBiomarkerRows:
             ),
         )
         patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(
-            cohort_target_mutation="BRAF V600E",
-            cohort_target_name="BRAF pathway",
-            gene_and_mutation="BRAF",
-        )
-
-        result = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
-
-        assert len(result.rows) == 1
-        assert result.rows[0].measurement_concept_id == 4001
-        assert result.rows[0].measurement_source_value == "BRAF V600E"
-        assert result.rows[0].measurement_date == dt.date(2040, 5, 1)
-        assert result.rows[0].value_as_number is None
-        assert result.rows[0].value_as_concept_id is None
-
-    def test_falls_back_to_cohort_target_name(self, static_index, structural_index):
-        # fall-through when cohort_target_mutation has a value but no Measurement match
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_NAME),
-                leaf_index=None,
-                concept_id=4002,
-                name="BRAF pathway",
-                domain="measurement",
-            ),
-        )
-        patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(
-            cohort_target_mutation="some unmapped term",
-            cohort_target_name="BRAF pathway",
-        )
+        patient.biomarkers = _make_biomarkers(target_biomarker="BRAF pathway")
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].measurement_concept_id == 4002
         assert result.rows[0].measurement_source_value == "BRAF pathway"
-
-    def test_falls_back_to_gene_and_mutation(self, static_index, structural_index):
-        # first two fields unmapped, third resolves
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.GENE_AND_MUTATION),
-                leaf_index=None,
-                concept_id=4003,
-                name="BRAF",
-                domain="measurement",
-            ),
-        )
-        patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(
-            cohort_target_mutation="not mapped",
-            cohort_target_name="also not mapped",
-            gene_and_mutation="BRAF",
-        )
-
-        result = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
-
-        assert len(result.rows) == 1
-        assert result.rows[0].measurement_concept_id == 4003
-        assert result.rows[0].measurement_source_value == "BRAF"
+        assert result.rows[0].measurement_date == dt.date(2040, 5, 1)
+        assert result.rows[0].value_as_number is None
+        assert result.rows[0].value_as_concept_id is None
 
     def test_compound_biomarker_emits_one_row_per_concept(self, static_index, structural_index):
         # single source term maps to two distinct Measurement concepts,
@@ -854,7 +787,7 @@ class TestBiomarkerRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=4001,
                 name="BRAF V600E",
@@ -862,7 +795,7 @@ class TestBiomarkerRows:
             ),
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=4002,
                 name="KRAS G12C",
@@ -870,7 +803,7 @@ class TestBiomarkerRows:
             ),
         )
         patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(cohort_target_mutation="BRAF V600E and KRAS G12C")
+        patient.biomarkers = _make_biomarkers(target_biomarker="BRAF V600E and KRAS G12C")
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
@@ -884,7 +817,7 @@ class TestBiomarkerRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=999,
                 name="BRAF mutation as condition",
@@ -892,7 +825,7 @@ class TestBiomarkerRows:
             ),
         )
         patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(cohort_target_mutation="BRAF V600E")
+        patient.biomarkers = _make_biomarkers(target_biomarker="BRAF V600E")
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
 
@@ -906,14 +839,10 @@ class TestBiomarkerRows:
 
         assert result == BuildResult(rows=(), publications=())
 
-    def test_no_field_maps_returns_empty(self, static_index, structural_index):
-        # all three fields populated but none map, semantic index empty
+    def test_target_does_not_map_returns_empty(self, static_index, structural_index):
+        # target_biomarker is populated but doesn't map, semantic index empty
         patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(
-            cohort_target_mutation="x",
-            cohort_target_name="y",
-            gene_and_mutation="z",
-        )
+        patient.biomarkers = _make_biomarkers(target_biomarker="x")
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID))
 
@@ -923,7 +852,7 @@ class TestBiomarkerRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=4001,
                 name="BRAF V600E",
@@ -932,7 +861,7 @@ class TestBiomarkerRows:
         )
         patient = create_patient(PID, TRIAL)
         biomarkers = Biomarkers(PID)
-        biomarkers.cohort_target_mutation = "BRAF V600E"
+        biomarkers.target_biomarker = "BRAF V600E"
         patient.biomarkers = biomarkers
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(create_build_context(patient, PERSON_ID))
@@ -943,7 +872,7 @@ class TestBiomarkerRows:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=4001,
                 name="BRAF V600E",
@@ -951,7 +880,7 @@ class TestBiomarkerRows:
             ),
         )
         patient = create_patient(PID, TRIAL)
-        patient.biomarkers = _make_biomarkers(cohort_target_mutation="BRAF V600E")
+        patient.biomarkers = _make_biomarkers(target_biomarker="BRAF V600E")
         context = create_build_context(patient, PERSON_ID)
 
         result_1 = MeasurementBuilder(ConceptLookupService(static_index, structural_index, semantic)).build(context)
@@ -1607,7 +1536,7 @@ class TestPrimaryCancerFKConsumption:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=4000,
                 name="braf non-v600",
@@ -1616,7 +1545,7 @@ class TestPrimaryCancerFKConsumption:
         )
         patient = create_patient(PID, TRIAL)
         biomarkers = Biomarkers(PID)
-        biomarkers.cohort_target_mutation = "BRAF non-V600"
+        biomarkers.target_biomarker = "BRAF non-V600"
         biomarkers.date = dt.date(2040, 1, 1)
         patient.biomarkers = biomarkers
         tumor = _tumor_for(patient)
@@ -1633,7 +1562,7 @@ class TestPrimaryCancerFKConsumption:
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.COHORT_TARGET_MUTATION),
+                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
                 leaf_index=None,
                 concept_id=4000,
                 name="braf non-v600",
@@ -1642,7 +1571,7 @@ class TestPrimaryCancerFKConsumption:
         )
         patient = create_patient(PID, TRIAL)
         biomarkers = Biomarkers(PID)
-        biomarkers.cohort_target_mutation = "BRAF non-V600"
+        biomarkers.target_biomarker = "BRAF non-V600"
         biomarkers.date = dt.date(2040, 1, 1)
         patient.biomarkers = biomarkers
         ctx = create_build_context(patient, PERSON_ID)

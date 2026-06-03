@@ -13,6 +13,31 @@ class RelatedStatus(str, Enum):
 
 
 class AdverseEvent(DomainBase):
+    """
+    An adverse event the patient experienced during the study.
+
+    Identity (NATURAL_KEY_FIELDS) = (term, start_date, sequence_id): the event and
+    when it started; sequence_id (source column, not a calculated index) is a
+    nullable tiebreaker for the same term on the same date.
+    Validity (REQUIRED_FIELDS) = (term,): AE without the term is not usable.
+
+    Fields:
+    - term: Adverse-event term (e.g. "Rash").
+    - grade: CTCAE severity grade (1-5).
+    - outcome: Event outcome (e.g. "Recovered/resolved").
+    - start_date: Event start date.
+    - end_date: Event end date.
+    - sequence_id: Source sequence id, nullable same-date tiebreaker.
+    - was_serious: If the event is a serious adverse event (SAE).
+    - turned_serious_date: Date the event became serious.
+    - related_to_treatment_1_status: Relatedness to study treatment 1 (related / not_related / unknown).
+    - treatment_1_name: Name of study treatment 1.
+    - related_to_treatment_2_status: Relatedness to study treatment 2.
+    - treatment_2_name: Name of study treatment 2.
+    - was_serious_grade_expected_treatment_1: If the serious-grade event was expected for treatment 1.
+    - was_serious_grade_expected_treatment_2: If the serious-grade event was expected for treatment 2.
+    """
+
     class Fields:
         TERM = "term"
         GRADE = "grade"

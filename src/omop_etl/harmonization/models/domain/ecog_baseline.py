@@ -6,9 +6,21 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class EcogBaseline(DomainBase):
+    """
+    The patient's baseline ECOG performance status (one per patient).
+
+    Identity (NATURAL_KEY_FIELDS) = (grade,): a singleton anchors on its required field(s).
+    Validity (REQUIRED_FIELDS) = (grade,): a baseline ECOG without a grade isn't a real record.
+
+    Fields:
+    - grade: ECOG performance status (0-5).
+    - description: text description of the grade (e.g. "Fully active").
+    - date: baseline assessment date (used by the measurement builder).
+    """
+
     class Fields:
-        DESCRIPTION = "description"
         GRADE = "grade"
+        DESCRIPTION = "description"
         DATE = "date"
 
     def __init__(self, patient_id: str):
@@ -18,7 +30,8 @@ class EcogBaseline(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
-    NATURAL_KEY_FIELDS = (Fields.DATE,)
+    NATURAL_KEY_FIELDS = (Fields.GRADE,)
+    REQUIRED_FIELDS = (Fields.GRADE,)
 
     @property
     def patient_id(self) -> str:

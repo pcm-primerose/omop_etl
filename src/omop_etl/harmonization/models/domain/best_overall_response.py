@@ -6,6 +6,19 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class BestOverallResponse(DomainBase):
+    """
+    The patient's best overall response (one per patient): the best (lowest)
+    response across all tumor assessments: CR > PR > SD > PD.
+
+    Identity (NATURAL_KEY_FIELDS) = (response,): a singleton anchors on its required field.
+    Validity (REQUIRED_FIELDS) = (response,): a record without a response isn't a valid BOR.
+
+    Fields:
+    - response: Best overall response label (e.g. "Complete Response").
+    - code: Numeric response code (1=CR, 2=PR, 3=SD, 4=PD), paired with response.
+    - date: Date of the best-response assessment.
+    """
+
     class Fields:
         RESPONSE = "response"
         CODE = "code"
@@ -19,7 +32,7 @@ class BestOverallResponse(DomainBase):
         self.updated_fields: Set[str] = set()
 
     REQUIRED_FIELDS = (Fields.RESPONSE,)
-    NATURAL_KEY_FIELDS = (Fields.DATE,)
+    NATURAL_KEY_FIELDS = (Fields.RESPONSE,)
 
     @property
     def patient_id(self) -> str:

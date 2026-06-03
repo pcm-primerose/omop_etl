@@ -12,7 +12,14 @@ class StudyDrugs(DomainBase):
 
     Identity (NATURAL_KEY_FIELDS) = (date,): the singleton's linkage anchor.
     Validity (REQUIRED_FIELDS) = (): materiality is OR-shaped ("at least one of
-    primary/secondary drug present"), which AND-only REQUIRED can't express.
+    primary/secondary drug present"), REQUIRED can't express this.
+
+    Fields:
+    - primary_treatment_drug: Primary study drug.
+    - primary_treatment_drug_code: Source-specific code for primary treatment drug.
+    - secondary_treatment_drug: Secondary study drug.
+    - secondary_treatment_drug_code: Source-specific code for secondary treatment drug.
+    - date: date of study drug record from source.
     """
 
     class Fields:

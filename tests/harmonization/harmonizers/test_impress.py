@@ -315,44 +315,30 @@ class TestProcessBiomarkers:
         df = h._process_biomarkers()
         assert df is not None
 
-        row = df.filter(pl.col("SubjectId") == "mut_braf_activating")
-        assert row.item(0, "gene_and_mutation") == "BRAF activating mutations"
-        assert row.item(0, "gene_and_mutation_code") == 21
-        assert row.item(0, "cohort_target_name") == "BRAF Non-V600 activating mutations"
-        assert row.item(0, "cohort_target_mutation") == "BRAF Non-V600 activating mutations"
-        assert row.item(0, "date") == dt.date(1900, 7, 15)
+        by = {r["SubjectId"]: r for r in df.to_dicts()}
 
-        # some_info_no_mut
-        row = df.filter(pl.col("SubjectId") == "some_info_no_mut")
-        assert row.item(0, "gene_and_mutation") is None
-        assert row.item(0, "gene_and_mutation_code") is None
-        assert row.item(0, "cohort_target_name") == "some info"
-        assert row.item(0, "cohort_target_mutation") is None
-        assert row.item(0, "date") == dt.date(1980, 2, 15)
+        # cohort target name (COHCTN) is preferred when present
+        assert by["mut_braf_activating"]["target_biomarker"] == "BRAF Non-V600 activating mutations"
+        assert by["mut_braf_activating"]["date"] == dt.date(1900, 7, 15)
+        assert by["some_info_no_mut"]["target_biomarker"] == "some info"
+        assert by["some_info_no_mut"]["date"] == dt.date(1980, 2, 15)
+        assert by["brca1_inactivating"]["target_biomarker"] == "BRCA1 stop-gain del exon 11"
+        assert by["brca1_inactivating"]["date"] is None
+        assert by["sdhaf2_mut"]["target_biomarker"] == "more info"
+        assert by["sdhaf2_mut"]["date"] == dt.date(1999, 7, 11)
 
-        # brca1_inactivating
-        row = df.filter(pl.col("SubjectId") == "brca1_inactivating")
-        assert row.item(0, "gene_and_mutation") == "BRCA1 inactivating mutation"
-        assert row.item(0, "gene_and_mutation_code") == 2
-        assert row.item(0, "cohort_target_name") == "BRCA1 stop-gain del exon 11"
-        assert row.item(0, "cohort_target_mutation") == "BRCA1 stop-gain deletion"
-        assert row.item(0, "date") is None
+        # COHCTN empty: fall back to cohort target mutation (COHTMN)
+        assert by["code_only_misc"]["target_biomarker"] == "some other info"
+        assert by["code_only_misc"]["date"] is None
 
-        # sdhaf2_mut
-        row = df.filter(pl.col("SubjectId") == "sdhaf2_mut")
-        assert row.item(0, "gene_and_mutation") == "SDHAF2 mutation"
-        assert row.item(0, "gene_and_mutation_code") == -1
-        assert row.item(0, "cohort_target_name") == "more info"
-        assert row.item(0, "cohort_target_mutation") is None
-        assert row.item(0, "date") == dt.date(1999, 7, 11)
+        # no cohort target: fall back to the measured gene
+        assert by["gene_only"]["target_biomarker"] == "EGFR exon19del"
+        assert by["gene_only"]["date"] == dt.date(2020, 1, 1)
 
-        # code_only_misc
-        row = df.filter(pl.col("SubjectId") == "code_only_misc")
-        assert row.item(0, "gene_and_mutation") is None
-        assert row.item(0, "gene_and_mutation_code") == 10
-        assert row.item(0, "cohort_target_name") is None
-        assert row.item(0, "cohort_target_mutation") == "some other info"
-        assert row.item(0, "date") is None
+        # multi-event: target from the earlier event (preference across rows wins
+        # over the later gene), date is the latest event
+        assert by["multi_event"]["target_biomarker"] == "ALK fusion"
+        assert by["multi_event"]["date"] == dt.date(2019, 6, 1)
 
 
 class TestProcessLostToFollowup:

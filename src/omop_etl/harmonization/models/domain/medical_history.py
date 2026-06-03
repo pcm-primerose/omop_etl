@@ -13,6 +13,14 @@ class MedicalHistory(DomainBase):
     and when it started, sequence_id (source column, not a calculated index) is
     a nullable tiebreaker for the same condition recorded on the same date.
     Validity (REQUIRED_FIELDS) = (term,): the condition term, without this no record can be valid.
+
+    Fields:
+    - term: Name of condition.
+    - sequence_id: Source-specific sequence id for this condition.
+    - start_date: Star date of condition.
+    - end_date: End date of condition.
+    - status: Status for this conditon (e.g. "Ongoing" or "Resolved").
+    - status_code: Source-specific code for status string.
     """
 
     class Fields:

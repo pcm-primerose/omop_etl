@@ -13,6 +13,15 @@ class PreviousTreatment(DomainBase):
     the treatment and when it started, and treatment_sequence_number from a real source
     column (i.e. not a positional index). It's a nullable tiebreaker for the same treatment on the same date.
     Validity (REQUIRED_FIELDS) = (treatment,): the treatment name, without this no record can be valid.
+
+    Fields:
+    - treatment: Name of treatment.
+    - treatment_code: Source-specific code of treatment name.
+    - treatment_sequence_number: Source-field describing the sequence of this treatment.
+    - start_date: Start date of the treatment.
+    - end_date: End date of the treatment.
+    - additional_treatment: Optional additional treatment information.
+
     """
 
     class Fields:

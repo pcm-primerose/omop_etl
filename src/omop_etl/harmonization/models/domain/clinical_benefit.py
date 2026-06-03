@@ -11,6 +11,15 @@ class ClinicalBenefit(DomainBase):
     has at most one instace, the timepoint varies by trial (e.g. IMPRESS uses W16,
     other sources may use W24). week is recorded explicitly so downstream
     consumers can filter by timepoint without joining trial metadata.
+
+    Identity (NATURAL_KEY_FIELDS) = (has_benefit,): the singleton anchors on has_benefit.
+    Validity (REQUIRED_FIELDS) = (has_benefit,): a clinical-benefit record without
+    the outcome is invalid.
+
+    Fields:
+    - has_benefit: If the patient had clinical benefit at the timepoint.
+    - week: Source-speciifc assessment timepoint (e.g. 16 for week 16).
+    - date: Assessment date.
     """
 
     class Fields:
@@ -25,7 +34,8 @@ class ClinicalBenefit(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
-    NATURAL_KEY_FIELDS = (Fields.DATE,)
+    NATURAL_KEY_FIELDS = (Fields.HAS_BENEFIT,)
+    REQUIRED_FIELDS = (Fields.HAS_BENEFIT,)
 
     @property
     def patient_id(self) -> str:

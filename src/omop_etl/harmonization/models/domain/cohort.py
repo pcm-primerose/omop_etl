@@ -16,6 +16,17 @@ class Cohort(DomainBase):
 
     Unmapped raw values keep `normalized_name=None` (and whichever parts did
     resolve) rather than being dropped, so the audit trail is preserved.
+
+    Identity (NATURAL_KEY_FIELDS) = (raw_name,): the singleton anchors on raw cohort name,
+    normalized_name can be None if parsing fails but raw_name is always present.
+    Validity (REQUIRED_FIELDS) = (raw_name,): a cohort without a raw source name is invalid.
+
+    Fields:
+    - raw_name: Raw cohort string from source.
+    - normalized_name: composed from the harmonized parts, None when unmapped.
+    - target_biomarker: Harmonized target-biomarker part.
+    - cancer_type: Harmonized cancer-type part.
+    - drugs: Raw drug names (tuple[str, ...]).
     """
 
     class Fields:
@@ -25,8 +36,6 @@ class Cohort(DomainBase):
         CANCER_TYPE = "cancer_type"
         DRUGS = "drugs"
 
-    # raw_name is always present, normalized_name can be
-    # None when unmapped, so it can't anchor identity.
     REQUIRED_FIELDS = (Fields.RAW_NAME,)
     NATURAL_KEY_FIELDS = (Fields.RAW_NAME,)
 

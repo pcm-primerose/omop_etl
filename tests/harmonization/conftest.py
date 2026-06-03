@@ -341,6 +341,25 @@ def biomarkers_fixture() -> pl.DataFrame:
             COH_COHTMN="some other info",
             COH_EventDate="",
         ),
+        # only a measured gene (no cohort target): falls back to the gene
+        BiomarkersRow(
+            "gene_only",
+            COH_GENMUT1="EGFR exon19del",
+            COH_EventDate="2020-01-01",
+        ),
+        # multi-event: cohort target on the earlier event, only a gene on the
+        # later one, target_biomarker comes from the earlier event (preference
+        # across rows), date is the latest event.
+        BiomarkersRow(
+            "multi_event",
+            COH_COHCTN="ALK fusion",
+            COH_EventDate="2019-01-01",
+        ),
+        BiomarkersRow(
+            "multi_event",
+            COH_GENMUT1="ALK measured later",
+            COH_EventDate="2019-06-01",
+        ),
     ]
 
     records = [asdict(r) for r in rows]

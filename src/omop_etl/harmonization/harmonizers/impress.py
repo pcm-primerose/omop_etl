@@ -322,9 +322,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .with_columns(
                     start=PolarsParsers.to_optional_utf8(pl.col("TR_TRO_STDT")).str.strptime(pl.Date, strict=False),
                     stop=PolarsParsers.to_optional_utf8(pl.col("TR_TROSTPDT")).str.strptime(pl.Date, strict=False),
-                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                    not_received_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
                 )
-                .filter(~pl.col("not_recieved_treatment_this_cycle"))
+                .filter(~pl.col("not_received_treatment_this_cycle"))
                 .with_columns(treatment_duration=((pl.col("stop") - pl.col("start")).dt.total_days()))
                 .group_by("SubjectId")
                 .agg((pl.col("treatment_duration").fill_null(-1) >= 28).any().alias("oral_sufficient_treatment_length"))
@@ -347,9 +347,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                         PolarsParsers.to_optional_utf8(pl.col(["TR_TRO_STDT", "TR_TROSTPDT"])).str.len_bytes().fill_null(0) > 0,
                     ),
                     start=PolarsParsers.to_optional_utf8(pl.col("TR_TRC1_DT")).str.strptime(pl.Date, strict=False),
-                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                    not_received_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
                 )
-                .filter(~pl.col("oral_present") & ~pl.col("not_recieved_treatment_this_cycle"))
+                .filter(~pl.col("oral_present") & ~pl.col("not_received_treatment_this_cycle"))
                 .drop_nulls("start")
                 .sort(["SubjectId", "TR_TRTNO", "start"])
                 # partitioned shift to make next start
@@ -650,31 +650,31 @@ class ImpressHarmonizer(BaseHarmonizer):
     @singleton(Biomarkers)
     def _process_biomarkers(self) -> pl.DataFrame:
         cols = Biomarkers.Fields
-        df = (
+        return (
             self.data.select(
                 "SubjectId",
                 PolarsParsers.to_optional_date(pl.col("COH_EventDate")).alias("event_date"),
-                PolarsParsers.to_optional_utf8(pl.col("COH_GENMUT1")).str.strip_chars().alias(cols.GENE_AND_MUTATION),
-                PolarsParsers.to_optional_int64(pl.col("COH_GENMUT1CD")).alias(cols.GENE_AND_MUTATION_CODE),
-                PolarsParsers.to_optional_utf8(pl.col("COH_COHCTN")).str.strip_chars().alias(cols.COHORT_TARGET_NAME),
-                PolarsParsers.to_optional_utf8(pl.col("COH_COHTMN")).str.strip_chars().alias(cols.COHORT_TARGET_MUTATION),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHCTN")).alias("_cohort_target_name"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHTMN")).alias("_cohort_target_mutation"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_GENMUT1")).alias("_gene_and_mutation"),
             )
-            .filter(
-                pl.any_horizontal(
-                    pl.col(cols.GENE_AND_MUTATION).is_not_null(),
-                    pl.col(cols.GENE_AND_MUTATION_CODE).is_not_null(),
-                    pl.col(cols.COHORT_TARGET_NAME).is_not_null(),
-                    pl.col(cols.COHORT_TARGET_MUTATION).is_not_null(),
-                ),
-            )
-            # latest event per SubjectId
+            # one record per patient: latest non-null value per source column
             .sort(["SubjectId", "event_date"])
-            .rename({"event_date": cols.DATE})
-            .unique(subset=["SubjectId"], keep="last")
-            .select("SubjectId", cols.GENE_AND_MUTATION, cols.GENE_AND_MUTATION_CODE, cols.COHORT_TARGET_NAME, cols.COHORT_TARGET_MUTATION, cols.DATE)
+            .group_by("SubjectId", maintain_order=True)
+            .agg(
+                pl.col("_cohort_target_name").drop_nulls().last(),
+                pl.col("_cohort_target_mutation").drop_nulls().last(),
+                pl.col("_gene_and_mutation").drop_nulls().last(),
+                pl.col("event_date").max().alias(cols.DATE),
+            )
+            # per-source preference: cohort target name, then mutation, then measured gene
+            .with_columns(
+                pl.coalesce("_cohort_target_name", "_cohort_target_mutation", "_gene_and_mutation").alias(cols.TARGET_BIOMARKER),
+            )
+            # materiality: must resolve to a target biomarker
+            .filter(pl.col(cols.TARGET_BIOMARKER).is_not_null())
+            .select("SubjectId", cols.TARGET_BIOMARKER, cols.DATE)
         )
-
-        return df
 
     @singleton(FollowUp)
     def _process_lost_to_followup(self) -> pl.DataFrame:
@@ -930,7 +930,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         def filter_parse_treatment_cycles(frame: pl.DataFrame) -> pl.DataFrame:
             filtered_data = frame.with_columns(
                 PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT")).alias(cols.START_DATE),
-                PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRCYNCD")).alias(cols.RECIEVED_TREATMENT_THIS_CYCLE),
+                PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRCYNCD")).alias(cols.RECEIVED_TREATMENT_THIS_CYCLE),
                 PolarsParsers.to_optional_bool(pl.col("TR_TRIVDELYN1")).alias(cols.WAS_TOTAL_DOSE_DELIVERED),
                 PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRO_YNCD")).alias(cols.WAS_DOSE_ADMINISTERED_TO_SPEC),
                 PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TROTAKECD")).alias(cols.WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE),
@@ -1038,7 +1038,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             cols.CYCLE_NUMBER,
             cols.START_DATE,
             cols.END_DATE,
-            cols.RECIEVED_TREATMENT_THIS_CYCLE,
+            cols.RECEIVED_TREATMENT_THIS_CYCLE,
             cols.WAS_TOTAL_DOSE_DELIVERED,
             cols.IV_DOSE_PRESCRIBED,
             cols.IV_DOSE_PRESCRIBED_UNIT,

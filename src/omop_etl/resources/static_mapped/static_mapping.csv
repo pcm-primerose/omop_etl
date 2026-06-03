@@ -52,7 +52,7 @@ medical_history_code,2,9173,73425007,Inactive,Qualifier Value,Standard,Valid,Mea
 medical_history_code,3,9181,55561003,Active,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 treatment_cycle,IV,4171047,47625008,Intravenous,Qualifier Value,Standard,Valid,Route,SNOMED
 treatment_cycle,Oral,4132161,26643006,Oral,Qualifier Value,Standard,Valid,Route,SNOMED
-treatment_cycle_recieved,False,37016846,712985002,Chemotherapy not done,Context-dependent,Standard,Valid,Observation,SNOMED
+treatment_cycle_received,False,37016846,712985002,Chemotherapy not done,Context-dependent,Standard,Valid,Observation,SNOMED
 unit,"mg (milligram)",8576,mg,milligram,Unit,Standard,Valid,Unit,UCUM
 unit,"ug (microgram)",9655,ug,microgram,Unit,Standard,Valid,Unit,UCUM
 unit,"mL (milliliter)",8587,mL,milliliter,Unit,Standard,Valid,Unit,UCUM
