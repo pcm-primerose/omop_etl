@@ -6,6 +6,20 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorAssessment(DomainBase):
+    """
+    One tumor assessment for a patient: a response / lesion measurement at a
+    visit, on a single scale (RECIST / iRECIST / RANO). The baseline is the
+    was_baseline row (event_id="V00" or similar), follow-ups carry the response and
+    change-from-baseline/nadir.
+
+    Identity (NATURAL_KEY_FIELDS) = (assessment_type, date, event_id): the scale,
+    when, and the visit code. event_id keeps the baseline (V00) distinct from a
+    visit, on a single scale (RECIST / iRECIST / RANO).
+    Validity (REQUIRED_FIELDS) = (assessment_type, date): the scale and the time.
+    Outcome fields (responses, lesion size) are conditionally populated by source,
+    that's downstream consumers' concern, not model validity.
+    """
+
     class Fields:
         ASSESSMENT_TYPE = "assessment_type"
         TARGET_LESION_SIZE = "target_lesion_size"

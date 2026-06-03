@@ -6,6 +6,15 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class StudyDrugs(DomainBase):
+    """
+    A patient's study treatment: the primary (and optional secondary) study
+    drug(s) and allocation date (one per patient).
+
+    Identity (NATURAL_KEY_FIELDS) = (date,): the singleton's linkage anchor.
+    Validity (REQUIRED_FIELDS) = (): materiality is OR-shaped ("at least one of
+    primary/secondary drug present"), which AND-only REQUIRED can't express.
+    """
+
     class Fields:
         PRIMARY_TREATMENT_DRUG = "primary_treatment_drug"
         PRIMARY_TREATMENT_DRUG_CODE = "primary_treatment_drug_code"

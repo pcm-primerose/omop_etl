@@ -5,6 +5,7 @@ from typing import ClassVar
 import pytest
 import polars as pl
 
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -492,18 +493,28 @@ class TestHydrateCollectionField:
 
 
 class TestNaturalKeyConflictDetection:
-    """Uses MedicalHistory (NATURAL_KEY_FIELDS = (term, start_date)) as the test
-    domain. Conflicts are constructed by sharing (term, start_date) and differing
-    in a non-NK field (here: sequence_id)."""
+    """
+    Uses AdverseEvent (NATURAL_KEY_FIELDS = (term, start_date, sequence_id)) as
+    the test domain. Conflicts are constructed by sharing the full NK and differing
+    in a non-NK field (grade).
+    """
 
-    def _mh_row(self, *, start_date, sequence_id, term="hypertension", end_date=None, status=None, status_code=None):  # noqa
+    def _ae_row(self, *, start_date, sequence_id, term="diarrhea", grade=None, outcome=None):  # noqa
         return {
             "term": term,
-            "sequence_id": sequence_id,
+            "grade": grade,
+            "outcome": outcome,
             "start_date": start_date,
-            "end_date": end_date,
-            "status": status,
-            "status_code": status_code,
+            "end_date": None,
+            "sequence_id": sequence_id,
+            "was_serious": None,
+            "turned_serious_date": None,
+            "related_to_treatment_1_status": None,
+            "treatment_1_name": None,
+            "related_to_treatment_2_status": None,
+            "treatment_2_name": None,
+            "was_serious_grade_expected_treatment_1": None,
+            "was_serious_grade_expected_treatment_2": None,
         }
 
     def _packed(self, items):  # noqa
@@ -512,84 +523,114 @@ class TestNaturalKeyConflictDetection:
     def test_identical_duplicates_pass_silently(self, caplog):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1),
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
         ]
         with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
             )
-        assert not any("natural-key conflict" in r.message for r in caplog.records)
+        assert not any("natural-key conflict" in r.getMessage() for r in caplog.records)
         # identical duplicate collapses to a single instance
-        assert len(patients["p1"].medical_histories) == 1
+        assert len(patients["p1"].adverse_events) == 1
 
     def test_conflicting_data_logs_warning_and_keeps_last(self, caplog):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=1),
-            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=2),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=3),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
         ]
         with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
             )
-        warnings = [r for r in caplog.records if "natural-key conflict" in r.message]
+        warnings = [r for r in caplog.records if "natural-key conflict" in r.getMessage()]
         assert len(warnings) == 1
-        assert "p1" in warnings[0].message
-        assert "sequence_id" in warnings[0].message
+        assert "p1" in warnings[0].getMessage()
         # warn-and-keep-last: collapses to one instance, the later row wins
-        mhs = patients["p1"].medical_histories
-        assert len(mhs) == 1
-        assert mhs[0].sequence_id == 2
+        aes = patients["p1"].adverse_events
+        assert len(aes) == 1
+        assert aes[0].grade == 2
 
     def test_conflicting_data_raises_under_error_policy(self):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=1),
-            self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=2),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=3),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
         ]
         with pytest.raises(ValueError, match="natural-key conflict"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
                 on_natural_key_conflict="error",
             )
 
-    def test_none_in_natural_key_warns_but_keeps_record(self, caplog):
+    def test_lone_none_in_nk_does_not_warn(self, caplog):
         """
-        A null NK component is weak identity: warn (naming the field), don't
-        drop or raise.
+        A null NK component with no collision is benign (a conditional
+        disambiguator), shouldn't warn.
         """
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
-        items = [self._mh_row(term="hypertension", start_date=None, sequence_id=1)]
+        items = [self._ae_row(start_date=None, sequence_id=1, grade=2)]
         with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
             )
-        warnings = [r for r in caplog.records if "natural-key field(s) None" in r.getMessage()]
-        assert len(warnings) == 1
-        assert "p1" in warnings[0].getMessage()
-        assert "start_date" in warnings[0].getMessage()
-        # weak identity warns, doesn't drop
-        assert len(patients["p1"].medical_histories) == 1
+        assert not any("natural-key" in r.getMessage() for r in caplog.records)
+        assert len(patients["p1"].adverse_events) == 1
 
-    def test_no_none_in_natural_key_is_silent(self, caplog):
+    def test_none_in_nk_collision_flags_weak_identity(self, caplog):
+        """
+        When a null-containing NK actually collides (distinct records merge),
+        the conflict warning flags the null component as weak identity.
+        """
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
-        items = [self._mh_row(term="hypertension", start_date=dt.date(2024, 1, 1), sequence_id=1)]
+        items = [
+            self._ae_row(start_date=None, sequence_id=1, grade=3),
+            self._ae_row(start_date=None, sequence_id=1, grade=2),
+        ]
         with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
             )
-        assert not any("natural-key field(s) None" in r.getMessage() for r in caplog.records)
+        warnings = [r for r in caplog.records if "natural-key conflict" in r.getMessage()]
+        assert len(warnings) == 1
+        msg = warnings[0].getMessage()
+        assert "start_date" in msg
+        assert "weak" in msg.lower()
+        # over-collapsed to one, last wins
+        aes = patients["p1"].adverse_events
+        assert len(aes) == 1
+        assert aes[0].grade == 2
+
+    def test_fully_populated_nk_conflict_has_no_weak_identity_note(self, caplog):
+        """
+        A conflict on a fully populated NK is an actual duplicate, not weak
+        identity.
+        """
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=3),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
+        ]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=AdverseEvent,
+                patients=patients,
+            )
+        warnings = [r for r in caplog.records if "natural-key conflict" in r.getMessage()]
+        assert len(warnings) == 1
+        assert "weak" not in warnings[0].getMessage().lower()
 
     def test_empty_natural_key_skips_check(self, mock_simple_domain_attr, caplog):
         """Domains without NATURAL_KEY_FIELDS bypass the conflict check entirely."""

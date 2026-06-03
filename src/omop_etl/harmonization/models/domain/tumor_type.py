@@ -7,6 +7,15 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorType(DomainBase):
+    """
+    A patient's tumor type (singleton: one per patient).
+
+    Identity (NATURAL_KEY_FIELDS) = (main_tumor_type,): the singleton's linkage
+    anchor for the primary-cancer condition.
+    Validity (REQUIRED_FIELDS) = (main_tumor_type,): every processor must
+    populate a main cancer type, a record without one isn't usable.
+    """
+
     class Fields:
         ICD10_CODE = "icd10_code"
         ICD10_DESCRIPTION = "icd10_description"
@@ -27,8 +36,8 @@ class TumorType(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
-    NATURAL_KEY_FIELDS = (Fields.DATE,)
-    REQUIRED_FIELDS = (Fields.DATE,)
+    REQUIRED_FIELDS = (Fields.MAIN_TUMOR_TYPE,)
+    NATURAL_KEY_FIELDS = (Fields.MAIN_TUMOR_TYPE,)
 
     @property
     def icd10_code(self) -> str | None:

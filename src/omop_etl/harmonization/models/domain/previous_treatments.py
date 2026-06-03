@@ -6,6 +6,15 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class PreviousTreatment(DomainBase):
+    """
+    A Patient's anti-cancer treatment received before the study.
+
+    Identity (NATURAL_KEY_FIELDS) = (treatment, start_date, treatment_sequence_number):
+    the treatment and when it started, and treatment_sequence_number from a real source
+    column (i.e. not a positional index). It's a nullable tiebreaker for the same treatment on the same date.
+    Validity (REQUIRED_FIELDS) = (treatment,): the treatment name, without this no record can be valid.
+    """
+
     class Fields:
         TREATMENT = "treatment"
         TREATMENT_CODE = "treatment_code"

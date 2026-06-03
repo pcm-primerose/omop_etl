@@ -6,6 +6,16 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TreatmentCycleComponent(DomainBase):
+    """
+    One administered drug, or one ingredient of a combination drug, within a treatment cycle.
+
+    Identity (NATURAL_KEY_FIELDS): the cycle (start_date, treatment_number, cycle_number), the
+    drug (source_treatment_name) and the ingredient_name that separates the
+    per-ingredient rows a combination splits into ("Brand (Ing1 and Ing2)" -> two rows).
+
+    Validity (REQUIRED_FIELDS): source_treatment_name and start_date, if missing the record is not usable.
+    """
+
     class Fields:
         SOURCE_TREATMENT_NAME = "source_treatment_name"
         INGREDIENT_NAME = "ingredient_name"
@@ -29,7 +39,7 @@ class TreatmentCycleComponent(DomainBase):
         WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE = "was_tablet_taken_to_prescription_in_previous_cycle"
 
     REQUIRED_FIELDS = (Fields.SOURCE_TREATMENT_NAME, Fields.START_DATE)
-    NATURAL_KEY_FIELDS = (Fields.SOURCE_TREATMENT_NAME, Fields.START_DATE, Fields.TREATMENT_NUMBER, Fields.CYCLE_NUMBER, Fields.COMPONENT_INDEX)
+    NATURAL_KEY_FIELDS = (Fields.SOURCE_TREATMENT_NAME, Fields.START_DATE, Fields.TREATMENT_NUMBER, Fields.CYCLE_NUMBER, Fields.INGREDIENT_NAME)
 
     def __init__(self, patient_id: str):
         # core

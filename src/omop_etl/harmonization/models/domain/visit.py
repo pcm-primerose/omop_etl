@@ -9,8 +9,8 @@ class Visit(DomainBase):
     """
     A single patient visit (one date per instance).
 
-    NK = (date,): one visit equals one date.
-    INVARIANT = (date,): a dateless VI row is not a usable visit.
+    Identity (NATURAL_KEY_COLUMNS) = (date,): one visit equals one date.
+    Validitiy (REQUIRED_COLUMNS) = (date,): a dateless VI row is not a usable visit.
     """
 
     class Fields:

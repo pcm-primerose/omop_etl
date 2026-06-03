@@ -6,6 +6,15 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class MedicalHistory(DomainBase):
+    """
+    A pre-existing medical condition in the patient's history.
+
+    Identity (NATURAL_KEY_FIELDS) = (term, start_date, sequence_id): the condition
+    and when it started, sequence_id (source column, not a calculated index) is
+    a nullable tiebreaker for the same condition recorded on the same date.
+    Validity (REQUIRED_FIELDS) = (term,): the condition term, without this no record can be valid.
+    """
+
     class Fields:
         TERM = "term"
         SEQUENCE_ID = "sequence_id"
@@ -25,7 +34,7 @@ class MedicalHistory(DomainBase):
         self.updated_fields: Set[str] = set()
 
     REQUIRED_FIELDS = (Fields.TERM,)
-    NATURAL_KEY_FIELDS = (Fields.TERM, Fields.START_DATE)
+    NATURAL_KEY_FIELDS = (Fields.TERM, Fields.START_DATE, Fields.SEQUENCE_ID)
 
     @property
     def patient_id(self) -> str:

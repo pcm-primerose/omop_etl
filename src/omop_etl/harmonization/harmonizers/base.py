@@ -108,40 +108,41 @@ def _dedup_by_natural_key(
 
     NK uniqueness within a patient domain is a requirement for
     downstream cross-builder linkage (SourceReference to published rows is keyed by NK).
-    A NK field being `None` means identity is weak, warn per (patient, domain).
+    A `None` in the NK is flagged only when it actually collides (the conflict
+    warning names the null component(s) as a weak-identity / over-collapse signal).
+    A lone null disambiguator that doesn't collide is benign and stays silent.
     """
-    seen: dict[tuple, DomainBase] = {}
+    # group by natural key, preserving first-seen order
+    groups: dict[tuple, list[DomainBase]] = {}
+    for obj in objs:
+        groups.setdefault(obj.natural_key(), []).append(obj)
+
     fields = item_type.data_fields()
     nk_fields = item_type.NATURAL_KEY_FIELDS
-    null_nk_counts: dict[str, int] = {}
-    for obj in objs:
-        nk = obj.natural_key()
-        for field_name, part in zip(nk_fields, nk):
-            if part is None:
-                null_nk_counts[field_name] = null_nk_counts.get(field_name, 0) + 1
-        prior = seen.get(nk)
-        if prior is None:
-            seen[nk] = obj
+    result: list[DomainBase] = []
+    for nk, members in groups.items():
+        kept = members[-1]
+        result.append(kept)
+        # earlier members that genuinely differ from the kept one, identical
+        # duplicates are dropped silently
+        dropped = [m for m in members[:-1] if any(getattr(m, f) != getattr(kept, f) for f in fields)]
+        if not dropped:
             continue
-        if all(getattr(prior, f) == getattr(obj, f) for f in fields):
-            # identical duplicate, drop silently
-            continue
-        diffs = {f: (getattr(prior, f), getattr(obj, f)) for f in fields if getattr(prior, f) != getattr(obj, f)}
-        msg = f"{item_type.__name__} natural-key conflict for patient {patient_id}: NK={nk} has conflicting values: {diffs}. Keeping last occurrence."
+        null_nk = [f for f, part in zip(nk_fields, nk) if part is None]
+        weak = (
+            f"\n  Natural key has null component(s) {null_nk}, identity may be too weak to distinguish these records. Consider strengthening the natural key."
+            if null_nk
+            else ""
+        )
+        msg = (
+            f"{item_type.__name__} natural-key conflict for patient {patient_id}, NK={nk}.\n"
+            f"  Dropped record(s): {', '.join(repr(d) for d in dropped)}.\n"
+            f"  Kept the last occurrence: {kept!r}.{weak}"
+        )
         if policy == "error":
             raise ValueError(msg)
         log.warning(msg)
-        # warn policy: keep last by overwriting (dict assignment preserves the
-        # original insertion position, only updates the value).
-        seen[nk] = obj
-    if null_nk_counts:
-        log.warning(
-            "%s for patient %s: natural-key field(s) None: %s. Null identity components risk over-collapsing distinct records.",
-            item_type.__name__,
-            patient_id,
-            null_nk_counts,
-        )
-    return list(seen.values())
+    return result
 
 
 def scalar(
