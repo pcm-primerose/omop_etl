@@ -29,9 +29,8 @@ class EndOfTreatment(DomainBase):
     """
     End-of-treatment record for the patient. At most one per patient.
 
-    Identity (NATURAL_KEY_FIELDS) = (status,): singleton anchors on required field(s).
-    Validity (REQUIRED_FIELDS) = (status,): a record without a standardized outcome
-    status isn't a real EOT event.
+    Identity (NATURAL_KEY_FIELDS) = (date,): singleton anchors on required field(s).
+    Validity (REQUIRED_FIELDS) = (date,): an end of treatment record without date is useless.
 
     Fields:
     - status: a TrialOutcomeStatus enum value (COMPLETED or WITHDRAWN),
@@ -52,8 +51,8 @@ class EndOfTreatment(DomainBase):
         self._date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
-    NATURAL_KEY_FIELDS = (Fields.STATUS,)
-    REQUIRED_FIELDS = (Fields.STATUS,)
+    NATURAL_KEY_FIELDS = (Fields.DATE,)
+    REQUIRED_FIELDS = (Fields.DATE,)
 
     @property
     def patient_id(self) -> str:

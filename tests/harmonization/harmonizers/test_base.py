@@ -645,6 +645,68 @@ class TestNaturalKeyConflictDetection:
         assert not any("natural-key conflict" in r.message for r in caplog.records)
 
 
+class TestEnforceRequired:
+    """
+    Central materiality drop. Rows missing any REQUIRED_FIELDS member are
+    removed, and every dropped subject is logged (subject + null field) so
+    upstream data issues stay traceable.
+
+    Uses SimpleDomain (REQUIRED_FIELDS = (name,)).
+    """
+
+    def test_drops_rows_with_null_required_field(self):
+        df = pl.DataFrame(
+            {
+                "SubjectId": ["p1", "p2", "p3"],
+                "name": ["alpha", None, "gamma"],
+                "value": [1, 2, 3],
+            }
+        )
+        result = BaseHarmonizer._enforce_required(df, item_type=SimpleDomain, spec_name="simple", subject_col="SubjectId")
+        assert result["SubjectId"].to_list() == ["p1", "p3"]
+
+    def test_logs_every_dropped_subject_and_field(self, caplog):
+        df = pl.DataFrame(
+            {
+                "SubjectId": ["p1", "p2", "p4"],
+                "name": [None, "beta", None],
+                "value": [1, 2, 3],
+            }
+        )
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer._enforce_required(df, item_type=SimpleDomain, spec_name="simple", subject_col="SubjectId")
+        warnings = [r for r in caplog.records if "dropped" in r.getMessage()]
+        assert len(warnings) == 1
+        msg = warnings[0].getMessage()
+        assert "dropped 2 record(s)" in msg
+        # every dropped subject is named, with the offending field, the kept row is not
+        assert "p1: missing ['name']" in msg
+        assert "p4: missing ['name']" in msg
+        assert "p2" not in msg
+
+    def test_all_required_present_keeps_all_rows_silently(self, caplog):
+        df = pl.DataFrame(
+            {
+                "SubjectId": ["p1", "p2"],
+                "name": ["alpha", "beta"],
+                "value": [1, 2],
+            }
+        )
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            result = BaseHarmonizer._enforce_required(df, item_type=SimpleDomain, spec_name="simple", subject_col="SubjectId")
+        assert result.height == 2
+        assert not any("dropped" in r.getMessage() for r in caplog.records)
+
+    def test_empty_required_is_noop(self):
+        class _NoRequired(SimpleDomain):
+            REQUIRED_FIELDS = ()
+
+        # every row has a null name, all would drop if name were required
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": [None, None], "value": [1, 2]})
+        result = BaseHarmonizer._enforce_required(df, item_type=_NoRequired, spec_name="no_required", subject_col="SubjectId")
+        assert result.height == 2
+
+
 class TestHydrateScalar:
     def test_sets_scalar_attribute(self):
         """Scalar value should be set on patient."""

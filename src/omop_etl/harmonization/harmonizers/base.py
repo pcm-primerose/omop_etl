@@ -421,14 +421,41 @@ class BaseHarmonizer(ABC):
             ValueError: If the spec name is not found in SPECS.
         """
         self._ensure_patients_initialized()
+        self._run_spec(self._get_spec(spec_name))
+
+    def _get_spec(self, spec_name: str) -> ProcessorSpec:
+        """Look up a spec by name, or raise if unknown."""
         spec = next((s for s in self.SPECS if s.name == spec_name), None)
         if spec is None:
             raise ValueError(f"Unknown spec: {spec_name}")
-        self._run_spec(spec)
+        return spec
+
+    def validate_one(self, spec_name: str) -> pl.DataFrame | None:
+        """
+        Run a single spec's processor through the validation gate and return the
+        validated canonical dataframe (pre-hydration). This is the public boundary
+        for validated canonical frames, the same path production uses, minus
+        hydration, so tests/debug/introspection exercise `_validate_spec` rather
+        than reimplementing it. Does not touch `patient_data`.
+
+        The returned frame is schema-conformed and required-valid, but not
+        natural-key deduped (NK dedup happens during hydration).
+
+        Args:
+            spec_name: The name of the spec to run.
+
+        Raises:
+            ValueError: If the spec name is not found in SPECS.
+        """
+        spec = self._get_spec(spec_name)
+        df = spec.process(self)
+        if df is None:
+            return None
+        return self._validate_spec(spec, df)
 
     def _run_spec(self, spec: ProcessorSpec) -> None:
         """
-        Execute a single processor spec: call processor, validate, conform, hydrate.
+        Execute a single processor spec: extract, validate, hydrate.
         Instantiates Patient object with data processed by processors in ProcessorSpec(s) provided.
 
         Args:
@@ -440,15 +467,9 @@ class BaseHarmonizer(ABC):
             return
 
         try:
+            df = self._validate_spec(spec, df)
+
             if isinstance(spec, ScalarSpec):
-                # scalar: minimal validation, direct attribute assignment
-                if spec.subject_col not in df.columns:
-                    raise ValueError(f"Missing {spec.subject_col} in scalar processor output")
-                if spec.value_col not in df.columns:
-                    raise ValueError(f"Missing {spec.value_col} in scalar processor output")
-
-                log.info(f"{spec.name}: {df.height} rows (scalar -> {spec.target_attr})")
-
                 self.hydrate_scalar(
                     df,
                     attr=spec.target_attr,
@@ -459,12 +480,6 @@ class BaseHarmonizer(ABC):
                 )
 
             elif isinstance(spec, CollectionSpec):
-                # collection: validate, conform, pack, hydrate
-                strict = self._get_strictness(spec)
-                self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
-                df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
-                self._log_processor_metrics(spec, df)
-
                 if spec.require_order_by and not spec.order_by:
                     raise ValueError(f"{spec.name}: require_order_by=True but order_by is empty")
 
@@ -487,12 +502,6 @@ class BaseHarmonizer(ABC):
                 )
 
             elif isinstance(spec, SingletonSpec):
-                # singleton: validate, conform, hydrate
-                strict = self._get_strictness(spec)
-                self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
-                df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
-                self._log_processor_metrics(spec, df)
-
                 self.hydrate_singleton(
                     df,
                     skip_missing_patients=spec.skip_missing_patients,
@@ -505,6 +514,52 @@ class BaseHarmonizer(ABC):
         except Exception as e:
             target = spec.target_attr if isinstance(spec, ScalarSpec) else spec.target_domain.__name__
             raise ValueError(f"Hydration failed for target {target}: spec {e}") from e
+
+    def _validate_spec(self, spec: ProcessorSpec, df: pl.DataFrame) -> pl.DataFrame:
+        """
+        Validation gate: convert a processor's candidate dataframe into a
+        validated canonical dataframe.
+
+        Collections/singletons: require the subject column and every
+        `REQUIRED_FIELDS` column to be emitted, checks schema-subset is valid, conforms to the domain's
+        `data_fields()`, drop rows missing any `REQUIRED_FIELDS` value.
+        Scalars: require the subject/value columns.
+
+        Processors are pure extractors: record validity is enforced here. Shared by
+        `_run_spec` (production) and `validate_one`. The returned frame is
+        schema-conformed and required-valid, but not natural-key deduped (NK
+        dedup happens during hydration).
+        """
+        candidate_height = df.height
+
+        if isinstance(spec, ScalarSpec):
+            self._validate_columns_present(df, [spec.subject_col, spec.value_col], spec.name)
+            valid = df.select(spec.subject_col, spec.value_col).filter(pl.col(spec.subject_col).is_not_null() & pl.col(spec.value_col).is_not_null())
+            dropped = candidate_height - valid.height
+            if dropped:
+                log.info(f"{spec.name}: validation dropped {dropped}/{candidate_height} candidate rows")
+            log.info(f"{spec.name}: {valid.height} rows (scalar -> {spec.target_attr})")
+            return valid
+
+        self._validate_columns_present(df, [spec.subject_col, *spec.target_domain.REQUIRED_FIELDS], spec.name)
+
+        strict = self._get_strictness(spec)
+        self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
+        conformed = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
+        valid = self._enforce_required(conformed, item_type=spec.target_domain, spec_name=spec.name, subject_col=spec.subject_col)
+
+        dropped = candidate_height - valid.height
+        if dropped:
+            log.info(f"{spec.name}: validation dropped {dropped}/{candidate_height} candidate rows")
+        self._log_processor_metrics(spec, valid)
+        return valid
+
+    @staticmethod
+    def _validate_columns_present(df: pl.DataFrame, required: Sequence[str], spec_name: str) -> None:
+        """Raise if any `required` column is missing from the processor output"""
+        missing = [col for col in required if col not in df.columns]
+        if missing:
+            raise ValueError(f"{spec_name}: processor output missing required column(s): {missing}")
 
     def _get_strictness(self, spec: ProcessorSpec) -> bool:
         """Provided spec overrides harmonizer default."""
@@ -773,6 +828,44 @@ class BaseHarmonizer(ABC):
         """patient_data must be populated before processors run."""
         if not self.patient_data:
             raise RuntimeError("patient_data is empty. _create_patients() must populate it.")
+
+    @staticmethod
+    def _enforce_required(
+        df: pl.DataFrame,
+        *,
+        item_type: type[DomainBase],
+        spec_name: str,
+        subject_col: str,
+    ) -> pl.DataFrame:
+        """
+        Central materiality drop: remove rows where any REQUIRED_FIELDS member is
+        null. REQUIRED_COLUMNS is the validity contract, a record without these are invalid.
+
+        Logs every dropped record (subject a which required field(s) were null) so
+        upstream data issues are fully traceable. `REQUIRED_FIELDS = ()` is a
+        no-op.
+
+        Runs before pack/dedup, so required fields are non-null by the time
+        `_dedup_by_natural_key` runs, the None-in-NK warning then only fires for
+        optional disambiguators.
+        """
+        required = item_type.REQUIRED_FIELDS
+        if not required:
+            return df
+        present = pl.all_horizontal([pl.col(f).is_not_null() for f in required])
+        dropped = df.filter(~present)
+        if dropped.height:
+            lines = []
+            for rec in dropped.select(subject_col, *required).iter_rows(named=True):
+                null_fields = [f for f in required if rec[f] is None]
+                lines.append(f"    {rec[subject_col]}: missing {null_fields}")
+            log.warning(
+                "%s: dropped %d record(s) missing required field(s):\n%s",
+                spec_name,
+                dropped.height,
+                "\n".join(lines),
+            )
+        return df.filter(present)
 
     @staticmethod
     def _log_processor_metrics(spec: SingletonSpec | CollectionSpec, df: pl.DataFrame) -> None:
