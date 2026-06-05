@@ -9,15 +9,16 @@ class PreviousTreatment(DomainBase):
     """
     A Patient's anti-cancer treatment received before the study.
 
-    Identity (NATURAL_KEY_FIELDS) = (treatment, start_date, treatment_sequence_number):
-    the treatment and when it started, and treatment_sequence_number from a real source
+    Identity (NATURAL_KEY_FIELDS) = (treatment, start_date, sequence_id):
+    the treatment and when it started, and sequence_id from a real source
     column (i.e. not a positional index). It's a nullable tiebreaker for the same treatment on the same date.
     Validity (REQUIRED_FIELDS) = (treatment,): the treatment name, without this no record can be valid.
 
     Fields:
     - treatment: Name of treatment.
     - treatment_code: Source-specific code of treatment name.
-    - treatment_sequence_number: Source-field describing the sequence of this treatment.
+    - sequence_id: Source row disambiguator (CT_CTSPID), nullable tiebreaker for the
+      same treatment on the same date.
     - start_date: Start date of the treatment.
     - end_date: End date of the treatment.
     - additional_treatment: Optional additional treatment information.
@@ -27,7 +28,7 @@ class PreviousTreatment(DomainBase):
     class Fields:
         TREATMENT = "treatment"
         TREATMENT_CODE = "treatment_code"
-        TREATMENT_SEQUENCE_NUMBER = "treatment_sequence_number"
+        SEQUENCE_ID = "sequence_id"
         START_DATE = "start_date"
         END_DATE = "end_date"
         ADDITIONAL_TREATMENT = "additional_treatment"
@@ -36,14 +37,14 @@ class PreviousTreatment(DomainBase):
         self._patient_id = patient_id
         self._treatment: str | None = None
         self._treatment_code: int | None = None
-        self._treatment_sequence_number: int | None = None
+        self._sequence_id: int | None = None
         self._start_date: dt.date | None = None
         self._end_date: dt.date | None = None
         self._additional_treatment: str | None = None
         self.updated_fields: Set[str] = set()
 
     REQUIRED_FIELDS = (Fields.TREATMENT,)
-    NATURAL_KEY_FIELDS = (Fields.TREATMENT, Fields.START_DATE, Fields.TREATMENT_SEQUENCE_NUMBER)
+    NATURAL_KEY_FIELDS = (Fields.TREATMENT, Fields.START_DATE, Fields.SEQUENCE_ID)
 
     @property
     def patient_id(self) -> str:
@@ -74,13 +75,13 @@ class PreviousTreatment(DomainBase):
         )
 
     @property
-    def treatment_sequence_number(self) -> int | None:
-        return self._treatment_sequence_number
+    def sequence_id(self) -> int | None:
+        return self._sequence_id
 
-    @treatment_sequence_number.setter
-    def treatment_sequence_number(self, value: int | None) -> None:
+    @sequence_id.setter
+    def sequence_id(self, value: int | None) -> None:
         self._set_validated_prop(
-            prop=self.__class__.treatment_sequence_number,
+            prop=self.__class__.sequence_id,
             value=value,
             validator=StrictValidators.validate_optional_int,
         )
@@ -126,7 +127,7 @@ class PreviousTreatment(DomainBase):
             f"{self.__class__.__name__}("
             f"treatment={self.treatment!r}{delim}"
             f" treatment_code={self.treatment_code!r}{delim}"
-            f" treatment_sequence_number={self.treatment_sequence_number!r}{delim}"
+            f" sequence_id={self.sequence_id!r}{delim}"
             f" start_date={self.start_date!r}{delim}"
             f" end_date={self.end_date!r}{delim}"
             f" additional_treatment={self.additional_treatment!r})"

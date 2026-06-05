@@ -124,7 +124,7 @@ previous_treatments,previous_treatments.end_date,CT_CTENDAT,Parsed to Date,End d
 previous_treatments,previous_treatments.start_date,CT_CTSTDAT,Parsed to Date,Start date of previous treatment,Date,optional
 previous_treatments,previous_treatments.treatment,CT_CTTYPE,"Direct copy, stripped; rows filtered to non-null only",Previous treatment name,String,mandatory
 previous_treatments,previous_treatments.treatment_code,CT_CTTYPECD,Cast to Int64,Previous treatment code,Int64,optional
-previous_treatments,previous_treatments.treatment_sequence_number,CT_CTSPID,Cast to Int64,Treatment line/sequence number,Int64,optional
+previous_treatments,previous_treatments.sequence_id,CT_CTSPID,Cast to Int64,Sequence identifier for ordering,Int64,optional
 treatment_cycles,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
 treatment_cycles,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
 treatment_cycles,row_index,(generated),Sequential index per patient; ordered by start_date,Row index within patient's treatment cycles,Int64,mandatory

@@ -750,7 +750,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             "SubjectId",
             PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPE")).str.strip_chars().alias(cols.TREATMENT),
             PolarsParsers.to_optional_int64(pl.col("CT_CTTYPECD")).alias(cols.TREATMENT_CODE),
-            PolarsParsers.to_optional_int64(pl.col("CT_CTSPID")).alias(cols.TREATMENT_SEQUENCE_NUMBER),
+            PolarsParsers.to_optional_int64(pl.col("CT_CTSPID")).alias(cols.SEQUENCE_ID),
             PolarsParsers.to_optional_date(pl.col("CT_CTSTDAT")).alias(cols.START_DATE),
             PolarsParsers.to_optional_date(pl.col("CT_CTENDAT")).alias(cols.END_DATE),
             PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPESP")).str.strip_chars().alias(cols.ADDITIONAL_TREATMENT),
