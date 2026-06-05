@@ -461,18 +461,14 @@ class TestProcessEcogBaseline:
 
     def test_partial_data_subjects(self, ecog_fixture):
         """
-        Subjects with partial baseline data should still appear in the
-        with whatever fields can be parsed and null for the rest.
+        Subjects with a grade but other fields null should still appear in the
+        processor output with whatever fields can be parsed and null for the rest.
+        (The grade-missing subject is dropped by the gate, see
+        test_validate_one_drops_grade_missing.)
         """
         h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
         df = h._process_ecog_baseline()
         assert df is not None
-
-        # eventid_no_code: description present, grade missing, date present
-        row = df.filter(pl.col("SubjectId") == "eventid_no_code")
-        assert row.item(0, "description") == "no code"
-        assert row.item(0, "grade") is None
-        assert row.item(0, "date") == dt.date(1900, 7, 1)
 
         # eventid_no_desc: description missing, grade present, date present
         row = df.filter(pl.col("SubjectId") == "eventid_no_desc")
@@ -491,6 +487,22 @@ class TestProcessEcogBaseline:
         assert row.item(0, "description") == "code"
         assert row.item(0, "grade") == 4
         assert row.item(0, "date") is None
+
+    def test_validate_one_drops_grade_missing(self, ecog_fixture):
+        """
+        Two-layer contract: the processor keeps the grade-missing baseline (above),
+        but the gate (REQUIRED_FIELDS = grade) drops it. eventid_no_code (grade null)
+        is absent from validate_one; wrong_date (grade present, null date) survives,
+        since only grade is required.
+        """
+        h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
+        validated = h.validate_one("ecog_baseline")
+        assert validated is not None
+
+        subjects = set(validated["SubjectId"].to_list())
+        assert "eventid_no_code" not in subjects
+        assert "wrong_date" in subjects
+        assert validated.filter(pl.col("grade").is_null()).height == 0
 
 
 class TestProcessMedicalHistories:
@@ -1189,16 +1201,21 @@ class TestProcessTumorAssessments:
         row = df.filter(pl.col("SubjectId") == "collision_irecist_wins")
         assert row.item(0, "assessment_type") == "irecist"
 
-    def test_recist_with_invalid_date_keeps_response(self, tumor_assessments_fixture):
+    def test_validate_one_drops_rows_missing_required(self, tumor_assessments_fixture):
+        """
+        Two-layer contract: the processor keeps signal-bearing rows (above), but
+        the gate (REQUIRED_FIELDS = assessment_type, date) drops them. recist_bad_date
+        (null date, has a response) and bl_no_vi_has_size (size but no scale/date) are
+        absent from validate_one, and every surviving row has both required fields.
+        """
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
-        df = h._process_tumor_assessments()
-        assert df is not None
+        validated = h.validate_one("tumor_assessments")
+        assert validated is not None
 
-        row = df.filter(pl.col("SubjectId") == "recist_bad_date")
-        assert row.item(0, "assessment_type") == "recist"
-        assert row.item(0, "date") is None
-        assert row.item(0, "recist_response") == "SD"
-        assert row.item(0, "event_id") == "V06"
+        subjects = set(validated["SubjectId"].to_list())
+        assert "recist_bad_date" not in subjects
+        assert "bl_no_vi_has_size" not in subjects
+        assert validated.filter(pl.col("assessment_type").is_null() | pl.col("date").is_null()).height == 0
 
     def test_event_id_from_rnrsp_source_only(self, tumor_assessments_fixture):
         """For subjects with signlan only from RNRSP, the event_id and
@@ -1561,13 +1578,6 @@ class TestProcessEndOfTreatment:
                 id="no reason: status=None, IV start date used",
             ),
             pytest.param(
-                "reason_only",
-                "withdrawn",
-                "Other",
-                None,
-                id="reason without date: status set, date=None",
-            ),
-            pytest.param(
                 "reason_empty_string",
                 None,
                 None,
@@ -1588,13 +1598,6 @@ class TestProcessEndOfTreatment:
                 None,
                 id="no data at all: filtered out",
             ),
-            pytest.param(
-                "invalid_tr_row_skipped",
-                "withdrawn",
-                "Other",
-                None,
-                id="invalid TR row (TRCYNCD missing): date excluded",
-            ),
         ],
     )
     def test_end_of_treatment_values(self, end_of_treatment_fixture, sid, expected_status, expected_reason, expected_date):
@@ -1612,6 +1615,23 @@ class TestProcessEndOfTreatment:
         assert row.item(0, "status") == expected_status
         assert row.item(0, "reason") == expected_reason
         assert row.item(0, "date") == expected_date
+
+    def test_validate_one_drops_dateless_eot(self, end_of_treatment_fixture):
+        """
+        Two-layer contract: the processor keeps reason-only EOT rows (above), but the
+        gate (REQUIRED_FIELDS = date) drops them. reason_only and invalid_tr_row_skipped
+        (reason/status set, date=None) are absent from validate_one; date-only rows
+        (status=None, date set) survive, since only date is required.
+        """
+        h = ImpressHarmonizer(data=end_of_treatment_fixture, trial_id="T")
+        validated = h.validate_one("end_of_treatment")
+        assert validated is not None
+
+        subjects = set(validated["SubjectId"].to_list())
+        assert "reason_only" not in subjects
+        assert "invalid_tr_row_skipped" not in subjects
+        assert "date_only_oral_stop" in subjects
+        assert validated.filter(pl.col("date").is_null()).height == 0
 
 
 class TestImpressSpecContracts:

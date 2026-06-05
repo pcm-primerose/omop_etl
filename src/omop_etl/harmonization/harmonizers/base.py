@@ -271,8 +271,20 @@ class BaseHarmonizer(ABC):
         - Processor output is validated and conformed to target schema
         - Domain objects are hydrated onto Patient instances
 
-    Processors return DataFrames with a subset of data_fields().
-    Unknown columns are errors, missing columns are filled with null.
+    Processor contract is extract, validate and hydrate.
+    Each `_process_*` method (defined by subclasses, registered via the
+    @scalar/@singleton/@collection decorators) is a pure extractor: it reads
+    `self.data` and returns a candidate dataframe shaped to its target domain's
+    `data_fields()`, it handles column selection, parsing/renaming, source-row selection,
+    and per-source preference. Unknown columns are an error, missing columns are
+    filled with null at conform.
+
+    Processors do not drop rows for record validity. That contract is defined on the
+    domain model (`REQUIRED_FIELDS`) and is enforced centrally by `_validate_spec`
+    before hydration, which drops rows missing a required value and logs them. The
+    only filters a processor keeps are input-selection (which raw rows feed a
+    target domain) and preference (which row/source wins a dedup), both might need the raw
+    columns, so neither can move to the central gate.
     """
 
     # subclasses define process registry

@@ -671,7 +671,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             .with_columns(
                 pl.coalesce("_cohort_target_name", "_cohort_target_mutation", "_gene_and_mutation").alias(cols.TARGET_BIOMARKER),
             )
-            # materiality: must resolve to a target biomarker
             .filter(pl.col(cols.TARGET_BIOMARKER).is_not_null())
             .select("SubjectId", cols.TARGET_BIOMARKER, cols.DATE)
         )
@@ -699,41 +698,24 @@ class ImpressHarmonizer(BaseHarmonizer):
     @singleton(EcogBaseline)
     def _process_ecog_baseline(self) -> pl.DataFrame:
         """
-        Parses dates with defaults, strips description data, casts to correct types.
-        Only select one baseline ECOG event per patient, using latest available date.
+        Latest baseline (V00) ECOG per patient. filter(EventId == "V00") is
+        input-selection (which rows are baseline ECOG), record validity (grade) is
+        enforced centrally in _validate_spec.
         """
         cols = EcogBaseline.Fields
-
-        ecog_base = self.data.select("SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD", "ECOG_ECOGDAT").filter(
-            pl.col("ECOG_EventId") == "V00",
-        )
-
-        def parse_ecog_data(ecog_data: pl.DataFrame) -> pl.DataFrame:
-            filtered_ecog_data = ecog_data.with_columns(
+        return (
+            self.data.filter(pl.col("ECOG_EventId") == "V00")
+            .select(
+                "SubjectId",
                 PolarsParsers.to_optional_date(pl.col("ECOG_ECOGDAT")).alias(cols.DATE),
-                PolarsParsers.to_optional_int64(pl.col("ECOG_ECOGSCD")).alias(cols.GRADE),
                 PolarsParsers.to_optional_utf8(pl.col("ECOG_ECOGS")).str.strip_chars().alias(cols.DESCRIPTION),
-            ).select("SubjectId", cols.DATE, cols.DESCRIPTION, cols.GRADE)
-            return filtered_ecog_data
-
-        def select_latest_baseline(data: pl.DataFrame) -> pl.DataFrame:
-            _latest = data.sort(["SubjectId", cols.DATE]).group_by("SubjectId").tail(1)
-            return _latest
-
-        def filter_all_nulls(data: pl.DataFrame) -> pl.DataFrame:
-            return data.with_columns(has_ecog=pl.any_horizontal(pl.col([cols.DESCRIPTION]).is_not_null()).fill_null(False))
-
-        def merge_ecog(base: pl.DataFrame, processed: pl.DataFrame) -> pl.DataFrame:
-            return base.join(processed, on="SubjectId", how="left")
-
-        # process
-        parsed = parse_ecog_data(ecog_data=ecog_base)
-        latest = select_latest_baseline(parsed)
-        valid = filter_all_nulls(latest)
-        joined = merge_ecog(base=ecog_base, processed=valid)
-        labeled = filter_all_nulls(joined).select("SubjectId", cols.DATE, cols.DESCRIPTION, cols.GRADE)
-
-        return labeled
+                PolarsParsers.to_optional_int64(pl.col("ECOG_ECOGSCD")).alias(cols.GRADE),
+            )
+            # latest baseline per patient
+            .sort(["SubjectId", cols.DATE])
+            .group_by("SubjectId")
+            .tail(1)
+        )
 
     @collection(
         MedicalHistory,
@@ -741,44 +723,18 @@ class ImpressHarmonizer(BaseHarmonizer):
         require_order_by=True,
     )
     def _process_medical_histories(self) -> pl.DataFrame | None:
+        # filter(term) is input-selection (which wide-format rows are MH records),
+        # not a validity drop: record validity is enforced centrally in _validate_spec.
         cols = MedicalHistory.Fields
-        mh_base = self.data.select(
+        return self.data.select(
             "SubjectId",
-            "MH_MHSPID",
-            "MH_MHTERM",
-            "MH_MHSTDAT",
-            "MH_MHENDAT",
-            "MH_MHONGO",
-            "MH_MHONGOCD",
-        )
-
-        def filter_medical_histories(data: pl.DataFrame) -> pl.DataFrame:
-            filtered_data = data.with_columns(
-                PolarsParsers.to_optional_utf8(pl.col("MH_MHTERM")).str.strip_chars().alias(cols.TERM),
-                PolarsParsers.to_optional_int64(pl.col("MH_MHSPID")).alias(cols.SEQUENCE_ID),
-                PolarsParsers.to_optional_date(pl.col("MH_MHSTDAT")).alias(cols.START_DATE),
-                PolarsParsers.to_optional_date(pl.col("MH_MHENDAT")).alias(cols.END_DATE),
-                PolarsParsers.to_optional_utf8(pl.col("MH_MHONGO")).str.strip_chars().alias(cols.STATUS),
-                PolarsParsers.to_optional_int64(pl.col("MH_MHONGOCD")).alias(cols.STATUS_CODE),
-            ).filter(pl.col(cols.TERM).is_not_null())
-
-            return filtered_data
-
-        def merge_medical_history(base: pl.DataFrame, processed: pl.DataFrame) -> pl.DataFrame:
-            subjects = base.select("SubjectId").unique()
-            _merged = subjects.join(processed, on="SubjectId", how="left").filter(
-                pl.any_horizontal(
-                    pl.col([cols.TERM, cols.SEQUENCE_ID, cols.START_DATE, cols.END_DATE, cols.STATUS, cols.STATUS_CODE]).is_not_null(),
-                ),
-            )
-            return _merged
-
-        filtered = filter_medical_histories(mh_base)
-        merged = merge_medical_history(base=mh_base, processed=filtered).select(
-            "SubjectId", cols.TERM, cols.SEQUENCE_ID, cols.START_DATE, cols.END_DATE, cols.STATUS, cols.STATUS_CODE
-        )
-
-        return merged
+            PolarsParsers.to_optional_utf8(pl.col("MH_MHTERM")).str.strip_chars().alias(cols.TERM),
+            PolarsParsers.to_optional_int64(pl.col("MH_MHSPID")).alias(cols.SEQUENCE_ID),
+            PolarsParsers.to_optional_date(pl.col("MH_MHSTDAT")).alias(cols.START_DATE),
+            PolarsParsers.to_optional_date(pl.col("MH_MHENDAT")).alias(cols.END_DATE),
+            PolarsParsers.to_optional_utf8(pl.col("MH_MHONGO")).str.strip_chars().alias(cols.STATUS),
+            PolarsParsers.to_optional_int64(pl.col("MH_MHONGOCD")).alias(cols.STATUS_CODE),
+        ).filter(pl.col(cols.TERM).is_not_null())
 
     @collection(
         PreviousTreatment,
@@ -786,44 +742,18 @@ class ImpressHarmonizer(BaseHarmonizer):
         require_order_by=True,
     )
     def _process_previous_treatments(self) -> pl.DataFrame | None:
+        # filter(treatment) is input-selection (which wide-format rows are CT records),
+        # not a validity drop: record validity is enforced centrally in _validate_spec.
         cols = PreviousTreatment.Fields
-        ct_base = self.data.select(
+        return self.data.select(
             "SubjectId",
-            "CT_CTTYPE",
-            "CT_CTTYPECD",
-            "CT_CTSPID",
-            "CT_CTSTDAT",
-            "CT_CTENDAT",
-            "CT_CTTYPESP",
-        )
-
-        def filter_previous_treatments(data: pl.DataFrame) -> pl.DataFrame:
-            filtered_data = data.with_columns(
-                PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPE")).str.strip_chars().alias(cols.TREATMENT),
-                PolarsParsers.to_optional_int64(pl.col("CT_CTTYPECD")).alias(cols.TREATMENT_CODE),
-                PolarsParsers.to_optional_int64(pl.col("CT_CTSPID")).alias(cols.TREATMENT_SEQUENCE_NUMBER),
-                PolarsParsers.to_optional_date(pl.col("CT_CTSTDAT")).alias(cols.START_DATE),
-                PolarsParsers.to_optional_date(pl.col("CT_CTENDAT")).alias(cols.END_DATE),
-                PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPESP")).str.strip_chars().alias(cols.ADDITIONAL_TREATMENT),
-            ).filter(pl.col(cols.TREATMENT).is_not_null())
-            return filtered_data
-
-        def merge_previous_treatments(base: pl.DataFrame, processed: pl.DataFrame) -> pl.DataFrame:
-            subjects = base.select("SubjectId").unique()
-            _merged = subjects.join(processed, on="SubjectId", how="left").filter(
-                pl.any_horizontal(
-                    pl.col(
-                        [cols.TREATMENT, cols.TREATMENT_CODE, cols.TREATMENT_SEQUENCE_NUMBER, cols.START_DATE, cols.END_DATE, cols.ADDITIONAL_TREATMENT]
-                    ).is_not_null(),
-                ),
-            )
-            return _merged
-
-        filtered = filter_previous_treatments(ct_base)
-        merged = merge_previous_treatments(base=ct_base, processed=filtered).select(
-            "SubjectId", cols.TREATMENT, cols.TREATMENT_CODE, cols.TREATMENT_SEQUENCE_NUMBER, cols.START_DATE, cols.END_DATE, cols.ADDITIONAL_TREATMENT
-        )
-        return merged
+            PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPE")).str.strip_chars().alias(cols.TREATMENT),
+            PolarsParsers.to_optional_int64(pl.col("CT_CTTYPECD")).alias(cols.TREATMENT_CODE),
+            PolarsParsers.to_optional_int64(pl.col("CT_CTSPID")).alias(cols.TREATMENT_SEQUENCE_NUMBER),
+            PolarsParsers.to_optional_date(pl.col("CT_CTSTDAT")).alias(cols.START_DATE),
+            PolarsParsers.to_optional_date(pl.col("CT_CTENDAT")).alias(cols.END_DATE),
+            PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPESP")).str.strip_chars().alias(cols.ADDITIONAL_TREATMENT),
+        ).filter(pl.col(cols.TREATMENT).is_not_null())
 
     @collection(
         TreatmentCycleComponent,
@@ -866,8 +796,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             If any bytes in any oral-only cols, set to `oral`, if any in iv-only cols, set to `iv` else `None`.
             """
 
-            oral_only_cols = ["TR_TRO_YN", "TR_TRODSTOT", "TR_TRO_STDT", "TR_TROSTPDT"]
-            iv_only_cols = ["TR_TRIVDS1", "TR_TRIVU1", "TR_TRIVDELYN1"]
+            oral_only_cols = {"TR_TRO_YN", "TR_TRODSTOT", "TR_TRO_STDT", "TR_TROSTPDT"}
+            iv_only_cols = {"TR_TRIVDS1", "TR_TRIVU1", "TR_TRIVDELYN1"}
 
             oral_cols = [c for c in oral_only_cols if c in frame.columns]
             iv_cols = [c for c in iv_only_cols if c in frame.columns]
@@ -1223,7 +1153,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         return None if coerced.is_empty() else coerced
 
     def _subject_baseline_target_lesion_size(self) -> pl.DataFrame:
-        """Per-subject baseline target lesion size in mm.
+        """
+        Per-subject baseline target lesion size in mm.
 
         Earliest non-null baseline size across RNRSP_TERNTBAS / RA_RARECBAS per subject,
         tie-broken by EventDate. Returns (SubjectId, baseline_size: Int64).
@@ -1252,7 +1183,8 @@ class ImpressHarmonizer(BaseHarmonizer):
 
     @staticmethod
     def _normalize_assessment_scale(col: pl.Expr) -> pl.Expr:
-        """Normalize a free-text assessment-scale string (VI VITUMA, e.g. "Recist 1.1")
+        """
+        Normalize a free-text assessment-scale string (VI VITUMA, e.g. "Recist 1.1")
         to the vocabulary the collection derives: "irecist" / "recist" / "rano".
 
         iRECIST is checked before RECIST since "irecist" contains the "recist"
@@ -1270,7 +1202,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     def _baseline_tumor_assessment_rows(self) -> pl.DataFrame:
-        """Build the per-subject baseline assessment row (one per subject).
+        """
+        Build the per-subject baseline assessment row (one per subject).
 
         The baseline is a distinct clinical encounter that lives only in the VI
         sheet: the row carrying the assessment scale in VITUMA*. It is selected
@@ -1374,7 +1307,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         )
 
     def _assert_single_assessment_scale(self) -> None:
-        """Trust-boundary guard: each subject must be on a single assessment scale.
+        """
+        Trust-boundary guard: each subject must be on a single assessment scale.
 
         Absolute target-lesion size is a per-subject baseline (coalesced across the
         RA and RNRSP sheets in _subject_baseline_target_lesion_size) scaled by each
@@ -1785,6 +1719,8 @@ class ImpressHarmonizer(BaseHarmonizer):
                     pl.coalesce("recist_code", "RNRSP_RNRSPCLCD").cast(pl.Int64, strict=False).alias(cols.CODE),
                     PolarsParsers.to_optional_date(pl.coalesce("RA_EventDate", "RNRSP_EventDate")).alias(cols.DATE),
                 )
+                # ranking: "best" = lowest,
+                # only code-bearing rows are rankable
                 .filter(pl.col(cols.CODE).is_not_null())
                 .sort(["SubjectId", cols.CODE])
                 .group_by("SubjectId", maintain_order=True)
