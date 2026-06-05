@@ -290,6 +290,9 @@ class BaseHarmonizer(ABC):
     # subclasses define process registry
     SPECS: ClassVar[tuple[ProcessorSpec, ...]] = ()
     strict_schema: bool = True
+    # if a processor drops all rows, likely spec/wiring bug:
+    # if strict valiation is False: warn at runtime, raise in tests
+    strict_validation: bool = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
@@ -547,9 +550,7 @@ class BaseHarmonizer(ABC):
         if isinstance(spec, ScalarSpec):
             self._validate_columns_present(df, [spec.subject_col, spec.value_col], spec.name)
             valid = df.select(spec.subject_col, spec.value_col).filter(pl.col(spec.subject_col).is_not_null() & pl.col(spec.value_col).is_not_null())
-            dropped = candidate_height - valid.height
-            if dropped:
-                log.info(f"{spec.name}: validation dropped {dropped}/{candidate_height} candidate rows")
+            self._log_validation_drops(spec, candidate_height, valid.height)
             log.info(f"{spec.name}: {valid.height} rows (scalar -> {spec.target_attr})")
             return valid
 
@@ -560,11 +561,29 @@ class BaseHarmonizer(ABC):
         conformed = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
         valid = self._enforce_required(conformed, item_type=spec.target_domain, spec_name=spec.name, subject_col=spec.subject_col)
 
-        dropped = candidate_height - valid.height
-        if dropped:
-            log.info(f"{spec.name}: validation dropped {dropped}/{candidate_height} candidate rows")
+        self._log_validation_drops(spec, candidate_height, valid.height)
         self._log_processor_metrics(spec, valid)
         return valid
+
+    def _log_validation_drops(self, spec: ProcessorSpec, candidate_height: int, valid_height: int) -> None:
+        """
+        Log validation rejects, and guard against a spec that
+        dropped *every* non-empty candidate row.
+        `strict_validation` (tests) raises, production error-logs and continues.
+        """
+        dropped = candidate_height - valid_height
+        if not dropped:
+            return
+        if candidate_height > 0 and valid_height == 0:
+            msg = (
+                f"{spec.name}: validation dropped all {candidate_height} candidate row(s) "
+                f"(every row missing a required value), likely a wiring/required-column bug."
+            )
+            if self.strict_validation:
+                raise ValueError(msg)
+            log.error(msg)
+            return
+        log.info(f"{spec.name}: validation dropped {dropped}/{candidate_height} candidate rows")
 
     @staticmethod
     def _validate_columns_present(df: pl.DataFrame, required: Sequence[str], spec_name: str) -> None:

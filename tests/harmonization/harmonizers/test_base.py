@@ -707,6 +707,46 @@ class TestEnforceRequired:
         assert result.height == 2
 
 
+class TestValidationWipeoutGuard:
+    """
+    A total wipeout (every non-empty candidate row dropped) is a wiring/required-column
+    bug: `strict_validation` (tests) raises, production error-logs and
+    continues. A partial drop is normal and stays at info level.
+    """
+
+    @staticmethod
+    def _spec():
+        return CollectionSpec(name="simple", process=lambda s: None, target_domain=SimpleDomain)
+
+    @staticmethod
+    def _harmonizer():
+        return MinimalHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
+
+    def test_total_wipeout_raises_when_strict(self):
+        h = self._harmonizer()
+        h.strict_validation = True
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": [None, None], "value": [1, 2]})
+        with pytest.raises(ValueError, match="dropped all"):
+            h._validate_spec(self._spec(), df)
+
+    def test_total_wipeout_error_logs_when_not_strict(self, caplog):
+        h = self._harmonizer()
+        h.strict_validation = False
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": [None, None], "value": [1, 2]})
+        with caplog.at_level("ERROR", logger="omop_etl.harmonization.harmonizers.base"):
+            result = h._validate_spec(self._spec(), df)
+        assert result.height == 0
+        assert any("dropped all" in r.getMessage() for r in caplog.records)
+
+    def test_partial_drop_is_not_a_wipeout(self):
+        h = self._harmonizer()
+        h.strict_validation = True
+        # one valid row survives: not a wipeout, no raise
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": ["alpha", None], "value": [1, 2]})
+        result = h._validate_spec(self._spec(), df)
+        assert result.height == 1
+
+
 class TestHydrateScalar:
     def test_sets_scalar_attribute(self):
         """Scalar value should be set on patient."""

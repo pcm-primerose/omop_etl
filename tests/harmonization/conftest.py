@@ -4,6 +4,17 @@ import pytest
 import polars as pl
 
 
+@pytest.fixture(autouse=True)
+def _strict_validation(monkeypatch):
+    """
+    Treat a total validation drop as a test failure.
+    Production leaves `strict_validation` False, logs errors and continues.
+    """
+    from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+
+    monkeypatch.setattr(BaseHarmonizer, "strict_validation", True)
+
+
 @dataclass(frozen=True, slots=True)
 class CohortRow:
     SubjectId: str
