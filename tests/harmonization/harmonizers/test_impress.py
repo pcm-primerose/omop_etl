@@ -217,6 +217,34 @@ class TestProcessTumorType:
         assert row.item(0, "other_tumor_type") == "tumor4_subtype2"
         assert row.item(0, "date") == dt.date(2021, 6, 1)
 
+    def test_main_tumor_type_from_text_without_code(self):
+        """
+        Regression: main_tumor_type (the required text) must populate from COHTTYPE
+        even when COHTTYPECD (the code) is absent.
+        """
+        c = {
+            "SubjectId": ["named_uncoded"],
+            "COH_EventDate": ["2033-07-12"],
+            "COH_ICD10COD": ["C07"],
+            "COH_ICD10DES": ["parotid"],
+            "COH_COHTT": ["NOTCH pathway"],
+            "COH_COHTTOSP": [None],
+            "COH_COHTTYPE": ["Adenoid cystic carcinoma"],  # text present
+            "COH_COHTTYPECD": [None],  # code absent
+            "COH_COHTTYPE__2": [None],
+            "COH_COHTTYPE__2CD": [None],
+        }
+        df = pl.DataFrame(c, schema_overrides={k: pl.Utf8 for k in c if k != "SubjectId"})
+        h = ImpressHarmonizer(data=df, trial_id="T")
+
+        row = h._process_tumor_type().filter(pl.col("SubjectId") == "named_uncoded")
+        assert row.item(0, "main_tumor_type") == "Adenoid cystic carcinoma"
+        assert row.item(0, "main_tumor_type_code") is None
+        # survives the validation gate (main_tumor_type present)
+        validated = h.validate_one("tumor_type")
+        assert validated is not None
+        assert "named_uncoded" in set(validated["SubjectId"])
+
 
 class TestProcessStudyDrugs:
     def test_returns_expected_columns(self, study_drugs_fixture):

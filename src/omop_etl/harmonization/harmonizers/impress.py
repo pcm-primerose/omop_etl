@@ -522,13 +522,14 @@ class ImpressHarmonizer(BaseHarmonizer):
                     pl.col(cols.OTHER_TUMOR_TYPE).is_not_null(),
                 ),
             )
-            # detect complete pairs per slot and collisions across slots
+            # a slot is "used" if it has a tumor-type text (COHTTYPE),
+            # the code (COHTTYPECD) is supplementary and may be null.
             .with_columns(
-                t1_has=(pl.col("t1").is_not_null() & pl.col("t1cd").is_not_null()).cast(pl.Int8),
-                t2_has=(pl.col("t2").is_not_null() & pl.col("t2cd").is_not_null()).cast(pl.Int8),
+                t1_has=pl.col("t1").is_not_null().cast(pl.Int8),
+                t2_has=pl.col("t2").is_not_null().cast(pl.Int8),
             )
             .with_columns(collisions=(pl.sum_horizontal(["t1_has", "t2_has"]) > 1))
-            # pick first complete slot if no collision
+            # pick the first used slot if no collision (two named slots = ambiguous)
             .with_columns(
                 m_type_raw=pl.coalesce(
                     [
