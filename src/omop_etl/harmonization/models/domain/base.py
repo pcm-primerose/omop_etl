@@ -39,6 +39,11 @@ class DomainBase(TrackedValidated, ABC):
         # reset cache for each subclass
         cls._data_fields = None
         cls._schema_validated = False
+        # validate the membership contract eagerly at class-definition (import) time.
+        # property-existence check is deferred to _validate_membership,
+        # since some subclasses (C30, EQ5D) generate fields outside class
+        if getattr(cls, "Fields", None) is not None:
+            cls._validate_membership()
 
     def natural_key(self) -> tuple:
         return tuple(getattr(self, f) for f in self.NATURAL_KEY_FIELDS)
@@ -65,11 +70,17 @@ class DomainBase(TrackedValidated, ABC):
         return tuple(out)
 
     @classmethod
-    def _ensure_schema(cls) -> None:
-        """Lazily derive and validate schema on first access."""
-        if cls._schema_validated:
-            return
+    def _validate_membership(cls) -> None:
+        """
+        Structural and membership contract:
+        Fields non-empty, no duplicates and
+        `REQUIRED_FIELDS` and `NATURAL_KEY_FIELDS` subsets of `data_fields()`.
 
+        Does not check that each Fields value names a property: subclasses like
+        C30/EQ5D generate their fields after the class body, so those properties
+        don't exist yet at `__init_subclass__` time, deferred to
+        `_ensure_schema` using `data_fields()`.
+        """
         if cls._data_fields is None:
             cls._data_fields = cls._derive_data_fields()
 
@@ -89,6 +100,19 @@ class DomainBase(TrackedValidated, ABC):
         natural_key = set(cls.NATURAL_KEY_FIELDS)
         if natural_key and not natural_key.issubset(field_set):
             raise ValueError(f"{cls.__name__}.NATURAL_KEY_FIELDS not a subset of data_fields: {natural_key - field_set}")
+
+    @classmethod
+    def _ensure_schema(cls) -> None:
+        """
+        Full schema validation (idempotent). Runs `_validate_membership` (also run
+        eagerly at import) plus the property-existence check: every Fields value must
+        name an actual property on the class. Triggered lazily via `data_fields()`,
+        i.e. after any post-class-body property generation has run.
+        """
+        if cls._schema_validated:
+            return
+
+        cls._validate_membership()
 
         # validate every Fields value matches an actual property on the class
         fields_cls = getattr(cls, "Fields", None)
