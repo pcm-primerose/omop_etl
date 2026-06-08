@@ -1,5 +1,7 @@
 import datetime as dt
+import pytest
 
+from omop_etl.omop.core.id_generator import sha1_bigint
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -11,16 +13,13 @@ from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessmen
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
-import pytest
-
+from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.omop.core.linkage import (
     BuildResult,
     OmopRowReference,
     SourceReference,
 )
 from omop_etl.omop.models.tables import OmopTables
-from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from tests.omop.conftest import (
     SemanticEntry,
     _structural,
@@ -29,20 +28,6 @@ from tests.omop.conftest import (
     create_semantic_index,
     publish_tumor_condition,
 )
-
-
-def _tumor_for(patient, icd10="C50.9", date=None):
-    """
-    Test helper: attach a tumor_type to the patient so its SourceReference
-    can anchor primary-cancer FK publications.
-    """
-    import datetime as _dt
-
-    tumor = TumorType(PID)
-    tumor.icd10_code = icd10
-    tumor.date = date or _dt.date(2040, 1, 1)
-    patient.tumor_type = tumor
-    return tumor
 
 
 PID = "p1"
@@ -1415,16 +1400,6 @@ class TestMedicalHistoryMeasurementRows:
         assert result_1.rows[0].measurement_id == result_2.rows[0].measurement_id
 
 
-CDM_FIELD_CID = 1147127
-UNIT_MM_CID = 8588
-
-
-def _with_millimeter(structural_index: dict) -> dict:
-    """Add the millimeter unit concept (UCUM) so lesion-size result can populate unit_concept_id."""
-    structural_index["millimeter"] = _structural("millimeter", UNIT_MM_CID, "unit")
-    return structural_index
-
-
 class TestPrimaryCancerFKConsumption:
     """
     MeasurementBuilder resolves the primary cancer condition published by
@@ -1437,6 +1412,23 @@ class TestPrimaryCancerFKConsumption:
     meas_event_field_concept_id, per oncology CDM guidelines.
     """
 
+    CDM_FIELD_CID = 1147127
+    UNIT_MM_CID = 8588
+
+    @staticmethod
+    def _tumor_for(patient, icd10="C50.9", date=None):
+        """
+        Test helper: attach a tumor_type to the patient so its SourceReference
+        can anchor primary-cancer FK publications.
+        """
+        import datetime as _dt
+
+        tumor = TumorType(PID)
+        tumor.icd10_code = icd10
+        tumor.date = date or _dt.date(2040, 1, 1)
+        patient.tumor_type = tumor
+        return tumor
+
     @staticmethod
     def _baseline_patient() -> Patient:
         patient = create_patient(PID, TRIAL)
@@ -1445,10 +1437,15 @@ class TestPrimaryCancerFKConsumption:
         ]
         return patient
 
+    def _with_millimeter(self, structural_index: dict) -> dict:
+        """Add the millimeter unit concept (UCUM) so lesion-size result can populate unit_concept_id."""
+        structural_index["millimeter"] = _structural("millimeter", self.UNIT_MM_CID, "unit")
+        return structural_index
+
     def test_baseline_lesion_size_links_to_primary_cancer(self, static_index, structural_index):
-        _with_millimeter(structural_index)
+        self._with_millimeter(structural_index)
         patient = self._baseline_patient()
-        tumor = _tumor_for(patient)
+        tumor = self._tumor_for(patient)
         ctx = create_build_context(patient, PERSON_ID)
         publish_tumor_condition(ctx, tumor, 12345)
 
@@ -1457,11 +1454,11 @@ class TestPrimaryCancerFKConsumption:
         assert len(result.rows) == 1
         row = result.rows[0]
         assert row.measurement_event_id == 12345
-        assert row.meas_event_field_concept_id == CDM_FIELD_CID
-        assert row.unit_concept_id == UNIT_MM_CID
+        assert row.meas_event_field_concept_id == self.CDM_FIELD_CID
+        assert row.unit_concept_id == self.UNIT_MM_CID
 
     def test_baseline_lesion_size_no_fk_when_primary_cancer_not_published(self, static_index, structural_index):
-        _with_millimeter(structural_index)
+        self._with_millimeter(structural_index)
         patient = self._baseline_patient()
         ctx = create_build_context(patient, PERSON_ID)
         # no primary cancer condition published: lesion-size result stays unlinked
@@ -1472,7 +1469,7 @@ class TestPrimaryCancerFKConsumption:
         assert result.rows[0].measurement_event_id is None
         assert result.rows[0].meas_event_field_concept_id is None
         # unit_concept_id is independent of FK linkage: still populated
-        assert result.rows[0].unit_concept_id == UNIT_MM_CID
+        assert result.rows[0].unit_concept_id == self.UNIT_MM_CID
 
     def test_baseline_lesion_size_unit_missing_falls_back_to_none(self, static_index, structural_index):
         """structural index without millimeter: unit_concept_id is None."""
@@ -1486,11 +1483,11 @@ class TestPrimaryCancerFKConsumption:
 
     def test_baseline_lesion_size_raises_when_primary_cancer_published_but_cdm_field_missing(self, static_index, structural_index):
         """If a primary cancer condition is published, the cdm_field entry is required"""
-        _with_millimeter(structural_index)
+        self._with_millimeter(structural_index)
         # remove cdm_field from the shared fixture to hit the missing-mapping error path
         static_index.pop(("cdm_field", "condition_occurrence.condition_occurrence_id"), None)
         patient = self._baseline_patient()
-        tumor = _tumor_for(patient)
+        tumor = self._tumor_for(patient)
         ctx = create_build_context(patient, PERSON_ID)
         publish_tumor_condition(ctx, tumor, 12345)
 
@@ -1498,12 +1495,12 @@ class TestPrimaryCancerFKConsumption:
             MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
 
     def test_tumor_assessment_lesion_size_links_to_primary_cancer(self, static_index, structural_index):
-        _with_millimeter(structural_index)
+        self._with_millimeter(structural_index)
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [
             _make_tumor_assessments(dt.date(2040, 6, 14), "V03", size=20.5),
         ]
-        tumor = _tumor_for(patient)
+        tumor = self._tumor_for(patient)
         ctx = create_build_context(patient, PERSON_ID)
         publish_tumor_condition(ctx, tumor, 67890)
 
@@ -1512,8 +1509,8 @@ class TestPrimaryCancerFKConsumption:
         size_result = [r for r in result.rows if r.measurement_concept_id == 4084390]
         assert len(size_result) == 1
         assert size_result[0].measurement_event_id == 67890
-        assert size_result[0].meas_event_field_concept_id == CDM_FIELD_CID
-        assert size_result[0].unit_concept_id == UNIT_MM_CID
+        assert size_result[0].meas_event_field_concept_id == self.CDM_FIELD_CID
+        assert size_result[0].unit_concept_id == self.UNIT_MM_CID
 
     def test_biomarker_links_to_primary_cancer(self, static_index, structural_index):
         semantic = create_semantic_index(
@@ -1531,7 +1528,7 @@ class TestPrimaryCancerFKConsumption:
         biomarkers.target_biomarker = "BRAF non-V600"
         biomarkers.date = dt.date(2040, 1, 1)
         patient.biomarkers = biomarkers
-        tumor = _tumor_for(patient)
+        tumor = self._tumor_for(patient)
         ctx = create_build_context(patient, PERSON_ID)
         publish_tumor_condition(ctx, tumor, 77777)
 
@@ -1539,7 +1536,7 @@ class TestPrimaryCancerFKConsumption:
 
         assert len(result.rows) == 1
         assert result.rows[0].measurement_event_id == 77777
-        assert result.rows[0].meas_event_field_concept_id == CDM_FIELD_CID
+        assert result.rows[0].meas_event_field_concept_id == self.CDM_FIELD_CID
 
     def test_biomarker_no_fk_when_primary_cancer_not_published(self, static_index, structural_index):
         semantic = create_semantic_index(
@@ -1578,7 +1575,7 @@ class TestPrimaryCancerFKConsumption:
         patient.ecog_baseline = ecog
         # publish a real primary cancer condition so the precondition holds:
         # the ECOG result must still not link to it (it is not a cancer modifier).
-        tumor = _tumor_for(patient)
+        tumor = self._tumor_for(patient)
         ctx = create_build_context(patient, PERSON_ID)
         publish_tumor_condition(ctx, tumor, 99999)
 
