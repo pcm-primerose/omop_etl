@@ -5,12 +5,13 @@ from typing import ClassVar
 import pytest
 import polars as pl
 
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.harmonization.harmonizers.base import (
-    BaseHarmonizer,
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.harmonizers.specs import (
     ScalarSpec,
     SingletonSpec,
     CollectionSpec,
@@ -29,7 +30,7 @@ class SimpleDomain(DomainBase):
         NAME = "name"
         VALUE = "value"
 
-    INVARIANT_FIELDS = (Fields.NAME,)
+    REQUIRED_FIELDS = (Fields.NAME,)
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -492,16 +493,28 @@ class TestHydrateCollectionField:
 
 
 class TestNaturalKeyConflictDetection:
-    """Uses MedicalHistory (NATURAL_KEY_FIELDS = (start_date, sequence_id)) as the test domain."""
+    """
+    Uses AdverseEvent (NATURAL_KEY_FIELDS = (term, start_date, sequence_id)) as
+    the test domain. Conflicts are constructed by sharing the full NK and differing
+    in a non-NK field (grade).
+    """
 
-    def _mh_row(self, *, start_date, sequence_id, term="hypertension", end_date=None, status=None, status_code=None):  # noqa
+    def _ae_row(self, *, start_date, sequence_id, term="diarrhea", grade=None, outcome=None):  # noqa
         return {
             "term": term,
-            "sequence_id": sequence_id,
+            "grade": grade,
+            "outcome": outcome,
             "start_date": start_date,
-            "end_date": end_date,
-            "status": status,
-            "status_code": status_code,
+            "end_date": None,
+            "sequence_id": sequence_id,
+            "was_serious": None,
+            "turned_serious_date": None,
+            "related_to_treatment_1_status": None,
+            "treatment_1_name": None,
+            "related_to_treatment_2_status": None,
+            "treatment_2_name": None,
+            "was_serious_grade_expected_treatment_1": None,
+            "was_serious_grade_expected_treatment_2": None,
         }
 
     def _packed(self, items):  # noqa
@@ -510,47 +523,114 @@ class TestNaturalKeyConflictDetection:
     def test_identical_duplicates_pass_silently(self, caplog):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1),
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
         ]
         with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
             )
-        assert not any("natural-key conflict" in r.message for r in caplog.records)
+        assert not any("natural-key conflict" in r.getMessage() for r in caplog.records)
+        # identical duplicate collapses to a single instance
+        assert len(patients["p1"].adverse_events) == 1
 
-    def test_conflicting_data_logs_warning_by_default(self, caplog):
+    def test_conflicting_data_logs_warning_and_keeps_last(self, caplog):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="hypertension"),
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="diabetes"),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=3),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
         ]
         with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
             )
-        warnings = [r for r in caplog.records if "natural-key conflict" in r.message]
+        warnings = [r for r in caplog.records if "natural-key conflict" in r.getMessage()]
         assert len(warnings) == 1
-        assert "p1" in warnings[0].message
-        assert "term" in warnings[0].message
+        assert "p1" in warnings[0].getMessage()
+        # warn-and-keep-last: collapses to one instance, the later row wins
+        aes = patients["p1"].adverse_events
+        assert len(aes) == 1
+        assert aes[0].grade == 2
 
     def test_conflicting_data_raises_under_error_policy(self):
         patients = {"p1": Patient(patient_id="p1", trial_id="test")}
         items = [
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="hypertension"),
-            self._mh_row(start_date=dt.date(2024, 1, 1), sequence_id=1, term="diabetes"),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=3),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
         ]
         with pytest.raises(ValueError, match="natural-key conflict"):
             BaseHarmonizer.hydrate_collection_field(
                 self._packed(items),
-                item_type=MedicalHistory,
+                item_type=AdverseEvent,
                 patients=patients,
                 on_natural_key_conflict="error",
             )
+
+    def test_lone_none_in_nk_does_not_warn(self, caplog):
+        """
+        A null NK component with no collision is benign (a conditional
+        disambiguator), shouldn't warn.
+        """
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [self._ae_row(start_date=None, sequence_id=1, grade=2)]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=AdverseEvent,
+                patients=patients,
+            )
+        assert not any("natural-key" in r.getMessage() for r in caplog.records)
+        assert len(patients["p1"].adverse_events) == 1
+
+    def test_none_in_nk_collision_flags_weak_identity(self, caplog):
+        """
+        When a null-containing NK actually collides (distinct records merge),
+        the conflict warning flags the null component as weak identity.
+        """
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [
+            self._ae_row(start_date=None, sequence_id=1, grade=3),
+            self._ae_row(start_date=None, sequence_id=1, grade=2),
+        ]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=AdverseEvent,
+                patients=patients,
+            )
+        warnings = [r for r in caplog.records if "natural-key conflict" in r.getMessage()]
+        assert len(warnings) == 1
+        msg = warnings[0].getMessage()
+        assert "start_date" in msg
+        assert "weak" in msg.lower()
+        # over-collapsed to one, last wins
+        aes = patients["p1"].adverse_events
+        assert len(aes) == 1
+        assert aes[0].grade == 2
+
+    def test_fully_populated_nk_conflict_has_no_weak_identity_note(self, caplog):
+        """
+        A conflict on a fully populated NK is an actual duplicate, not weak
+        identity.
+        """
+        patients = {"p1": Patient(patient_id="p1", trial_id="test")}
+        items = [
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=3),
+            self._ae_row(start_date=dt.date(2024, 1, 1), sequence_id=1, grade=2),
+        ]
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer.hydrate_collection_field(
+                self._packed(items),
+                item_type=AdverseEvent,
+                patients=patients,
+            )
+        warnings = [r for r in caplog.records if "natural-key conflict" in r.getMessage()]
+        assert len(warnings) == 1
+        assert "weak" not in warnings[0].getMessage().lower()
 
     def test_empty_natural_key_skips_check(self, mock_simple_domain_attr, caplog):
         """Domains without NATURAL_KEY_FIELDS bypass the conflict check entirely."""
@@ -565,6 +645,108 @@ class TestNaturalKeyConflictDetection:
         assert not any("natural-key conflict" in r.message for r in caplog.records)
 
 
+class TestEnforceRequired:
+    """
+    Central materiality drop. Rows missing any REQUIRED_FIELDS member are
+    removed, and every dropped subject is logged (subject + null field) so
+    upstream data issues stay traceable.
+
+    Uses SimpleDomain (REQUIRED_FIELDS = (name,)).
+    """
+
+    def test_drops_rows_with_null_required_field(self):
+        df = pl.DataFrame(
+            {
+                "SubjectId": ["p1", "p2", "p3"],
+                "name": ["alpha", None, "gamma"],
+                "value": [1, 2, 3],
+            }
+        )
+        result = BaseHarmonizer._enforce_required(df, item_type=SimpleDomain, spec_name="simple", subject_col="SubjectId")
+        assert result["SubjectId"].to_list() == ["p1", "p3"]
+
+    def test_logs_every_dropped_subject_and_field(self, caplog):
+        df = pl.DataFrame(
+            {
+                "SubjectId": ["p1", "p2", "p4"],
+                "name": [None, "beta", None],
+                "value": [1, 2, 3],
+            }
+        )
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            BaseHarmonizer._enforce_required(df, item_type=SimpleDomain, spec_name="simple", subject_col="SubjectId")
+        warnings = [r for r in caplog.records if "dropped" in r.getMessage()]
+        assert len(warnings) == 1
+        msg = warnings[0].getMessage()
+        assert "dropped 2 record(s)" in msg
+        # every dropped subject is named, with the offending field, the kept row is not
+        assert "p1: missing ['name']" in msg
+        assert "p4: missing ['name']" in msg
+        assert "p2" not in msg
+
+    def test_all_required_present_keeps_all_rows_silently(self, caplog):
+        df = pl.DataFrame(
+            {
+                "SubjectId": ["p1", "p2"],
+                "name": ["alpha", "beta"],
+                "value": [1, 2],
+            }
+        )
+        with caplog.at_level("WARNING", logger="omop_etl.harmonization.harmonizers.base"):
+            result = BaseHarmonizer._enforce_required(df, item_type=SimpleDomain, spec_name="simple", subject_col="SubjectId")
+        assert result.height == 2
+        assert not any("dropped" in r.getMessage() for r in caplog.records)
+
+    def test_empty_required_is_noop(self):
+        class _NoRequired(SimpleDomain):
+            REQUIRED_FIELDS = ()
+
+        # every row has a null name, all would drop if name were required
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": [None, None], "value": [1, 2]})
+        result = BaseHarmonizer._enforce_required(df, item_type=_NoRequired, spec_name="no_required", subject_col="SubjectId")
+        assert result.height == 2
+
+
+class TestValidationWipeoutGuard:
+    """
+    A total wipeout (every non-empty candidate row dropped) is a wiring/required-column
+    bug: `strict_validation` (tests) raises, production error-logs and
+    continues. A partial drop is normal and stays at info level.
+    """
+
+    @staticmethod
+    def _spec():
+        return CollectionSpec(name="simple", process=lambda s: None, target_domain=SimpleDomain)
+
+    @staticmethod
+    def _harmonizer():
+        return MinimalHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
+
+    def test_total_wipeout_raises_when_strict(self):
+        h = self._harmonizer()
+        h.strict_validation = True
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": [None, None], "value": [1, 2]})
+        with pytest.raises(ValueError, match="dropped all"):
+            h._validate_spec(self._spec(), df)
+
+    def test_total_wipeout_error_logs_when_not_strict(self, caplog):
+        h = self._harmonizer()
+        h.strict_validation = False
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": [None, None], "value": [1, 2]})
+        with caplog.at_level("ERROR", logger="omop_etl.harmonization.harmonizers.base"):
+            result = h._validate_spec(self._spec(), df)
+        assert result.height == 0
+        assert any("dropped all" in r.getMessage() for r in caplog.records)
+
+    def test_partial_drop_is_not_a_wipeout(self):
+        h = self._harmonizer()
+        h.strict_validation = True
+        # one valid row survives: not a wipeout, no raise
+        df = pl.DataFrame({"SubjectId": ["p1", "p2"], "name": ["alpha", None], "value": [1, 2]})
+        result = h._validate_spec(self._spec(), df)
+        assert result.height == 1
+
+
 class TestHydrateScalar:
     def test_sets_scalar_attribute(self):
         """Scalar value should be set on patient."""
@@ -576,9 +758,9 @@ class TestHydrateScalar:
 
         df = pl.DataFrame({"SubjectId": ["p1"], "the_value": ["hello"]})
 
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value")
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value")
 
-        assert harmonizer.patient_data["p1"].cohort_name == "hello"
+        assert harmonizer.patient_data["p1"].sex == "hello"
 
     def test_skip_missing_patients(self):
         """skip_missing_patients=True should skip unknown subjects."""
@@ -591,8 +773,8 @@ class TestHydrateScalar:
         df = pl.DataFrame({"SubjectId": ["p1", "unknown"], "the_value": ["a", "b"]})
 
         # should not raise
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", skip_missing_patients=True)
-        assert harmonizer.patient_data["p1"].cohort_name == "a"
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", skip_missing_patients=True)
+        assert harmonizer.patient_data["p1"].sex == "a"
 
     def test_duplicate_error(self):
         """on_duplicate='error' should raise on duplicates."""
@@ -605,7 +787,7 @@ class TestHydrateScalar:
         df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["a", "b"]})
 
         with pytest.raises(ValueError, match="Duplicate scalar"):
-            harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="error")
+            harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", on_duplicate="error")
 
     def test_duplicate_first(self):
         """on_duplicate='first' should keep the first value seen for a subject."""
@@ -617,9 +799,9 @@ class TestHydrateScalar:
 
         df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["first_value", "second_value"]})
 
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="first")
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", on_duplicate="first")
 
-        assert harmonizer.patient_data["p1"].cohort_name == "first_value"
+        assert harmonizer.patient_data["p1"].sex == "first_value"
 
     def test_duplicate_last(self):
         """on_duplicate='last' should overwrite with the last value seen for a subject."""
@@ -631,9 +813,9 @@ class TestHydrateScalar:
 
         df = pl.DataFrame({"SubjectId": ["p1", "p1"], "the_value": ["first_value", "second_value"]})
 
-        harmonizer.hydrate_scalar(df, attr="cohort_name", value_col="the_value", on_duplicate="last")
+        harmonizer.hydrate_scalar(df, attr="sex", value_col="the_value", on_duplicate="last")
 
-        assert harmonizer.patient_data["p1"].cohort_name == "second_value"
+        assert harmonizer.patient_data["p1"].sex == "second_value"
 
 
 def _noop_processor(h) -> None:  # noqa
@@ -652,7 +834,7 @@ class TestValidateSpecs:
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
                 SPECS = (
-                    ScalarSpec(name="foo", process=_noop_processor, target_attr="cohort_name", value_col="x"),
+                    ScalarSpec(name="foo", process=_noop_processor, target_attr="sex", value_col="x"),
                     ScalarSpec(name="foo", process=_noop_processor, target_attr="sex", value_col="y"),
                 )
 
@@ -672,7 +854,7 @@ class TestValidateSpecs:
         with pytest.raises(ValueError, match="scalar requires value_col"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
-                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="cohort_name"),)
+                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="sex"),)
 
                 def _create_patients(self) -> None:
                     pass
@@ -689,7 +871,7 @@ class TestValidateSpecs:
         with pytest.raises(ValueError, match="subject_col cannot be empty"):
 
             class BadHarmonizer(BaseHarmonizer):  # noqa
-                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="cohort_name", value_col="x", subject_col=""),)
+                SPECS = (ScalarSpec(name="foo", process=_noop_processor, target_attr="sex", value_col="x", subject_col=""),)
 
                 def _create_patients(self) -> None:
                     pass
@@ -713,8 +895,8 @@ class TestValidateSpecs:
                     pass
 
 
-class TestRunTemplateMethod:
-    def test_run_calls_processors_in_order(self):
+class TestProcessTemplateMethod:
+    def test_process_calls_processors_in_order(self):
         call_order = []
 
         class TrackedHarmonizer(BaseHarmonizer):
@@ -722,24 +904,24 @@ class TestRunTemplateMethod:
                 call_order.append("create_patients")
                 self.patient_data["p1"] = Patient(patient_id="p1", trial_id=self.trial_id)
 
-            @scalar(name="first", target_attr="cohort_name", value_col="v")
+            @scalar(name="first", target_attr="sex", value_col="v")
             def _process_first(self) -> pl.DataFrame | None:
                 call_order.append("first")
                 return pl.DataFrame({"SubjectId": ["p1"], "v": ["a"]})
 
-            @scalar(name="second", target_attr="sex", value_col="v")
+            @scalar(name="second", target_attr="age", value_col="v")
             def _process_second(self) -> pl.DataFrame | None:
                 call_order.append("second")
-                return pl.DataFrame({"SubjectId": ["p1"], "v": ["b"]})
+                return pl.DataFrame({"SubjectId": ["p1"], "v": [42]})
 
         harmonizer = TrackedHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
-        harmonizer.run()
+        harmonizer.process()
 
         assert call_order == ["create_patients", "first", "second"]
-        assert harmonizer.patient_data["p1"].cohort_name == "a"
-        assert harmonizer.patient_data["p1"].sex == "b"
+        assert harmonizer.patient_data["p1"].sex == "a"
+        assert harmonizer.patient_data["p1"].age == 42
 
-    def test_run_with_empty_patient_data_raises(self):
+    def test_process_with_empty_patient_data_raises(self):
         class EmptyHarmonizer(BaseHarmonizer):
             SPECS = ()
 
@@ -749,21 +931,21 @@ class TestRunTemplateMethod:
         harmonizer = EmptyHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
 
         with pytest.raises(RuntimeError, match="patient_data is empty"):
-            harmonizer.run()
+            harmonizer.process()
 
     def test_processor_returning_none_is_skipped(self):
         class SkipHarmonizer(BaseHarmonizer):
             def _create_patients(self) -> None:
                 self.patient_data["p1"] = Patient(patient_id="p1", trial_id=self.trial_id)
 
-            @scalar(name="skip", target_attr="cohort_name", value_col="v")
+            @scalar(name="skip", target_attr="sex", value_col="v")
             def _process_skip(self) -> pl.DataFrame | None:
                 return None
 
         harmonizer = SkipHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
-        harmonizer.run()  # shouldn't raise
+        harmonizer.process()  # shouldn't raise
 
-        assert harmonizer.patient_data["p1"].cohort_name is None
+        assert harmonizer.patient_data["p1"].sex is None
 
 
 @dataclass(frozen=True, slots=True)
@@ -773,8 +955,8 @@ class E2ERawRow:
     """
 
     SubjectId: str
-    # scalar source: cohort_name
-    raw_cohort: str | None = None
+    # scalar source: Patient.sex
+    sex: str | None = None
     # singleton source: FollowUp
     raw_lost: bool | None = None
     raw_lost_date: dt.date | None = None
@@ -800,13 +982,8 @@ class E2EHarmonizer(BaseHarmonizer):
             self.patient_data[sid] = Patient(patient_id=sid, trial_id=self.trial_id)
 
     @scalar()
-    def _process_cohort_name(self) -> pl.DataFrame | None:
-        return (
-            self.data.select("SubjectId", "raw_cohort")
-            .filter(pl.col("raw_cohort").is_not_null())
-            .rename({"raw_cohort": "cohort_name"})
-            .unique(subset=["SubjectId"], keep="first")
-        )
+    def _process_sex(self) -> pl.DataFrame | None:
+        return self.data.select("SubjectId", "sex").filter(pl.col("sex").is_not_null()).unique(subset=["SubjectId"], keep="first")
 
     @singleton(FollowUp)
     def _process_lost_to_followup(self) -> pl.DataFrame | None:
@@ -839,28 +1016,28 @@ class E2EHarmonizer(BaseHarmonizer):
 
 class TestEndToEndPipeline:
     """
-    Small E2E to verify raw data to run() for scalar, singleton and collection processors to instantiated Patient model.
+    Small E2E to verify raw data through process() for scalar, singleton and collection processors to instantiated Patient model.
     """
 
     def test_full_pipeline_two_patients(self):
         """Complete pipeline with two patients: p1 has 2 MH rows, p2 has 1."""
         rows = [
-            E2ERawRow("p1", raw_cohort="Cohort A", raw_lost=False),
+            E2ERawRow("p1", sex="female", raw_lost=False),
             E2ERawRow("p1", raw_mh_term="hypertension", raw_mh_start=dt.date(2020, 1, 15), raw_mh_end=dt.date(2021, 6, 1)),
             E2ERawRow("p1", raw_mh_term="diabetes", raw_mh_start=dt.date(2022, 3, 10)),
-            E2ERawRow("p2", raw_cohort="Cohort B", raw_lost=True, raw_lost_date=dt.date(2024, 5, 1)),
+            E2ERawRow("p2", sex="male", raw_lost=True, raw_lost_date=dt.date(2024, 5, 1)),
             E2ERawRow("p2", raw_mh_term="asthma", raw_mh_start=dt.date(2019, 8, 20)),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
-        harmonizer.run()
+        harmonizer.process()
 
         assert set(harmonizer.patient_data.keys()) == {"p1", "p2"}
         p1 = harmonizer.patient_data["p1"]
         p2 = harmonizer.patient_data["p2"]
 
         # scalar
-        assert p1.cohort_name == "Cohort A"
-        assert p2.cohort_name == "Cohort B"
+        assert p1.sex == "female"
+        assert p2.sex == "male"
 
         # singleton (FollowUp)
         assert p1.lost_to_followup is not None
@@ -875,12 +1052,13 @@ class TestEndToEndPipeline:
         assert lfu_2.lost_to_followup is True
         assert lfu_2.date_lost_to_followup == dt.date(2024, 5, 1)
 
-        # collection (MedicalHistory), ordered by start_date
+        # collection (MedicalHistory), ordered by natural key (term, start_date);
+        # "diabetes" sorts before "hypertension"
         assert len(p1.medical_histories) == 2
-        assert [mh.term for mh in p1.medical_histories] == ["hypertension", "diabetes"]
-        assert [mh.start_date for mh in p1.medical_histories] == [dt.date(2020, 1, 15), dt.date(2022, 3, 10)]
-        assert p1.medical_histories[0].end_date == dt.date(2021, 6, 1)
-        assert p1.medical_histories[1].end_date is None
+        assert [mh.term for mh in p1.medical_histories] == ["diabetes", "hypertension"]
+        assert [mh.start_date for mh in p1.medical_histories] == [dt.date(2022, 3, 10), dt.date(2020, 1, 15)]
+        assert p1.medical_histories[0].end_date is None
+        assert p1.medical_histories[1].end_date == dt.date(2021, 6, 1)
 
         assert len(p2.medical_histories) == 1
         assert p2.medical_histories[0].term == "asthma"
@@ -888,18 +1066,18 @@ class TestEndToEndPipeline:
     def test_patient_with_missing_domains(self):
         """p1 has everything; p2 has only cohort (no FollowUp, no MedicalHistory)."""
         rows = [
-            E2ERawRow("p1", raw_cohort="Cohort A", raw_lost=True),
+            E2ERawRow("p1", sex="female", raw_lost=True),
             E2ERawRow("p1", raw_mh_term="hypertension", raw_mh_start=dt.date(2020, 1, 15)),
-            E2ERawRow("p2", raw_cohort="Cohort B"),
+            E2ERawRow("p2", sex="male"),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
-        harmonizer.run()
+        harmonizer.process()
 
         p1 = harmonizer.patient_data["p1"]
         p2 = harmonizer.patient_data["p2"]
 
         # p1 has everything
-        assert p1.cohort_name == "Cohort A"
+        assert p1.sex == "female"
         assert p1.lost_to_followup is not None
         lfu = p1.lost_to_followup
         assert lfu is not None
@@ -907,21 +1085,21 @@ class TestEndToEndPipeline:
         assert len(p1.medical_histories) == 1
 
         # p2 only has cohort
-        assert p2.cohort_name == "Cohort B"
+        assert p2.sex == "male"
         assert p2.lost_to_followup is None
         assert len(p2.medical_histories) == 0
 
     def test_collection_ordering(self):
         """Medical histories should be sorted by start_date regardless of row insertion order."""
         rows = [
-            E2ERawRow("p1", raw_cohort="Cohort A"),
+            E2ERawRow("p1", sex="female"),
             # intentionally out of order to verify sort
             E2ERawRow("p1", raw_mh_term="third", raw_mh_start=dt.date(2024, 3, 1)),
             E2ERawRow("p1", raw_mh_term="first", raw_mh_start=dt.date(2024, 1, 1)),
             E2ERawRow("p1", raw_mh_term="second", raw_mh_start=dt.date(2024, 2, 1)),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
-        harmonizer.run()
+        harmonizer.process()
 
         p1 = harmonizer.patient_data["p1"]
 
@@ -946,15 +1124,15 @@ class TestDecoratorRegistration:
                 pass
 
             @scalar()
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            def _process_sex(self) -> pl.DataFrame | None:
                 return None
 
         assert len(H.SPECS) == 1
         spec = H.SPECS[0]
         assert isinstance(spec, ScalarSpec)
-        assert spec.name == "cohort_name"
-        assert spec.target_attr == "cohort_name"
-        assert spec.value_col == "cohort_name"
+        assert spec.name == "sex"
+        assert spec.target_attr == "sex"
+        assert spec.value_col == "sex"
         assert spec.on_duplicate == "error"
 
     def test_scalar_explicit_overrides_win(self):
@@ -962,14 +1140,14 @@ class TestDecoratorRegistration:
             def _create_patients(self) -> None:
                 pass
 
-            @scalar(name="custom_name", target_attr="cohort_name", value_col="raw_col", on_duplicate="last")
+            @scalar(name="custom_name", target_attr="sex", value_col="raw_col", on_duplicate="last")
             def _process_anything(self) -> pl.DataFrame | None:
                 return None
 
         spec = H.SPECS[0]
         assert isinstance(spec, ScalarSpec)
         assert spec.name == "custom_name"
-        assert spec.target_attr == "cohort_name"
+        assert spec.target_attr == "sex"
         assert spec.value_col == "raw_col"
         assert spec.on_duplicate == "last"
 
@@ -978,15 +1156,15 @@ class TestDecoratorRegistration:
             def _create_patients(self) -> None:
                 pass
 
-            @scalar(target_attr="cohort_name")
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            @scalar(target_attr="sex")
+            def _process_patient_sex(self) -> pl.DataFrame | None:
                 return None
 
         spec = H.SPECS[0]
         assert isinstance(spec, ScalarSpec)
-        assert spec.name == "cohort_name"  # default from method name
-        assert spec.target_attr == "cohort_name"  # explicit
-        assert spec.value_col == "cohort_name"  # default from method name
+        assert spec.name == "patient_sex"  # default from method name
+        assert spec.target_attr == "sex"  # explicit
+        assert spec.value_col == "patient_sex"  # default from method name
 
     def test_specs_collected_in_declaration_order(self):
         class H(BaseHarmonizer):
@@ -998,14 +1176,14 @@ class TestDecoratorRegistration:
                 return None
 
             @scalar()
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            def _process_date_of_death(self) -> pl.DataFrame | None:
                 return None
 
             @scalar()
             def _process_age(self) -> pl.DataFrame | None:
                 return None
 
-        assert [s.name for s in H.SPECS] == ["sex", "cohort_name", "age"]
+        assert [s.name for s in H.SPECS] == ["sex", "date_of_death", "age"]
 
     def test_undecorated_methods_are_ignored_from_specs(self):
         class H(BaseHarmonizer):
@@ -1104,10 +1282,10 @@ class TestDecoratorRegistration:
                 return None
 
             @scalar()
-            def _process_cohort_name(self) -> pl.DataFrame | None:
+            def _process_age(self) -> pl.DataFrame | None:
                 return None
 
-        assert [s.name for s in H.SPECS] == ["sex", "lost_to_followup", "cohort_name"]
+        assert [s.name for s in H.SPECS] == ["sex", "lost_to_followup", "age"]
         assert isinstance(H.SPECS[0], ScalarSpec)
         assert isinstance(H.SPECS[1], SingletonSpec)
         assert isinstance(H.SPECS[2], ScalarSpec)

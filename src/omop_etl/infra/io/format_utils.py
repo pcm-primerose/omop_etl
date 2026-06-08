@@ -55,9 +55,10 @@ def expand_formats(
         t = ALIASES.get(t, t)
         if t not in allowed_set:
             raise ValueError(f"Unsupported format: {tok}. Allowed: {', '.join(allowed)} or 'all'.")
+        # t is in allowed_set, so it's a valid F (pyright can't narrow str to F here)
         if t not in seen:
-            seen.add(t)
-            requested.append(t)
+            seen.add(cast(F, t))
+            requested.append(cast(F, t))
 
     return requested
 

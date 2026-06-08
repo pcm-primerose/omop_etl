@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from logging import getLogger
 import polars as pl
-from dataclasses import dataclass
 from typing import (
     Literal,
     Callable,
@@ -10,222 +9,80 @@ from typing import (
     Mapping,
     Any,
     ClassVar,
-    TypeVar,
 )
 
+from omop_etl.harmonization.core.cohort_lookups import (
+    CohortLookups,
+    load_cohort_lookups,
+)
+from omop_etl.harmonization.harmonizers.specs import (
+    ScalarSpec,
+    SingletonSpec,
+    CollectionSpec,
+    ProcessorSpec,
+    _SPEC_ATTR,
+)
 from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
 
-# processor function type: takes harmonizer instance, returns DataFrame or None
-type ProcessorFn = Callable[["BaseHarmonizer"], pl.DataFrame | None]
 
-# lets @scalar/@singleton/@collection decorators return the original function type
-_F = TypeVar("_F", bound=Callable[..., Any])
-
-
-@dataclass(frozen=True)
-class SpecBase:
-    """Base class for all processor specs with common fields."""
-
-    name: str
-    process: ProcessorFn
-    strict_schema: bool | None = None
-    skip_missing_patients: bool = False
-    subject_col: str = "SubjectId"
-
-
-@dataclass(frozen=True)
-class ScalarSpec(SpecBase):
-    """Spec for scalar patient attributes (e.g., cohort_name, sex, age)."""
-
-    kind: Literal["scalar"] = "scalar"
-    target_attr: str = ""
-    value_col: str = ""
-    on_duplicate: Literal["error", "first", "last"] = "error"
-
-
-@dataclass(frozen=True, kw_only=True)
-class SingletonSpec(SpecBase):
-    """Spec for singleton domain objects (one per patient)."""
-
-    target_domain: type[DomainBase]
-    kind: Literal["singleton"] = "singleton"
-    on_duplicate: Literal["error", "first", "last"] = "error"
-
-
-@dataclass(frozen=True, kw_only=True)
-class CollectionSpec(SpecBase):
-    """Spec for collection domain objects (multiple per patient)."""
-
-    target_domain: type[DomainBase]
-    kind: Literal["collection"] = "collection"
-    mode: Literal["replace", "extend"] = "replace"
-    order_by: tuple[str, ...] = ()
-    require_order_by: bool = False
-    items_col: str = "items"
-    on_natural_key_conflict: Literal["error", "warn"] = "warn"
-
-
-# union type for all specs
-ProcessorSpec = ScalarSpec | SingletonSpec | CollectionSpec
-
-
-# sentinel attribute name used to attach a spec to a decorated processor method.
-# __init_subclass__ on BaseHarmonizer scans class attributes for this marker and
-# collects the specs into the subclass's SPECS tuple in declaration order.
-_SPEC_ATTR = "__processor_spec__"
-
-
-def _derived_name(fn: Callable[..., Any]) -> str:
-    """Strip the conventional `_process_` prefix to get the logical spec name."""
-    name: str = getattr(fn, "__name__")
-    return name.removeprefix("_process_")
-
-
-def _check_natural_key_conflicts(
+def _dedup_by_natural_key(
     objs: list[DomainBase],
     *,
     patient_id: str,
     item_type: type[DomainBase],
     policy: Literal["error", "warn"],
-) -> None:
+) -> list[DomainBase]:
     """
-    Detect natural-key collisions where the rows have differing data.
+    Dedup a collection of domain objects by natural key. Identical duplicates
+    are dropped silently. Genuine conflicts (same NK, different non-NK fields)
+    are resolved per policy:
+      - "warn":  log warning and keep the last occurrence (replace earlier).
+      - "error": raise ValueError on the first conflict.
 
-    Identical duplicates (same NK, same data) are assumed to be deduplicated
-    upstream by the collection processor, so this only flags conflicts.
-    Keeps the first occurrence.
+    Returns the deduplicated list. Order is the input order of each NK's first
+    occurrence.
+
+    NK uniqueness within a patient domain is a requirement for
+    downstream cross-builder linkage (SourceReference to published rows is keyed by NK).
+    A `None` in the NK is flagged only when it actually collides (the conflict
+    warning names the null component(s) as a weak-identity / over-collapse signal).
+    A lone null disambiguator that doesn't collide is benign and stays silent.
     """
-    seen: dict[tuple, DomainBase] = {}
-    fields = item_type.data_fields()
+    # group by natural key, preserving first-seen order
+    groups: dict[tuple, list[DomainBase]] = {}
     for obj in objs:
-        nk = obj.natural_key()
-        prior = seen.get(nk)
-        if prior is None:
-            seen[nk] = obj
+        groups.setdefault(obj.natural_key(), []).append(obj)
+
+    fields = item_type.data_fields()
+    nk_fields = item_type.NATURAL_KEY_FIELDS
+    result: list[DomainBase] = []
+    for nk, members in groups.items():
+        kept = members[-1]
+        result.append(kept)
+        # earlier members that genuinely differ from the kept one, identical
+        # duplicates are dropped silently
+        dropped = [m for m in members[:-1] if any(getattr(m, f) != getattr(kept, f) for f in fields)]
+        if not dropped:
             continue
-        if all(getattr(prior, f) == getattr(obj, f) for f in fields):
-            continue
-        diffs = {f: (getattr(prior, f), getattr(obj, f)) for f in fields if getattr(prior, f) != getattr(obj, f)}
-        msg = f"{item_type.__name__} natural-key conflict for patient {patient_id}: NK={nk} has conflicting values: {diffs}"
+        null_nk = [f for f, part in zip(nk_fields, nk) if part is None]
+        weak = (
+            f"\n  Natural key has null component(s) {null_nk}, identity may be too weak to distinguish these records. Consider strengthening the natural key."
+            if null_nk
+            else ""
+        )
+        msg = (
+            f"{item_type.__name__} natural-key conflict for patient {patient_id}, NK={nk}.\n"
+            f"  Dropped record(s): {', '.join(repr(d) for d in dropped)}.\n"
+            f"  Kept the last occurrence: {kept!r}.{weak}"
+        )
         if policy == "error":
             raise ValueError(msg)
         log.warning(msg)
-
-
-def scalar(
-    *,
-    name: str | None = None,
-    target_attr: str | None = None,
-    value_col: str | None = None,
-    on_duplicate: Literal["error", "first", "last"] = "error",
-    skip_missing_patients: bool = False,
-    subject_col: str = "SubjectId",
-    strict_schema: bool | None = None,
-) -> Callable[[_F], _F]:
-    """
-    Decorator: register a method as a scalar processor.
-
-    By default, `name`, `target_attr`, and `value_col` are derived from the method
-    name with the `_process_` prefix stripped, so `_process_sex` produces a spec
-    with name="sex" / target_attr="sex" / value_col="sex". Provide explicit kwargs
-    only when the method name doesn't match the desired Patient attribute or value
-    column.
-    """
-
-    def decorator(fn: _F) -> _F:
-        derived = _derived_name(fn)
-        spec = ScalarSpec(
-            name=name or derived,
-            process=fn,
-            target_attr=target_attr or derived,
-            value_col=value_col or derived,
-            on_duplicate=on_duplicate,
-            skip_missing_patients=skip_missing_patients,
-            subject_col=subject_col,
-            strict_schema=strict_schema,
-        )
-        setattr(fn, _SPEC_ATTR, spec)
-        return fn
-
-    return decorator
-
-
-def singleton(
-    target_domain: type[DomainBase],
-    *,
-    name: str | None = None,
-    on_duplicate: Literal["error", "first", "last"] = "error",
-    skip_missing_patients: bool = False,
-    subject_col: str = "SubjectId",
-    strict_schema: bool | None = None,
-) -> Callable[[_F], _F]:
-    """
-    Decorator: register a method as a singleton-domain processor.
-
-    `target_domain` is required. `name` defaults to the method name with the
-    `_process_` prefix stripped.
-    """
-
-    def decorator(fn: _F) -> _F:
-        derived = _derived_name(fn)
-        spec = SingletonSpec(
-            name=name or derived,
-            process=fn,
-            target_domain=target_domain,
-            on_duplicate=on_duplicate,
-            skip_missing_patients=skip_missing_patients,
-            subject_col=subject_col,
-            strict_schema=strict_schema,
-        )
-        setattr(fn, _SPEC_ATTR, spec)
-        return fn
-
-    return decorator
-
-
-def collection(
-    target_domain: type[DomainBase],
-    *,
-    name: str | None = None,
-    mode: Literal["replace", "extend"] = "replace",
-    order_by: tuple[str, ...] = (),
-    require_order_by: bool = False,
-    items_col: str = "items",
-    skip_missing_patients: bool = False,
-    subject_col: str = "SubjectId",
-    strict_schema: bool | None = None,
-    on_natural_key_conflict: Literal["error", "warn"] = "warn",
-) -> Callable[[_F], _F]:
-    """
-    Decorator: register a method as a collection-domain processor.
-
-    `target_domain` is required. `name` defaults to the method name with the
-    `_process_` prefix stripped.
-    """
-
-    def decorator(fn: _F) -> _F:
-        derived = _derived_name(fn)
-        spec = CollectionSpec(
-            name=name or derived,
-            process=fn,
-            target_domain=target_domain,
-            mode=mode,
-            order_by=order_by,
-            require_order_by=require_order_by,
-            items_col=items_col,
-            skip_missing_patients=skip_missing_patients,
-            subject_col=subject_col,
-            strict_schema=strict_schema,
-            on_natural_key_conflict=on_natural_key_conflict,
-        )
-        setattr(fn, _SPEC_ATTR, spec)
-        return fn
-
-    return decorator
+    return result
 
 
 class BaseHarmonizer(ABC):
@@ -236,19 +93,34 @@ class BaseHarmonizer(ABC):
     Each spec maps a processor method (_process_{name}) to a target domain class
     and hydration strategy (singleton vs collection).
 
-    Workflow is enforced by run() template method:
+    Workflow is enforced by the process() template method:
         - _create_patients() creates Patient instances (subclass implements)
-        - _run_processors() iterates SPECS, calling each processor
+        - process() iterates SPECS, calling _run_spec() for each
         - Processor output is validated and conformed to target schema
-        - Domain objects are hydrated onto Patient instances
+        - Domain objects are hydrated onto Patient instances, returned as HarmonizedData
 
-    Processors return DataFrames with a subset of data_fields().
-    Unknown columns are errors, missing columns are filled with null.
+    Processor contract is extract, validate and hydrate.
+    Each `_process_*` method (defined by subclasses, registered via the
+    @scalar/@singleton/@collection decorators) is a pure extractor: it reads
+    `self.data` and returns a candidate dataframe shaped to its target domain's
+    `data_fields()`, it handles column selection, parsing/renaming, source-row selection,
+    and per-source preference. Unknown columns are an error, missing columns are
+    filled with null at conform.
+
+    Processors do not drop rows for record validity. That contract is defined on the
+    domain model (`REQUIRED_FIELDS`) and is enforced centrally by `_validate_spec`
+    before hydration, which drops rows missing a required value and logs them. The
+    only filters a processor keeps are input-selection (which raw rows feed a
+    target domain) and preference (which row/source wins a dedup), both might need the raw
+    columns, so neither can move to the central gate.
     """
 
     # subclasses define process registry
     SPECS: ClassVar[tuple[ProcessorSpec, ...]] = ()
     strict_schema: bool = True
+    # if a processor drops all rows, likely spec/wiring bug:
+    # if strict valiation is False: warn at runtime, raise in tests
+    strict_validation: bool = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
@@ -275,20 +147,57 @@ class BaseHarmonizer(ABC):
         self.data = data
         self.trial_id = trial_id
         self.patient_data: dict[str, Patient] = {}
+        # cross-source cohort harmonization dictionaries:
+        self.cohort_lookups: CohortLookups = load_cohort_lookups()
 
-    def _has_columns(self, *cols: str) -> bool:
-        """Check if all specified columns exist in self.data."""
-        return all(col in self.data.columns for col in cols)
-
-    def run(self) -> None:
-        """
-        Template method: executes harmonization pipeline in correct order.
-
-        Creates Patient instances and run spec-based processors.
-        Subclasses should not override this method, override the hooks instead.
-        """
+    def process(self) -> HarmonizedData:
+        """Run harmonization and return the harmonized output"""
         self._create_patients()
-        self._run_processors()
+        self._ensure_patients_initialized()
+
+        for spec in self.SPECS:
+            self._run_spec(spec)
+
+        return HarmonizedData(
+            patients=list(self.patient_data.values()),
+            trial_id=self.trial_id,
+        )
+
+    def run_one(self, spec_name: str) -> None:
+        """
+        Execute a single spec by name.
+
+        Args:
+            spec_name: The name of the spec to run.
+
+        Raises:
+            ValueError: If the spec name is not found in SPECS.
+        """
+        self._ensure_patients_initialized()
+        self._run_spec(self._get_spec(spec_name))
+
+    def validate_one(self, spec_name: str) -> pl.DataFrame | None:
+        """
+        Run a single spec's processor through the validation gate and return the
+        validated canonical dataframe (pre-hydration). This is the public boundary
+        for validated canonical frames, the same path production uses, minus
+        hydration, so tests/debug/introspection exercise `_validate_spec` rather
+        than reimplementing it. Does not touch `patient_data`.
+
+        The returned frame is schema-conformed and required-valid, but not
+        natural-key deduped (NK dedup happens during hydration).
+
+        Args:
+            spec_name: The name of the spec to run.
+
+        Raises:
+            ValueError: If the spec name is not found in SPECS.
+        """
+        spec = self._get_spec(spec_name)
+        df = spec.process(self)
+        if df is None:
+            return None
+        return self._validate_spec(spec, df)
 
     @abstractmethod
     def _create_patients(self) -> None:
@@ -298,9 +207,113 @@ class BaseHarmonizer(ABC):
         """
         ...
 
-    def process(self) -> HarmonizedData:
-        """Run harmonization and return the harmonized output. Subclasses override."""
-        raise NotImplementedError(f"{type(self).__name__} must implement process()")
+    def _has_columns(self, *cols: str) -> bool:
+        """Check if all specified columns exist in self.data."""
+        return all(col in self.data.columns for col in cols)
+
+    def _get_spec(self, spec_name: str) -> ProcessorSpec:
+        """Look up a spec by name, or raise if unknown."""
+        spec = next((s for s in self.SPECS if s.name == spec_name), None)
+        if spec is None:
+            raise ValueError(f"Unknown spec: {spec_name}")
+        return spec
+
+    def _run_spec(self, spec: ProcessorSpec) -> None:
+        """
+        Execute a single processor spec: extract, validate, hydrate.
+        Instantiates Patient object with data processed by processors in ProcessorSpec(s) provided.
+
+        Args:
+            spec: The ProcessorSpec to execute.
+        """
+        df = spec.process(self)
+        if df is None or df.is_empty():
+            log.debug(f"{spec.name}: no data")
+            return
+
+        try:
+            df = self._validate_spec(spec, df)
+
+            if isinstance(spec, ScalarSpec):
+                self.hydrate_scalar(
+                    df,
+                    attr=spec.target_attr,
+                    value_col=spec.value_col,
+                    subject_col=spec.subject_col,
+                    skip_missing_patients=spec.skip_missing_patients,
+                    on_duplicate=spec.on_duplicate,
+                )
+
+            elif isinstance(spec, CollectionSpec):
+                if spec.require_order_by and not spec.order_by:
+                    raise ValueError(f"{spec.name}: require_order_by=True but order_by is empty")
+
+                packed = self.pack_structs(
+                    df,
+                    subject_col=spec.subject_col,
+                    value_cols=spec.target_domain.data_fields(),
+                    order_by_cols=spec.order_by or None,
+                    items_col=spec.items_col,
+                )
+                self.hydrate_collection_field(
+                    packed,
+                    item_type=spec.target_domain,
+                    patients=self.patient_data,
+                    subject_col=spec.subject_col,
+                    items_col=spec.items_col,
+                    skip_missing_patients=spec.skip_missing_patients,
+                    mode=spec.mode,
+                    on_natural_key_conflict=spec.on_natural_key_conflict,
+                )
+
+            elif isinstance(spec, SingletonSpec):
+                self.hydrate_singleton(
+                    df,
+                    skip_missing_patients=spec.skip_missing_patients,
+                    subject_col=spec.subject_col,
+                    item_type=spec.target_domain,
+                    patients=self.patient_data,
+                    on_duplicate=spec.on_duplicate,
+                )
+
+        except Exception as e:
+            target = spec.target_attr if isinstance(spec, ScalarSpec) else spec.target_domain.__name__
+            raise ValueError(f"Hydration failed for target {target}: spec {e}") from e
+
+    def _validate_spec(self, spec: ProcessorSpec, df: pl.DataFrame) -> pl.DataFrame:
+        """
+        Validation gate: convert a processor's candidate dataframe into a
+        validated canonical dataframe.
+
+        Collections/singletons: require the subject column and every
+        `REQUIRED_FIELDS` column to be emitted, checks schema-subset is valid, conforms to the domain's
+        `data_fields()`, drop rows missing any `REQUIRED_FIELDS` value.
+        Scalars: require the subject/value columns.
+
+        Processors are pure extractors: record validity is enforced here. Shared by
+        `_run_spec` (production) and `validate_one`. The returned frame is
+        schema-conformed and required-valid, but not natural-key deduped (NK
+        dedup happens during hydration).
+        """
+        candidate_height = df.height
+
+        if isinstance(spec, ScalarSpec):
+            self._validate_columns_present(df, [spec.subject_col, spec.value_col], spec.name)
+            valid = df.select(spec.subject_col, spec.value_col).filter(pl.col(spec.subject_col).is_not_null() & pl.col(spec.value_col).is_not_null())
+            self._log_validation_drops(spec, candidate_height, valid.height)
+            log.info(f"{spec.name}: {valid.height} rows (scalar -> {spec.target_attr})")
+            return valid
+
+        self._validate_columns_present(df, [spec.subject_col, *spec.target_domain.REQUIRED_FIELDS], spec.name)
+
+        strict = self._get_strictness(spec)
+        self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
+        conformed = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
+        valid = self._enforce_required(conformed, item_type=spec.target_domain, spec_name=spec.name, subject_col=spec.subject_col)
+
+        self._log_validation_drops(spec, candidate_height, valid.height)
+        self._log_processor_metrics(spec, valid)
+        return valid
 
     @classmethod
     def _validate_specs(cls, specs: tuple[ProcessorSpec, ...]) -> None:
@@ -369,111 +382,32 @@ class BaseHarmonizer(ABC):
                         f"This is only allowed when all are CollectionSpec with mode='extend'."
                     )
 
-    def _run_processors(self) -> None:
+    def _log_validation_drops(self, spec: ProcessorSpec, candidate_height: int, valid_height: int) -> None:
         """
-        Run all registered processors with metrics logging.
-        Uses callable dispatch: spec.process(self) instead of getattr.
+        Log validation rejects, and guard against a spec that
+        dropped *every* non-empty candidate row.
+        `strict_validation` (tests) raises, production error-logs and continues.
         """
-        self._ensure_patients_initialized()
-
-        for spec in self.SPECS:
-            self._run_spec(spec)
-
-    def run_one(self, spec_name: str) -> None:
-        """
-        Execute a single spec by name.
-
-        Args:
-            spec_name: The name of the spec to run.
-
-        Raises:
-            ValueError: If the spec name is not found in SPECS.
-        """
-        self._ensure_patients_initialized()
-        spec = next((s for s in self.SPECS if s.name == spec_name), None)
-        if spec is None:
-            raise ValueError(f"Unknown spec: {spec_name}")
-        self._run_spec(spec)
-
-    def _run_spec(self, spec: ProcessorSpec) -> None:
-        """
-        Execute a single processor spec: call processor, validate, conform, hydrate.
-        Instantiates Patient object with data processed by processors in ProcessorSpec(s) provided.
-
-        Args:
-            spec: The ProcessorSpec to execute.
-        """
-        df = spec.process(self)
-        if df is None or df.is_empty():
-            log.debug(f"{spec.name}: no data")
+        dropped = candidate_height - valid_height
+        if not dropped:
             return
+        if candidate_height > 0 and valid_height == 0:
+            msg = (
+                f"{spec.name}: validation dropped all {candidate_height} candidate row(s) "
+                f"(every row missing a required value), likely a wiring/required-column bug."
+            )
+            if self.strict_validation:
+                raise ValueError(msg)
+            log.error(msg)
+            return
+        log.info(f"{spec.name}: validation dropped {dropped}/{candidate_height} candidate rows")
 
-        try:
-            if isinstance(spec, ScalarSpec):
-                # scalar: minimal validation, direct attribute assignment
-                if spec.subject_col not in df.columns:
-                    raise ValueError(f"Missing {spec.subject_col} in scalar processor output")
-                if spec.value_col not in df.columns:
-                    raise ValueError(f"Missing {spec.value_col} in scalar processor output")
-
-                log.info(f"{spec.name}: {df.height} rows (scalar -> {spec.target_attr})")
-
-                self.hydrate_scalar(
-                    df,
-                    attr=spec.target_attr,
-                    value_col=spec.value_col,
-                    subject_col=spec.subject_col,
-                    skip_missing_patients=spec.skip_missing_patients,
-                    on_duplicate=spec.on_duplicate,
-                )
-
-            elif isinstance(spec, CollectionSpec):
-                # collection: validate, conform, pack, hydrate
-                strict = self._get_strictness(spec)
-                self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
-                df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
-                self._log_processor_metrics(spec, df)
-
-                if spec.require_order_by and not spec.order_by:
-                    raise ValueError(f"{spec.name}: require_order_by=True but order_by is empty")
-
-                packed = self.pack_structs(
-                    df,
-                    subject_col=spec.subject_col,
-                    value_cols=spec.target_domain.data_fields(),
-                    order_by_cols=spec.order_by or None,
-                    items_col=spec.items_col,
-                )
-                self.hydrate_collection_field(
-                    packed,
-                    item_type=spec.target_domain,
-                    patients=self.patient_data,
-                    subject_col=spec.subject_col,
-                    items_col=spec.items_col,
-                    skip_missing_patients=spec.skip_missing_patients,
-                    mode=spec.mode,
-                    on_natural_key_conflict=spec.on_natural_key_conflict,
-                )
-
-            elif isinstance(spec, SingletonSpec):
-                # singleton: validate, conform, hydrate
-                strict = self._get_strictness(spec)
-                self.validate_schema_subset(df, spec.target_domain, subject_col=spec.subject_col, strict_unknown=strict)
-                df = self.conform_schema(df, spec.target_domain, subject_col=spec.subject_col)
-                self._log_processor_metrics(spec, df)
-
-                self.hydrate_singleton(
-                    df,
-                    skip_missing_patients=spec.skip_missing_patients,
-                    subject_col=spec.subject_col,
-                    item_type=spec.target_domain,
-                    patients=self.patient_data,
-                    on_duplicate=spec.on_duplicate,
-                )
-
-        except Exception as e:
-            target = spec.target_attr if isinstance(spec, ScalarSpec) else spec.target_domain.__name__
-            raise ValueError(f"{spec.name}: hydration failed for {target}: {e}") from e
+    @staticmethod
+    def _validate_columns_present(df: pl.DataFrame, required: Sequence[str], spec_name: str) -> None:
+        """Raise if any `required` column is missing from the processor output"""
+        missing = [col for col in required if col not in df.columns]
+        if missing:
+            raise ValueError(f"{spec_name}: processor output missing required column(s): {missing}")
 
     def _get_strictness(self, spec: ProcessorSpec) -> bool:
         """Provided spec overrides harmonizer default."""
@@ -666,17 +600,20 @@ class BaseHarmonizer(ABC):
             except Exception as e:
                 raise ValueError(f"{item_type.__name__} collection hydration failed for {sid=}") from e
 
+            if mode == "extend":
+                existing = getattr(patient, target_attr, ()) or ()
+                objs = list(existing) + objs
+
+            # Dedup by NK over the final set (post-extend), so cross-batch
+            # conflicts are resolved too. This is the canonical pre-filter that
+            # guarantees Patient receives an NK-unique collection.
             if item_type.NATURAL_KEY_FIELDS:
-                _check_natural_key_conflicts(
+                objs = _dedup_by_natural_key(
                     objs,
                     patient_id=sid,
                     item_type=item_type,
                     policy=on_natural_key_conflict,
                 )
-
-            if mode == "extend":
-                existing = getattr(patient, target_attr, ()) or ()
-                objs = list(existing) + objs
 
             setattr(patient, target_attr, objs)
 
@@ -739,6 +676,44 @@ class BaseHarmonizer(ABC):
         """patient_data must be populated before processors run."""
         if not self.patient_data:
             raise RuntimeError("patient_data is empty. _create_patients() must populate it.")
+
+    @staticmethod
+    def _enforce_required(
+        df: pl.DataFrame,
+        *,
+        item_type: type[DomainBase],
+        spec_name: str,
+        subject_col: str,
+    ) -> pl.DataFrame:
+        """
+        Central materiality drop: remove rows where any REQUIRED_FIELDS member is
+        null. REQUIRED_COLUMNS is the validity contract, a record without these are invalid.
+
+        Logs every dropped record (subject a which required field(s) were null) so
+        upstream data issues are fully traceable. `REQUIRED_FIELDS = ()` is a
+        no-op.
+
+        Runs before pack/dedup, so required fields are non-null by the time
+        `_dedup_by_natural_key` runs, the None-in-NK warning then only fires for
+        optional disambiguators.
+        """
+        required = item_type.REQUIRED_FIELDS
+        if not required:
+            return df
+        present = pl.all_horizontal([pl.col(f).is_not_null() for f in required])
+        dropped = df.filter(~present)
+        if dropped.height:
+            lines = []
+            for rec in dropped.select(subject_col, *required).iter_rows(named=True):
+                null_fields = [f for f in required if rec[f] is None]
+                lines.append(f"    {rec[subject_col]}: missing {null_fields}")
+            log.warning(
+                "%s: dropped %d record(s) missing required field(s):\n%s",
+                spec_name,
+                dropped.height,
+                "\n".join(lines),
+            )
+        return df.filter(present)
 
     @staticmethod
     def _log_processor_metrics(spec: SingletonSpec | CollectionSpec, df: pl.DataFrame) -> None:

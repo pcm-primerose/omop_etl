@@ -1,6 +1,7 @@
 value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
-lost_to_followup,True,4163894,399307001,Lost to follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
+lost_to_followup,True,44811247,873211000000106,Lost to clinical trial follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
 cdm_field,condition_occurrence.condition_occurrence_id,1147127,CDM183,condition_occurrence.condition_occurrence_id,Field,Standard,Valid,Metadata,CDM
+cdm_field,drug_exposure.drug_exposure_id,1147094,CDM150,drug_exposure.drug_exposure_id,Field,Standard,Valid,Metadata,CDM
 sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
 sex,female,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
@@ -52,7 +53,7 @@ medical_history_code,2,9173,73425007,Inactive,Qualifier Value,Standard,Valid,Mea
 medical_history_code,3,9181,55561003,Active,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 treatment_cycle,IV,4171047,47625008,Intravenous,Qualifier Value,Standard,Valid,Route,SNOMED
 treatment_cycle,Oral,4132161,26643006,Oral,Qualifier Value,Standard,Valid,Route,SNOMED
-treatment_cycle_recieved,False,37016846,712985002,Chemotherapy not done,Context-dependent,Standard,Valid,Observation,SNOMED
+treatment_cycle_received,False,37016846,712985002,Chemotherapy not done,Context-dependent,Standard,Valid,Observation,SNOMED
 unit,"mg (milligram)",8576,mg,milligram,Unit,Standard,Valid,Unit,UCUM
 unit,"ug (microgram)",9655,ug,microgram,Unit,Standard,Valid,Unit,UCUM
 unit,"mL (milliliter)",8587,mL,milliliter,Unit,Standard,Valid,Unit,UCUM
@@ -66,6 +67,11 @@ adverse_event_outcome,Not recovered/not resolved,1074284,1339036001,Persistent a
 adverse_event_outcome,Recovered/resolved,1447896,1352007006,Complete recovery from adverse event,Clinical Finding,Standard,Valid,Observation,SNOMED
 adverse_event_outcome,Recovered/resolved with sequelae,1074130,1335890004,Recovered from adverse event with sequelae,Clinical Finding,Standard,Valid,Observation,SNOMED
 adverse_event_outcome,Fatal,4236718,405535005,Adverse incident resulting in death,Clinical Finding,Standard,Valid,Observation,SNOMED
+expectedness,true,1472143,LA34756-9,Expected,Answer,Standard,Valid,Meas Value,LOINC
+expectedness,false,1472269,LA34757-7,Not Expected,Answer,Standard,Valid,Meas Value,LOINC
+relatedness,related,36032695,LA31343-9,Related,Answer,Standard,Valid,Meas Value,LOINC
+relatedness,not_related,1094365,LA34422-8,Not related,Answer,Standard,Valid,Meas Value,LOINC
+relatedness,unknown,45877986,LA4489-6,Unknown,Answer,Standard,Valid,Meas Value,LOINC
 c30_answer,Not at all,45883172,LA6568-5,Not at all,Answer,Standard,Valid,Meas Value,LOINC
 c30_answer,A little,45876949,LA13940-4,A little,Answer,Standard,Valid,Meas Value,LOINC
 c30_answer,Quite a bit,45884456,LA13902-4,Quite a bit,Answer,Standard,Valid,Meas Value,LOINC

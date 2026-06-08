@@ -7,6 +7,30 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class C30(DomainBase):
+    """
+    One EORTC QLQ-C30 quality-of-life questionnaire response at a timepoint.
+
+    The 30 item answers (q1..q30 + codes) are conditionally populated,
+    materiality is OR-shaped ("has at least one answer"), enforced in the
+    processor.
+
+    Identity (NATURAL_KEY_FIELDS) = (event_name, date): the questionnaire event and
+    when it was taken. event_name is derived by the processor when the source lacks
+    a direct column (e.g. from study-visit fields), content-derived, so identity
+    stays stable across rebuilds.
+    Validity (REQUIRED_FIELDS) = (event_name, date): collection NKs needs a
+    guaranteed non-null core, C30 has no single content-subject, so the identity
+    fields are the required core (the processor guarantees both).
+
+    Fields:
+    - date, event_name: identity (see above).
+    - q1..q30: the patient's answer text to QLQ-C30 item N, one field per item
+      (e.g. q1 = "Trouble doing strenuous activities").
+    - q1_code..q30_code: the integer answer code for item N. Items 1-28 use the
+      4-point scale (1=Not at all, 2=A little, 3=Quite a bit, 4=Very much), the
+      global-health items 29-30 use the 7-point scale (1=Very poor .. 7=Excellent).
+    """
+
     Q_COUNT = 30
 
     class Fields:
@@ -81,10 +105,7 @@ class C30(DomainBase):
         # question fields default to None
 
     NATURAL_KEY_FIELDS = (Fields.EVENT_NAME, Fields.DATE)
-
-    @property
-    def patient_id(self) -> str:
-        return self._patient_id
+    REQUIRED_FIELDS = (Fields.EVENT_NAME, Fields.DATE)
 
     @property
     def date(self) -> dt.date | None:

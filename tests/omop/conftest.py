@@ -5,9 +5,17 @@ import pytest
 
 from omop_etl.concept_mapping.core.models import StructuralConcept, StaticConcept
 from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
+from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
+from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.builders.base import BuildContext
+from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.linkage import (
+    OmopRowReference,
+    SourceReference,
+)
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import (
     SemanticRow,
     QueryResult,
@@ -20,6 +28,59 @@ def create_build_context(patient: Patient, person_id: int | None = None) -> Buil
     if person_id is None:
         person_id = sha1_bigint("person", patient.patient_id)
     return BuildContext(patient=patient, person_id=person_id)
+
+
+def publish_ae_condition(
+    ctx: BuildContext,
+    ae: AdverseEvent,
+    condition_row_id: int,
+    concept_id: int = 0,
+) -> None:
+    """
+    Test helper: simulate ConditionOccurrenceBuilder publishing a
+    condition_occurrence row for an AE, so a downstream consumer can resolve
+    `(ae.patient_id, "adverse_events", ae.natural_key())` -> condition_row_id."""
+    ctx.publish_rows(
+        OmopTables.CONDITION_OCCURRENCE,
+        SourceReference(ae.patient_id, Patient.Collections.ADVERSE_EVENTS, ae.natural_key()),
+        [OmopRowReference(table=OmopTables.CONDITION_OCCURRENCE, row_id=condition_row_id, primary_concept_id=concept_id)],
+    )
+
+
+def publish_tumor_condition(
+    ctx: BuildContext,
+    tumor: TumorType,
+    condition_row_id: int,
+    concept_id: int = 0,
+) -> None:
+    """
+    Test helper: simulate ConditionOccurrenceBuilder publishing the primary
+    cancer condition_occurrence row, so MeasurementBuilder can resolve the
+    tumor SourceReference for lesion-size / biomarker FK linkage.
+    """
+    ctx.publish_rows(
+        OmopTables.CONDITION_OCCURRENCE,
+        SourceReference(tumor.patient_id, Patient.Singletons.TUMOR_TYPE, tumor.natural_key()),
+        [OmopRowReference(table=OmopTables.CONDITION_OCCURRENCE, row_id=condition_row_id, primary_concept_id=concept_id)],
+    )
+
+
+def publish_cycle_drug_exposure(
+    ctx: BuildContext,
+    cycle: TreatmentCycleComponent,
+    drug_exposure_row_id: int,
+    concept_id: int = 0,
+) -> None:
+    """
+    Test helper: simulate DrugExposureBuilder publishing a drug_exposure row for
+    a treatment cycle, so ObservationBuilder can resolve the cycle's metadata /
+    deviation modifier observations to it.
+    """
+    ctx.publish_rows(
+        OmopTables.DRUG_EXPOSURE,
+        SourceReference(cycle.patient_id, Patient.Collections.TREATMENT_CYCLES, cycle.natural_key()),
+        [OmopRowReference(table=OmopTables.DRUG_EXPOSURE, row_id=drug_exposure_row_id, primary_concept_id=concept_id)],
+    )
 
 
 def create_patient(patient_id: str, trial: str, **scalars: str | dt.date | None | bool | float | int) -> Patient:
@@ -116,7 +177,8 @@ def _static(value_set: str, local_value: str, concept_id: int, domain_id: str) -
 @pytest.fixture
 def structural_index() -> dict[str, StructuralConcept]:
     return {
-        "ecrf": _structural("ecrf", 32817, "type concept"),
+        "ecrf": _structural("ecrf", 32809, "type concept"),
+        "patient_withdrawn": _structural("patient_withdrawn", 4087907, "observation"),
         "outpatient_visit": _structural("outpatient_visit", 9202, "visit"),
         "iv": _structural("iv", 4171047, "route"),
         "oral": _structural("oral", 4132161, "route"),
@@ -124,7 +186,7 @@ def structural_index() -> dict[str, StructuralConcept]:
         "vocab": _structural("vocab", 1146958, "metadata"),
         "ecog": _structural("ecog", 36305384, "measurement"),
         # measurement builder: target lesion absolute size
-        "lesion_size": _structural("lesion_size", 4084390, "measurement"),
+        "lesion_size": _structural("lesion_size", 36768664, "measurement"),
         # measurement builder: C30 questions
         "c30_q1": _structural("c30_q1", 701340, "measurement"),
         "c30_q2": _structural("c30_q2", 701341, "measurement"),
@@ -142,6 +204,12 @@ def static_index() -> dict[tuple[str, str], StaticConcept]:
     return {
         ("sex", "m"): _static("sex", "m", 8507, "gender"),
         ("sex", "f"): _static("sex", "f", 8532, "gender"),
+        # cdm_field for FK linkage (observation_event_id / measurement_event_id
+        # to condition_occurrence.condition_occurrence_id, or to drug_exposure.drug_exposure_id)
+        ("cdm_field", "condition_occurrence.condition_occurrence_id"): _static(
+            "cdm_field", "condition_occurrence.condition_occurrence_id", 1147127, "metadata"
+        ),
+        ("cdm_field", "drug_exposure.drug_exposure_id"): _static("cdm_field", "drug_exposure.drug_exposure_id", 1147094, "metadata"),
         ("ecog_code", "1"): _static("ecog_code", "1", 36310827, "meas value"),
         ("ecog_code", "0"): _static("ecog_code", "0", 36309661, "meas value"),
         # C30 shared answer scale (Q1–Q28)

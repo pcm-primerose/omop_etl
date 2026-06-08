@@ -6,6 +6,37 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TumorAssessment(DomainBase):
+    """
+    One tumor assessment for a patient: a response / lesion measurement at a
+    visit, on a single scale (RECIST / iRECIST / RANO). The baseline is the
+    was_baseline row (event_id="V00" or similar), follow-ups carry the response and
+    change-from-baseline/nadir.
+
+    Identity (NATURAL_KEY_FIELDS) = (assessment_type, date, event_id): the scale,
+    when, and the visit code. event_id keeps the baseline (V00) distinct from a
+    visit, on a single scale (RECIST / iRECIST / RANO).
+    Validity (REQUIRED_FIELDS) = (assessment_type, date): the scale and the time.
+    Outcome fields (responses, lesion size) are conditionally populated by source,
+    that's downstream consumers' concern, not model validity.
+
+    Fields:
+    - assessment_type: Scale used to assess the patient's tumor (e.g. RANO).
+    - target_lesion_size: Absolute size of target lesion at this date.
+    - target_lesion_change_from_baseline: Relative change from baseline assessment.
+    - target_lesion_change_from_nadir: Relative change from nadir.
+    - was_new_lesions_registered_after_baseline: If new lesions was registered after baseline.
+    - date: Date of tumor assessment.
+    - recist_response: Recist1.1 scale response.
+    - irecist_response: iRecist scale response.
+    - rano_response: RANO scale reponse.
+    - recist_date_of_progression: Date of progression on Recist1.1 scale.
+    - irecist_date_of_progression: Date of progression on iRecist scale.
+    - event_id: ID for this tumor assessment (e.g. "V02").
+    - was_baseline: If an instance is baseline assessment (only one per patient per assessment).
+    - baseline_off_target_lesions_number: baseline-only, number of off-target lesions at baseline.
+    - baseline_off_target_lesion_measurement_date: baseline-only, measurement date of off-target lesions.
+    """
+
     class Fields:
         ASSESSMENT_TYPE = "assessment_type"
         TARGET_LESION_SIZE = "target_lesion_size"
@@ -19,6 +50,9 @@ class TumorAssessment(DomainBase):
         RECIST_DATE_OF_PROGRESSION = "recist_date_of_progression"
         IRECIST_DATE_OF_PROGRESSION = "irecist_date_of_progression"
         EVENT_ID = "event_id"
+        WAS_BASELINE = "was_baseline"
+        BASELINE_OFF_TARGET_LESIONS_NUMBER = "baseline_off_target_lesions_number"
+        BASELINE_OFF_TARGET_LESION_MEASUREMENT_DATE = "baseline_off_target_lesion_measurement_date"
 
     def __init__(self, patient_id: str):
         self._patient_id = patient_id
@@ -34,14 +68,14 @@ class TumorAssessment(DomainBase):
         self._recist_date_of_progression: dt.date | None = None
         self._irecist_date_of_progression: dt.date | None = None
         self._event_id: str | None = None
+        # baseline-only fields: populated where was_baseline is True, else None.
+        self._was_baseline: bool | None = None
+        self._baseline_off_target_lesions_number: int | None = None
+        self._baseline_off_target_lesion_measurement_date: dt.date | None = None
         self.updated_fields: Set[str] = set()
 
-    INVARIANT_FIELDS = (Fields.ASSESSMENT_TYPE,)
-    NATURAL_KEY_FIELDS = (Fields.DATE, Fields.EVENT_ID)
-
-    @property
-    def patient_id(self) -> str:
-        return self._patient_id
+    REQUIRED_FIELDS = (Fields.ASSESSMENT_TYPE, Fields.DATE)
+    NATURAL_KEY_FIELDS = (Fields.ASSESSMENT_TYPE, Fields.DATE, Fields.EVENT_ID)
 
     @property
     def assessment_type(self) -> str | None:
@@ -187,6 +221,42 @@ class TumorAssessment(DomainBase):
             validator=StrictValidators.validate_optional_str,
         )
 
+    @property
+    def was_baseline(self) -> bool | None:
+        return self._was_baseline
+
+    @was_baseline.setter
+    def was_baseline(self, value: bool | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.was_baseline,
+            value=value,
+            validator=StrictValidators.validate_optional_bool,
+        )
+
+    @property
+    def baseline_off_target_lesions_number(self) -> int | None:
+        return self._baseline_off_target_lesions_number
+
+    @baseline_off_target_lesions_number.setter
+    def baseline_off_target_lesions_number(self, value: int | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.baseline_off_target_lesions_number,
+            value=value,
+            validator=StrictValidators.validate_optional_int,
+        )
+
+    @property
+    def baseline_off_target_lesion_measurement_date(self) -> dt.date | None:
+        return self._baseline_off_target_lesion_measurement_date
+
+    @baseline_off_target_lesion_measurement_date.setter
+    def baseline_off_target_lesion_measurement_date(self, value: dt.date | None) -> None:
+        self._set_validated_prop(
+            prop=self.__class__.baseline_off_target_lesion_measurement_date,
+            value=value,
+            validator=StrictValidators.validate_optional_date,
+        )
+
     def __repr__(self, delim=","):
         return (
             f"{self.__class__.__name__}("
@@ -201,6 +271,9 @@ class TumorAssessment(DomainBase):
             f"rano_response={self.rano_response!r}{delim} "
             f"recist_date_of_progression={self.recist_date_of_progression!r}{delim} "
             f"irecist_date_of_progression={self.irecist_date_of_progression!r}{delim} "
-            f"event_id={self.event_id!r}"
+            f"event_id={self.event_id!r}{delim} "
+            f"was_baseline={self.was_baseline!r}{delim} "
+            f"baseline_off_target_lesions_number={self.baseline_off_target_lesions_number!r}{delim} "
+            f"baseline_off_target_lesion_measurement_date={self.baseline_off_target_lesion_measurement_date!r}"
             f")"
         )

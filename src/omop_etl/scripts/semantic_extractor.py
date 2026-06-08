@@ -3,7 +3,7 @@ import re
 import time
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 import logging
 from pathlib import Path
 from typing import ClassVar, Sequence, Mapping, Dict, Literal
@@ -34,7 +34,7 @@ class SheetData:
 @dataclass
 class EcrfConfig:
     configs: list[SheetConfig]
-    data: list[SheetData] = None
+    data: list[SheetData] = field(default_factory=list)
     trial: str | None = None
     source_type: str | None = None
 
@@ -43,8 +43,8 @@ class EcrfConfig:
         return cls([SheetConfig(key=k.upper(), usecols=v) for k, v in m.items()])
 
     def __iter__(self):
-        for field in fields(self):
-            yield getattr(self, field.name)
+        for _field in fields(self):
+            yield getattr(self, _field.name)
 
 
 class BaseReader(ABC):

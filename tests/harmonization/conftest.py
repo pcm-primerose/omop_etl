@@ -4,33 +4,66 @@ import pytest
 import polars as pl
 
 
+@pytest.fixture(autouse=True)
+def _strict_validation(monkeypatch):
+    """
+    Treat a total validation drop as a test failure.
+    Production leaves `strict_validation` False, logs errors and continues.
+    """
+    from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+
+    monkeypatch.setattr(BaseHarmonizer, "strict_validation", True)
+
+
 @dataclass(frozen=True, slots=True)
-class CohortNameRow:
+class CohortRow:
     SubjectId: str
+    COH_EventDate: str | None = None
     COH_COHORTNAME: str | None = None
+    COH_COHCTN: str | None = None  # canonical target name (biomarker)
+    COH_COHTT: str | None = None  # cohort tumor type (cancer type)
+    COH_COHALLO1: str | None = None
+    COH_COHALLO1__2: str | None = None
+    COH_COHALLO1__3: str | None = None
+    COH_COHALLO2: str | None = None
+    COH_COHALLO2__2: str | None = None
+    COH_COHALLO2__3: str | None = None
 
 
 @pytest.fixture(scope="class")
-def cohort_name_fixture() -> pl.DataFrame:
-    rows: List[CohortNameRow] = [
-        CohortNameRow(
+def cohort_fixture() -> pl.DataFrame:
+    rows: List[CohortRow] = [
+        # maps cleanly under lookups used in the test: two drugs
+        CohortRow(
             "cohort_hit_1",
-            "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib",
+            COH_EventDate="2030-01-01",
+            COH_COHORTNAME="BRAF Non-V600mut/Pancreatic/Trametinib + Dabrafenib",
+            COH_COHCTN="BRAF Non-V600mut",
+            COH_COHTT="Pancreatic",
+            COH_COHALLO1="Trametinib",
+            COH_COHALLO1__2="Dabrafenib",
         ),
-        CohortNameRow(
-            "cohort_empty_1",
-            None,
+        # raw biomarker/cancer-type not in the dictionaries: parts + normalized
+        # stay None, but raw_name + drugs are preserved
+        CohortRow(
+            "cohort_unmapped",
+            COH_EventDate="2030-02-01",
+            COH_COHORTNAME="UnknownMarker/UnknownTumor/DrugX",
+            COH_COHCTN="UnknownMarker",
+            COH_COHTT="UnknownTumor",
+            COH_COHALLO1="DrugX",
         ),
-        CohortNameRow(
-            "cohort_empty_2",
-            "",
-        ),
-        CohortNameRow(
-            "cohort_empty_3",
-        ),
-        CohortNameRow(
+        CohortRow("cohort_empty_1", COH_COHORTNAME=None),
+        CohortRow("cohort_empty_2", COH_COHORTNAME=""),
+        CohortRow("cohort_empty_3"),
+        # maps cleanly, single drug
+        CohortRow(
             "cohort_hit_2",
-            "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab",
+            COH_EventDate="2030-03-01",
+            COH_COHORTNAME="HER2exp/Cholangiocarcinoma/Pertuzumab",
+            COH_COHCTN="HER2exp",
+            COH_COHTT="Cholangiocarcinoma",
+            COH_COHALLO1="Pertuzumab",
         ),
     ]
 
@@ -318,6 +351,25 @@ def biomarkers_fixture() -> pl.DataFrame:
             COH_COHCTN="",
             COH_COHTMN="some other info",
             COH_EventDate="",
+        ),
+        # only a measured gene (no cohort target): falls back to the gene
+        BiomarkersRow(
+            "gene_only",
+            COH_GENMUT1="EGFR exon19del",
+            COH_EventDate="2020-01-01",
+        ),
+        # multi-event: cohort target on the earlier event, only a gene on the
+        # later one, target_biomarker comes from the earlier event (preference
+        # across rows), date is the latest event.
+        BiomarkersRow(
+            "multi_event",
+            COH_COHCTN="ALK fusion",
+            COH_EventDate="2019-01-01",
+        ),
+        BiomarkersRow(
+            "multi_event",
+            COH_GENMUT1="ALK measured later",
+            COH_EventDate="2019-06-01",
         ),
     ]
 
@@ -822,147 +874,6 @@ def serious_adverse_event_number_fixture():
             AE_SAESTDAT="",
         ),
         SeriousAdverseEventNumberRow("0_events_no_data", AE_AESERCD="", AE_SAESTDAT=""),
-    ]
-
-    records = [asdict(r) for r in rows]
-    return pl.from_dicts(records)
-
-
-@dataclass(frozen=True, slots=True)
-class BaselineTumorAssessmentRow:
-    SubjectId: str
-    # VI
-    VI_VITUMA: str | None = None
-    VI_VITUMA__2: str | None = None
-    VI_EventDate: str | None = None
-    VI_EventId: str | None = None
-    # RCNT / RNTMNT
-    RCNT_RCNTNOB: str | None = None
-    RCNT_EventDate: str | None = None
-    RCNT_EventId: str | None = None
-    RNTMNT_RNTMNTNOB: str | None = None
-    RNTMNT_RNTMNTNO: str | None = None
-    RNTMNT_EventId: str | None = None
-    RNTMNT_EventDate: str | None = None
-    # RNRSP / RA
-    RNRSP_TERNTBAS: str | None = None
-    RNRSP_TERNAD: str | None = None
-    RNRSP_EventDate: str | None = None
-    RNRSP_EventId: str | None = None
-    RA_RARECBAS: str | None = None
-    RA_RARECNAD: str | None = None
-    RA_EventDate: str | None = None
-    RA_EventId: str | None = None
-
-
-@pytest.fixture
-def baseline_tumor_assessment_fixture() -> pl.DataFrame:
-    rows: List[BaselineTumorAssessmentRow] = [
-        BaselineTumorAssessmentRow("missing_data"),
-        # VI cases
-        BaselineTumorAssessmentRow(
-            "vituma_only",
-            VI_VITUMA="PD",
-            VI_EventDate="2020-01-02",
-            VI_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "vituma__2_only",
-            VI_VITUMA__2="CR",
-            VI_EventDate="2020-01-03",
-            VI_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow("vi_none"),
-        BaselineTumorAssessmentRow(
-            "vi_no_date",
-            VI_VITUMA="SD",
-            VI_EventId="V00",
-        ),
-        # non-target lesions (RCNT/RNTMNT)
-        BaselineTumorAssessmentRow("no_ntl"),
-        BaselineTumorAssessmentRow(
-            "both_ntl_cols",
-            RNTMNT_RNTMNTNOB="5",
-            RNTMNT_RNTMNTNO="7",
-            RNTMNT_EventId="V00",
-            RNTMNT_EventDate="2020-02-01",
-        ),
-        BaselineTumorAssessmentRow(
-            "rntmnt_only",
-            RNTMNT_RNTMNTNO="4",
-            RNTMNT_EventId="V00",
-            RNTMNT_EventDate="2020-02-02",
-        ),
-        BaselineTumorAssessmentRow(
-            "rntmnt_ntl_wrong_event_id",
-            RNTMNT_RNTMNTNOB="3",
-            RNTMNT_EventId="V01",
-            RNTMNT_EventDate="2020-02-03",
-        ),
-        BaselineTumorAssessmentRow(
-            "rcnt_only",
-            RCNT_RCNTNOB="3",
-            RCNT_EventId="V00",
-            RCNT_EventDate="2020-02-04",
-        ),
-        BaselineTumorAssessmentRow(
-            "rcnt_invalid_int",
-            RCNT_RCNTNOB="abc",
-            RCNT_EventId="V00",
-            RCNT_EventDate="2020-02-05",
-        ),
-        BaselineTumorAssessmentRow(
-            "ntl_no_date",
-            RNTMNT_RNTMNTNOB="6",
-            RNTMNT_EventId="V00",
-        ),
-        # target lesions (RA/RNRSP)
-        BaselineTumorAssessmentRow(
-            "ra_valid",
-            RA_RARECBAS="12",
-            RA_RARECNAD="12",
-            RA_EventDate="2018-07-27",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "rnrsp_valid",
-            RNRSP_TERNTBAS="20",
-            RNRSP_TERNAD="18",
-            RNRSP_EventDate="2019-01-01",
-            RNRSP_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "ra_no_date",
-            RA_RARECBAS="8",
-            RA_RARECNAD="7",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "rnrsp_no_date",
-            RNRSP_TERNTBAS="9",
-            RNRSP_TERNAD="8",
-            RNRSP_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "missing_baseline_size",
-            RA_RARECNAD="11",
-            RA_EventDate="2020-03-01",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "multiple_rows",
-            RA_RARECBAS="10",
-            RA_RARECNAD="10",
-            RA_EventDate="2020-01-03",
-            RA_EventId="V00",
-        ),
-        BaselineTumorAssessmentRow(
-            "multiple_rows",
-            RA_RARECBAS="9",
-            RA_RARECNAD="9",
-            RA_EventDate="2020-01-01",
-            RA_EventId="V00",
-        ),
     ]
 
     records = [asdict(r) for r in rows]
@@ -1557,9 +1468,21 @@ class TumorAssessmentRow:
     RA_RAiUNPDT: str | None = None
     RA_EventId: str | None = None
     RNRSP_EventId: str | None = None
-    # baseline lesion size sources (used to derive absolute target_lesion_size per assessment)
+    # baseline lesion size sources:
     RNRSP_TERNTBAS: str | None = None
     RA_RARECBAS: str | None = None
+    # baseline V00 sources:
+    VI_VITUMA: str | None = None
+    VI_VITUMA__2: str | None = None
+    VI_EventId: str | None = None
+    VI_EventDate: str | None = None
+    RCNT_RCNTNOB: str | None = None
+    RCNT_EventDate: str | None = None
+    RCNT_EventId: str | None = None
+    RNTMNT_RNTMNTNOB: str | None = None
+    RNTMNT_RNTMNTNO: str | None = None
+    RNTMNT_EventId: str | None = None
+    RNTMNT_EventDate: str | None = None
 
 
 @pytest.fixture
@@ -1616,8 +1539,175 @@ def tumor_assessments_fixture() -> pl.DataFrame:
             RNRSP_EventDate="1900-04-01",
             RNRSP_EventId="V05",
         ),
+        TumorAssessmentRow(
+            "bl_full_recist",
+            VI_VITUMA="RECIST 1.1",
+            VI_EventDate="2020-01-02",
+            VI_EventId="V00",
+            RA_RARECBAS="12",
+            RA_EventDate="2020-01-05",
+            RA_EventId="V02",
+            RCNT_RCNTNOB="3",
+            RCNT_EventId="V00",
+            RCNT_EventDate="2020-01-20",
+        ),
+        TumorAssessmentRow(
+            "bl_vituma2_irecist",
+            VI_VITUMA__2="iRECIST",
+            VI_EventDate="2020-02-01",
+            VI_EventId="V00",
+        ),
+        TumorAssessmentRow(
+            "bl_rnrsp_rano",
+            VI_VITUMA="RANO (for Glioblastoma)",
+            VI_EventDate="2020-03-01",
+            VI_EventId="V00",
+            RNRSP_TERNTBAS="20",
+            RNRSP_EventDate="2020-03-02",
+            RNRSP_EventId="V02",
+        ),
+        TumorAssessmentRow(
+            "bl_rntmnt_offtarget",
+            VI_VITUMA="RECIST 1.1",
+            VI_EventDate="2020-04-01",
+            VI_EventId="V00",
+            RNTMNT_RNTMNTNOB="5",
+            RNTMNT_RNTMNTNO="7",
+            RNTMNT_EventId="V00",
+            RNTMNT_EventDate="2020-04-10",
+        ),
+        TumorAssessmentRow(
+            "bl_vi_no_date",
+            VI_VITUMA="RECIST 1.1",
+            VI_EventId="V00",
+        ),
+        # baseline scale on a "V00VI" row sharing the baseline date with an empty
+        # "V00" row, selected by content (VITUMA populated), not by EventId.
+        TumorAssessmentRow(
+            "bl_v00vi_split",
+            VI_EventId="V00",
+            VI_EventDate="2022-01-01",
+        ),
+        TumorAssessmentRow(
+            "bl_v00vi_split",
+            VI_EventId="V00VI",
+            VI_EventDate="2022-01-01",
+            VI_VITUMA="RECIST 1.1",
+        ),
+        TumorAssessmentRow(
+            "bl_no_vi_has_size",
+            RA_RARECBAS="50",
+            RA_EventDate="2020-01-01",
+            RA_EventId="V02",
+        ),
+        TumorAssessmentRow(
+            "subject_change_minus_50pct",
+            RA_RARECBAS="100",
+            RA_RABASECH="-50",
+            RA_RARECCH="-50",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-03-01",
+            RA_EventId="V02",
+        ),
+        TumorAssessmentRow(
+            "subject_change_zero",
+            RA_RARECBAS="100",
+            RA_RABASECH="0",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-02-01",
+            RA_EventId="V01",
+        ),
+        TumorAssessmentRow(
+            "subject_no_baseline_yields_none",
+            RA_RABASECH="-30",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-02-01",
+            RA_EventId="V01",
+        ),
+        TumorAssessmentRow(
+            "subject_change_none_yields_none",
+            RA_RARECBAS="80",
+            RA_RAASSESS1="RECIST",
+            RA_RATIMRES="SD",
+            RA_EventDate="2020-02-01",
+            RA_EventId="V01",
+        ),
+        TumorAssessmentRow(
+            "subject_change_plus_25pct",
+            RA_RARECBAS="40",
+            RA_RABASECH="25",
+            RA_RAASSESS1="RECIST",
+            RA_EventDate="2020-02-05",
+            RA_EventId="V01",
+        ),
     ]
 
+    records = [asdict(r) for r in rows]
+    # the baseline-fold helpers do string ops on the *BAS / VI / RCNT / RNTMNT
+    # columns, pin them to Utf8 so all-None columns in this fixture don't infer
+    # the Null dtype, which would break those coalesce/cast expressions
+    baseline_str_cols = [
+        "RNRSP_TERNTBAS",
+        "RA_RARECBAS",
+        "VI_VITUMA",
+        "VI_VITUMA__2",
+        "VI_EventId",
+        "VI_EventDate",
+        "RCNT_RCNTNOB",
+        "RCNT_EventDate",
+        "RCNT_EventId",
+        "RNTMNT_RNTMNTNOB",
+        "RNTMNT_RNTMNTNO",
+        "RNTMNT_EventId",
+        "RNTMNT_EventDate",
+    ]
+    return pl.from_dicts(records, schema_overrides={c: pl.Utf8 for c in baseline_str_cols})
+
+
+@dataclass(frozen=True, slots=True)
+class VisitRow:
+    SubjectId: str
+    VI_EventId: str | None = None
+    VI_EventDate: str | None = None
+    VI_VITUMA: str | None = None
+    VI_VITUMA__2: str | None = None
+
+
+@pytest.fixture
+def visits_fixture() -> pl.DataFrame:
+    """
+    VI-sheet rows for the visit processor. Covers a single visit, a same-date
+    V00/V00VI collapse (VITUMA-bearing row wins), several distinct-date visits
+    assigned out of order, a dateless row (dropped), and a non-baseline visit
+    with no VITUMA (kept).
+    """
+    rows: List[VisitRow] = [
+        VisitRow("single", VI_EventId="V00", VI_EventDate="2021-01-01", VI_VITUMA="RECIST 1.1"),
+        # same-date collapse: empty shell + informative VITUMA row -> one visit
+        VisitRow("collapse", VI_EventId="V00", VI_EventDate="2021-02-01"),
+        VisitRow("collapse", VI_EventId="V00VI", VI_EventDate="2021-02-01", VI_VITUMA="RECIST 1.1"),
+        # multiple distinct dates, out of order
+        VisitRow("multi", VI_EventId="V02", VI_EventDate="2021-04-01"),
+        VisitRow("multi", VI_EventId="V00", VI_EventDate="2021-03-01", VI_VITUMA="RANO (for Glioblastoma)"),
+        VisitRow("multi", VI_EventId="EOT", VI_EventDate="2021-05-01"),
+        # dateless VI row dropped
+        VisitRow("no_date", VI_EventId="V00", VI_VITUMA="RECIST 1.1"),
+        # non-baseline visit with no VITUMA still a visit
+        VisitRow("no_vituma", VI_EventId="V02", VI_EventDate="2021-06-01"),
+    ]
+    vi_str_cols = ["VI_EventId", "VI_EventDate", "VI_VITUMA", "VI_VITUMA__2"]
+    records = [asdict(r) for r in rows]
+    return pl.from_dicts(records, schema_overrides={c: pl.Utf8 for c in vi_str_cols})
+
+
+@pytest.fixture
+def tumor_assessments_mixed_scale_fixture() -> pl.DataFrame:
+    """Single subject with both RA (RECIST) and RNRSP (RANO) signal, violating the
+    one-scale-per-patient invariant. Used to assert _process_tumor_assessments raises."""
+    rows: List[TumorAssessmentRow] = [
+        TumorAssessmentRow("mixed_scale", RA_RAASSESS1="RECIST", RA_RARECBAS="100", RA_EventDate="2020-01-01", RA_EventId="V00"),
+        TumorAssessmentRow("mixed_scale", RNRSP_TERNCFB="-10", RNRSP_EventDate="2020-02-01", RNRSP_EventId="V02"),
+    ]
     records = [asdict(r) for r in rows]
     return pl.from_dicts(records)
 
@@ -1762,55 +1852,89 @@ class EOTRow:
     SubjectId: str
     EOT_EOTREOT: str | None = None
     EOT_EOTDAT: str | None = None
+    TR_TRCYNCD: str | None = None
+    TR_TROSTPDT: str | None = None
+    TR_TRC1_DT: str | None = None
 
 
 @pytest.fixture
-def end_of_treatment_reason_fixture() -> pl.DataFrame:
+def end_of_treatment_fixture() -> pl.DataFrame:
+    """
+    Drives _process_end_of_treatment. Covers: completion-text to COMPLETED,
+    various non-completion reasons to WITHDRAWN, whitespace handling,
+    date precedence (EOT > oral_stop > iv_start), date-only patients
+    (status=None), reason-only patients (date=None), and patients with
+    no EOT info at all (filtered out).
+    """
     rows: List[EOTRow] = [
+        # COMPLETED status
         EOTRow(
-            "reason_trim",
-            EOT_EOTREOT="  Progression  ",
+            "completed",
+            EOT_EOTREOT="Normal completion according to cohort-specific manual",
+            EOT_EOTDAT="1900-06-30",
         ),
+        EOTRow(
+            "completed_case_insensitive",
+            EOT_EOTREOT="  normal completion according to cohort-specific manual  ",
+            EOT_EOTDAT="1900-06-29",
+        ),
+        # WITHDRAWN status: various reasons
+        EOTRow(
+            "withdrawn_progression",
+            EOT_EOTREOT="Disease progression",
+            EOT_EOTDAT="1900-05-15",
+        ),
+        EOTRow(
+            "withdrawn_toxicity",
+            EOT_EOTREOT="  Toxicity  ",
+            EOT_EOTDAT="1900-05-16",
+        ),
+        # Date precedence: EOT_EOTDAT wins over TR_*
+        EOTRow(
+            "date_precedence_eot",
+            EOT_EOTREOT="Other",
+            EOT_EOTDAT="1900-01-02",
+        ),
+        EOTRow(
+            "date_precedence_eot",
+            TR_TROSTPDT="1900-01-01",
+            TR_TRCYNCD="1",
+        ),
+        # Date-only: TR_*-derived date, no reason, status=None, date from precedence
+        EOTRow(
+            "date_only_oral_stop",
+            TR_TROSTPDT="1900-08-01",
+            TR_TRCYNCD="1",
+        ),
+        EOTRow(
+            "date_only_iv_start",
+            TR_TRC1_DT="1900-09-01",
+            TR_TRCYNCD="1",
+        ),
+        # Reason-only (no usable date)
+        EOTRow(
+            "reason_only",
+            EOT_EOTREOT="Other",
+        ),
+        # Whitespace / empty / None reasons
         EOTRow(
             "reason_empty_string",
             EOT_EOTREOT="",
+            EOT_EOTDAT="1900-01-01",
         ),
         EOTRow(
             "reason_whitespace_only",
             EOT_EOTREOT="   ",
-        ),
-        EOTRow(
-            "reason_none",
-            EOT_EOTREOT=None,
-        ),
-        EOTRow(
-            "reason_multi_overwrite",
-            EOT_EOTREOT="Toxicity",
-        ),
-        EOTRow(
-            "reason_multi_overwrite",
-            EOT_EOTREOT="Patient decision",
-        ),
-        EOTRow(
-            "date_valid",
             EOT_EOTDAT="1900-01-01",
         ),
+        # No data at all: filtered out by the processor
+        EOTRow("empty"),
+        # Invalid TR rows (TR_TRCYNCD != 1) don't contribute to date
         EOTRow(
-            "date_empty_string",
-            EOT_EOTDAT="",
-        ),
-        EOTRow(
-            "date_invalid",
-            EOT_EOTDAT="not a date",
-        ),
-        EOTRow("date_none"),
-        EOTRow(
-            "date_multi_overwrite",
-            EOT_EOTDAT="1900-01-01",
-        ),
-        EOTRow(
-            "date_multi_overwrite",
-            EOT_EOTDAT="1901-01-01",
+            "invalid_tr_row_skipped",
+            EOT_EOTREOT="Other",
+            TR_TROSTPDT="1900-01-01",
+            # TR_TRCYNCD missing: not valid
         ),
     ]
 

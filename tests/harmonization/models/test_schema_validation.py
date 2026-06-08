@@ -1,6 +1,6 @@
 import datetime as dt
-from typing import get_type_hints, get_origin, get_args, Union
-
+import re
+from typing import ClassVar, get_type_hints, get_origin, get_args, Union
 import pytest
 
 from omop_etl.harmonization.models.patient import Patient
@@ -10,8 +10,10 @@ from omop_etl.harmonization.models.domain.best_overall_response import BestOvera
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -19,8 +21,8 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.domain.visit import Visit
 
 
 PATIENT_EXCLUDED_PROPERTIES = {"patient_id", "trial_id"}
@@ -73,8 +75,10 @@ ALL_DOMAIN_CLASSES = [
     Biomarkers,
     C30,
     ClinicalBenefit,
+    Cohort,
     ConcomitantMedication,
     EcogBaseline,
+    EndOfTreatment,
     EQ5D,
     FollowUp,
     MedicalHistory,
@@ -82,8 +86,8 @@ ALL_DOMAIN_CLASSES = [
     StudyDrugs,
     TreatmentCycleComponent,
     TumorAssessment,
-    TumorAssessmentBaseline,
     TumorType,
+    Visit,
 ]
 
 
@@ -103,6 +107,88 @@ class TestDomainSchemaCompleteness:
     @pytest.mark.parametrize("domain_cls", ALL_DOMAIN_CLASSES, ids=lambda c: c.__name__)
     def test_no_extra_domain_fields(self, domain_cls):
         domain_cls.data_fields()  # triggers _ensure_schema that validates
+
+    # questionnaire domains document q1..qN as a range, not per-field
+    DOCSTRING_FIELD_EXEMPT: ClassVar[set[type]] = {C30, EQ5D}
+
+    @pytest.mark.parametrize("domain_cls", ALL_DOMAIN_CLASSES, ids=lambda c: c.__name__)
+    def test_every_field_named_in_docstring(self, domain_cls):
+        """
+        Drift guard: every data field must be named in the class docstring,
+        so the documented Fields list can't silently fall out of sync with the
+        actual fields. Questionnaire domains (q1..qN as a range) are exempt."""
+        if domain_cls in self.DOCSTRING_FIELD_EXEMPT:
+            pytest.skip("questionnaire domain: q-fields documented as a range")
+        doc = domain_cls.__doc__ or ""
+        missing = [f for f in domain_cls.data_fields() if not re.search(rf"\b{re.escape(f)}\b", doc)]
+        assert not missing, f"{domain_cls.__name__} docstring does not name fields: {missing}"
+
+
+class TestEagerSchemaValidation:
+    """
+    The membership contract is validated eagerly at class-definition time via __init_subclass__.
+    """
+
+    def test_required_not_subset_raises_at_definition(self):
+        with pytest.raises(ValueError, match="REQUIRED_FIELDS not a subset"):
+
+            class BadRequired(DomainBase):
+                class Fields:
+                    NAME = "name"
+
+                REQUIRED_FIELDS = ("ghost",)
+
+                def __init__(self, patient_id): ...
+
+                @property
+                def name(self):
+                    return None
+
+    def test_nk_not_subset_raises_at_definition(self):
+        with pytest.raises(ValueError, match="NATURAL_KEY_FIELDS not a subset"):
+
+            class BadNK(DomainBase):
+                class Fields:
+                    NAME = "name"
+
+                NATURAL_KEY_FIELDS = ("ghost",)
+
+                def __init__(self, patient_id): ...
+
+                @property
+                def name(self):
+                    return None
+
+    def test_duplicate_fields_raise_at_definition(self):
+        with pytest.raises(ValueError, match="duplicates"):
+
+            class DupFields(DomainBase):
+                class Fields:
+                    A = "x"
+                    B = "x"
+
+                def __init__(self, patient_id): ...
+
+                @property
+                def x(self):
+                    return None
+
+    def test_field_without_property_is_deferred_to_data_fields(self):
+        # membership passes at definition
+        class GhostField(DomainBase):
+            class Fields:
+                NAME = "name"
+                GHOST = "ghost"  # no matching property
+
+            def __init__(self, patient_id): ...
+
+            @property
+            def name(self):
+                return None
+
+        # the property-existence check runs lazily on data_fields()
+        with pytest.raises(TypeError, match="has no property"):
+            GhostField.data_fields()
 
 
 SCALAR_TYPES = (str, int, float, bool, dt.date, dt.datetime)

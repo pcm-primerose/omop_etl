@@ -27,6 +27,11 @@ def _norm(v: str | None) -> str:
 
 @dataclass(frozen=True, slots=True)
 class SemanticRow:
+    """
+    One entry of the pre-computed semantic dictionary: a source term mapped to
+    a single OMOP concept candidate (loaded from the mapping CSV).
+    """
+
     term_id: str
     source_col: str
     source_term: str
@@ -59,6 +64,8 @@ class SemanticRow:
 
 
 class OmopDomain(str, Enum):
+    """OMOP domains a query can target and a SemanticRow can belong to."""
+
     CONDITION = "condition"
     DRUG = "drug"
     MEASUREMENTS = "measurement"
@@ -66,10 +73,17 @@ class OmopDomain(str, Enum):
     OBSERVATIONS = "observations"
     DEVICE = "device"
     MEAS_VALUE = "meas value"
+    TYPE_CONCEPT = "type concept"
 
 
 @dataclass(frozen=True, slots=True)
 class QueryTarget:
+    """
+    Filter narrowing which SemanticRows count as a match for a query (by
+    domain, vocab, concept class, standard flag, validity). None = no filter on
+    that facet.
+    """
+
     domains: Collection[OmopDomain] | None = None
     vocabs: Collection[str] | None = None
     concept_classes: Collection[str] | None = None
@@ -93,9 +107,11 @@ class QueryTarget:
 
 @dataclass(frozen=True, slots=True)
 class FieldConfig:
-    """What field used to constuct query"""
+    """
+    Configures one Patient field to extract queries from: the field_path to
+    walk and the QueryTarget filter applied to its matches.
+    """
 
-    # note: overkill for already mapped data, but reuse for lexical/vector search
     name: str
     field_path: tuple[str, ...]
     tags: Collection[str] = field(default_factory=frozenset)
@@ -108,6 +124,16 @@ class FieldConfig:
 
 @dataclass(frozen=True, slots=True)
 class Query:
+    """
+    One value extracted from a Patient instance to map: its location
+    (patient_id, field_path, leaf_index) plus the raw_value to look up.
+
+    leaf_index is the instance's position in its NK-sorted (deterministic)
+    Patient collection, it correlates this query with its result within a run
+    and never reaches a persisted key (builders key on the NK, not leaf_index).
+    Query (and QueryResult) lifetime is constrained to the semantic-mapping module.
+    """
+
     patient_id: str
     id: str
     query: str
@@ -119,6 +145,11 @@ class Query:
 
 @dataclass(frozen=True, slots=True)
 class QueryResult:
+    """
+    A Query paired with the SemanticRows it matched (empty = unmapped), its
+    location ties each match back to the exact Patient instance it came from.
+    """
+
     patient_id: str
     query: Query
     results: List[SemanticRow]
@@ -126,6 +157,11 @@ class QueryResult:
 
 @dataclass(frozen=True, slots=True)
 class BatchQueryResult:
+    """
+    All QueryResults for a mapping run: partitions matched vs missing and
+    serializes them (DataFrame, dict) with per-field_path coverage stats.
+    """
+
     results: Tuple[QueryResult, ...]
 
     @property
@@ -140,7 +176,8 @@ class BatchQueryResult:
         return tuple(m.query for m in self.results if not m.results)
 
     def to_matches_df(self) -> pl.DataFrame:
-        """Convert matched results to a Polars DataFrame.
+        """
+        Convert matched results to a Polars DataFrame.
 
         Each row represents a single match (query + matched SemanticRow).
         Queries with multiple matches produce multiple rows.

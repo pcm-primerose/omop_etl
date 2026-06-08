@@ -1,7 +1,36 @@
 import hashlib
+import datetime as dt
 
 
 def sha1_bigint(namespace: str, value: str) -> int:
     h = hashlib.sha1(f"{namespace}:{value}".encode("utf-8")).digest()
     n = int.from_bytes(h[:8], "big", signed=False)
     return n & ((1 << 63) - 1)
+
+
+type RowIdPart = str | int | float | bool | None | dt.date | dt.datetime | tuple["RowIdPart", ...]
+
+
+def normalize_row_id_part(part: RowIdPart) -> object:
+    if part is None:
+        return None
+
+    if isinstance(part, dt.datetime):
+        return {
+            "__type__": "datetime",
+            "value": part.isoformat(),
+        }
+
+    if isinstance(part, dt.date):
+        return {
+            "__type__": "date",
+            "value": part.isoformat(),
+        }
+
+    if isinstance(part, tuple):
+        return [normalize_row_id_part(p) for p in part]
+
+    if isinstance(part, str | int | float | bool):
+        return part
+
+    raise TypeError(f"Unsupported row-id key part: {part!r} ({type(part).__name__})")

@@ -6,6 +6,7 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.linkage import BuildResult
 from tests.omop.conftest import (
     create_build_context,
     create_patient,
@@ -27,9 +28,9 @@ class TestProcedureOccurrenceBuilder:
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
 
 class TestPreviousTreatmentMainRows:
@@ -52,15 +53,15 @@ class TestPreviousTreatmentMainRows:
         prev.end_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.person_id == PERSON_ID
         assert row.procedure_concept_id == 4301351
         assert row.procedure_date == dt.date(2021, 3, 1)
         assert row.procedure_end_date == dt.date(2021, 3, 1)
-        assert row.procedure_type_concept_id == 32817
+        assert row.procedure_type_concept_id == 32809
         assert row.procedure_source_value == "Surgery"
 
     def test_no_procedure_match_skips(self, static_index, structural_index):
@@ -71,9 +72,9 @@ class TestPreviousTreatmentMainRows:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_missing_start_date_skips(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -82,9 +83,9 @@ class TestPreviousTreatmentMainRows:
         prev.treatment = "Surgery"
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_end_date_can_be_none(self, static_index, structural_index):
         semantic = create_semantic_index(
@@ -104,10 +105,10 @@ class TestPreviousTreatmentMainRows:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].procedure_end_date is None
+        assert len(result.rows) == 1
+        assert result.rows[0].procedure_end_date is None
 
 
 class TestPreviousTreatmentAdditionalRows:
@@ -130,11 +131,11 @@ class TestPreviousTreatmentAdditionalRows:
         prev.start_date = dt.date(2021, 5, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        assert rows[0].procedure_concept_id == 4061650
-        assert rows[0].procedure_source_value == "Hormone therapy"
+        assert len(result.rows) == 1
+        assert result.rows[0].procedure_concept_id == 4061650
+        assert result.rows[0].procedure_source_value == "Hormone therapy"
 
     def test_no_match_skips(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -145,11 +146,11 @@ class TestPreviousTreatmentAdditionalRows:
         prev.start_date = dt.date(2021, 5, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
-    def test_both_fields_produce_separate_rows(self, static_index, structural_index):
+    def test_both_fields_produce_separate_result(self, static_index, structural_index):
         """When both treatment and additional_treatment map to Procedure, emit one row each."""
         semantic = create_semantic_index(
             SemanticEntry(
@@ -177,11 +178,11 @@ class TestPreviousTreatmentAdditionalRows:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 2
-        assert rows[0].procedure_occurrence_id != rows[1].procedure_occurrence_id
-        source_values = {r.procedure_source_value for r in rows}
+        assert len(result.rows) == 2
+        assert result.rows[0].procedure_occurrence_id != result.rows[1].procedure_occurrence_id
+        source_values = {r.procedure_source_value for r in result.rows}
         assert source_values == {"Surgery", "Hormone therapy"}
 
 
@@ -206,10 +207,10 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 1
-        row = rows[0]
+        assert len(result.rows) == 1
+        row = result.rows[0]
         assert row.procedure_concept_id == 4194253
         assert row.procedure_date == dt.date(2019, 6, 1)
         assert row.procedure_end_date == dt.date(2019, 6, 1)
@@ -223,9 +224,9 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
     def test_no_procedure_match_skips(self, static_index, structural_index):
         """Medical history that maps to Condition (not Procedure) produces no row here."""
@@ -237,9 +238,9 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows == []
+        assert result == BuildResult(rows=(), publications=())
 
 
 class TestCombinedSources:
@@ -276,10 +277,10 @@ class TestCombinedSources:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        rows = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(rows) == 2
-        ids = [r.procedure_occurrence_id for r in rows]
+        assert len(result.rows) == 2
+        ids = [r.procedure_occurrence_id for r in result.rows]
         assert len(ids) == len(set(ids)), "All procedure_occurrence_ids must be unique"
 
     def test_row_ids_are_deterministic(self, static_index, structural_index):
@@ -300,7 +301,7 @@ class TestCombinedSources:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        rows_a = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
-        rows_b = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result_a = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result_b = ProcedureOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert rows_a[0].procedure_occurrence_id == rows_b[0].procedure_occurrence_id
+        assert result_a.rows[0].procedure_occurrence_id == result_b.rows[0].procedure_occurrence_id

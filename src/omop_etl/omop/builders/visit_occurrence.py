@@ -1,117 +1,96 @@
-import datetime as dt
 from typing import ClassVar
 from logging import getLogger
+import datetime as dt
 
-from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
+from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.builders.base import OmopBuilder, BuildContext
 from omop_etl.omop.models.rows import VisitOccurrenceRow
+from omop_etl.omop.models.tables import OmopTables
+from omop_etl.omop.builders.base import OmopBuilder
+from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.core.linkage import (
+    BuildResult,
+    OmopRowReference,
+    RowPublication,
+    SourceReference,
+)
 
 log = getLogger(__name__)
 
 
 class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
-    """Builds visit_occurrence rows from tumor assessment baseline and tumor assessments."""
+    """
+    Builds visit_occurrence rows from the patient's Visit collection,
+    one visit_occurrence per Visit.
 
-    table_name: ClassVar[str] = "visit_occurrence"
+    Publishes each row under `SourceReference(patient_id, Collections.VISITS,
+    visit.natural_key())`. The Visit NK is `(date,)`), so downstream builders
+    resolve visit_occurrence_id by date via `ctx.resolve_visit_id(date)`.
+    """
 
-    def build(self, ctx: BuildContext) -> list[VisitOccurrenceRow]:
+    table_name: ClassVar[str] = OmopTables.VISIT_OCCURRENCE
+
+    def build(self, ctx: BuildContext) -> BuildResult[VisitOccurrenceRow]:
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[VisitOccurrenceRow] = []
+        publications: list[RowPublication] = []
         outpatient = self.concepts.lookup_structural("outpatient_visit", domains={"Visit"})
         ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        visit_concept_id = int(outpatient.concept_id) if outpatient else 0
-        visit_type_concept_id = int(ecrf.concept_id) if ecrf else 0
+        if outpatient is None:
+            raise ValueError(f"Outpatient not found in structural lookup: {outpatient}")
+        if ecrf is None:
+            raise ValueError(f"eCRF concept not found in structural lookup: {ecrf}")
 
-        # track previous visit for preceding_visit_occurrence_id FK
+        visit_concept_id = outpatient.concept_id
+        visit_type_concept_id = ecrf.concept_id
+
+        # Visits are date-ordered by natural key, so iterating yields the visit
+        # chain: track the previous visit for preceding_visit_occurrence_id
         prev_visit_id: int | None = None
 
-        # baseline singleton
-        baseline = patient.tumor_assessment_baseline
-        if baseline is not None:
-            row = self._build_baseline_row(
-                patient,
-                person_id,
-                baseline,
-                visit_concept_id,
-                visit_type_concept_id,
-                prev_visit_id,
-            )
-            if row is not None:
-                prev_visit_id = row.visit_occurrence_id
-                rows.append(row)
-
-        # grouping by date: multiple assessment rows from the same physical encounter,
-        # e.g. target and non-target lesion measurements, or same visit recorded with
-        # different event_ids like "V04" and "W00" produce one visit_occurrence row.
-        seen_dates: set[dt.date] = set()
-        for assessment in patient.tumor_assessments:
-            assessment_date = assessment.date
-            if assessment_date is None or assessment_date in seen_dates:
+        for visit in patient.visits:
+            date = visit.date
+            if date is None:
                 continue
-            row = self._build_assessment_row(
+            row = self._build_visit_row(
                 patient,
                 person_id,
-                assessment,
-                assessment_date,
+                visit,
+                date,
                 visit_concept_id,
                 visit_type_concept_id,
                 prev_visit_id,
             )
-            if row is not None:
-                seen_dates.add(assessment_date)
-                prev_visit_id = row.visit_occurrence_id
-                rows.append(row)
+            prev_visit_id = row.visit_occurrence_id
+            rows.append(row)
+            publications.append(self._publish(patient, visit, row))
 
-        return rows
+        return BuildResult(rows=tuple(rows), publications=tuple(publications))
 
-    def populate_context(self, rows: list[VisitOccurrenceRow], ctx: BuildContext) -> None:
-        """
-        Index-emitted visits by start_date, allows downstream builders to resolve
-        visit_occurrence_id from: `ctx.visit_id_by_date.get(date)`.
-        """
-        for row in rows:
-            ctx.visit_id_by_date[row.visit_start_date] = row.visit_occurrence_id
+    @staticmethod
+    def _publish(patient: Patient, visit: Visit, row: VisitOccurrenceRow) -> RowPublication:
+        return RowPublication(
+            target_table=OmopTables.VISIT_OCCURRENCE,
+            source_ref=SourceReference(
+                patient.patient_id,
+                Patient.Collections.VISITS,
+                visit.natural_key(),
+            ),
+            rows=(
+                OmopRowReference(
+                    table=OmopTables.VISIT_OCCURRENCE,
+                    row_id=row.visit_occurrence_id,
+                    primary_concept_id=row.visit_concept_id,
+                ),
+            ),
+        )
 
-    def _build_baseline_row(
+    def _build_visit_row(
         self,
         patient: Patient,
         person_id: int,
-        baseline: TumorAssessmentBaseline,
-        visit_concept_id: int,
-        visit_type_concept_id: int,
-        preceding_visit_id: int | None,
-    ) -> VisitOccurrenceRow | None:
-        date = baseline.assessment_date or baseline.target_lesion_measurement_date or baseline.off_target_lesion_measurement_date
-
-        if date is None:
-            log.warning("Skipping baseline visit for %s: no usable date", patient.patient_id)
-            return None
-
-        row_id = self.generate_row_id(
-            patient.patient_id,
-            Patient.Singletons.TUMOR_ASSESSMENT_BASELINE,
-            *baseline.natural_key(),
-        )
-
-        return VisitOccurrenceRow(
-            visit_occurrence_id=row_id,
-            person_id=person_id,
-            visit_concept_id=visit_concept_id,
-            visit_start_date=date,
-            visit_end_date=date,
-            visit_type_concept_id=visit_type_concept_id,
-            visit_source_value=baseline.assessment_type,
-            preceding_visit_occurrence_id=preceding_visit_id,
-        )
-
-    def _build_assessment_row(
-        self,
-        patient: Patient,
-        person_id: int,
-        assessment: TumorAssessment,
+        visit: Visit,
         date: dt.date,
         visit_concept_id: int,
         visit_type_concept_id: int,
@@ -119,8 +98,8 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
     ) -> VisitOccurrenceRow:
         row_id = self.generate_row_id(
             patient.patient_id,
-            Patient.Collections.TUMOR_ASSESSMENTS,
-            *assessment.natural_key(),
+            Patient.Collections.VISITS,
+            *visit.natural_key(),
         )
 
         return VisitOccurrenceRow(
@@ -130,6 +109,6 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
             visit_start_date=date,
             visit_end_date=date,
             visit_type_concept_id=visit_type_concept_id,
-            visit_source_value=assessment.assessment_type,
+            visit_source_value=visit.event_id,
             preceding_visit_occurrence_id=preceding_visit_id,
         )

@@ -6,6 +6,21 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class StudyDrugs(DomainBase):
+    """
+    A patient's study treatment: the primary (and optional secondary) study
+    drug(s) and allocation date (one per patient).
+
+    Identity (NATURAL_KEY_FIELDS) = (date,): the singleton's linkage anchor.
+    Validity (REQUIRED_FIELDS) = (primary_study_drug,): every patient has a primary study drug.
+
+    Fields:
+    - primary_treatment_drug: Primary study drug.
+    - primary_treatment_drug_code: Source-specific code for primary treatment drug.
+    - secondary_treatment_drug: Secondary study drug.
+    - secondary_treatment_drug_code: Source-specific code for secondary treatment drug.
+    - date: date of study drug record from source.
+    """
+
     class Fields:
         PRIMARY_TREATMENT_DRUG = "primary_treatment_drug"
         PRIMARY_TREATMENT_DRUG_CODE = "primary_treatment_drug_code"
@@ -23,6 +38,7 @@ class StudyDrugs(DomainBase):
         self.updated_fields: Set[str] = set()
 
     NATURAL_KEY_FIELDS = (Fields.DATE,)
+    REQUIRED_FIELDS = (Fields.PRIMARY_TREATMENT_DRUG,)
 
     @property
     def primary_treatment_drug(self) -> str | None:

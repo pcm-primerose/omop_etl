@@ -56,9 +56,8 @@ class LoadSemantics:
             seen: dict[str, SemanticRow] = {}
             for row in candidates:
                 if row.omop_concept_id in seen:
-                    log.info(
-                        "Collapsing duplicate concept_id %s for source_term '%s' "
-                        "can be caused by case-normalization colission, consider updating mapping file.",
+                    log.warning(
+                        "Collapsing duplicate concept_id=%s for source_term='%s', consider updating mapping file.",
                         row.omop_concept_id,
                         key,
                     )

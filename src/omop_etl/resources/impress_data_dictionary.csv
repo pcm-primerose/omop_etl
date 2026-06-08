@@ -1,3 +1,4 @@
+# todo: integrate into docs and update (it's a bit outdated now)
 class,field,source_columns,transformation,description,data_type,required
 patients,patient_id,SubjectId,Direct copy,Unique patient identifier,String,mandatory
 patients,trial_id,(hardcoded),Set to trial identifier at runtime,Clinical trial identifier (e.g. IMPRESS),String,mandatory
@@ -22,11 +23,8 @@ best_overall_response,best_overall_response.date,"RA_EventDate, RNRSP_EventDate"
 best_overall_response,best_overall_response.response,"RA_RATIMRES, RA_RAiMOD, RNRSP_RNRSPCL","Text label matching best response code; RECIST/iRecist text coalesced with RANO",Best overall response description (e.g. Complete Response),String,optional
 biomarkers,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
 biomarkers,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
-biomarkers,biomarkers.cohort_target_mutation,COH_COHTMN,"Direct copy, stripped",Target mutation for cohort assignment,String,optional
-biomarkers,biomarkers.cohort_target_name,COH_COHCTN,"Direct copy, stripped",Target gene name for cohort assignment,String,optional
-biomarkers,biomarkers.date,COH_EventDate,Parsed to Date; latest event per patient kept,Date of biomarker assessment,Date,optional
-biomarkers,biomarkers.gene_and_mutation,COH_GENMUT1,"Direct copy, stripped",Gene and mutation description,String,optional
-biomarkers,biomarkers.gene_and_mutation_code,COH_GENMUT1CD,Cast to Int64,Gene and mutation code,Int64,optional
+biomarkers,biomarkers.target_biomarker,COH_COHCTN | COH_COHTMN | COH_GENMUT1,"Coalesce by preference: cohort target name (COHCTN), then cohort target mutation (COHTMN), then measured gene (GENMUT1); stripped, latest non-null per patient",Target biomarker for cohort assignment,String,mandatory
+biomarkers,biomarkers.date,COH_EventDate,"Parsed to Date; latest event per patient",Date of biomarker assessment,Date,optional
 ecog_baseline,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
 ecog_baseline,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
 ecog_baseline,ecog_baseline.date,ECOG_ECOGDAT,"Parsed to Date; filtered to baseline visit (ECOG_EventId == V00); latest per patient",Date of baseline ECOG assessment,Date,optional
@@ -126,7 +124,7 @@ previous_treatments,previous_treatments.end_date,CT_CTENDAT,Parsed to Date,End d
 previous_treatments,previous_treatments.start_date,CT_CTSTDAT,Parsed to Date,Start date of previous treatment,Date,optional
 previous_treatments,previous_treatments.treatment,CT_CTTYPE,"Direct copy, stripped; rows filtered to non-null only",Previous treatment name,String,mandatory
 previous_treatments,previous_treatments.treatment_code,CT_CTTYPECD,Cast to Int64,Previous treatment code,Int64,optional
-previous_treatments,previous_treatments.treatment_sequence_number,CT_CTSPID,Cast to Int64,Treatment line/sequence number,Int64,optional
+previous_treatments,previous_treatments.sequence_id,CT_CTSPID,Cast to Int64,Sequence identifier for ordering,Int64,optional
 treatment_cycles,patient_id,SubjectId,Direct copy,Patient identifier,String,mandatory
 treatment_cycles,trial_id,(hardcoded),Set at runtime,Trial identifier,String,mandatory
 treatment_cycles,row_index,(generated),Sequential index per patient; ordered by start_date,Row index within patient's treatment cycles,Int64,mandatory
@@ -140,7 +138,7 @@ treatment_cycles,treatment_cycles.oral_dose_prescribed_per_day,TR_TRODSTOT,Cast 
 treatment_cycles,treatment_cycles.oral_dose_unit,TR_TRODSU,Cast to String,Unit of oral dose (e.g. mg),String,optional
 treatment_cycles,treatment_cycles.reason_not_administered_to_spec,TR_TROREA,Cast to String,Reason dose was not administered to specification,String,optional
 treatment_cycles,treatment_cycles.reason_tablet_not_taken,TR_TROSPE,Cast to String,Reason oral tablet was not taken,String,optional
-treatment_cycles,treatment_cycles.recieved_treatment_this_cycle,TR_TRCYNCD,"1=true, 0=false",Whether treatment was received in this cycle,Boolean,optional
+treatment_cycles,treatment_cycles.received_treatment_this_cycle,TR_TRCYNCD,"1=true, 0=false",Whether treatment was received in this cycle,Boolean,optional
 treatment_cycles,treatment_cycles.start_date,TR_TRC1_DT,Parsed to Date,Start date of treatment cycle,Date,optional
 treatment_cycles,treatment_cycles.treatment_name,TR_TRNAME,Cast to String; rows filtered to non-null TR_TRNAME only,Treatment drug name,String,mandatory
 treatment_cycles,treatment_cycles.treatment_number,TR_TRTNO,Cast to Int64,Treatment number (for multi-drug regimens),Int64,optional

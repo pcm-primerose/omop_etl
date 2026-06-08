@@ -1,36 +1,32 @@
-import datetime as dt
+import json
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from typing import ClassVar, Generic, TypeVar
 
-from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.core.id_generator import (
+    sha1_bigint,
+    normalize_row_id_part,
+)
+from omop_etl.omop.core.linkage import (
+    BuildResult,
+    SourceReference,
+    LinkTarget,
+)
 
 T = TypeVar("T")
 
 
-@dataclass
-class BuildContext:
-    """Per-patient runtime state passed to builders.
-
-    Contains only per-patient data and cross-builder state (e.g. visit occurrence foreign keys).
-    """
-
-    patient: Patient
-    person_id: int
-    visit_id_by_date: dict[dt.date, int] = field(default_factory=dict)
-    condition_id_by_ae_sequence_id: dict[int, int] = field(default_factory=dict)
-    condition_id_primary_cancer: int | None = None
-
-
 class OmopBuilder(ABC, Generic[T]):
     """
-    Abstract base class for OMOP table builders.
+    Abstract base class for OMOP table builders. Builders are pure with
+    respect to BuildContext: `build(ctx)` reads from `ctx` and returns a
+    BuildResult, only `build_and_populate` (or the service orchestrator)
+    applies the result's publications to `ctx`.
 
     Class vars:
-        table_name: The OMOP table name (matching CDM spec)
-        id_namespace: Namespace for ID generation
+        table_name: The OMOP table name (one of OmopTables.* constants).
+        id_namespace: Namespace for PK hashing (defaults to table_name).
     """
 
     table_name: ClassVar[str]
@@ -40,46 +36,77 @@ class OmopBuilder(ABC, Generic[T]):
         self.concepts = concepts
 
     @abstractmethod
-    def build(self, ctx: BuildContext) -> list[T]:
-        """
-        Build rows from a patient.
-
-        Args:
-            ctx: Build context containing patient data, person_id, concept service,
-                 and cross-builder state (e.g. visit_id_by_date).
-
-        Returns:
-            A list of rows (may be empty if patient data is insufficient).
-        """
+    def build(self, ctx: BuildContext) -> BuildResult[T]:
+        """Compute rows and publications from `ctx`, must not mutate `ctx`."""
         ...
 
-    def populate_context(self, rows: list[T], ctx: BuildContext) -> None:
+    def build_and_populate(self, ctx: BuildContext) -> tuple[T, ...]:
         """
-        Publish context state derived from this builder's rows for downstream builders.
-        Default no-op, override in builders that produce shared identifiers other
-        builders consume (e.g. VisitOccurrenceBuilder writes `ctx.visit_id_by_date`).
+        Run `build(ctx)`, apply its publications to `ctx`, return rows.
+        The single place a builder's output mutates `ctx`.
         """
-        return
+        result = self.build(ctx)
+        for pub in result.publications:
+            ctx.publish_rows(pub.target_table, pub.source_ref, pub.rows)
 
-    def build_and_populate(self, ctx: BuildContext) -> list[T]:
-        """
-        Convenience method to build and populate context in one go e.g. for tests.
-        """
-        rows = self.build(ctx)
-        self.populate_context(rows, ctx)
-        return rows
+        return result.rows
 
-    def generate_row_id(self, *key_parts: int | str | float | dt.date | None) -> int:
+    def generate_row_id(self, patient_id: str, *key_parts) -> int:
         """
-        Deterministic row ID from key parts, using SHA1 hashing with builder's
-        namespace to create a reproducible 63-bit integer ID.
-        Namespace defaults to the table_name. None parts are filtered out.
-
-        Example:
-            self.generate_row_id(patient.patient_id)
-            self.generate_row_id(patient.patient_id, str(cycle_number))
+        Deterministic 63-bit row ID from `(namespace, patient_id, *key_parts)`.
+        Namespace defaults to `table_name`. `patient_id` is required positional
+        to prevent cross-patient PK collisions. `key_parts` are normalized via
+        `normalize_row_id_part` then JSON-serialized to avoid delimiter and
+        None-drop collisions.
         """
         namespace = self.id_namespace or self.table_name
-        filtered = [str(p) for p in key_parts if p is not None]
-        composite_key = ":".join(filtered)
-        return sha1_bigint(namespace, composite_key)
+
+        payload = json.dumps(
+            [patient_id, *(normalize_row_id_part(p) for p in key_parts)],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
+        return sha1_bigint(namespace, payload)
+
+    def _resolve_link_targets(
+        self,
+        ctx: BuildContext,
+        *,
+        target_table: str,
+        source_ref: SourceReference,
+        cdm_field_local: str | None = None,
+    ) -> tuple[LinkTarget, ...]:
+        """Resolve `(target_row_id, cdm_field_concept_id)` pairs for FK linkage
+        from rows previously published under `source_ref` in `target_table`.
+        Returns `()` if nothing was published.
+
+        `cdm_field_local` defaults to the OMOP-convention PK column,
+        `f"{target_table}.{target_table}_id"`.
+
+        Policy for "no targets" is handled at callsite (builders).
+        Raises RuntimeError if the cdm_field static is missing while rows
+        are published (required mapping for the FK shape).
+        """
+        rows = ctx.resolve_rows(target_table, source_ref)
+        if not rows:
+            return ()
+
+        if cdm_field_local is None:
+            cdm_field_local = f"{target_table}.{target_table}_id"
+
+        field_concept = self.concepts.lookup_static(
+            value_set="cdm_field",
+            local_value=cdm_field_local,
+            domains={"Metadata"},
+        )
+        if field_concept is None:
+            raise RuntimeError(f"Missing cdm_field mapping for {cdm_field_local}")
+
+        return tuple(
+            LinkTarget(
+                event_id=row.row_id,
+                field_concept_id=field_concept.concept_id,
+            )
+            for row in rows
+        )

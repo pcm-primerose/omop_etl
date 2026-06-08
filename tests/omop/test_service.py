@@ -6,15 +6,28 @@ from omop_etl.harmonization.models.domain.concomitant_medication import Concomit
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
+from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.service import OmopService
+from omop_etl.harmonization.models.domain.end_of_treatment import (
+    EndOfTreatment,
+    TrialOutcomeStatus,
+)
 from tests.omop.conftest import (
     create_patient,
     create_semantic_index,
     SemanticEntry,
 )
+
+
+def _with_eot(patient: Patient, date: dt.date) -> None:
+    """Attach an EndOfTreatment singleton with WITHDRAWN status and date."""
+    eot = EndOfTreatment(patient_id=patient.patient_id)
+    eot.status = TrialOutcomeStatus.WITHDRAWN
+    eot.date = date
+    patient.end_of_treatment = eot
 
 
 class TestOmopServiceOrchestration:
@@ -27,8 +40,8 @@ class TestOmopServiceOrchestration:
             sex="m",
             date_of_birth=dt.date(1980, 5, 15),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(patient, dt.date(2023, 6, 30))
 
         tables = OmopService(concepts).build([patient])
 
@@ -98,8 +111,8 @@ class TestOmopServiceOrchestration:
             sex="m",
             date_of_birth=dt.date(1980, 5, 15),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(patient, dt.date(2023, 6, 30))
         tumor = TumorType(patient_id="p1")
         tumor.icd10_code = "C50.9"
         tumor.date = dt.date(2022, 6, 1)
@@ -132,9 +145,18 @@ class TestOmopServiceOrchestration:
         prev.start_date = dt.date(2021, 3, 1)
         patient.previous_treatments = [prev]
 
-        baseline = TumorAssessmentBaseline(patient_id="p1")
-        baseline.assessment_date = dt.date(2023, 1, 10)
-        patient.tumor_assessment_baseline = baseline
+        baseline = TumorAssessment(patient_id="p1")
+        baseline.was_baseline = True
+        baseline.assessment_type = "recist"
+        baseline.date = dt.date(2023, 1, 10)
+        baseline.event_id = "V00"
+        patient.tumor_assessments = [baseline]
+
+        # visits drive visit_occurrence, the baseline visit shares the assessment's date
+        visit = Visit(patient_id="p1")
+        visit.date = dt.date(2023, 1, 10)
+        visit.event_id = "V00"
+        patient.visits = [visit]
 
         tables = OmopService(concepts).build([patient])
 
@@ -156,16 +178,16 @@ class TestMultiPatient:
             sex="m",
             date_of_birth=dt.date(1980, 5, 15),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(p1, dt.date(2023, 6, 30))
         p2 = create_patient(
             "p2",
             "test",
             sex="f",
             date_of_birth=dt.date(1990, 3, 20),
             treatment_start_date=dt.date(2023, 2, 1),
-            end_of_treatment_date=dt.date(2023, 7, 15),
         )
+        _with_eot(p2, dt.date(2023, 7, 15))
 
         tables = OmopService(concepts).build([p1, p2])
 
@@ -180,16 +202,16 @@ class TestMultiPatient:
             sex="m",
             date_of_birth=dt.date(1980, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(p1, dt.date(2023, 6, 30))
         p2 = create_patient(
             "p2",
             "test",
             sex="f",
             date_of_birth=dt.date(1990, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(p2, dt.date(2023, 6, 30))
 
         tables = OmopService(concepts).build([p1, p2])
 
@@ -204,8 +226,8 @@ class TestMultiPatient:
             sex="m",
             date_of_birth=dt.date(1980, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(patient, dt.date(2023, 6, 30))
 
         t1 = OmopService(concepts).build([patient])
         t2 = OmopService(concepts).build([patient])
@@ -222,15 +244,15 @@ class TestSkipBehavior:
             sex="m",
             date_of_birth=dt.date(1980, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(p_ok, dt.date(2023, 6, 30))
         p_no_dob = create_patient(
             "p2",
             "test",
             sex="m",
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(p_no_dob, dt.date(2023, 6, 30))
 
         tables = OmopService(concepts).build([p_ok, p_no_dob])
 
@@ -245,8 +267,8 @@ class TestSkipBehavior:
             sex="m",
             date_of_birth=dt.date(1980, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(p_ok, dt.date(2023, 6, 30))
         p_no_dates = create_patient("p2", "test", sex="f", date_of_birth=dt.date(1985, 8, 10))
 
         tables = OmopService(concepts).build([p_ok, p_no_dates])
@@ -264,8 +286,8 @@ class TestDedup:
             sex="m",
             date_of_birth=dt.date(1980, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(patient, dt.date(2023, 6, 30))
 
         tables = OmopService(concepts).build([patient, patient])
 
@@ -297,8 +319,8 @@ class TestOmopTablesApi:
             sex="m",
             date_of_birth=dt.date(1980, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(patient, dt.date(2023, 6, 30))
 
         tables = OmopService(concepts).build([patient])
 
@@ -322,8 +344,8 @@ class TestOmopTablesApi:
             sex="m",
             date_of_birth=dt.date(1980, 5, 15),
             treatment_start_date=dt.date(2023, 1, 1),
-            end_of_treatment_date=dt.date(2023, 6, 30),
         )
+        _with_eot(patient, dt.date(2023, 6, 30))
 
         tables = OmopService(concepts).build([patient])
 

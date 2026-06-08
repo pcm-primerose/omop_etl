@@ -3,14 +3,17 @@ import polars as pl
 from logging import getLogger
 
 from omop_etl.harmonization.core.parsers import PolarsParsers
-from omop_etl.harmonization.harmonizers.base import BaseHarmonizer, scalar, singleton, collection
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.harmonizers.specs import scalar, singleton, collection
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment, TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -18,39 +21,81 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
-from omop_etl.harmonization.models.harmonized import HarmonizedData
+from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
 
 
 class ImpressHarmonizer(BaseHarmonizer):
-    def __init__(self, data: pl.DataFrame, trial_id: str):
-        super().__init__(data, trial_id)
-
-    def process(self) -> HarmonizedData:
-        """Run harmonization and return HarmonizedData."""
-        self.run()
-        return HarmonizedData(
-            patients=list(self.patient_data.values()),
-            trial_id=self.trial_id,
-        )
-
     def _create_patients(self) -> None:
         """Create Patient instances from unique SubjectIds."""
         patient_ids = self.data.select("SubjectId").unique().to_series().to_list()
         for pid in patient_ids:
             self.patient_data[pid] = Patient(trial_id=self.trial_id, patient_id=pid)
 
-    @scalar()
-    def _process_cohort_name(self) -> pl.DataFrame | None:
-        colname = Patient.Scalars.COHORT_NAME
-        return self.data.select(
-            "SubjectId",
-            PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).alias(colname),
-        ).filter(pl.col("cohort_name").is_not_null())
+    @singleton(Cohort)
+    def _process_cohort(self) -> pl.DataFrame | None:
+        """
+        Harmonized cohort singleton. Built from the cohort COH columns
+        (not the aggregated COHORTNAME col, can't be safely parsed).
+
+        - raw_name: COH_COHORTNAME
+        - target_biomarker: COH_COHCTN, harmonized using the biomarker dictionary
+        - cancer_type: COH_COHTT, harmonized using the tumor-type dictionary
+        - drugs: non-null COH_COHALLO* cols allocations (not harmonized)
+        - normalized_name: "{biomarker}/{cancer_type}/{drugs}" when both
+          biomarker and cancer type resolve, else None
+        """
+        cols = Cohort.Fields
+        drug_cols = [
+            "COH_COHALLO1",
+            "COH_COHALLO1__2",
+            "COH_COHALLO1__3",
+            "COH_COHALLO2",
+            "COH_COHALLO2__2",
+            "COH_COHALLO2__3",
+        ]
+
+        biomarker_map = self.cohort_lookups.biomarker
+        cancer_type_map = self.cohort_lookups.cancer_type
+
+        df = (
+            self.data.select(
+                "SubjectId",
+                PolarsParsers.to_optional_date(pl.col("COH_EventDate")).alias("_event_date"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHORTNAME")).str.strip_chars().alias(cols.RAW_NAME),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHCTN")).str.strip_chars().alias("_raw_biomarker"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHTT")).str.strip_chars().alias("_raw_cancer_type"),
+                *[PolarsParsers.to_optional_utf8(pl.col(c)).str.strip_chars().alias(c) for c in drug_cols],
+            )
+            .filter(pl.col(cols.RAW_NAME).is_not_null())
+            # one cohort per patient: keep the latest by COH event date
+            .sort(["SubjectId", "_event_date"])
+            .unique(subset=["SubjectId"], keep="last")
+        )
+
+        if df.is_empty():
+            return None
+
+        df = df.with_columns(
+            pl.col("_raw_biomarker").str.to_lowercase().replace_strict(biomarker_map, default=None).alias(cols.TARGET_BIOMARKER),
+            pl.col("_raw_cancer_type").str.to_lowercase().replace_strict(cancer_type_map, default=None).alias(cols.CANCER_TYPE),
+            # drugs: collect non-null allocation columns into a list, verbatim
+            pl.concat_list([pl.col(c) for c in drug_cols]).list.drop_nulls().alias(cols.DRUGS),
+        )
+
+        base = pl.concat_str([pl.col(cols.TARGET_BIOMARKER), pl.col(cols.CANCER_TYPE)], separator="/")
+        normalized = (
+            pl.when(pl.col(cols.TARGET_BIOMARKER).is_not_null() & pl.col(cols.CANCER_TYPE).is_not_null())
+            .then(pl.when(pl.col(cols.DRUGS).list.len() > 0).then(pl.concat_str([base, pl.col(cols.DRUGS).list.join(" + ")], separator="/")).otherwise(base))
+            .otherwise(None)
+            .alias(cols.NORMALIZED_NAME)
+        )
+        df = df.with_columns(normalized)
+
+        return df.select("SubjectId", cols.RAW_NAME, cols.NORMALIZED_NAME, cols.TARGET_BIOMARKER, cols.CANCER_TYPE, cols.DRUGS)
 
     @scalar()
     def _process_sex(self) -> pl.DataFrame | None:
@@ -233,18 +278,6 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return benefit
 
-    @scalar(on_duplicate="last")
-    def _process_end_of_treatment_reason(self) -> pl.DataFrame | None:
-        colname = Patient.Scalars.END_OF_TREATMENT_REASON
-        end_of_treatment_reason = (
-            self.data.select("SubjectId", "EOT_EOTREOT")
-            .with_columns(
-                PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars().alias(colname),
-            )
-            .filter(pl.col("end_of_treatment_reason").is_not_null())
-        )
-        return end_of_treatment_reason
-
     @scalar()
     def _process_evaluable_for_efficacy_analysis(self) -> pl.DataFrame | None:
         """
@@ -278,9 +311,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                 .with_columns(
                     start=PolarsParsers.to_optional_utf8(pl.col("TR_TRO_STDT")).str.strptime(pl.Date, strict=False),
                     stop=PolarsParsers.to_optional_utf8(pl.col("TR_TROSTPDT")).str.strptime(pl.Date, strict=False),
-                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                    not_received_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
                 )
-                .filter(~pl.col("not_recieved_treatment_this_cycle"))
+                .filter(~pl.col("not_received_treatment_this_cycle"))
                 .with_columns(treatment_duration=((pl.col("stop") - pl.col("start")).dt.total_days()))
                 .group_by("SubjectId")
                 .agg((pl.col("treatment_duration").fill_null(-1) >= 28).any().alias("oral_sufficient_treatment_length"))
@@ -303,9 +336,9 @@ class ImpressHarmonizer(BaseHarmonizer):
                         PolarsParsers.to_optional_utf8(pl.col(["TR_TRO_STDT", "TR_TROSTPDT"])).str.len_bytes().fill_null(0) > 0,
                     ),
                     start=PolarsParsers.to_optional_utf8(pl.col("TR_TRC1_DT")).str.strptime(pl.Date, strict=False),
-                    not_recieved_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
+                    not_received_treatment_this_cycle=pl.col("TR_TRCYNCD") != 1,
                 )
-                .filter(~pl.col("oral_present") & ~pl.col("not_recieved_treatment_this_cycle"))
+                .filter(~pl.col("oral_present") & ~pl.col("not_received_treatment_this_cycle"))
                 .drop_nulls("start")
                 .sort(["SubjectId", "TR_TRTNO", "start"])
                 # partitioned shift to make next start
@@ -354,50 +387,74 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         return treatment_start_data
 
-    @scalar()
-    def _process_end_of_treatment_date(self) -> pl.DataFrame | None:
-        colname = Patient.Scalars.END_OF_TREATMENT_DATE
-        treatment_stop_data = (
+    @singleton(EndOfTreatment)
+    def _process_end_of_treatment(self) -> pl.DataFrame:
+        """
+        Build the EndOfTreatment singleton per patient.
+
+        Status (TrialOutcomeStatus enum):
+        - COMPLETED when the EOT reason text matches IMPRESS's
+          completion signal: "Normal completion according to
+          cohort-specific manual" (case-insensitive, whitespace-stripped).
+        - WITHDRAWN when any other non-empty reason is present.
+        - None when no EOT reason is recorded.
+
+        Reason: raw text from EOT_EOTREOT (whitespace-stripped).
+
+        Date precedence:
+        EOT_EOTDAT > latest valid TR_TROSTPDT (oral stop) > latest valid
+        TR_TRC1_DT (IV start). A row is emitted as long as a date OR a
+        reason is present: the singleton may have date=None when only a
+        reason exists, or status=None when only a date is inferred from
+        treatment cycles.
+        """
+        cols = EndOfTreatment.Fields
+        completion_text = "normal completion according to cohort-specific manual"
+
+        eot = (
             self.data.select(
                 "SubjectId",
+                "EOT_EOTREOT",
                 "TR_TRCYNCD",
                 "TR_TROSTPDT",
                 "TR_TRC1_DT",
                 "EOT_EOTDAT",
             )
             .with_columns(
+                row_reason=PolarsParsers.to_optional_utf8(pl.col("EOT_EOTREOT")).str.strip_chars(),
                 valid=PolarsParsers.to_optional_int64(pl.col("TR_TRCYNCD")).eq(1),
                 eot_date=PolarsParsers.to_optional_date(pl.col("EOT_EOTDAT").cast(pl.Utf8)),
                 oral_stop=PolarsParsers.to_optional_date(pl.col("TR_TROSTPDT").cast(pl.Utf8)),
                 iv_start=PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT").cast(pl.Utf8)),
             )
-            # only valid TR rows for oral/IV
             .with_columns(
                 oral_stop_valid=pl.when(pl.col("valid")).then(pl.col("oral_stop")).otherwise(None),
                 iv_start_valid=pl.when(pl.col("valid")).then(pl.col("iv_start")).otherwise(None),
             )
             .group_by("SubjectId")
             .agg(
+                # last non-null reason per patient
+                reason=pl.col("row_reason").drop_nulls().last(),
                 last_eot=pl.col("eot_date").max(),
                 last_oral=pl.col("oral_stop_valid").max(),
                 last_iv=pl.col("iv_start_valid").max(),
             )
             .with_columns(
-                # precedence: EOT > oral > IV
-                pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]).alias(colname),
-                treatment_end_source=(
-                    pl.when(pl.col("last_eot").is_not_null())
-                    .then(pl.lit("EOT"))
-                    .when(pl.col("last_oral").is_not_null())
-                    .then(pl.lit("ORAL_STOP"))
-                    .when(pl.col("last_iv").is_not_null())
-                    .then(pl.lit("IV_START"))
-                    .otherwise(pl.lit(None))
-                ),
+                pl.coalesce([pl.col("last_eot"), pl.col("last_oral"), pl.col("last_iv")]).alias(cols.DATE),
+                pl.when(pl.col("reason").is_null())
+                .then(pl.lit(None, dtype=pl.Utf8))
+                .when(pl.col("reason").str.to_lowercase() == completion_text)
+                .then(pl.lit(TrialOutcomeStatus.COMPLETED.value))
+                .otherwise(pl.lit(TrialOutcomeStatus.WITHDRAWN.value))
+                .alias(cols.STATUS),
             )
+            .rename({"reason": cols.REASON})
+            # skip patients with no EOT info: neither reason nor any date
+            .filter(pl.col(cols.REASON).is_not_null() | pl.col(cols.DATE).is_not_null())
+            .select("SubjectId", cols.STATUS, cols.REASON, cols.DATE)
         )
 
-        return treatment_stop_data
+        return eot
 
     @scalar()
     def _process_treatment_start_last_cycle(self) -> pl.DataFrame | None:
@@ -454,13 +511,14 @@ class ImpressHarmonizer(BaseHarmonizer):
                     pl.col(cols.OTHER_TUMOR_TYPE).is_not_null(),
                 ),
             )
-            # detect complete pairs per slot and collisions across slots
+            # a slot is "used" if it has a tumor-type text (COHTTYPE),
+            # the code (COHTTYPECD) is supplementary and may be null.
             .with_columns(
-                t1_has=(pl.col("t1").is_not_null() & pl.col("t1cd").is_not_null()).cast(pl.Int8),
-                t2_has=(pl.col("t2").is_not_null() & pl.col("t2cd").is_not_null()).cast(pl.Int8),
+                t1_has=pl.col("t1").is_not_null().cast(pl.Int8),
+                t2_has=pl.col("t2").is_not_null().cast(pl.Int8),
             )
             .with_columns(collisions=(pl.sum_horizontal(["t1_has", "t2_has"]) > 1))
-            # pick first complete slot if no collision
+            # pick the first used slot if no collision (two named slots = ambiguous)
             .with_columns(
                 m_type_raw=pl.coalesce(
                     [
@@ -582,31 +640,30 @@ class ImpressHarmonizer(BaseHarmonizer):
     @singleton(Biomarkers)
     def _process_biomarkers(self) -> pl.DataFrame:
         cols = Biomarkers.Fields
-        df = (
+        return (
             self.data.select(
                 "SubjectId",
                 PolarsParsers.to_optional_date(pl.col("COH_EventDate")).alias("event_date"),
-                PolarsParsers.to_optional_utf8(pl.col("COH_GENMUT1")).str.strip_chars().alias(cols.GENE_AND_MUTATION),
-                PolarsParsers.to_optional_int64(pl.col("COH_GENMUT1CD")).alias(cols.GENE_AND_MUTATION_CODE),
-                PolarsParsers.to_optional_utf8(pl.col("COH_COHCTN")).str.strip_chars().alias(cols.COHORT_TARGET_NAME),
-                PolarsParsers.to_optional_utf8(pl.col("COH_COHTMN")).str.strip_chars().alias(cols.COHORT_TARGET_MUTATION),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHCTN")).alias("_cohort_target_name"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_COHTMN")).alias("_cohort_target_mutation"),
+                PolarsParsers.to_optional_utf8(pl.col("COH_GENMUT1")).alias("_gene_and_mutation"),
             )
-            .filter(
-                pl.any_horizontal(
-                    pl.col(cols.GENE_AND_MUTATION).is_not_null(),
-                    pl.col(cols.GENE_AND_MUTATION_CODE).is_not_null(),
-                    pl.col(cols.COHORT_TARGET_NAME).is_not_null(),
-                    pl.col(cols.COHORT_TARGET_MUTATION).is_not_null(),
-                ),
-            )
-            # latest event per SubjectId
+            # one record per patient: latest non-null value per source column
             .sort(["SubjectId", "event_date"])
-            .rename({"event_date": cols.DATE})
-            .unique(subset=["SubjectId"], keep="last")
-            .select("SubjectId", cols.GENE_AND_MUTATION, cols.GENE_AND_MUTATION_CODE, cols.COHORT_TARGET_NAME, cols.COHORT_TARGET_MUTATION, cols.DATE)
+            .group_by("SubjectId", maintain_order=True)
+            .agg(
+                pl.col("_cohort_target_name").drop_nulls().last(),
+                pl.col("_cohort_target_mutation").drop_nulls().last(),
+                pl.col("_gene_and_mutation").drop_nulls().last(),
+                pl.col("event_date").max().alias(cols.DATE),
+            )
+            # per-source preference: cohort target name, then mutation, then measured gene
+            .with_columns(
+                pl.coalesce("_cohort_target_name", "_cohort_target_mutation", "_gene_and_mutation").alias(cols.TARGET_BIOMARKER),
+            )
+            .filter(pl.col(cols.TARGET_BIOMARKER).is_not_null())
+            .select("SubjectId", cols.TARGET_BIOMARKER, cols.DATE)
         )
-
-        return df
 
     @singleton(FollowUp)
     def _process_lost_to_followup(self) -> pl.DataFrame:
@@ -631,125 +688,68 @@ class ImpressHarmonizer(BaseHarmonizer):
     @singleton(EcogBaseline)
     def _process_ecog_baseline(self) -> pl.DataFrame:
         """
-        Parses dates with defaults, strips description data, casts to correct types.
-        Only select one baseline ECOG event per patient, using latest available date.
+        Latest baseline (V00) ECOG per patient. filter(EventId == "V00") is
+        input-selection (which rows are baseline ECOG), record validity (grade) is
+        enforced centrally in _validate_spec.
         """
         cols = EcogBaseline.Fields
-
-        ecog_base = self.data.select("SubjectId", "ECOG_EventId", "ECOG_ECOGS", "ECOG_ECOGSCD", "ECOG_ECOGDAT").filter(
-            pl.col("ECOG_EventId") == "V00",
-        )
-
-        def parse_ecog_data(ecog_data: pl.DataFrame) -> pl.DataFrame:
-            filtered_ecog_data = ecog_data.with_columns(
+        return (
+            self.data.filter(pl.col("ECOG_EventId") == "V00")
+            .select(
+                "SubjectId",
                 PolarsParsers.to_optional_date(pl.col("ECOG_ECOGDAT")).alias(cols.DATE),
-                PolarsParsers.to_optional_int64(pl.col("ECOG_ECOGSCD")).alias(cols.GRADE),
                 PolarsParsers.to_optional_utf8(pl.col("ECOG_ECOGS")).str.strip_chars().alias(cols.DESCRIPTION),
-            ).select("SubjectId", cols.DATE, cols.DESCRIPTION, cols.GRADE)
-            return filtered_ecog_data
+                PolarsParsers.to_optional_int64(pl.col("ECOG_ECOGSCD")).alias(cols.GRADE),
+            )
+            # latest baseline per patient
+            .sort(["SubjectId", cols.DATE])
+            .group_by("SubjectId")
+            .tail(1)
+        )
 
-        def select_latest_baseline(data: pl.DataFrame) -> pl.DataFrame:
-            _latest = data.sort(["SubjectId", cols.DATE]).group_by("SubjectId").tail(1)
-            return _latest
-
-        def filter_all_nulls(data: pl.DataFrame) -> pl.DataFrame:
-            return data.with_columns(has_ecog=pl.any_horizontal(pl.col([cols.DESCRIPTION]).is_not_null()).fill_null(False))
-
-        def merge_ecog(base: pl.DataFrame, processed: pl.DataFrame) -> pl.DataFrame:
-            return base.join(processed, on="SubjectId", how="left")
-
-        # process
-        parsed = parse_ecog_data(ecog_data=ecog_base)
-        latest = select_latest_baseline(parsed)
-        valid = filter_all_nulls(latest)
-        joined = merge_ecog(base=ecog_base, processed=valid)
-        labeled = filter_all_nulls(joined).select("SubjectId", cols.DATE, cols.DESCRIPTION, cols.GRADE)
-
-        return labeled
-
-    @collection(MedicalHistory, order_by=("start_date",), require_order_by=True)
+    @collection(
+        MedicalHistory,
+        order_by=("start_date",),
+        require_order_by=True,
+    )
     def _process_medical_histories(self) -> pl.DataFrame | None:
+        # filter(term) is input-selection (which wide-format rows are MH records),
+        # not a validity drop: record validity is enforced centrally in _validate_spec.
         cols = MedicalHistory.Fields
-        mh_base = self.data.select(
+        return self.data.select(
             "SubjectId",
-            "MH_MHSPID",
-            "MH_MHTERM",
-            "MH_MHSTDAT",
-            "MH_MHENDAT",
-            "MH_MHONGO",
-            "MH_MHONGOCD",
-        )
+            PolarsParsers.to_optional_utf8(pl.col("MH_MHTERM")).str.strip_chars().alias(cols.TERM),
+            PolarsParsers.to_optional_int64(pl.col("MH_MHSPID")).alias(cols.SEQUENCE_ID),
+            PolarsParsers.to_optional_date(pl.col("MH_MHSTDAT")).alias(cols.START_DATE),
+            PolarsParsers.to_optional_date(pl.col("MH_MHENDAT")).alias(cols.END_DATE),
+            PolarsParsers.to_optional_utf8(pl.col("MH_MHONGO")).str.strip_chars().alias(cols.STATUS),
+            PolarsParsers.to_optional_int64(pl.col("MH_MHONGOCD")).alias(cols.STATUS_CODE),
+        ).filter(pl.col(cols.TERM).is_not_null())
 
-        def filter_medical_histories(data: pl.DataFrame) -> pl.DataFrame:
-            filtered_data = data.with_columns(
-                PolarsParsers.to_optional_utf8(pl.col("MH_MHTERM")).str.strip_chars().alias(cols.TERM),
-                PolarsParsers.to_optional_int64(pl.col("MH_MHSPID")).alias(cols.SEQUENCE_ID),
-                PolarsParsers.to_optional_date(pl.col("MH_MHSTDAT")).alias(cols.START_DATE),
-                PolarsParsers.to_optional_date(pl.col("MH_MHENDAT")).alias(cols.END_DATE),
-                PolarsParsers.to_optional_utf8(pl.col("MH_MHONGO")).str.strip_chars().alias(cols.STATUS),
-                PolarsParsers.to_optional_int64(pl.col("MH_MHONGOCD")).alias(cols.STATUS_CODE),
-            ).filter(pl.col(cols.TERM).is_not_null())
-
-            return filtered_data
-
-        def merge_medical_history(base: pl.DataFrame, processed: pl.DataFrame) -> pl.DataFrame:
-            subjects = base.select("SubjectId").unique()
-            _merged = subjects.join(processed, on="SubjectId", how="left").filter(
-                pl.any_horizontal(
-                    pl.col([cols.TERM, cols.SEQUENCE_ID, cols.START_DATE, cols.END_DATE, cols.STATUS, cols.STATUS_CODE]).is_not_null(),
-                ),
-            )
-            return _merged
-
-        filtered = filter_medical_histories(mh_base)
-        merged = merge_medical_history(base=mh_base, processed=filtered).select(
-            "SubjectId", cols.TERM, cols.SEQUENCE_ID, cols.START_DATE, cols.END_DATE, cols.STATUS, cols.STATUS_CODE
-        )
-
-        return merged
-
-    @collection(PreviousTreatment, order_by=("start_date",), require_order_by=True)
+    @collection(
+        PreviousTreatment,
+        order_by=("start_date",),
+        require_order_by=True,
+    )
     def _process_previous_treatments(self) -> pl.DataFrame | None:
+        # filter(treatment) is input-selection (which wide-format rows are CT records),
+        # not a validity drop: record validity is enforced centrally in _validate_spec.
         cols = PreviousTreatment.Fields
-        ct_base = self.data.select(
+        return self.data.select(
             "SubjectId",
-            "CT_CTTYPE",
-            "CT_CTTYPECD",
-            "CT_CTSPID",
-            "CT_CTSTDAT",
-            "CT_CTENDAT",
-            "CT_CTTYPESP",
-        )
+            PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPE")).str.strip_chars().alias(cols.TREATMENT),
+            PolarsParsers.to_optional_int64(pl.col("CT_CTTYPECD")).alias(cols.TREATMENT_CODE),
+            PolarsParsers.to_optional_int64(pl.col("CT_CTSPID")).alias(cols.SEQUENCE_ID),
+            PolarsParsers.to_optional_date(pl.col("CT_CTSTDAT")).alias(cols.START_DATE),
+            PolarsParsers.to_optional_date(pl.col("CT_CTENDAT")).alias(cols.END_DATE),
+            PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPESP")).str.strip_chars().alias(cols.ADDITIONAL_TREATMENT),
+        ).filter(pl.col(cols.TREATMENT).is_not_null())
 
-        def filter_previous_treatments(data: pl.DataFrame) -> pl.DataFrame:
-            filtered_data = data.with_columns(
-                PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPE")).str.strip_chars().alias(cols.TREATMENT),
-                PolarsParsers.to_optional_int64(pl.col("CT_CTTYPECD")).alias(cols.TREATMENT_CODE),
-                PolarsParsers.to_optional_int64(pl.col("CT_CTSPID")).alias(cols.TREATMENT_SEQUENCE_NUMBER),
-                PolarsParsers.to_optional_date(pl.col("CT_CTSTDAT")).alias(cols.START_DATE),
-                PolarsParsers.to_optional_date(pl.col("CT_CTENDAT")).alias(cols.END_DATE),
-                PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPESP")).str.strip_chars().alias(cols.ADDITIONAL_TREATMENT),
-            ).filter(pl.col(cols.TREATMENT).is_not_null())
-            return filtered_data
-
-        def merge_previous_treatments(base: pl.DataFrame, processed: pl.DataFrame) -> pl.DataFrame:
-            subjects = base.select("SubjectId").unique()
-            _merged = subjects.join(processed, on="SubjectId", how="left").filter(
-                pl.any_horizontal(
-                    pl.col(
-                        [cols.TREATMENT, cols.TREATMENT_CODE, cols.TREATMENT_SEQUENCE_NUMBER, cols.START_DATE, cols.END_DATE, cols.ADDITIONAL_TREATMENT]
-                    ).is_not_null(),
-                ),
-            )
-            return _merged
-
-        filtered = filter_previous_treatments(ct_base)
-        merged = merge_previous_treatments(base=ct_base, processed=filtered).select(
-            "SubjectId", cols.TREATMENT, cols.TREATMENT_CODE, cols.TREATMENT_SEQUENCE_NUMBER, cols.START_DATE, cols.END_DATE, cols.ADDITIONAL_TREATMENT
-        )
-        return merged
-
-    @collection(TreatmentCycleComponent, order_by=("start_date",), require_order_by=True)
+    @collection(
+        TreatmentCycleComponent,
+        order_by=("start_date",),
+        require_order_by=True,
+    )
     def _process_treatment_cycle(self) -> pl.DataFrame | None:
         cols = TreatmentCycleComponent.Fields
         treatment_cycle_cols = [
@@ -786,8 +786,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             If any bytes in any oral-only cols, set to `oral`, if any in iv-only cols, set to `iv` else `None`.
             """
 
-            oral_only_cols = ["TR_TRO_YN", "TR_TRODSTOT", "TR_TRO_STDT", "TR_TROSTPDT"]
-            iv_only_cols = ["TR_TRIVDS1", "TR_TRIVU1", "TR_TRIVDELYN1"]
+            oral_only_cols = {"TR_TRO_YN", "TR_TRODSTOT", "TR_TRO_STDT", "TR_TROSTPDT"}
+            iv_only_cols = {"TR_TRIVDS1", "TR_TRIVU1", "TR_TRIVDELYN1"}
 
             oral_cols = [c for c in oral_only_cols if c in frame.columns]
             iv_cols = [c for c in iv_only_cols if c in frame.columns]
@@ -850,7 +850,7 @@ class ImpressHarmonizer(BaseHarmonizer):
         def filter_parse_treatment_cycles(frame: pl.DataFrame) -> pl.DataFrame:
             filtered_data = frame.with_columns(
                 PolarsParsers.to_optional_date(pl.col("TR_TRC1_DT")).alias(cols.START_DATE),
-                PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRCYNCD")).alias(cols.RECIEVED_TREATMENT_THIS_CYCLE),
+                PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRCYNCD")).alias(cols.RECEIVED_TREATMENT_THIS_CYCLE),
                 PolarsParsers.to_optional_bool(pl.col("TR_TRIVDELYN1")).alias(cols.WAS_TOTAL_DOSE_DELIVERED),
                 PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TRO_YNCD")).alias(cols.WAS_DOSE_ADMINISTERED_TO_SPEC),
                 PolarsParsers.int_to_bool(true_int=1, false_int=0, x=pl.col("TR_TROTAKECD")).alias(cols.WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE),
@@ -958,7 +958,7 @@ class ImpressHarmonizer(BaseHarmonizer):
             cols.CYCLE_NUMBER,
             cols.START_DATE,
             cols.END_DATE,
-            cols.RECIEVED_TREATMENT_THIS_CYCLE,
+            cols.RECEIVED_TREATMENT_THIS_CYCLE,
             cols.WAS_TOTAL_DOSE_DELIVERED,
             cols.IV_DOSE_PRESCRIBED,
             cols.IV_DOSE_PRESCRIBED_UNIT,
@@ -971,7 +971,11 @@ class ImpressHarmonizer(BaseHarmonizer):
             cols.WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE,
         )
 
-    @collection(ConcomitantMedication, order_by=("sequence_id", "start_date"), require_order_by=True)
+    @collection(
+        ConcomitantMedication,
+        order_by=("sequence_id", "start_date"),
+        require_order_by=True,
+    )
     def _process_concomitant_medication(self) -> pl.DataFrame | None:
         cols = ConcomitantMedication.Fields
         cm_base = self.data.select(
@@ -1139,7 +1143,8 @@ class ImpressHarmonizer(BaseHarmonizer):
         return None if coerced.is_empty() else coerced
 
     def _subject_baseline_target_lesion_size(self) -> pl.DataFrame:
-        """Per-subject baseline target lesion size in mm.
+        """
+        Per-subject baseline target lesion size in mm.
 
         Earliest non-null baseline size across RNRSP_TERNTBAS / RA_RARECBAS per subject,
         tie-broken by EventDate. Returns (SubjectId, baseline_size: Int64).
@@ -1166,170 +1171,183 @@ class ImpressHarmonizer(BaseHarmonizer):
             .select("SubjectId", pl.col("_size").alias("baseline_size"))
         )
 
-    @singleton(TumorAssessmentBaseline)
-    def _process_baseline_tumor_assessment(self) -> pl.DataFrame | None:
+    @staticmethod
+    def _normalize_assessment_scale(col: pl.Expr) -> pl.Expr:
         """
-        Get target lesion size at baseline, and off-target lesions.
+        Normalize a free-text assessment-scale string (VI VITUMA, e.g. "Recist 1.1")
+        to the vocabulary the collection derives: "irecist" / "recist" / "rano".
 
-        Assumes tumor assessments are always mutally exclusive, if not, this doesn't work and needs refactoring.
-
-        Also, for the non-target lesions from RCNT each NTL is associated with a distinct date, whereas in RNTMNT NTLs
-        this is not the case. We just want to track the number of NTLs at baseline, so for now using EventDate for
-        both RNTMNT and RCNT, but this is always with a 2-5 week delay after the assessment date for each respective NTL (for some reason).
-        In RNTMNT this is not the case, each NTL at baseline has an assessment date.
-        Could coalesce and take first RCNT data across all lesions in the future if more detailed dates are needed?
-
-        For the target lesions there are no separate entries for baseline evals, the earliest assessment with valid date + baseline size
-        is selected.
+        iRECIST is checked before RECIST since "irecist" contains the "recist"
+        substring (mirrors the precedence in _process_tumor_assessments).
         """
-        cols = TumorAssessmentBaseline.Fields
+        norm = col.cast(pl.Utf8, strict=False).str.strip_chars().str.to_lowercase()
+        return (
+            pl.when(norm.str.contains("irecist"))
+            .then(pl.lit("irecist"))
+            .when(norm.str.contains("rano"))
+            .then(pl.lit("rano"))
+            .when(norm.str.contains("recist"))
+            .then(pl.lit("recist"))
+            .otherwise(None)
+        )
+
+    def _baseline_tumor_assessment_rows(self) -> pl.DataFrame:
+        """
+        Build the per-subject baseline assessment row (one per subject).
+
+        The baseline is a distinct clinical encounter that lives only in the VI
+        sheet: the row carrying the assessment scale in VITUMA*. It is selected
+        by content (VITUMA* is populated), not by event id — the scale sits on
+        "V00" in some subjects and on "V00VI" in others (a separate VI row that
+        shares the baseline date), so a literal EventId == "V00" match drops it.
+        Dated at that VI row's visit date. The baseline target size is back-
+        referenced from the follow-up sheets' *BAS columns via the shared
+        _subject_baseline_target_lesion_size helper (so baseline and follow-up
+        absolute sizes stay in sync). off-target counts come from the
+        RCNT/RNTMNT V00 rows, which keep their own measurement dates.
+
+        Returns a frame with the full TumorAssessment column set so it can be
+        concatenated with the follow-up rows. Baseline-only fields are populated
+        here, per-assessment fields (responses, progression dates, change-from-
+        nadir, new-lesions flag) are null.
+        """
+        cols = TumorAssessment.Fields
 
         base = self.data.select(
-            [
-                "SubjectId",
-                # tumor assessment type
-                "VI_VITUMA",
-                "VI_VITUMA__2",
-                "VI_EventDate",
-                "VI_EventId",
-                # baseline off-target lesions
-                "RCNT_RCNTNOB",
-                "RCNT_EventDate",
-                "RCNT_EventId",
-                "RNTMNT_RNTMNTNOB",
-                "RNTMNT_RNTMNTNO",
-                "RNTMNT_EventId",
-                "RNTMNT_EventDate",
-                # baseline target lesion size
-                "RNRSP_TERNTBAS",
-                "RNRSP_TERNAD",
-                "RNRSP_EventDate",
-                "RNRSP_EventId",
-                "RA_RARECBAS",
-                "RA_RARECNAD",
-                "RA_EventDate",
-                "RA_EventId",
-            ],
+            "SubjectId",
+            "VI_VITUMA",
+            "VI_VITUMA__2",
+            "VI_EventDate",
+            "VI_EventId",
+            "RCNT_RCNTNOB",
+            "RCNT_EventDate",
+            "RCNT_EventId",
+            "RNTMNT_RNTMNTNOB",
+            "RNTMNT_RNTMNTNO",
+            "RNTMNT_EventId",
+            "RNTMNT_EventDate",
         )
 
-        def tumor_assessment(df: pl.DataFrame) -> pl.DataFrame:
-            return (
-                df.with_columns(
-                    vi_value=pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]),
-                    vi_date=PolarsParsers.to_optional_date(pl.col("VI_EventDate")),
-                )
-                .with_columns(vi_ok=(pl.col("VI_EventId").eq("V00") & pl.col("vi_value").is_not_null()))
-                .filter(pl.col("vi_ok"))
-                .sort(["SubjectId"])
-                .unique("SubjectId", keep="first")
-                .select(
-                    "SubjectId",
-                    pl.col("vi_value").alias(cols.ASSESSMENT_TYPE),
-                    pl.col("vi_date").alias(cols.ASSESSMENT_DATE),
-                )
+        # the VITUMA-bearing VI row defines the baseline: assessment scale and
+        # visit date. Selected by content (VITUMA populated), regardless of
+        # whether its event id is "V00" or "V00VI".
+        vi = (
+            base.with_columns(
+                vi_value=pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]),
+                vi_date=PolarsParsers.to_optional_date(pl.col("VI_EventDate")),
             )
-
-        # earliest V00 RCNT & RNTMNT row with value and date
-        def off_target_lesions_baseline(df: pl.DataFrame) -> pl.DataFrame:
-            return (
-                df.with_columns(
-                    rnt_ok=pl.col("RNTMNT_EventId") == "V00",
-                    rcnt_ok=pl.col("RCNT_EventId") == "V00",
-                )
-                .with_columns(
-                    rnt_num=pl.when(pl.col("rnt_ok"))
-                    .then(pl.coalesce([pl.col("RNTMNT_RNTMNTNOB"), pl.col("RNTMNT_RNTMNTNO")]).cast(pl.Int64, strict=False))
-                    .otherwise(None),
-                    rnt_date=pl.when(pl.col("rnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RNTMNT_EventDate"))).otherwise(None),
-                    rcnt_num=pl.when(pl.col("rcnt_ok")).then(pl.col("RCNT_RCNTNOB").cast(pl.Int64, strict=False)).otherwise(None),
-                    rcnt_date=pl.when(pl.col("rcnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RCNT_EventDate"))).otherwise(None),
-                )
-                .with_columns(
-                    num_candidate=pl.coalesce([pl.col("rcnt_num"), pl.col("rnt_num")]),
-                    date_candidate=pl.coalesce([pl.col("rcnt_date"), pl.col("rnt_date")]),
-                )
-                .filter(pl.col("num_candidate").is_not_null())
-                .sort(["SubjectId"])
-                .unique("SubjectId", keep="first")
-                .select(
-                    "SubjectId",
-                    pl.col("num_candidate").alias(cols.OFF_TARGET_LESIONS_NUMBER),
-                    pl.col("date_candidate").alias(cols.OFF_TARGET_LESION_MEASUREMENT_DATE),
-                )
-            )
-
-        # earliest row with value and date across RNRSP & RA; size sourced from shared helper
-        # so _process_tumor_assessments sees the exact same per-subject baseline value.
-        def target_lesions_baseline(df: pl.DataFrame) -> pl.DataFrame:
-            nadir_and_date = (
-                df.with_columns(
-                    rnrsp_size=PolarsParsers.to_optional_int64(pl.col("RNRSP_TERNTBAS")),
-                    rnrsp_nadir=PolarsParsers.to_optional_int64(pl.col("RNRSP_TERNAD")),
-                    ra_size=PolarsParsers.to_optional_int64(pl.col("RA_RARECBAS")),
-                    ra_nadir=PolarsParsers.to_optional_int64(pl.col("RA_RARECNAD")),
-                    rnrsp_date=PolarsParsers.to_optional_date(pl.col("RNRSP_EventDate")),
-                    ra_date=PolarsParsers.to_optional_date(pl.col("RA_EventDate")),
-                )
-                .with_columns(
-                    size_candidate=pl.coalesce([pl.col("rnrsp_size"), pl.col("ra_size")]),
-                    nadir_candidate=pl.coalesce([pl.col("rnrsp_nadir"), pl.col("ra_nadir")]),
-                    date_candidate=pl.coalesce([pl.col("rnrsp_date"), pl.col("ra_date")]),
-                )
-                .filter(pl.col("size_candidate").is_not_null())
-                .sort(["SubjectId", "date_candidate"])
-                .unique("SubjectId", keep="first")
-                .select(
-                    "SubjectId",
-                    pl.col("date_candidate").alias(cols.TARGET_LESION_MEASUREMENT_DATE),
-                    pl.col("nadir_candidate").alias(cols.TARGET_LESION_NADIR),
-                )
-            )
-            size = self._subject_baseline_target_lesion_size().rename({"baseline_size": cols.TARGET_LESION_SIZE})
-            return size.join(nadir_and_date, on="SubjectId", how="inner")
-
-        ta = tumor_assessment(base)
-        ntl = off_target_lesions_baseline(base)
-        tl = target_lesions_baseline(base)
-
-        # filter out rows with only None
-        subjects_with_any = pl.concat(
-            [
-                ta.select("SubjectId"),
-                ntl.select("SubjectId"),
-                tl.select("SubjectId"),
-            ],
-        ).unique()
-
-        # anchor join on subjects
-        joined = (
-            subjects_with_any.join(ta, on="SubjectId", how="left")
-            .join(
-                ntl,
-                on="SubjectId",
-                how="left",
-            )
-            .join(
-                tl,
-                on="SubjectId",
-                how="left",
-            )
+            .with_columns(vi_ok=pl.col("vi_value").is_not_null())
+            .filter(pl.col("vi_ok") & pl.col("vi_date").is_not_null())
+            .sort(["SubjectId", "vi_date"])
+            .unique("SubjectId", keep="first")
             .select(
                 "SubjectId",
-                cols.ASSESSMENT_TYPE,
-                cols.ASSESSMENT_DATE,
-                cols.TARGET_LESION_SIZE,
-                cols.TARGET_LESION_NADIR,
-                cols.TARGET_LESION_MEASUREMENT_DATE,
-                cols.OFF_TARGET_LESIONS_NUMBER,
-                cols.OFF_TARGET_LESION_MEASUREMENT_DATE,
+                self._normalize_assessment_scale(pl.col("vi_value")).alias(cols.ASSESSMENT_TYPE),
+                pl.col("vi_date").alias(cols.DATE),
             )
         )
 
-        return joined
+        # off-target lesion count at baseline (earliest V00 RCNT/RNTMNT row)
+        off_target = (
+            base.with_columns(
+                rnt_ok=pl.col("RNTMNT_EventId") == "V00",
+                rcnt_ok=pl.col("RCNT_EventId") == "V00",
+            )
+            .with_columns(
+                rnt_num=pl.when(pl.col("rnt_ok"))
+                .then(pl.coalesce([pl.col("RNTMNT_RNTMNTNOB"), pl.col("RNTMNT_RNTMNTNO")]).cast(pl.Int64, strict=False))
+                .otherwise(None),
+                rnt_date=pl.when(pl.col("rnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RNTMNT_EventDate"))).otherwise(None),
+                rcnt_num=pl.when(pl.col("rcnt_ok")).then(pl.col("RCNT_RCNTNOB").cast(pl.Int64, strict=False)).otherwise(None),
+                rcnt_date=pl.when(pl.col("rcnt_ok")).then(PolarsParsers.to_optional_date(pl.col("RCNT_EventDate"))).otherwise(None),
+            )
+            .with_columns(
+                num_candidate=pl.coalesce([pl.col("rcnt_num"), pl.col("rnt_num")]),
+                date_candidate=pl.coalesce([pl.col("rcnt_date"), pl.col("rnt_date")]),
+            )
+            .filter(pl.col("num_candidate").is_not_null())
+            .sort(["SubjectId"])
+            .unique("SubjectId", keep="first")
+            .select(
+                "SubjectId",
+                pl.col("num_candidate").cast(pl.Int64, strict=False).alias(cols.BASELINE_OFF_TARGET_LESIONS_NUMBER),
+                pl.col("date_candidate").alias(cols.BASELINE_OFF_TARGET_LESION_MEASUREMENT_DATE),
+            )
+        )
 
-    @collection(TumorAssessment, order_by=("date",), require_order_by=True)
+        # SubjectId, baseline_size:
+        size = self._subject_baseline_target_lesion_size()
+
+        return (
+            vi.join(off_target, on="SubjectId", how="left")
+            .join(size, on="SubjectId", how="left")
+            .with_columns(
+                pl.col("baseline_size").cast(pl.Float64, strict=False).alias(cols.TARGET_LESION_SIZE),
+                pl.lit(0.0).alias(cols.TARGET_LESION_CHANGE_FROM_BASELINE),
+                pl.lit(None, dtype=pl.Float64).alias(cols.TARGET_LESION_CHANGE_FROM_NADIR),
+                pl.lit(None, dtype=pl.Boolean).alias(cols.WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE),
+                pl.lit(None, dtype=pl.Utf8).alias(cols.RECIST_RESPONSE),
+                pl.lit(None, dtype=pl.Utf8).alias(cols.IRECIST_RESPONSE),
+                pl.lit(None, dtype=pl.Utf8).alias(cols.RANO_RESPONSE),
+                pl.lit(None, dtype=pl.Date).alias(cols.RECIST_DATE_OF_PROGRESSION),
+                pl.lit(None, dtype=pl.Date).alias(cols.IRECIST_DATE_OF_PROGRESSION),
+                pl.lit("V00").alias(cols.EVENT_ID),
+                pl.lit(True).alias(cols.WAS_BASELINE),
+            )
+        )
+
+    def _assert_single_assessment_scale(self) -> None:
+        """
+        Trust-boundary guard: each subject must be on a single assessment scale.
+
+        Absolute target-lesion size is a per-subject baseline (coalesced across the
+        RA and RNRSP sheets in _subject_baseline_target_lesion_size) scaled by each
+        row's change-from-baseline. One scale per patient (the VI_VITUMA* cols),
+        so if a subject had assessments on more than one scale, that single baseline would be applied
+        across scales, cross-contaminating absolute lesion sizes and the derived
+        response endpoints. Raise rather than emit silently wrong measurements.
+        """
+        ra_cols = [
+            "RA_RAASSESS1",
+            "RA_RAASSESS2",
+            "RA_RABASECH",
+            "RA_RARECCH",
+            "RA_RANLBASECD",
+            "RA_RATIMRES",
+            "RA_RAiMOD",
+            "RA_RAPROGDT",
+            "RA_RAiUNPDT",
+            "RA_RARECBAS",
+        ]
+        rnrsp_cols = ["RNRSP_TERNCFB", "RNRSP_TERNCFN", "RNRSP_RNRSPNLCD", "RNRSP_RNRSPCL", "RNRSP_TERNTBAS"]
+
+        def has_signal(columns: list[str]) -> pl.Expr:
+            # null, empty, and whitespace-only cells are "no signal"
+            return pl.any_horizontal([pl.col(c).cast(pl.Utf8, strict=False).str.strip_chars().fill_null("") != "" for c in columns])
+
+        mixed = (
+            self.data.group_by("SubjectId")
+            .agg(_ra=has_signal(ra_cols).any(), _rnrsp=has_signal(rnrsp_cols).any())
+            .filter(pl.col("_ra") & pl.col("_rnrsp"))
+            .get_column("SubjectId")
+            .to_list()
+        )
+        if mixed:
+            raise ValueError(
+                f"Tumor assessments on multiple scales for subject(s) {sorted(mixed)}: "
+                f"RA (RECIST/iRECIST) and RNRSP (RANO) both present. "
+                f"Mixed scales cross-contaminate absolute lesion sizes and "
+                f"response endpoints. Resolve upstream before harmonizing."
+            )
+
+    @collection(
+        TumorAssessment,
+        order_by=("date",),
+        require_order_by=True,
+    )
     def _process_tumor_assessments(self) -> pl.DataFrame | None:
         cols = TumorAssessment.Fields
+        self._assert_single_assessment_scale()
         base = self.data.select(
             "SubjectId",
             "RA_RAASSESS1",
@@ -1430,29 +1448,83 @@ class ImpressHarmonizer(BaseHarmonizer):
                     ),
                 )
                 .filter(pl.col("has_any"))
-                .select(
-                    "SubjectId",
-                    cols.ASSESSMENT_TYPE,
-                    cols.TARGET_LESION_SIZE,
-                    cols.TARGET_LESION_CHANGE_FROM_BASELINE,
-                    cols.TARGET_LESION_CHANGE_FROM_NADIR,
-                    cols.WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE,
-                    cols.DATE,
-                    cols.RECIST_RESPONSE,
-                    cols.IRECIST_RESPONSE,
-                    cols.RANO_RESPONSE,
-                    cols.RECIST_DATE_OF_PROGRESSION,
-                    cols.IRECIST_DATE_OF_PROGRESSION,
-                    cols.EVENT_ID,
+                # baseline-only fields are null on follow-up rows, was_baseline marks
+                # the V00 row that _baseline_tumor_assessment_rows contributes
+                .with_columns(
+                    pl.lit(False).alias(cols.WAS_BASELINE),
+                    pl.lit(None, dtype=pl.Int64).alias(cols.BASELINE_OFF_TARGET_LESIONS_NUMBER),
+                    pl.lit(None, dtype=pl.Date).alias(cols.BASELINE_OFF_TARGET_LESION_MEASUREMENT_DATE),
                 )
+                .select(unified_columns)
             )
 
             return _processed
 
-        return process(base)
+        unified_columns = [
+            "SubjectId",
+            cols.ASSESSMENT_TYPE,
+            cols.TARGET_LESION_SIZE,
+            cols.TARGET_LESION_CHANGE_FROM_BASELINE,
+            cols.TARGET_LESION_CHANGE_FROM_NADIR,
+            cols.WAS_NEW_LESIONS_REGISTERED_AFTER_BASELINE,
+            cols.DATE,
+            cols.RECIST_RESPONSE,
+            cols.IRECIST_RESPONSE,
+            cols.RANO_RESPONSE,
+            cols.RECIST_DATE_OF_PROGRESSION,
+            cols.IRECIST_DATE_OF_PROGRESSION,
+            cols.EVENT_ID,
+            cols.WAS_BASELINE,
+            cols.BASELINE_OFF_TARGET_LESIONS_NUMBER,
+            cols.BASELINE_OFF_TARGET_LESION_MEASUREMENT_DATE,
+        ]
+
+        follow_up = process(base).select(unified_columns)
+        baseline = self._baseline_tumor_assessment_rows().select(unified_columns)
+        return pl.concat([follow_up, baseline], how="vertical_relaxed")
+
+    @collection(
+        Visit,
+        order_by=("date",),
+        require_order_by=True,
+    )
+    def _process_visits(self) -> pl.DataFrame | None:
+        """
+        Build the patient's visit timeline from the VI sheet (every visit).
+
+        One Visit per calendar date (NK = (date,)). When the VI sheet records
+        multiple rows on the same date for a subject e.g. an empty "V00"
+        scheduling shell plus the informative "V00VI" row carrying the
+        assessment scale in VITUMA*, they are the same physical encounter under
+        two eCRF event codes and collapse to one Visit.
+
+        Precedence rule: the representative row for a date is the one carrying a VITUMA* value,
+        empty V00 rows collapses into it. Residual same-date rows with no VITUMA* are broken
+        by event id for determinism. Collapsing here (not via dedup keep-last)
+        avoids same-NK conflict warning per subject.
+        """
+        cols = Visit.Fields
+        return (
+            self.data.select("SubjectId", "VI_EventId", "VI_EventDate", "VI_VITUMA", "VI_VITUMA__2")
+            .with_columns(
+                PolarsParsers.to_optional_date(pl.col("VI_EventDate")).alias(cols.DATE),
+                PolarsParsers.to_optional_utf8(pl.col("VI_EventId")).str.strip_chars().alias(cols.EVENT_ID),
+                pl.coalesce([pl.col("VI_VITUMA"), pl.col("VI_VITUMA__2")]).is_not_null().alias("_has_vituma"),
+            )
+            .filter(pl.col(cols.DATE).is_not_null())
+            # representative row per (subject, date): VITUMA-bearing wins, then
+            # event id for determinism.
+            .sort(["SubjectId", cols.DATE, "_has_vituma", cols.EVENT_ID], descending=[False, False, True, False])
+            .unique(subset=["SubjectId", cols.DATE], keep="first", maintain_order=True)
+            .select("SubjectId", cols.DATE, cols.EVENT_ID)
+        )
 
     # TODO: refactor to not use regex later
-    @collection(C30, order_by=("date",), require_order_by=True)
+    @collection(
+        C30,
+        order_by=("date",),
+        require_order_by=True,
+    )
     def _process_c30(self) -> pl.DataFrame | None:
         cols = C30.Fields
         question_text_re = re.compile(r"^(?:C30_)?C30_?Q([1-9]|[12]\d|30)$")
@@ -1501,7 +1573,11 @@ class ImpressHarmonizer(BaseHarmonizer):
         return processed
 
     # TODO: refactor to not use regex later
-    @collection(EQ5D, order_by=("date",), require_order_by=True)
+    @collection(
+        EQ5D,
+        order_by=("date",),
+        require_order_by=True,
+    )
     def _process_eq5d(self) -> pl.DataFrame | None:
         cols = EQ5D.Fields
         question_col_re = re.compile(r"^EQ5D_EQ5D([1-5])$")
@@ -1633,6 +1709,8 @@ class ImpressHarmonizer(BaseHarmonizer):
                     pl.coalesce("recist_code", "RNRSP_RNRSPCLCD").cast(pl.Int64, strict=False).alias(cols.CODE),
                     PolarsParsers.to_optional_date(pl.coalesce("RA_EventDate", "RNRSP_EventDate")).alias(cols.DATE),
                 )
+                # ranking: "best" = lowest,
+                # only code-bearing rows are rankable
                 .filter(pl.col(cols.CODE).is_not_null())
                 .sort(["SubjectId", cols.CODE])
                 .group_by("SubjectId", maintain_order=True)

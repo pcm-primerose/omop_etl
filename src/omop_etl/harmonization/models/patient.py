@@ -11,8 +11,10 @@ from omop_etl.harmonization.models.domain.best_overall_response import BestOvera
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
 from omop_etl.harmonization.models.domain.c30 import C30
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
 from omop_etl.harmonization.models.domain.ecog_baseline import EcogBaseline
+from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment
 from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
@@ -20,8 +22,8 @@ from omop_etl.harmonization.models.domain.previous_treatments import PreviousTre
 from omop_etl.harmonization.models.domain.study_drugs import StudyDrugs
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
+from omop_etl.harmonization.models.domain.visit import Visit
 
 log = getLogger(__name__)
 T = TypeVar("T", bound=DomainBase)
@@ -35,7 +37,6 @@ class Patient(TrackedValidated):
     _attr_cache: ClassVar[dict[type, str]] = {}
 
     class Scalars:
-        COHORT_NAME = "cohort_name"
         AGE = "age"
         DATE_OF_BIRTH = "date_of_birth"
         SEX = "sex"
@@ -46,17 +47,16 @@ class Patient(TrackedValidated):
         HAS_ANY_ADVERSE_EVENTS = "has_any_adverse_events"
         NUMBER_OF_ADVERSE_EVENTS = "number_of_adverse_events"
         NUMBER_OF_SERIOUS_ADVERSE_EVENTS = "number_of_serious_adverse_events"
-        END_OF_TREATMENT_REASON = "end_of_treatment_reason"
-        END_OF_TREATMENT_DATE = "end_of_treatment_date"
 
     class Singletons:
+        COHORT = "cohort"
         TUMOR_TYPE = "tumor_type"
         STUDY_DRUGS = "study_drugs"
         BIOMARKERS = "biomarkers"
         CLINICAL_BENEFIT = "clinical_benefit"
+        END_OF_TREATMENT = "end_of_treatment"
         LOST_TO_FOLLOWUP = "lost_to_followup"
         ECOG_BASELINE = "ecog_baseline"
-        TUMOR_ASSESSMENT_BASELINE = "tumor_assessment_baseline"
         BEST_OVERALL_RESPONSE = "best_overall_response"
 
     class Collections:
@@ -66,6 +66,7 @@ class Patient(TrackedValidated):
         CONCOMITANT_MEDICATIONS = "concomitant_medications"
         ADVERSE_EVENTS = "adverse_events"
         TUMOR_ASSESSMENTS = "tumor_assessments"
+        VISITS = "visits"
         C30_COLLECTION = "c30_collection"
         EQ5D_COLLECTION = "eq5d_collection"
 
@@ -75,7 +76,6 @@ class Patient(TrackedValidated):
         # scalars
         self._patient_id = patient_id
         self._trial_id = trial_id
-        self._cohort_name: str | None = None
         self._age: int | None = None
         self._date_of_birth: dt.date | None = None
         self._sex: str | None = None
@@ -86,17 +86,16 @@ class Patient(TrackedValidated):
         self._has_any_adverse_events: bool | None = None
         self._number_of_adverse_events: int | None = None
         self._number_of_serious_adverse_events: int | None = None
-        self._end_of_treatment_reason: str | None = None
-        self._end_of_treatment_date: dt.date | None = None
 
         # singletons
+        self._cohort: Cohort | None = None
         self._tumor_type: TumorType | None = None
         self._study_drugs: StudyDrugs | None = None
         self._biomarkers: Biomarkers | None = None
         self._clinical_benefit: ClinicalBenefit | None = None
+        self._end_of_treatment: EndOfTreatment | None = None
         self._lost_to_followup: FollowUp | None = None
         self._ecog_baseline: EcogBaseline | None = None
-        self._tumor_assessment_baseline: TumorAssessmentBaseline | None = None
         self._best_overall_response: BestOverallResponse | None = None
 
         # collections
@@ -106,6 +105,7 @@ class Patient(TrackedValidated):
         self._concomitant_medications: tuple[ConcomitantMedication, ...] = ()
         self._adverse_events: tuple[AdverseEvent, ...] = ()
         self._tumor_assessments: tuple[TumorAssessment, ...] = ()
+        self._visits: tuple[Visit, ...] = ()
         self._c30_collection: tuple[C30, ...] = ()
         self._eq5d_collection: tuple[EQ5D, ...] = ()
 
@@ -130,18 +130,6 @@ class Patient(TrackedValidated):
     def trial_id(self, value: str | None) -> None:
         self._set_validated_prop(
             prop=self.__class__.trial_id,
-            value=value,
-            validator=StrictValidators.validate_optional_str,
-        )
-
-    @property
-    def cohort_name(self) -> str | None:
-        return self._cohort_name
-
-    @cohort_name.setter
-    def cohort_name(self, value: str | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.cohort_name,
             value=value,
             validator=StrictValidators.validate_optional_str,
         )
@@ -266,31 +254,21 @@ class Patient(TrackedValidated):
             validator=StrictValidators.validate_optional_int,
         )
 
-    @property
-    def end_of_treatment_reason(self) -> str | None:
-        return self._end_of_treatment_reason
-
-    @end_of_treatment_reason.setter
-    def end_of_treatment_reason(self, value: str | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.end_of_treatment_reason,
-            value=value,
-            validator=StrictValidators.validate_optional_str,
-        )
-
-    @property
-    def end_of_treatment_date(self) -> dt.date | None:
-        return self._end_of_treatment_date
-
-    @end_of_treatment_date.setter
-    def end_of_treatment_date(self, value: dt.date | None) -> None:
-        self._set_validated_prop(
-            prop=self.__class__.end_of_treatment_date,
-            value=value,
-            validator=StrictValidators.validate_optional_date,
-        )
-
     # singletons
+    @property
+    def cohort(self) -> Cohort | None:
+        return self._cohort
+
+    @cohort.setter
+    def cohort(self, value: Cohort | None) -> None:
+        self._cohort = self.validate_singleton(
+            value,
+            item_type=Cohort,
+            patient_id=self._patient_id,
+            field_name=setter_name(self.__class__.cohort),
+        )
+        self.updated_fields.add(Cohort.__name__)
+
     @property
     def tumor_type(self) -> TumorType | None:
         return self._tumor_type
@@ -348,6 +326,20 @@ class Patient(TrackedValidated):
         self.updated_fields.add(ClinicalBenefit.__name__)
 
     @property
+    def end_of_treatment(self) -> EndOfTreatment | None:
+        return self._end_of_treatment
+
+    @end_of_treatment.setter
+    def end_of_treatment(self, value: EndOfTreatment | None) -> None:
+        self._end_of_treatment = self.validate_singleton(
+            value,
+            item_type=EndOfTreatment,
+            patient_id=self._patient_id,
+            field_name=setter_name(self.__class__.end_of_treatment),
+        )
+        self.updated_fields.add(EndOfTreatment.__name__)
+
+    @property
     def lost_to_followup(self) -> FollowUp | None:
         return self._lost_to_followup
 
@@ -374,20 +366,6 @@ class Patient(TrackedValidated):
             field_name=setter_name(self.__class__.ecog_baseline),
         )
         self.updated_fields.add(EcogBaseline.__name__)
-
-    @property
-    def tumor_assessment_baseline(self) -> TumorAssessmentBaseline | None:
-        return self._tumor_assessment_baseline
-
-    @tumor_assessment_baseline.setter
-    def tumor_assessment_baseline(self, value: TumorAssessmentBaseline | None) -> None:
-        self._tumor_assessment_baseline = self.validate_singleton(
-            value,
-            item_type=TumorAssessmentBaseline,
-            patient_id=self._patient_id,
-            field_name=setter_name(self.__class__.tumor_assessment_baseline),
-        )
-        self.updated_fields.add(TumorAssessmentBaseline.__name__)
 
     @property
     def best_overall_response(self) -> BestOverallResponse | None:
@@ -478,6 +456,20 @@ class Patient(TrackedValidated):
             field_name=setter_name(self.__class__.tumor_assessments),
         )
         self.updated_fields.add(setter_name(self.__class__.tumor_assessments))
+
+    @property
+    def visits(self) -> tuple[Visit, ...]:
+        return self._visits
+
+    @visits.setter
+    def visits(self, value: Sequence[Visit] | None) -> None:
+        self._visits = Patient.validate_collection(
+            value,
+            item_type=Visit,
+            patient_id=self._patient_id,
+            field_name=setter_name(self.__class__.visits),
+        )
+        self.updated_fields.add(setter_name(self.__class__.visits))
 
     @property
     def c30_collection(self) -> tuple[C30, ...]:
@@ -571,7 +563,39 @@ class Patient(TrackedValidated):
 
         # sort by domain natural_key so collections are deterministically ordered on assignment
         items.sort(key=lambda x: x.sort_key())
+
+        Patient._assert_unique_natural_keys(items, item_type=item_type, patient_id=patient_id, field_name=field_name)
+
         return tuple(items)
+
+    @staticmethod
+    def _assert_unique_natural_keys(
+        items: Sequence[T],
+        *,
+        item_type: type[T],
+        patient_id: str,
+        field_name: str,
+    ) -> None:
+        """
+        NK-uniqueness safety net (trust boundary). The harmonizer resolves
+        duplicate/conflicting source rows during hydration (warn-and-keep-last
+        by default). By the time a collection reaches Patient it must be
+        NK-unique, because cross-builder linkage keys published OMOP rows by
+        (patient_id, source_kind, natural_key); a within-patient NK collision
+        would silently collide in BuildContext.publish_rows.
+
+        Raises ValueError on collision. If this fires, the harmonizer's dedup
+        was bypassed or a caller built a Patient with bad data directly.
+        Domains without NATURAL_KEY_FIELDS are skipped.
+        """
+        if not items or not getattr(item_type, "NATURAL_KEY_FIELDS", ()):
+            return
+        seen: set[tuple] = set()
+        for item in items:
+            nk = item.natural_key()
+            if nk in seen:
+                raise ValueError(f"{field_name}: duplicate {item_type.__name__} natural_key {nk!r} on patient {patient_id!r}")
+            seen.add(nk)
 
     @classmethod
     def get_attr_for_type(cls, item_type: type) -> str:
@@ -648,7 +672,6 @@ class Patient(TrackedValidated):
             # sclalars
             f"patient_id={self.patient_id}{delim} "
             f"trial_id={self.trial_id}{delim} "
-            f"cohort_name={self.cohort_name}{delim} "
             f"sex={self.sex}{delim} "
             f"age={self.age}{delim} "
             f"date_of_birth={self.date_of_birth}{delim} "
@@ -659,14 +682,13 @@ class Patient(TrackedValidated):
             f"number_of_serious_adverse_events={self.number_of_serious_adverse_events}{delim} "
             f"evaluable_for_efficacy_analysis={self.evaluable_for_efficacy_analysis}{delim} "
             f"treatment_start_date={self.treatment_start_date}{delim} "
-            f"end_of_treatment_reason={self.end_of_treatment_reason}{delim} "
-            f"end_of_treatment_date={self.end_of_treatment_date}{delim} "
             # singletons
+            f"cohort={self.cohort}{delim} "
             f"tumor_type={self.tumor_type}{delim} "
-            f"tumor_assessment_baseline={self.tumor_assessment_baseline}{delim} "
             f"biomarkers={self.biomarkers}{delim} "
             f"ecog={self.ecog_baseline}{delim} "
             f"clinical_benefit={self.clinical_benefit}{delim} "
+            f"end_of_treatment={self.end_of_treatment}{delim} "
             f"lost_to_followup={self.lost_to_followup}{delim} "
             f"best_overall_response={self.best_overall_response}{delim} "
             # collections
@@ -677,6 +699,7 @@ class Patient(TrackedValidated):
             f"concomitant_medications={self.concomitant_medications}{delim} "
             f"adverse_events={self.adverse_events}{delim} "
             f"tumor_assessments={self.tumor_assessments}{delim} "
+            f"visits={self.visits}{delim} "
             f"EQ5D={self.eq5d_collection}{delim} "
             f"C30={self.c30_collection}"
             f")"

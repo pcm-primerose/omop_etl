@@ -6,6 +6,38 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 
 
 class TreatmentCycleComponent(DomainBase):
+    """
+    One administered drug, or one ingredient of a combination drug, within a treatment cycle.
+
+    Identity (NATURAL_KEY_FIELDS): the cycle (start_date, treatment_number, cycle_number), the
+    drug (source_treatment_name) and the ingredient_name that separates the
+    per-ingredient rows a combination splits into ("Brand (Ing1 and Ing2)" -> two rows).
+
+    Validity (REQUIRED_FIELDS): source_treatment_name and start_date, if missing the record is not usable.
+
+    Fields:
+    - source_treatment_name: Raw treatment name from eCRF source.
+    - start_date: Treatment start date of this cycle.
+    - ingredient_name: Drug ingredient name, parsed from source_treatment_name.
+    - brand_name: Drug brand name, parsed from source_treatment_name.
+    - component_index: Index of this administered drug component, if multiple drugs administered at one date.
+    - cycle_type: Type of drug administered in this component, Oral or IV.
+    - treatment_number: The patient's treatment number of this cycle component.
+    - cycle_number: Source-defined sequence id for this treatment cycle component.
+    - end_date: Inferred or taken from eCRF source, end date of this cycle.
+    - received_treatment_this_cycle: If the patient received treatment this cycle (is the cycle valid).
+    - was_total_dose_delivered: If patient got full prescribed dose this cycle.
+    - iv_dose_prescribed: IV dose prescribed this cycle.
+    - iv_dose_prescribed_unit: Unit of prescribed dose.
+    - was_dose_administered_to_spec: IV only, Was dose administered according to spec (is cycle valid).
+    - reason_not_administered_to_spec: Oral only, text describing reason not adminstered to spec.
+    - oral_dose_prescribed_per_day: Oral dose prescribed per day.
+    - oral_dose_unit: Unit of oral dose prescribed per day.
+    - number_of_days_tablet_not_taken: Days in cycle oral drug was not taken.
+    - reason_tablet_not_taken: Text describing reason oral dose was not taken.
+    - was_tablet_taken_to_prescription_in_previous_cycle: Was previous cycle taken according to spec (valid).
+    """
+
     class Fields:
         SOURCE_TREATMENT_NAME = "source_treatment_name"
         INGREDIENT_NAME = "ingredient_name"
@@ -16,7 +48,7 @@ class TreatmentCycleComponent(DomainBase):
         CYCLE_NUMBER = "cycle_number"
         START_DATE = "start_date"
         END_DATE = "end_date"
-        RECIEVED_TREATMENT_THIS_CYCLE = "recieved_treatment_this_cycle"
+        RECEIVED_TREATMENT_THIS_CYCLE = "received_treatment_this_cycle"
         WAS_TOTAL_DOSE_DELIVERED = "was_total_dose_delivered"
         IV_DOSE_PRESCRIBED = "iv_dose_prescribed"
         IV_DOSE_PRESCRIBED_UNIT = "iv_dose_prescribed_unit"
@@ -28,8 +60,8 @@ class TreatmentCycleComponent(DomainBase):
         REASON_TABLET_NOT_TAKEN = "reason_tablet_not_taken"
         WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE = "was_tablet_taken_to_prescription_in_previous_cycle"
 
-    INVARIANT_FIELDS = (Fields.SOURCE_TREATMENT_NAME,)
-    NATURAL_KEY_FIELDS = (Fields.START_DATE, Fields.TREATMENT_NUMBER, Fields.CYCLE_NUMBER, Fields.COMPONENT_INDEX)
+    REQUIRED_FIELDS = (Fields.SOURCE_TREATMENT_NAME, Fields.START_DATE)
+    NATURAL_KEY_FIELDS = (Fields.SOURCE_TREATMENT_NAME, Fields.START_DATE, Fields.TREATMENT_NUMBER, Fields.CYCLE_NUMBER, Fields.INGREDIENT_NAME)
 
     def __init__(self, patient_id: str):
         # core
@@ -43,7 +75,7 @@ class TreatmentCycleComponent(DomainBase):
         self._cycle_number: int | None = None
         self._start_date: dt.date | None = None
         self._end_date: dt.date | None = None
-        self._recieved_treatment_this_cycle: bool | None = None
+        self._received_treatment_this_cycle: bool | None = None
 
         # iv only
         self._was_total_dose_delivered: bool | None = None
@@ -60,10 +92,6 @@ class TreatmentCycleComponent(DomainBase):
         self._was_tablet_taken_to_prescription_in_previous_cycle: bool | None = None
 
         self.updated_fields: Set[str] = set()
-
-    @property
-    def patient_id(self) -> str:
-        return self._patient_id
 
     @property
     def source_treatment_name(self) -> str | None:
@@ -174,13 +202,13 @@ class TreatmentCycleComponent(DomainBase):
         )
 
     @property
-    def recieved_treatment_this_cycle(self) -> bool | None:
-        return self._recieved_treatment_this_cycle
+    def received_treatment_this_cycle(self) -> bool | None:
+        return self._received_treatment_this_cycle
 
-    @recieved_treatment_this_cycle.setter
-    def recieved_treatment_this_cycle(self, value: bool | None) -> None:
+    @received_treatment_this_cycle.setter
+    def received_treatment_this_cycle(self, value: bool | None) -> None:
         self._set_validated_prop(
-            prop=self.__class__.recieved_treatment_this_cycle,
+            prop=self.__class__.received_treatment_this_cycle,
             value=value,
             validator=StrictValidators.validate_optional_bool,
         )
@@ -319,7 +347,7 @@ class TreatmentCycleComponent(DomainBase):
             f"cycle_number={self.cycle_number!r}{delim} "
             f"start_date={self.start_date!r}{delim} "
             f"end_date={self.end_date!r}{delim} "
-            f"recieved_treatment_this_cycle={self.recieved_treatment_this_cycle!r}{delim} "
+            f"received_treatment_this_cycle={self.received_treatment_this_cycle!r}{delim} "
             f"iv_dose_prescribed={self.iv_dose_prescribed!r}{delim} "
             f"iv_dose_prescribed_unit={self.iv_dose_prescribed_unit!r}{delim} "
             f"was_total_dose_delivered={self.was_total_dose_delivered!r}{delim} "

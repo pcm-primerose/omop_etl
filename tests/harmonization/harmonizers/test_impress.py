@@ -1,44 +1,98 @@
 import datetime as dt
 from typing import ClassVar
-
 import pytest
 import polars as pl
 
-from omop_etl.harmonization.harmonizers.base import (
+from omop_etl.harmonization.harmonizers.specs import (
     CollectionSpec,
     ScalarSpec,
     SingletonSpec,
 )
+from omop_etl.harmonization.core.cohort_lookups import CohortLookups
 from omop_etl.harmonization.harmonizers.impress import ImpressHarmonizer
+from omop_etl.harmonization.models.domain.cohort import Cohort
 from omop_etl.harmonization.models.patient import Patient
 
 
-class TestProcessCohortName:
-    def test_returns_expected_columns(self, cohort_name_fixture):
-        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
-        df = h._process_cohort_name()
+_COHORT_LOOKUPS = CohortLookups(
+    biomarker={"braf non-v600mut": "BRAF Non-V600", "her2exp": "HER2 expression"},
+    cancer_type={"pancreatic": "Pancreatic cancer", "cholangiocarcinoma": "Cholangiocarcinoma"},
+)
+
+
+class TestProcessCohort:
+    @staticmethod
+    def _harmonizer(data: pl.DataFrame) -> ImpressHarmonizer:
+        h = ImpressHarmonizer(data=data, trial_id="T")
+        h.cohort_lookups = _COHORT_LOOKUPS
+        return h
+
+    def test_returns_expected_columns(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
         assert df is not None
+        assert set(df.columns) == {
+            "SubjectId",
+            Cohort.Fields.RAW_NAME,
+            Cohort.Fields.NORMALIZED_NAME,
+            Cohort.Fields.TARGET_BIOMARKER,
+            Cohort.Fields.CANCER_TYPE,
+            Cohort.Fields.DRUGS,
+        }
 
-        assert set(df.columns) == {"SubjectId", "cohort_name"}
-
-    @pytest.mark.parametrize(
-        "sid, expected",
-        [
-            ("cohort_hit_1", "BRAF Non-V600mut/Pancreatic/Trametinib+Dabrafenib"),
-            ("cohort_hit_2", "HER2exp/Cholangiocarcinoma/Pertuzumab+Traztuzumab"),
-            pytest.param("cohort_empty_1", None, id="explicit None"),
-            pytest.param("cohort_empty_2", None, id="empty string"),
-            pytest.param("cohort_empty_3", None, id="missing value"),
-        ],
-    )
-    def test_cohort_name_values(self, cohort_name_fixture, sid, expected):
-        h = ImpressHarmonizer(data=cohort_name_fixture, trial_id="T")
-        df = h._process_cohort_name()
+    def test_empty_or_missing_cohortname_filtered_out(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
         assert df is not None
+        sids = set(df.get_column("SubjectId").to_list())
+        assert sids == {"cohort_hit_1", "cohort_unmapped", "cohort_hit_2"}
 
-        row = df.filter(pl.col("SubjectId") == sid)
-        actual = None if row.height == 0 else row.item(0, "cohort_name")
-        assert actual == expected
+    def test_mapped_cohort_harmonizes_parts_and_composes_normalized(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
+        assert df is not None
+        row = df.filter(pl.col("SubjectId") == "cohort_hit_1")
+        assert row.item(0, Cohort.Fields.RAW_NAME) == "BRAF Non-V600mut/Pancreatic/Trametinib + Dabrafenib"
+        assert row.item(0, Cohort.Fields.TARGET_BIOMARKER) == "BRAF Non-V600"
+        assert row.item(0, Cohort.Fields.CANCER_TYPE) == "Pancreatic cancer"
+        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Trametinib", "Dabrafenib"]
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "BRAF Non-V600/Pancreatic cancer/Trametinib + Dabrafenib"
+
+    def test_single_drug_composition(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
+        assert df is not None
+        row = df.filter(pl.col("SubjectId") == "cohort_hit_2")
+        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Pertuzumab"]
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "HER2 expression/Cholangiocarcinoma/Pertuzumab"
+
+    def test_unmapped_parts_leave_normalized_none_but_keep_raw_and_drugs(self, cohort_fixture):
+        df = self._harmonizer(cohort_fixture)._process_cohort()
+        assert df is not None
+        row = df.filter(pl.col("SubjectId") == "cohort_unmapped")
+        assert row.item(0, Cohort.Fields.TARGET_BIOMARKER) is None
+        assert row.item(0, Cohort.Fields.CANCER_TYPE) is None
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) is None
+        # raw_name and drugs preserved
+        assert row.item(0, Cohort.Fields.RAW_NAME) == "UnknownMarker/UnknownTumor/DrugX"
+        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["DrugX"]
+
+    def test_hydrates_cohort_singleton_onto_patient(self, cohort_fixture):
+        h = self._harmonizer(cohort_fixture)
+        h._create_patients()
+        h.run_one("cohort")
+        cohort = h.patient_data["cohort_hit_1"].cohort
+        assert cohort is not None
+        assert cohort.normalized_name == "BRAF Non-V600/Pancreatic cancer/Trametinib + Dabrafenib"
+        assert cohort.drugs == ("Trametinib", "Dabrafenib")
+
+    def test_hydrates_unmapped_cohort_with_none_normalized(self, cohort_fixture):
+        """REQUIRED=(raw_name,): an unmapped cohort survives the validation gate and
+        still hydrates (audit trail) with normalized_name=None and raw/drugs preserved."""
+        h = self._harmonizer(cohort_fixture)
+        h._create_patients()
+        h.run_one("cohort")
+        cohort = h.patient_data["cohort_unmapped"].cohort
+        assert cohort is not None
+        assert cohort.normalized_name is None
+        assert cohort.raw_name == "UnknownMarker/UnknownTumor/DrugX"
+        assert cohort.drugs == ("DrugX",)
 
 
 class TestProcessSex:
@@ -175,6 +229,34 @@ class TestProcessTumorType:
         assert row.item(0, "other_tumor_type") == "tumor4_subtype2"
         assert row.item(0, "date") == dt.date(2021, 6, 1)
 
+    def test_main_tumor_type_from_text_without_code(self):
+        """
+        Regression: main_tumor_type (the required text) must populate from COHTTYPE
+        even when COHTTYPECD (the code) is absent.
+        """
+        c = {
+            "SubjectId": ["named_uncoded"],
+            "COH_EventDate": ["2033-07-12"],
+            "COH_ICD10COD": ["C07"],
+            "COH_ICD10DES": ["parotid"],
+            "COH_COHTT": ["NOTCH pathway"],
+            "COH_COHTTOSP": [None],
+            "COH_COHTTYPE": ["Adenoid cystic carcinoma"],  # text present
+            "COH_COHTTYPECD": [None],  # code absent
+            "COH_COHTTYPE__2": [None],
+            "COH_COHTTYPE__2CD": [None],
+        }
+        df = pl.DataFrame(c, schema_overrides={k: pl.Utf8 for k in c if k != "SubjectId"})
+        h = ImpressHarmonizer(data=df, trial_id="T")
+
+        row = h._process_tumor_type().filter(pl.col("SubjectId") == "named_uncoded")
+        assert row.item(0, "main_tumor_type") == "Adenoid cystic carcinoma"
+        assert row.item(0, "main_tumor_type_code") is None
+        # survives the validation gate (main_tumor_type present)
+        validated = h.validate_one("tumor_type")
+        assert validated is not None
+        assert "named_uncoded" in set(validated["SubjectId"])
+
 
 class TestProcessStudyDrugs:
     def test_returns_expected_columns(self, study_drugs_fixture):
@@ -273,44 +355,30 @@ class TestProcessBiomarkers:
         df = h._process_biomarkers()
         assert df is not None
 
-        row = df.filter(pl.col("SubjectId") == "mut_braf_activating")
-        assert row.item(0, "gene_and_mutation") == "BRAF activating mutations"
-        assert row.item(0, "gene_and_mutation_code") == 21
-        assert row.item(0, "cohort_target_name") == "BRAF Non-V600 activating mutations"
-        assert row.item(0, "cohort_target_mutation") == "BRAF Non-V600 activating mutations"
-        assert row.item(0, "date") == dt.date(1900, 7, 15)
+        by = {r["SubjectId"]: r for r in df.to_dicts()}
 
-        # some_info_no_mut
-        row = df.filter(pl.col("SubjectId") == "some_info_no_mut")
-        assert row.item(0, "gene_and_mutation") is None
-        assert row.item(0, "gene_and_mutation_code") is None
-        assert row.item(0, "cohort_target_name") == "some info"
-        assert row.item(0, "cohort_target_mutation") is None
-        assert row.item(0, "date") == dt.date(1980, 2, 15)
+        # cohort target name (COHCTN) is preferred when present
+        assert by["mut_braf_activating"]["target_biomarker"] == "BRAF Non-V600 activating mutations"
+        assert by["mut_braf_activating"]["date"] == dt.date(1900, 7, 15)
+        assert by["some_info_no_mut"]["target_biomarker"] == "some info"
+        assert by["some_info_no_mut"]["date"] == dt.date(1980, 2, 15)
+        assert by["brca1_inactivating"]["target_biomarker"] == "BRCA1 stop-gain del exon 11"
+        assert by["brca1_inactivating"]["date"] is None
+        assert by["sdhaf2_mut"]["target_biomarker"] == "more info"
+        assert by["sdhaf2_mut"]["date"] == dt.date(1999, 7, 11)
 
-        # brca1_inactivating
-        row = df.filter(pl.col("SubjectId") == "brca1_inactivating")
-        assert row.item(0, "gene_and_mutation") == "BRCA1 inactivating mutation"
-        assert row.item(0, "gene_and_mutation_code") == 2
-        assert row.item(0, "cohort_target_name") == "BRCA1 stop-gain del exon 11"
-        assert row.item(0, "cohort_target_mutation") == "BRCA1 stop-gain deletion"
-        assert row.item(0, "date") is None
+        # COHCTN empty: fall back to cohort target mutation (COHTMN)
+        assert by["code_only_misc"]["target_biomarker"] == "some other info"
+        assert by["code_only_misc"]["date"] is None
 
-        # sdhaf2_mut
-        row = df.filter(pl.col("SubjectId") == "sdhaf2_mut")
-        assert row.item(0, "gene_and_mutation") == "SDHAF2 mutation"
-        assert row.item(0, "gene_and_mutation_code") == -1
-        assert row.item(0, "cohort_target_name") == "more info"
-        assert row.item(0, "cohort_target_mutation") is None
-        assert row.item(0, "date") == dt.date(1999, 7, 11)
+        # no cohort target: fall back to the measured gene
+        assert by["gene_only"]["target_biomarker"] == "EGFR exon19del"
+        assert by["gene_only"]["date"] == dt.date(2020, 1, 1)
 
-        # code_only_misc
-        row = df.filter(pl.col("SubjectId") == "code_only_misc")
-        assert row.item(0, "gene_and_mutation") is None
-        assert row.item(0, "gene_and_mutation_code") == 10
-        assert row.item(0, "cohort_target_name") is None
-        assert row.item(0, "cohort_target_mutation") == "some other info"
-        assert row.item(0, "date") is None
+        # multi-event: target from the earlier event (preference across rows wins
+        # over the later gene), date is the latest event
+        assert by["multi_event"]["target_biomarker"] == "ALK fusion"
+        assert by["multi_event"]["date"] == dt.date(2019, 6, 1)
 
 
 class TestProcessLostToFollowup:
@@ -433,18 +501,14 @@ class TestProcessEcogBaseline:
 
     def test_partial_data_subjects(self, ecog_fixture):
         """
-        Subjects with partial baseline data should still appear in the
-        with whatever fields can be parsed and null for the rest.
+        Subjects with a grade but other fields null should still appear in the
+        processor output with whatever fields can be parsed and null for the rest.
+        (The grade-missing subject is dropped by the gate, see
+        test_validate_one_drops_grade_missing.)
         """
         h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
         df = h._process_ecog_baseline()
         assert df is not None
-
-        # eventid_no_code: description present, grade missing, date present
-        row = df.filter(pl.col("SubjectId") == "eventid_no_code")
-        assert row.item(0, "description") == "no code"
-        assert row.item(0, "grade") is None
-        assert row.item(0, "date") == dt.date(1900, 7, 1)
 
         # eventid_no_desc: description missing, grade present, date present
         row = df.filter(pl.col("SubjectId") == "eventid_no_desc")
@@ -463,6 +527,22 @@ class TestProcessEcogBaseline:
         assert row.item(0, "description") == "code"
         assert row.item(0, "grade") == 4
         assert row.item(0, "date") is None
+
+    def test_validate_one_drops_grade_missing(self, ecog_fixture):
+        """
+        Two-layer contract: the processor keeps the grade-missing baseline (above),
+        but the gate (REQUIRED_FIELDS = grade) drops it. eventid_no_code (grade null)
+        is absent from validate_one; wrong_date (grade present, null date) survives,
+        since only grade is required.
+        """
+        h = ImpressHarmonizer(data=ecog_fixture, trial_id="T")
+        validated = h.validate_one("ecog_baseline")
+        assert validated is not None
+
+        subjects = set(validated["SubjectId"].to_list())
+        assert "eventid_no_code" not in subjects
+        assert "wrong_date" in subjects
+        assert validated.filter(pl.col("grade").is_null()).height == 0
 
 
 class TestProcessMedicalHistories:
@@ -609,141 +689,6 @@ class TestProcessSeriousAdverseEventNumber:
         assert actual == expected
 
 
-class TestProcessBaselineTumorAssessment:
-    def test_returns_expected_columns(self, baseline_tumor_assessment_fixture):
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        from omop_etl.harmonization.models.domain.tumor_assessment_baseline import TumorAssessmentBaseline
-
-        expected_cols = {"SubjectId"} | set(TumorAssessmentBaseline.data_fields())
-        assert set(df.columns) == expected_cols
-
-    def test_filters_subjects_without_baseline(self, baseline_tumor_assessment_fixture):
-        """
-        Subjects without enough baseline signal to construct an assessment
-        should be filtered out at the processor level. After hydration the
-        Patient's tumor_assessment_baseline ends up None for these.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        subject_ids = set(df["SubjectId"].to_list())
-        for sid in (
-            "missing_data",
-            "vi_none",
-            "no_ntl",
-            "rntmnt_ntl_wrong_event_id",
-            "rcnt_invalid_int",
-            "missing_baseline_size",
-        ):
-            assert sid not in subject_ids, f"{sid!r} should be filtered out"
-
-    def test_extracts_assessment_type_from_vituma(self, baseline_tumor_assessment_fixture):
-        """
-        Assessment type and date come from one of two source columns:
-        VI_VITUMA (preferred) or VI_VITUMA__2 (fallback). `vi_no_date` is
-        a vituma source with the assessment_date missing.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        # vituma_only: VI_VITUMA primary source
-        row = df.filter(pl.col("SubjectId") == "vituma_only")
-        assert row.item(0, "assessment_type") == "PD"
-        assert row.item(0, "assessment_date") == dt.date(2020, 1, 2)
-
-        # vituma__2_only: VI_VITUMA__2 fallback source (note double underscore)
-        row = df.filter(pl.col("SubjectId") == "vituma__2_only")
-        assert row.item(0, "assessment_type") == "CR"
-        assert row.item(0, "assessment_date") == dt.date(2020, 1, 3)
-
-        # vi_no_date: assessment_type populated, assessment_date null
-        row = df.filter(pl.col("SubjectId") == "vi_no_date")
-        assert row.item(0, "assessment_type") == "SD"
-
-    def test_extracts_off_target_lesions_from_multiple_sources(self, baseline_tumor_assessment_fixture):
-        """
-        Off-target lesion fields can come from RNTMNT_RNTMNTNOB, RCNT_RCNTNOB,
-        or both. The processor picks the appropriate source per subject.
-        `ntl_no_date` has the count but no measurement date.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        # both_ntl_cols: both sources present, picks one
-        row = df.filter(pl.col("SubjectId") == "both_ntl_cols")
-        assert row.item(0, "off_target_lesions_number") == 5
-        assert row.item(0, "off_target_lesion_measurement_date") == dt.date(2020, 2, 1)
-
-        # rntmnt_only: only RNTMNT source
-        row = df.filter(pl.col("SubjectId") == "rntmnt_only")
-        assert row.item(0, "off_target_lesions_number") == 4
-        assert row.item(0, "off_target_lesion_measurement_date") == dt.date(2020, 2, 2)
-
-        # rcnt_only: only RCNT source
-        row = df.filter(pl.col("SubjectId") == "rcnt_only")
-        assert row.item(0, "off_target_lesions_number") == 3
-        assert row.item(0, "off_target_lesion_measurement_date") == dt.date(2020, 2, 4)
-
-        # ntl_no_date: count present, date missing
-        row = df.filter(pl.col("SubjectId") == "ntl_no_date")
-        assert row.item(0, "off_target_lesions_number") == 6
-        assert row.item(0, "off_target_lesion_measurement_date") is None
-
-    def test_extracts_target_lesions_from_multiple_sources(self, baseline_tumor_assessment_fixture):
-        """
-        Target lesion size/nadir/measurement_date can come from RA_* or
-        RNRSP_* source fields. `ra_no_date` and `rnrsp_no_date` have
-        size/nadir but a missing measurement_date.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        # ra_valid: RA source, full data
-        row = df.filter(pl.col("SubjectId") == "ra_valid")
-        assert row.item(0, "target_lesion_size") == 12
-        assert row.item(0, "target_lesion_nadir") == 12
-        assert row.item(0, "target_lesion_measurement_date") == dt.date(2018, 7, 27)
-
-        # rnrsp_valid: RNRSP source, full data
-        row = df.filter(pl.col("SubjectId") == "rnrsp_valid")
-        assert row.item(0, "target_lesion_size") == 20
-        assert row.item(0, "target_lesion_nadir") == 18
-        assert row.item(0, "target_lesion_measurement_date") == dt.date(2019, 1, 1)
-
-        # ra_no_date: RA source, missing date
-        row = df.filter(pl.col("SubjectId") == "ra_no_date")
-        assert row.item(0, "target_lesion_size") == 8
-        assert row.item(0, "target_lesion_nadir") == 7
-        assert row.item(0, "target_lesion_measurement_date") is None
-
-        # rnrsp_no_date: RNRSP source, missing date
-        row = df.filter(pl.col("SubjectId") == "rnrsp_no_date")
-        assert row.item(0, "target_lesion_size") == 9
-        assert row.item(0, "target_lesion_nadir") == 8
-        assert row.item(0, "target_lesion_measurement_date") is None
-
-    def test_multiple_rows_subject(self, baseline_tumor_assessment_fixture):
-        """
-        `multiple_rows` has more than one input row; the processor picks
-        consistent values for the singleton's target lesion fields.
-        """
-        h = ImpressHarmonizer(data=baseline_tumor_assessment_fixture, trial_id="T")
-        df = h._process_baseline_tumor_assessment()
-        assert df is not None
-
-        row = df.filter(pl.col("SubjectId") == "multiple_rows")
-        assert row.item(0, "target_lesion_size") == 9
-        assert row.item(0, "target_lesion_nadir") == 9
-        assert row.item(0, "target_lesion_measurement_date") == dt.date(2020, 1, 1)
-
-
 class TestProcessPreviousTreatments:
     def test_returns_expected_columns(self, previous_treatment_fixture):
         h = ImpressHarmonizer(data=previous_treatment_fixture, trial_id="T")
@@ -828,40 +773,6 @@ class TestProcessTreatmentStartDate:
 
         row = df.filter(pl.col("SubjectId") == sid)
         actual = None if row.height == 0 else row.item(0, "treatment_start_date")
-        assert actual == expected
-
-
-class TestProcessEndOfTreatmentDate:
-    def test_returns_expected_columns(self, treatment_stop_fixture):
-        h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
-        df = h._process_end_of_treatment_date()
-        assert df is not None
-
-        assert "SubjectId" in df.columns
-        assert "end_of_treatment_date" in df.columns
-
-    @pytest.mark.parametrize(
-        "sid, expected",
-        [
-            pytest.param("eot_precedence", dt.date(1900, 1, 2), id="EOT date wins over treatment-stop date"),
-            pytest.param("multirow", dt.date(1900, 1, 1), id="picks max date over multiple rows"),
-            pytest.param(
-                "invalid_row_doesnt_count",
-                dt.date(1900, 1, 1),
-                id="invalid row's date ignored even though later",
-            ),
-            pytest.param("empty", None, id="no rows -> filtered"),
-            pytest.param("missing_treatment_empty_str", None, id="empty TR_TROSTPDT -> filtered"),
-            pytest.param("missing_treatment_eot_empty_str", None, id="empty EOT_EOTDAT -> filtered"),
-        ],
-    )
-    def test_end_of_treatment_date_values(self, treatment_stop_fixture, sid, expected):
-        h = ImpressHarmonizer(data=treatment_stop_fixture, trial_id="T")
-        df = h._process_end_of_treatment_date()
-        assert df is not None
-
-        row = df.filter(pl.col("SubjectId") == sid)
-        actual = None if row.height == 0 else row.item(0, "end_of_treatment_date")
         assert actual == expected
 
 
@@ -1330,16 +1241,21 @@ class TestProcessTumorAssessments:
         row = df.filter(pl.col("SubjectId") == "collision_irecist_wins")
         assert row.item(0, "assessment_type") == "irecist"
 
-    def test_recist_with_invalid_date_keeps_response(self, tumor_assessments_fixture):
+    def test_validate_one_drops_rows_missing_required(self, tumor_assessments_fixture):
+        """
+        Two-layer contract: the processor keeps signal-bearing rows (above), but
+        the gate (REQUIRED_FIELDS = assessment_type, date) drops them. recist_bad_date
+        (null date, has a response) and bl_no_vi_has_size (size but no scale/date) are
+        absent from validate_one, and every surviving row has both required fields.
+        """
         h = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")
-        df = h._process_tumor_assessments()
-        assert df is not None
+        validated = h.validate_one("tumor_assessments")
+        assert validated is not None
 
-        row = df.filter(pl.col("SubjectId") == "recist_bad_date")
-        assert row.item(0, "assessment_type") == "recist"
-        assert row.item(0, "date") is None
-        assert row.item(0, "recist_response") == "SD"
-        assert row.item(0, "event_id") == "V06"
+        subjects = set(validated["SubjectId"].to_list())
+        assert "recist_bad_date" not in subjects
+        assert "bl_no_vi_has_size" not in subjects
+        assert validated.filter(pl.col("assessment_type").is_null() | pl.col("date").is_null()).height == 0
 
     def test_event_id_from_rnrsp_source_only(self, tumor_assessments_fixture):
         """For subjects with signlan only from RNRSP, the event_id and
@@ -1362,145 +1278,164 @@ class TestProcessTumorAssessments:
         subject_ids = set(df["SubjectId"].to_list())
         assert "no_signal" not in subject_ids
 
-
-class TestProcessTumorAssessmentsAbsoluteSize:
-    """Absolute target_lesion_size = baseline_size * (1 + change_from_baseline).
-
-    Baseline is sourced via the shared `_subject_baseline_target_lesion_size`
-    helper (earliest non-null RNRSP_TERNTBAS / RA_RARECBAS per subject); change
-    is the fractional percent-change already computed on the row.
-    """
-
-    @staticmethod
-    def _frame(rows):
-        from tests.harmonization.conftest import TumorAssessmentRow
-        from dataclasses import asdict, fields
-
-        # all TumorAssessmentRow source columns are str/int-or-None and come from CSV in prod;
-        # pin schema so all-None columns in small test frames don't infer Null dtype.
-        schema = {}
-        for f in fields(TumorAssessmentRow):
-            if f.name in ("RA_RANLBASECD", "RNRSP_RNRSPNLCD"):
-                schema[f.name] = pl.Int64
-            else:
-                schema[f.name] = pl.Utf8
-        return pl.from_dicts([asdict(TumorAssessmentRow(**r)) for r in rows], schema=schema)
-
-    def test_baseline_100_change_minus_50_pct_yields_50(self):
-        df = self._frame(
-            [
-                # baseline row supplies the size only
-                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                # assessment row with -50% change from baseline
-                {
-                    "SubjectId": "s1",
-                    "RA_RARECCH": "-50",
-                    "RA_RABASECH": "-50",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-03-01",
-                    "RA_EventId": "V02",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_baseline_100_change_minus_50_pct_yields_50(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V02"))
+        row = out.filter(pl.col("SubjectId") == "subject_change_minus_50pct")
         assert row.item(0, "target_lesion_size") == 50.0
 
-    def test_baseline_100_change_zero_yields_baseline(self):
-        df = self._frame(
-            [
-                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                {
-                    "SubjectId": "s1",
-                    "RA_RABASECH": "0",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_baseline_100_change_zero_yields_baseline(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
+        row = out.filter(pl.col("SubjectId") == "subject_change_zero")
         assert row.item(0, "target_lesion_size") == 100.0
 
-    def test_subject_without_baseline_yields_none(self):
-        df = self._frame(
-            [
-                # no baseline size row for s1, only an assessment with a change value
-                {
-                    "SubjectId": "s1",
-                    "RA_RABASECH": "-30",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_subject_without_baseline_yields_none(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter(pl.col("SubjectId") == "s1")
+        row = out.filter(pl.col("SubjectId") == "subject_no_baseline_yields_none")
         assert row.item(0, "target_lesion_size") is None
 
-    def test_change_is_none_yields_none(self):
-        df = self._frame(
-            [
-                {"SubjectId": "s1", "RA_RARECBAS": "80", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                # assessment with signal but no change value
-                {
-                    "SubjectId": "s1",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_RATIMRES": "SD",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_change_is_none_yields_none(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
-
-        row = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
+        row = out.filter(pl.col("SubjectId") == "subject_change_none_yields_none")
         assert row.item(0, "target_lesion_size") is None
 
-    def test_subjects_do_not_cross_contaminate(self):
-        df = self._frame(
-            [
-                # s1 baseline 100, assessment -50%: 50.0
-                {"SubjectId": "s1", "RA_RARECBAS": "100", "RA_EventDate": "2020-01-01", "RA_EventId": "V00"},
-                {
-                    "SubjectId": "s1",
-                    "RA_RABASECH": "-50",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-01",
-                    "RA_EventId": "V01",
-                },
-                # s2 baseline 40, assessment +25%: 50.0 (same arithmetic, different subject)
-                {"SubjectId": "s2", "RA_RARECBAS": "40", "RA_EventDate": "2020-01-05", "RA_EventId": "V00"},
-                {
-                    "SubjectId": "s2",
-                    "RA_RABASECH": "25",
-                    "RA_RAASSESS1": "RECIST",
-                    "RA_EventDate": "2020-02-05",
-                    "RA_EventId": "V01",
-                },
-            ],
-        )
-        h = ImpressHarmonizer(data=df, trial_id="T")
-        out = h._process_tumor_assessments()
+    def test_subjects_do_not_cross_contaminate(self, tumor_assessments_fixture):
+        out = ImpressHarmonizer(data=tumor_assessments_fixture, trial_id="T")._process_tumor_assessments()
         assert out is not None
+        a = out.filter(pl.col("SubjectId") == "subject_change_minus_50pct")
+        b = out.filter(pl.col("SubjectId") == "subject_change_plus_25pct")
+        assert a.item(0, "target_lesion_size") == 50.0  # 100 * (1 - 0.50)
+        assert b.item(0, "target_lesion_size") == 50.0  # 40 * (1 + 0.25)
 
-        s1 = out.filter((pl.col("SubjectId") == "s1") & (pl.col("event_id") == "V01"))
-        s2 = out.filter((pl.col("SubjectId") == "s2") & (pl.col("event_id") == "V01"))
-        assert s1.item(0, "target_lesion_size") == 50.0
-        assert s2.item(0, "target_lesion_size") == 50.0
+    @staticmethod
+    def _baseline_rows(fixture) -> dict:
+        h = ImpressHarmonizer(data=fixture, trial_id="T")
+        df = h._process_tumor_assessments()
+        assert df is not None
+        baseline = df.filter(pl.col("was_baseline"))
+        return {r["SubjectId"]: r for r in baseline.to_dicts()}
+
+    def test_anchored_on_vi_v00(self, tumor_assessments_fixture):
+        """subjects with a VI row carrying a scale (VITUMA) and a valid date."""
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        assert set(by_subject) == {"bl_full_recist", "bl_vituma2_irecist", "bl_rnrsp_rano", "bl_rntmnt_offtarget", "bl_v00vi_split"}
+
+    def test_baseline_selected_from_v00vi_by_content(self, tumor_assessments_fixture):
+        """
+        The baseline scale is selected by VITUMA content, so a row labelled
+        "V00VI" (not "V00") that carries the scale still yields a baseline. A
+        literal EventId == "V00" match would drop it, emitting no baseline.
+        """
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        row = by_subject["bl_v00vi_split"]
+        assert row["assessment_type"] == "recist"
+        assert row["date"] == dt.date(2022, 1, 1)
+        assert row["was_baseline"] is True
+
+    def test_all_rows_flagged_baseline_v00(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        assert all(r["was_baseline"] is True for r in by_subject.values())
+        assert all(r["event_id"] == "V00" for r in by_subject.values())
+        assert all(r["target_lesion_change_from_baseline"] == 0.0 for r in by_subject.values())
+
+    def test_scale_normalized_and_dated_at_v00(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        assert by_subject["bl_full_recist"]["assessment_type"] == "recist"
+        assert by_subject["bl_full_recist"]["date"] == dt.date(2020, 1, 2)
+        assert by_subject["bl_vituma2_irecist"]["assessment_type"] == "irecist"
+        assert by_subject["bl_rnrsp_rano"]["assessment_type"] == "rano"
+
+    def test_target_size_is_float_absolute(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        # full_recist: RA_RARECBAS=12: 12.0 (float)
+        assert by_subject["bl_full_recist"]["target_lesion_size"] == 12.0
+        assert isinstance(by_subject["bl_full_recist"]["target_lesion_size"], float)
+        # rnrsp_rano: RNRSP_TERNTBAS=20: 20.0
+        assert by_subject["bl_rnrsp_rano"]["target_lesion_size"] == 20.0
+        # vituma2_irecist: no size source: None
+        assert by_subject["bl_vituma2_irecist"]["target_lesion_size"] is None
+
+    def test_off_target_baseline_fields(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        # full_recist: RCNT source, RCNT_RCNTNOB=3 on 2020-01-20
+        assert by_subject["bl_full_recist"]["baseline_off_target_lesions_number"] == 3
+        assert by_subject["bl_full_recist"]["baseline_off_target_lesion_measurement_date"] == dt.date(2020, 1, 20)
+        # rntmnt_offtarget: RNTMNT source, RNTMNT_RNTMNTNOB=5 on 2020-04-10
+        assert by_subject["bl_rntmnt_offtarget"]["baseline_off_target_lesions_number"] == 5
+        assert by_subject["bl_rntmnt_offtarget"]["baseline_off_target_lesion_measurement_date"] == dt.date(2020, 4, 10)
+        # no off-target source: None
+        assert by_subject["bl_vituma2_irecist"]["baseline_off_target_lesions_number"] is None
+
+    def test_no_baseline_row_without_vi_v00(self, tumor_assessments_fixture):
+        by_subject = self._baseline_rows(tumor_assessments_fixture)
+        # follow-up-only subject, VI-V00-without-date, and size-without-VI all
+        # contribute no baseline row
+        assert "recist_full" not in by_subject
+        assert "bl_vi_no_date" not in by_subject
+        assert "bl_no_vi_has_size" not in by_subject
+
+    # single-scale invariant
+    def test_mixed_assessment_scales_raises(self, tumor_assessments_mixed_scale_fixture):
+        # subject with both RA (RECIST) and RNRSP (RANO) signal must raise
+        h = ImpressHarmonizer(data=tumor_assessments_mixed_scale_fixture, trial_id="T")
+        with pytest.raises(ValueError, match="multiple scales"):
+            h._process_tumor_assessments()
+
+
+class TestProcessVisits:
+    @staticmethod
+    def _visits(fixture) -> pl.DataFrame:
+        df = ImpressHarmonizer(data=fixture, trial_id="T")._process_visits()
+        assert df is not None
+        return df
+
+    def test_returns_expected_columns(self, visits_fixture):
+        from omop_etl.harmonization.models.domain.visit import Visit
+
+        df = self._visits(visits_fixture)
+        assert set(df.columns) == {"SubjectId"} | set(Visit.data_fields())
+
+    def test_single_visit(self, visits_fixture):
+        row = self._visits(visits_fixture).filter(pl.col("SubjectId") == "single")
+        assert row.height == 1
+        assert row.item(0, "date") == dt.date(2021, 1, 1)
+        assert row.item(0, "event_id") == "V00"
+
+    def test_same_date_collapses_to_vituma_row(self, visits_fixture):
+        """
+        V00 shell + V00VI on the same date collapse to one visit, the
+        VITUMA-bearing row's event id wins.
+        """
+        rows = self._visits(visits_fixture).filter(pl.col("SubjectId") == "collapse")
+        assert rows.height == 1
+        assert rows.item(0, "date") == dt.date(2021, 2, 1)
+        assert rows.item(0, "event_id") == "V00VI"
+
+    def test_multiple_distinct_dates(self, visits_fixture):
+        rows = self._visits(visits_fixture).filter(pl.col("SubjectId") == "multi").sort("date")
+        assert rows.height == 3
+        assert rows["date"].to_list() == [
+            dt.date(2021, 3, 1),
+            dt.date(2021, 4, 1),
+            dt.date(2021, 5, 1),
+        ]
+        assert rows["event_id"].to_list() == ["V00", "V02", "EOT"]
+
+    def test_dateless_visit_dropped(self, visits_fixture):
+        assert self._visits(visits_fixture).filter(pl.col("SubjectId") == "no_date").height == 0
+
+    def test_visit_without_vituma_kept(self, visits_fixture):
+        row = self._visits(visits_fixture).filter(pl.col("SubjectId") == "no_vituma")
+        assert row.height == 1
+        assert row.item(0, "event_id") == "V02"
+
+    def test_one_visit_per_date_no_duplicates(self, visits_fixture):
+        df = self._visits(visits_fixture)
+        per_subject_dates = df.group_by("SubjectId", "date").len()
+        assert per_subject_dates["len"].max() == 1
 
 
 class TestProcessBestOverallResponse:
@@ -1622,43 +1557,121 @@ class TestProcessClinicalBenefit:
         assert actual_date == expected_date
 
 
-class TestProcessEotReason:
-    def test_returns_expected_columns(self, end_of_treatment_reason_fixture):
-        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
-        df = h._process_end_of_treatment_reason()
+class TestProcessEndOfTreatment:
+    def test_returns_expected_columns(self, end_of_treatment_fixture):
+        h = ImpressHarmonizer(data=end_of_treatment_fixture, trial_id="T")
+        df = h._process_end_of_treatment()
         assert df is not None
 
-        assert "SubjectId" in df.columns
-        assert "end_of_treatment_reason" in df.columns
+        assert df.columns == ["SubjectId", "status", "reason", "date"]
 
     @pytest.mark.parametrize(
-        "sid, expected",
+        "sid, expected_status, expected_reason, expected_date",
         [
-            pytest.param("reason_trim", "Progression", id="whitespace trimmed"),
-            pytest.param("reason_empty_string", None, id="empty string -> filtered"),
-            pytest.param("reason_whitespace_only", None, id="whitespace only -> filtered"),
-            pytest.param("reason_none", None, id="None -> filtered"),
+            pytest.param(
+                "completed",
+                "completed",
+                "Normal completion according to cohort-specific manual",
+                dt.date(1900, 6, 30),
+                id="completion text: COMPLETED status",
+            ),
+            pytest.param(
+                "completed_case_insensitive",
+                "completed",
+                "normal completion according to cohort-specific manual",
+                dt.date(1900, 6, 29),
+                id="case-insensitive + whitespace stripped completion",
+            ),
+            pytest.param(
+                "withdrawn_progression",
+                "withdrawn",
+                "Disease progression",
+                dt.date(1900, 5, 15),
+                id="non-completion reason: WITHDRAWN status",
+            ),
+            pytest.param(
+                "withdrawn_toxicity",
+                "withdrawn",
+                "Toxicity",
+                dt.date(1900, 5, 16),
+                id="whitespace stripped on reason",
+            ),
+            pytest.param(
+                "date_precedence_eot",
+                "withdrawn",
+                "Other",
+                dt.date(1900, 1, 2),
+                id="EOT_EOTDAT wins over TR_TROSTPDT",
+            ),
+            pytest.param(
+                "date_only_oral_stop",
+                None,
+                None,
+                dt.date(1900, 8, 1),
+                id="no reason: status=None, oral stop date wins",
+            ),
+            pytest.param(
+                "date_only_iv_start",
+                None,
+                None,
+                dt.date(1900, 9, 1),
+                id="no reason: status=None, IV start date used",
+            ),
+            pytest.param(
+                "reason_empty_string",
+                None,
+                None,
+                dt.date(1900, 1, 1),
+                id="empty reason: status=None, date kept",
+            ),
+            pytest.param(
+                "reason_whitespace_only",
+                None,
+                None,
+                dt.date(1900, 1, 1),
+                id="whitespace-only reason: status=None, date kept",
+            ),
+            pytest.param(
+                "empty",
+                None,
+                None,
+                None,
+                id="no data at all: filtered out",
+            ),
         ],
     )
-    def test_eot_reason_values(self, end_of_treatment_reason_fixture, sid, expected):
-        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
-        df = h._process_end_of_treatment_reason()
+    def test_end_of_treatment_values(self, end_of_treatment_fixture, sid, expected_status, expected_reason, expected_date):
+        h = ImpressHarmonizer(data=end_of_treatment_fixture, trial_id="T")
+        df = h._process_end_of_treatment()
         assert df is not None
 
         row = df.filter(pl.col("SubjectId") == sid)
-        actual = None if row.height == 0 else row.item(0, "end_of_treatment_reason")
-        assert actual == expected
+        # subjects with no EOT info at all are filtered out
+        if expected_status is None and expected_reason is None and expected_date is None:
+            assert row.height == 0
+            return
 
-    def test_multi_row_subject_keeps_all_rows(self, end_of_treatment_reason_fixture):
-        h = ImpressHarmonizer(data=end_of_treatment_reason_fixture, trial_id="T")
-        df = h._process_end_of_treatment_reason()
-        assert df is not None
+        assert row.height == 1
+        assert row.item(0, "status") == expected_status
+        assert row.item(0, "reason") == expected_reason
+        assert row.item(0, "date") == expected_date
 
-        rows = df.filter(pl.col("SubjectId") == "reason_multi_overwrite")
-        assert rows.height == 2
+    def test_validate_one_drops_dateless_eot(self, end_of_treatment_fixture):
+        """
+        Two-layer contract: the processor keeps reason-only EOT rows (above), but the
+        gate (REQUIRED_FIELDS = date) drops them. reason_only and invalid_tr_row_skipped
+        (reason/status set, date=None) are absent from validate_one; date-only rows
+        (status=None, date set) survive, since only date is required.
+        """
+        h = ImpressHarmonizer(data=end_of_treatment_fixture, trial_id="T")
+        validated = h.validate_one("end_of_treatment")
+        assert validated is not None
 
-        reasons = rows["end_of_treatment_reason"].to_list()
-        assert reasons == ["Toxicity", "Patient decision"]
+        subjects = set(validated["SubjectId"].to_list())
+        assert "reason_only" not in subjects
+        assert "invalid_tr_row_skipped" not in subjects
+        assert "date_only_oral_stop" in subjects
+        assert validated.filter(pl.col("date").is_null()).height == 0
 
 
 class TestImpressSpecContracts:
@@ -1675,7 +1688,6 @@ class TestImpressSpecContracts:
     # fixture that provides input for that processor
     SPEC_TO_FIXTURE: ClassVar[dict[str, str | None]] = {
         # scalars
-        "cohort_name": "cohort_name_fixture",
         "sex": "gender_fixture",
         "date_of_birth": "age_fixture",
         "age": "age_fixture",
@@ -1686,16 +1698,15 @@ class TestImpressSpecContracts:
         "treatment_start_last_cycle": "last_treatment_start_fixture",
         "treatment_start_date": "treatment_start_fixture",
         "evaluable_for_efficacy_analysis": "evaluability_fixture",
-        "end_of_treatment_reason": "end_of_treatment_reason_fixture",
-        "end_of_treatment_date": "treatment_stop_fixture",
         # singletons
+        "cohort": "cohort_fixture",
+        "end_of_treatment": "end_of_treatment_fixture",
         "tumor_type": "tumor_type_fixture",
         "study_drugs": "study_drugs_fixture",
         "biomarkers": "biomarkers_fixture",
         "clinical_benefit": "clinical_benefit_fixture",
         "lost_to_followup": "lost_to_followup_fixture",
         "ecog_baseline": "ecog_fixture",
-        "baseline_tumor_assessment": "baseline_tumor_assessment_fixture",
         "best_overall_response": "best_overall_response_fixture",
         # collections
         "medical_histories": "medical_history_fixture",
@@ -1704,6 +1715,7 @@ class TestImpressSpecContracts:
         "concomitant_medication": "concomitant_medication_fixture",
         "adverse_events": "adverse_events_fixture",
         "tumor_assessments": "tumor_assessments_fixture",
+        "visits": "visits_fixture",
         "c30": "c30_fixture",
         "eq5d": "eq5d_fixture",
     }
@@ -1742,19 +1754,4 @@ class TestImpressSpecContracts:
             f"Spec {spec.name!r} did not populate {target!r} on any patient when "
             f"run on {fixture_name}. Either the processor produced empty output "
             f"for this fixture, or the spec is wired to the wrong target."
-        )
-
-    def test_eot_reason_uses_on_duplicate_last(self):
-        """
-        eot_reason is the only impress scalar with a non-default `on_duplicate`,
-        since the scalar can have colissions across multiple sheets,
-        source rows for the same subject are emitted in order where the last one wins.
-        """
-        spec = next((s for s in ImpressHarmonizer.SPECS if s.name == "end_of_treatment_reason"), None)
-        assert spec is not None, "end_of_treatment_reason spec missing from ImpressHarmonizer.SPECS"
-        assert isinstance(spec, ScalarSpec)
-        assert spec.on_duplicate == "last", (
-            f"eot_reason must use on_duplicate='last' (got {spec.on_duplicate!r}). "
-            "If this is intentionally changing, update: "
-            "TestProcessEotReason::test_multi_row_subject_keeps_all_rows too."
         )

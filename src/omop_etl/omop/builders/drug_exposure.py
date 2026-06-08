@@ -5,8 +5,10 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.domain.concomitant_medication import ConcomitantMedication
-from omop_etl.omop.builders.base import OmopBuilder, BuildContext
+from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
+from omop_etl.omop.core.linkage import OmopRowReference, RowPublication, SourceReference
 from omop_etl.omop.models.rows import DrugExposureRow
+from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
 
 log = getLogger(__name__)
@@ -24,17 +26,23 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
     unmapped terms would land in a-priori. See tests for more details.
     """
 
-    table_name: ClassVar[str] = "drug_exposure"
+    table_name: ClassVar[str] = OmopTables.DRUG_EXPOSURE
 
-    def build(self, ctx: BuildContext) -> list[DrugExposureRow]:
+    def build(self, ctx: BuildContext) -> BuildResult[DrugExposureRow]:
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[DrugExposureRow] = []
+        publications: list[RowPublication] = []
         ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
         drug_type_concept_id = int(ecrf.concept_id) if ecrf else 0
 
         for idx, cycle in enumerate(patient.treatment_cycles):
-            rows.extend(self._build_treatment_cycle_rows(patient, person_id, cycle, idx, drug_type_concept_id))
+            cycle_rows = self._build_treatment_cycle_rows(patient, person_id, cycle, idx, drug_type_concept_id)
+            if cycle_rows:
+                # publish so ObservationBuilder can FK-link the cycle's metadata and
+                # deviation modifier observations back to these drug_exposure rows
+                publications.append(self._cycle_publication(patient.patient_id, cycle, cycle_rows))
+            rows.extend(cycle_rows)
 
         for idx, prev in enumerate(patient.previous_treatments):
             if prev.start_date is None:
@@ -48,7 +56,36 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         for idx, concom in enumerate(patient.concomitant_medications):
             rows.extend(self._build_concomitant_medication_rows(patient, person_id, concom, idx, drug_type_concept_id))
 
-        return rows
+        return BuildResult(rows=tuple(rows), publications=tuple(publications))
+
+    @staticmethod
+    def _cycle_publication(
+        patient_id: str,
+        cycle: TreatmentCycleComponent,
+        drug_rows: list[DrugExposureRow],
+    ) -> RowPublication:
+        """
+        Publish a treatment cycle's drug_exposure rows under its SourceReference
+        so ObservationBuilder can FK-link the cycle's metadata / deviation modifier
+        observations (days-not-taken, administered-to-spec, ...) back to them. A
+        cycle that maps to multiple Drug concepts publishes all of its rows.
+        """
+        return RowPublication(
+            target_table=OmopTables.DRUG_EXPOSURE,
+            source_ref=SourceReference(
+                patient_id,
+                Patient.Collections.TREATMENT_CYCLES,
+                cycle.natural_key(),
+            ),
+            rows=tuple(
+                OmopRowReference(
+                    table=OmopTables.DRUG_EXPOSURE,
+                    row_id=row.drug_exposure_id,
+                    primary_concept_id=row.drug_concept_id,
+                )
+                for row in drug_rows
+            ),
+        )
 
     def _build_treatment_cycle_rows(
         self,
@@ -95,10 +132,16 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             iv_route = self.concepts.lookup_structural("iv", domains={"Route"})
             route_concept_id = iv_route.concept_id if iv_route else None
         elif cycle.cycle_type and cycle.cycle_type == "oral":
-            quantity = cycle.oral_dose_prescribed_per_day
             dose_unit = cycle.oral_dose_unit
             oral_route = self.concepts.lookup_structural("oral", domains={"Route"})
             route_concept_id = oral_route.concept_id if oral_route else None
+
+            per_day = cycle.oral_dose_prescribed_per_day
+            if per_day is not None and end_date is not None:
+                cycle_days = (end_date - start_date).days + 1
+                quantity = per_day * cycle_days
+            else:
+                quantity = per_day
 
         base_row_id_parts = (patient.patient_id, Patient.Collections.TREATMENT_CYCLES, *cycle.natural_key())
         end_date_or_start = end_date or start_date
@@ -124,7 +167,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         return [
             DrugExposureRow(
-                drug_exposure_id=self.generate_row_id(*base_row_id_parts, concept.concept_id),
+                drug_exposure_id=self.generate_row_id(*base_row_id_parts, str(concept.concept_id)),
                 person_id=person_id,
                 drug_concept_id=concept.concept_id,
                 drug_exposure_start_date=start_date,

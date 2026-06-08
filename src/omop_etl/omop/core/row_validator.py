@@ -1,9 +1,7 @@
 from functools import lru_cache
-from typing import get_type_hints, get_origin, Union, get_args, TypeVar
+from typing import get_type_hints, get_origin, Union, get_args, Any
 from types import UnionType
 from dataclasses import fields as dataclass_fields
-
-T = TypeVar("T")
 
 
 class _RowValidationError(Exception):
@@ -25,7 +23,8 @@ def _is_optional_type(type_hint) -> bool:
 
 
 @lru_cache(maxsize=None)
-def _required_field_names(row_cls: type[T]) -> tuple[str, ...]:
+def _required_field_names(row_cls: Any) -> tuple[str, ...]:
+    """Names of the non-Optional fields of a dataclass type (cached per class)."""
     hints = get_type_hints(row_cls)
 
     required: list[str] = []
@@ -43,8 +42,9 @@ def _required_field_names(row_cls: type[T]) -> tuple[str, ...]:
     return tuple(required)
 
 
-def validate_required_fields(row: T) -> None:
-    row_cls: type[T] = type(row)
+def validate_required_fields(row: object) -> None:
+    """Raise `_RowValidationError` if any non-Optional field of the dataclass `row` is None."""
+    row_cls = type(row)
     row_type = row_cls.__name__
 
     for name in _required_field_names(row_cls):
