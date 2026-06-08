@@ -82,6 +82,18 @@ class TestProcessCohort:
         assert cohort.normalized_name == "BRAF Non-V600/Pancreatic cancer/Trametinib + Dabrafenib"
         assert cohort.drugs == ("Trametinib", "Dabrafenib")
 
+    def test_hydrates_unmapped_cohort_with_none_normalized(self, cohort_fixture):
+        """REQUIRED=(raw_name,): an unmapped cohort survives the validation gate and
+        still hydrates (audit trail) with normalized_name=None and raw/drugs preserved."""
+        h = self._harmonizer(cohort_fixture)
+        h._create_patients()
+        h.run_one("cohort")
+        cohort = h.patient_data["cohort_unmapped"].cohort
+        assert cohort is not None
+        assert cohort.normalized_name is None
+        assert cohort.raw_name == "UnknownMarker/UnknownTumor/DrugX"
+        assert cohort.drugs == ("DrugX",)
+
 
 class TestProcessSex:
     def test_returns_expected_columns(self, gender_fixture):

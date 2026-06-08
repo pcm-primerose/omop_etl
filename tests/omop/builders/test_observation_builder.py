@@ -36,17 +36,6 @@ def _with_yes_no(structural_index: dict) -> dict:
     return structural_index
 
 
-def _with_cdm_field(static_index: dict) -> dict:
-    """cdm_field static entry for AE: condition_occurrence FK linkage."""
-    static_index[("cdm_field", "condition_occurrence.condition_occurrence_id")] = _static(
-        "cdm_field",
-        "condition_occurrence.condition_occurrence_id",
-        CDM_FIELD_CID,
-        "metadata",
-    )
-    return static_index
-
-
 def _with_ae_outcome_topic(structural_index: dict) -> dict:
     structural_index["adverse_event_outcome"] = _structural("adverse_event_outcome", AE_OUTCOME_TOPIC_CID, "observation")
     return structural_index
@@ -510,7 +499,6 @@ class TestAdverseEventOutcome:
 
     def test_mapped_outcome_emits_row(self, static_index, structural_index):
         _with_ae_outcome_topic(structural_index)
-        _with_cdm_field(static_index)
         static_index[("adverse_event_outcome", "recovering/resolving")] = _static("adverse_event_outcome", "recovering/resolving", 1074213, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Recovering/resolving")
@@ -534,7 +522,6 @@ class TestAdverseEventOutcome:
         No topic structural: concept_id=0 but row still emits with mapped
         value and raw outcome preserved in value_source_value.
         """
-        _with_cdm_field(static_index)
         static_index[("adverse_event_outcome", "recovering/resolving")] = _static("adverse_event_outcome", "recovering/resolving", 1074213, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Recovering/resolving")
@@ -554,7 +541,6 @@ class TestAdverseEventOutcome:
         row still emits with topic concept and raw outcome preserved.
         """
         _with_ae_outcome_topic(structural_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Some unmapped outcome")
         ctx = create_build_context(patient, PERSON_ID)
@@ -572,7 +558,6 @@ class TestAdverseEventOutcome:
         Worst case: no mappings at all, row still emits with both
         concept ids 0 and value_source_value preserving the raw text.
         """
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Some outcome")
         ctx = create_build_context(patient, PERSON_ID)
@@ -613,7 +598,6 @@ class TestAdverseEventWasSerious:
 
     def test_was_serious_true_emits_row_with_fk(self, static_index, structural_index):
         _with_yes_no(structural_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(True)
         ctx = create_build_context(patient, PERSON_ID)
@@ -633,7 +617,6 @@ class TestAdverseEventWasSerious:
 
     def test_was_serious_false_emits_row_with_no_value(self, static_index, structural_index):
         _with_yes_no(structural_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(False)
         ctx = create_build_context(patient, PERSON_ID)
@@ -658,7 +641,6 @@ class TestAdverseEventWasSerious:
         under emit-anyway policy, FK fields left as None.
         """
         _with_yes_no(structural_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(True)
         ctx = create_build_context(patient, PERSON_ID)
@@ -676,7 +658,6 @@ class TestAdverseEventWasSerious:
         with no upstream publication the observation emits unlinked.
         """
         _with_yes_no(structural_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
@@ -711,7 +692,6 @@ class TestAdverseEventWasSerious:
 class TestAdverseEventTurnedSerious:
     def test_emits_row_on_turned_serious_date(self, static_index, structural_index):
         _with_yes_no(structural_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
@@ -805,7 +785,6 @@ class TestAdverseEventSeverity:
 
     def test_emits_row_for_grade(self, static_index, structural_index):
         _with_ae_severity(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(grade=3)
         ctx = create_build_context(patient, PERSON_ID)
@@ -875,7 +854,6 @@ class TestAdverseEventRelatedness:
 
     def test_emits_one_row_per_set_treatment_status(self, static_index, structural_index):
         _with_relatedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(
             status_1=RelatedStatus.RELATED,
@@ -901,7 +879,6 @@ class TestAdverseEventRelatedness:
 
     def test_unknown_status_maps_to_unknown_concept(self, static_index, structural_index):
         _with_relatedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.UNKNOWN)
         ctx = create_build_context(patient, PERSON_ID)
@@ -915,7 +892,6 @@ class TestAdverseEventRelatedness:
 
     def test_none_status_emits_no_row(self, static_index, structural_index):
         _with_relatedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=None, status_2=None)
 
@@ -925,7 +901,6 @@ class TestAdverseEventRelatedness:
 
     def test_one_set_one_none(self, static_index, structural_index):
         _with_relatedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.RELATED, status_2=None)
         ctx = create_build_context(patient, PERSON_ID)
@@ -938,7 +913,6 @@ class TestAdverseEventRelatedness:
 
     def test_value_concept_falls_back_to_zero_when_unmapped(self, static_index, structural_index):
         """No relatedness static lookup: value_as_concept_id=0, row still emits."""
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.RELATED)
         ctx = create_build_context(patient, PERSON_ID)
@@ -952,7 +926,6 @@ class TestAdverseEventRelatedness:
 
     def test_treatment_name_none_yields_null_qualifier(self, static_index, structural_index):
         _with_relatedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(status_1=RelatedStatus.RELATED, name_1=None)
         ctx = create_build_context(patient, PERSON_ID)
@@ -994,7 +967,6 @@ class TestAdverseEventExpectedness:
 
     def test_true_maps_to_expected_concept(self, static_index, structural_index):
         _with_expectedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=True)
         ctx = create_build_context(patient, PERSON_ID)
@@ -1013,7 +985,6 @@ class TestAdverseEventExpectedness:
 
     def test_false_maps_to_not_expected_concept(self, static_index, structural_index):
         _with_expectedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=False)
         ctx = create_build_context(patient, PERSON_ID)
@@ -1027,7 +998,6 @@ class TestAdverseEventExpectedness:
 
     def test_both_treatments_emit_two_result(self, static_index, structural_index):
         _with_expectedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=True, expected_2=False, name_1="Vemurafenib", name_2="Cobimetinib")
         ctx = create_build_context(patient, PERSON_ID)
@@ -1044,7 +1014,6 @@ class TestAdverseEventExpectedness:
 
     def test_none_emits_no_row(self, static_index, structural_index):
         _with_expectedness(static_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=None, expected_2=None)
 
@@ -1054,7 +1023,6 @@ class TestAdverseEventExpectedness:
 
     def test_value_concept_falls_back_to_zero_when_unmapped(self, static_index, structural_index):
         """No expectedness static: value_as_concept_id=0, row still emits."""
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient(expected_1=True)
         ctx = create_build_context(patient, PERSON_ID)
@@ -1070,7 +1038,6 @@ class TestAdverseEventExpectedness:
 class TestCombinedSources:
     def test_multi_source_uniqueness_and_determinism(self, static_index, structural_index):
         _with_yes_no(structural_index)
-        _with_cdm_field(static_index)
         _with_ae_outcome_topic(structural_index)
         static_index[("eot_reason", "other")] = _static("eot_reason", "other", 35821954, "observation")
         static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", LOST_TO_FU_REASON_CID, "observation")
@@ -1129,7 +1096,6 @@ class TestCombinedSources:
 
     def test_multiple_adverse_events_each_independent(self, static_index, structural_index):
         _with_yes_no(structural_index)
-        _with_cdm_field(static_index)
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 

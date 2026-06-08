@@ -895,8 +895,8 @@ class TestValidateSpecs:
                     pass
 
 
-class TestRunTemplateMethod:
-    def test_run_calls_processors_in_order(self):
+class TestProcessTemplateMethod:
+    def test_process_calls_processors_in_order(self):
         call_order = []
 
         class TrackedHarmonizer(BaseHarmonizer):
@@ -921,7 +921,7 @@ class TestRunTemplateMethod:
         assert harmonizer.patient_data["p1"].sex == "a"
         assert harmonizer.patient_data["p1"].age == 42
 
-    def test_run_with_empty_patient_data_raises(self):
+    def test_process_with_empty_patient_data_raises(self):
         class EmptyHarmonizer(BaseHarmonizer):
             SPECS = ()
 
@@ -1016,7 +1016,7 @@ class E2EHarmonizer(BaseHarmonizer):
 
 class TestEndToEndPipeline:
     """
-    Small E2E to verify raw data to run() for scalar, singleton and collection processors to instantiated Patient model.
+    Small E2E to verify raw data through process() for scalar, singleton and collection processors to instantiated Patient model.
     """
 
     def test_full_pipeline_two_patients(self):

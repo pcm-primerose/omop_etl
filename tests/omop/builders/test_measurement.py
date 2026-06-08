@@ -23,7 +23,6 @@ from omop_etl.omop.models.tables import OmopTables
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from tests.omop.conftest import (
     SemanticEntry,
-    _static,
     _structural,
     create_build_context,
     create_patient,
@@ -536,8 +535,6 @@ class TestC30Rows:
             _make_c30(dt.date(2040, 5, 1), q1="Not at all", q1_code=1, q2="A little", q2_code=2),
         ]
         # only c30_q2 in the structural index
-        from tests.omop.conftest import _structural
-
         partial = {"c30_q2": _structural("c30_q2", 701341, "measurement")}
         result = MeasurementBuilder(ConceptLookupService(static_index, partial)).build(create_build_context(patient, PERSON_ID))
 
@@ -1422,17 +1419,6 @@ CDM_FIELD_CID = 1147127
 UNIT_MM_CID = 8588
 
 
-def _with_cdm_field(static_index: dict) -> dict:
-    """Add the cdm_field static entry used to identify the FK target field."""
-    static_index[("cdm_field", "condition_occurrence.condition_occurrence_id")] = _static(
-        "cdm_field",
-        "condition_occurrence.condition_occurrence_id",
-        CDM_FIELD_CID,
-        "metadata",
-    )
-    return static_index
-
-
 def _with_millimeter(structural_index: dict) -> dict:
     """Add the millimeter unit concept (UCUM) so lesion-size result can populate unit_concept_id."""
     structural_index["millimeter"] = _structural("millimeter", UNIT_MM_CID, "unit")
@@ -1441,8 +1427,8 @@ def _with_millimeter(structural_index: dict) -> dict:
 
 class TestPrimaryCancerFKConsumption:
     """
-    MeasurementBuilder consumes BuildContext.condition_id_primary_cancer
-    (published by ConditionOccurrenceBuilder) to set
+    MeasurementBuilder resolves the primary cancer condition published by
+    ConditionOccurrenceBuilder (via the tumor SourceReference) to set
     measurement_event_id + meas_event_field_concept_id on lesion-size
     (baseline + follow-up TumorAssessment) and biomarker result.
 
@@ -1460,7 +1446,6 @@ class TestPrimaryCancerFKConsumption:
         return patient
 
     def test_baseline_lesion_size_links_to_primary_cancer(self, static_index, structural_index):
-        _with_cdm_field(static_index)
         _with_millimeter(structural_index)
         patient = self._baseline_patient()
         tumor = _tumor_for(patient)
@@ -1479,7 +1464,7 @@ class TestPrimaryCancerFKConsumption:
         _with_millimeter(structural_index)
         patient = self._baseline_patient()
         ctx = create_build_context(patient, PERSON_ID)
-        # ctx.condition_id_primary_cancer left as None
+        # no primary cancer condition published: lesion-size result stays unlinked
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
 
@@ -1513,7 +1498,6 @@ class TestPrimaryCancerFKConsumption:
             MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
 
     def test_tumor_assessment_lesion_size_links_to_primary_cancer(self, static_index, structural_index):
-        _with_cdm_field(static_index)
         _with_millimeter(structural_index)
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [
@@ -1532,7 +1516,6 @@ class TestPrimaryCancerFKConsumption:
         assert size_result[0].unit_concept_id == UNIT_MM_CID
 
     def test_biomarker_links_to_primary_cancer(self, static_index, structural_index):
-        _with_cdm_field(static_index)
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
@@ -1588,14 +1571,16 @@ class TestPrimaryCancerFKConsumption:
         cancer modifiers and should not link to primary cancer.
         Verified here on ECOG (AE/MH result are tested elsewhere).
         """
-        _with_cdm_field(static_index)
         patient = create_patient(PID, TRIAL)
         ecog = EcogBaseline(PID)
         ecog.grade = 1
         ecog.date = dt.date(2040, 1, 1)
         patient.ecog_baseline = ecog
+        # publish a real primary cancer condition so the precondition holds:
+        # the ECOG result must still not link to it (it is not a cancer modifier).
+        tumor = _tumor_for(patient)
         ctx = create_build_context(patient, PERSON_ID)
-        ctx.condition_id_primary_cancer = 99999
+        publish_tumor_condition(ctx, tumor, 99999)
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
 
