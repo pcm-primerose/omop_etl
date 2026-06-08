@@ -35,10 +35,6 @@ class FollowUp(DomainBase):
     REQUIRED_FIELDS = (Fields.LOST_TO_FOLLOWUP,)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def lost_to_followup(self) -> bool | None:
         return self._lost_to_followup
 

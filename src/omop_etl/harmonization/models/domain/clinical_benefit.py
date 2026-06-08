@@ -38,10 +38,6 @@ class ClinicalBenefit(DomainBase):
     REQUIRED_FIELDS = (Fields.HAS_BENEFIT,)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def week(self) -> int | None:
         return self._week
 

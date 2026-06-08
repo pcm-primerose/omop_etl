@@ -63,10 +63,6 @@ class EQ5D(DomainBase):
     REQUIRED_FIELDS = (Fields.EVENT_NAME, Fields.DATE)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def date(self) -> dt.date | None:
         return self._date
 

@@ -49,10 +49,6 @@ class Cohort(DomainBase):
         self.updated_fields: Set[str] = set()
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def raw_name(self) -> str | None:
         return self._raw_name
 

@@ -76,10 +76,6 @@ class AdverseEvent(DomainBase):
         self.updated_fields: Set[str] = set()
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def term(self) -> str | None:
         return self._term
 

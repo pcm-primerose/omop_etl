@@ -45,10 +45,6 @@ class MedicalHistory(DomainBase):
     NATURAL_KEY_FIELDS = (Fields.TERM, Fields.START_DATE, Fields.SEQUENCE_ID)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def term(self) -> str | None:
         return self._term
 

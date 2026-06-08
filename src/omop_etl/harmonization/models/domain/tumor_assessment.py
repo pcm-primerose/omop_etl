@@ -78,10 +78,6 @@ class TumorAssessment(DomainBase):
     NATURAL_KEY_FIELDS = (Fields.ASSESSMENT_TYPE, Fields.DATE, Fields.EVENT_ID)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def assessment_type(self) -> str | None:
         return self._assessment_type
 

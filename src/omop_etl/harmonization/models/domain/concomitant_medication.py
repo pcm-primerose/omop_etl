@@ -51,10 +51,6 @@ class ConcomitantMedication(DomainBase):
     NATURAL_KEY_FIELDS = (Fields.MEDICATION_NAME, Fields.START_DATE, Fields.SEQUENCE_ID)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def medication_name(self) -> str | None:
         return self._medication_name
 

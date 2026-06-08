@@ -55,10 +55,11 @@ def publish_tumor_condition(
     """
     Test helper: simulate ConditionOccurrenceBuilder publishing the primary
     cancer condition_occurrence row, so MeasurementBuilder can resolve the
-    tumor SourceReference for lesion-size / biomarker FK linkage."""
+    tumor SourceReference for lesion-size / biomarker FK linkage.
+    """
     ctx.publish_rows(
         OmopTables.CONDITION_OCCURRENCE,
-        SourceReference(tumor._patient_id, Patient.Singletons.TUMOR_TYPE, tumor.natural_key()),
+        SourceReference(tumor.patient_id, Patient.Singletons.TUMOR_TYPE, tumor.natural_key()),
         [OmopRowReference(table=OmopTables.CONDITION_OCCURRENCE, row_id=condition_row_id, primary_concept_id=concept_id)],
     )
 

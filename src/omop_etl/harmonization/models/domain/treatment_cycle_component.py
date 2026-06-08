@@ -94,10 +94,6 @@ class TreatmentCycleComponent(DomainBase):
         self.updated_fields: Set[str] = set()
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def source_treatment_name(self) -> str | None:
         return self._source_treatment_name
 

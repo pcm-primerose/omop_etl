@@ -34,10 +34,6 @@ class EcogBaseline(DomainBase):
     REQUIRED_FIELDS = (Fields.GRADE,)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def description(self) -> str | None:
         return self._description
 

@@ -210,6 +210,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             concept_id: int,
             event_id: int | None,
             field_concept_id: int | None,
+            date: dt.date,
+            target: str,
         ) -> MeasurementRow:
             return MeasurementRow(
                 measurement_id=self.generate_row_id(
@@ -233,9 +235,9 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         rows: list[MeasurementRow] = []
         for concept in matches:
             if not targets:
-                rows.append(row(concept.concept_id, None, None))
+                rows.append(row(concept.concept_id, None, None, date, target))
             else:
-                rows.extend(row(concept.concept_id, t.event_id, t.field_concept_id) for t in targets)
+                rows.extend(row(concept.concept_id, t.event_id, t.field_concept_id, date, target) for t in targets)
         return rows
 
     def _build_tumor_assessment_rows(

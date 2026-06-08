@@ -1,9 +1,11 @@
 from functools import lru_cache
-from typing import get_type_hints, get_origin, Union, get_args, TypeVar
+from typing import get_type_hints, get_origin, Union, get_args, Protocol, ClassVar, Any
 from types import UnionType
-from dataclasses import fields as dataclass_fields
+from dataclasses import fields as dataclass_fields, Field
 
-T = TypeVar("T")
+
+class _DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
 
 
 class _RowValidationError(Exception):
@@ -25,7 +27,7 @@ def _is_optional_type(type_hint) -> bool:
 
 
 @lru_cache(maxsize=None)
-def _required_field_names(row_cls: type[T]) -> tuple[str, ...]:
+def _required_field_names(row_cls: type[_DataclassInstance]) -> tuple[str, ...]:
     hints = get_type_hints(row_cls)
 
     required: list[str] = []
@@ -43,8 +45,8 @@ def _required_field_names(row_cls: type[T]) -> tuple[str, ...]:
     return tuple(required)
 
 
-def validate_required_fields(row: T) -> None:
-    row_cls: type[T] = type(row)
+def validate_required_fields(row: _DataclassInstance) -> None:
+    row_cls = type(row)
     row_type = row_cls.__name__
 
     for name in _required_field_names(row_cls):

@@ -35,10 +35,6 @@ class BestOverallResponse(DomainBase):
     NATURAL_KEY_FIELDS = (Fields.RESPONSE,)
 
     @property
-    def patient_id(self) -> str:
-        return self._patient_id
-
-    @property
     def response(self) -> str | None:
         return self._response
 

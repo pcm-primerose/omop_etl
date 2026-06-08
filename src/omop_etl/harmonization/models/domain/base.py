@@ -29,10 +29,17 @@ class DomainBase(TrackedValidated, ABC):
     REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = ()
     NATURAL_KEY_FIELDS: ClassVar[tuple[str, ...]] = ()
 
+    # the owning patient's id, set by every subclass __init__
+    _patient_id: str
+
     @abstractmethod
     def __init__(self, patient_id: str) -> None:  # noqa
         """Initialize domain object with patient_id. Must be implemented by subclasses."""
         ...
+
+    @property
+    def patient_id(self) -> str:
+        return self._patient_id
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
