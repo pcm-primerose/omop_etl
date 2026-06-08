@@ -399,7 +399,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         topic_concept = self.concepts.lookup_structural("adverse_event_outcome")
         outcome_concept = self.concepts.lookup_static("adverse_event_outcome", raw_outcome)
 
-        def row(event_id: int | None, field_concept_id: int | None) -> ObservationRow:
+        def row(
+            event_id: int | None,
+            field_concept_id: int | None,
+            *,
+            _date: dt.date = date,
+        ) -> ObservationRow:
             return ObservationRow(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
@@ -410,7 +415,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 ),
                 person_id=person_id,
                 observation_concept_id=topic_concept.concept_id if topic_concept else 0,
-                observation_date=date,
+                observation_date=_date,
                 observation_type_concept_id=observation_type_concept_id,
                 value_as_concept_id=outcome_concept.concept_id if outcome_concept else 0,
                 observation_source_value=AdverseEvent.Fields.OUTCOME,
@@ -450,7 +455,13 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             log.warning("Skipping AE %d was_serious for %s: missing start_date", index, patient.patient_id)
             return []
 
-        def row(event_id: int | None, field_concept_id: int | None) -> ObservationRow:
+        def row(
+            event_id: int | None,
+            field_concept_id: int | None,
+            *,
+            _date: dt.date = date,
+            _was_serious: bool = was_serious,
+        ) -> ObservationRow:
             return self._bool_observation(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
@@ -461,8 +472,8 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 ),
                 person_id=person_id,
                 field_name=AdverseEvent.Fields.WAS_SERIOUS,
-                value=was_serious,
-                date=date,
+                value=_was_serious,
+                date=_date,
                 observation_type_concept_id=observation_type_concept_id,
                 observation_event_id=event_id,
                 obs_event_field_concept_id=field_concept_id,
@@ -493,7 +504,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         if date is None:
             return []
 
-        def row(event_id: int | None, field_concept_id: int | None) -> ObservationRow:
+        def row(
+            event_id: int | None,
+            field_concept_id: int | None,
+            *,
+            _date: dt.date = date,
+        ) -> ObservationRow:
             return ObservationRow(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
@@ -504,12 +520,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 ),
                 person_id=person_id,
                 observation_concept_id=0,
-                observation_date=date,
+                observation_date=_date,
                 observation_type_concept_id=observation_type_concept_id,
                 value_as_concept_id=self._yes_no_concept_id(True),
                 observation_source_value=AdverseEvent.Fields.TURNED_SERIOUS_DATE,
                 observation_source_concept_id=0,
-                value_source_value=date.isoformat(),
+                value_source_value=_date.isoformat(),
                 observation_event_id=event_id,
                 obs_event_field_concept_id=field_concept_id,
             )
@@ -550,7 +566,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
 
         topic = self.concepts.lookup_static("adverse_event_code", str(grade))
 
-        def row(event_id: int | None, field_concept_id: int | None) -> ObservationRow:
+        def row(
+            event_id: int | None,
+            field_concept_id: int | None,
+            *,
+            _date: dt.date = date,
+        ) -> ObservationRow:
             return ObservationRow(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
@@ -561,7 +582,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 ),
                 person_id=person_id,
                 observation_concept_id=topic.concept_id if topic else 0,
-                observation_date=date,
+                observation_date=_date,
                 observation_type_concept_id=observation_type_concept_id,
                 value_as_concept_id=None,
                 observation_source_value="severity",
@@ -621,7 +642,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             field_name = f"related_to_treatment_{treatment_num}"
             concept = self.concepts.lookup_static("relatedness", status_value)
 
-            def row(event_id: int | None, field_concept_id: int | None) -> ObservationRow:
+            def row(
+                event_id: int | None,
+                field_concept_id: int | None,
+                *,
+                _date: dt.date = date,
+            ) -> ObservationRow:
                 return ObservationRow(
                     observation_id=self.generate_row_id(
                         patient.patient_id,
@@ -632,7 +658,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     ),
                     person_id=person_id,
                     observation_concept_id=0,
-                    observation_date=date,
+                    observation_date=_date,
                     observation_type_concept_id=observation_type_concept_id,
                     value_as_concept_id=concept.concept_id if concept else 0,
                     observation_source_value=field_name,
@@ -689,7 +715,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             value_literal = str(expected).lower()
             concept = self.concepts.lookup_static("expectedness", value_literal)
 
-            def row(event_id: int | None, field_concept_id: int | None) -> ObservationRow:
+            def row(
+                event_id: int | None,
+                field_concept_id: int | None,
+                *,
+                _date: dt.date = date,
+            ) -> ObservationRow:
                 return ObservationRow(
                     observation_id=self.generate_row_id(
                         patient.patient_id,
@@ -700,7 +731,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     ),
                     person_id=person_id,
                     observation_concept_id=0,
-                    observation_date=date,
+                    observation_date=_date,
                     observation_type_concept_id=observation_type_concept_id,
                     value_as_concept_id=concept.concept_id if concept else 0,
                     observation_source_value=field_name,

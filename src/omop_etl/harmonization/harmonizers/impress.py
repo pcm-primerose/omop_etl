@@ -3,7 +3,8 @@ import polars as pl
 from logging import getLogger
 
 from omop_etl.harmonization.core.parsers import PolarsParsers
-from omop_etl.harmonization.harmonizers.base import BaseHarmonizer, scalar, singleton, collection
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.harmonizers.specs import scalar, singleton, collection
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.best_overall_response import BestOverallResponse
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -22,24 +23,12 @@ from omop_etl.harmonization.models.domain.treatment_cycle_component import Treat
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.visit import Visit
-from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
 
 
 class ImpressHarmonizer(BaseHarmonizer):
-    def __init__(self, data: pl.DataFrame, trial_id: str):
-        super().__init__(data, trial_id)
-
-    def process(self) -> HarmonizedData:
-        """Run harmonization and return HarmonizedData."""
-        self.run()
-        return HarmonizedData(
-            patients=list(self.patient_data.values()),
-            trial_id=self.trial_id,
-        )
-
     def _create_patients(self) -> None:
         """Create Patient instances from unique SubjectIds."""
         patient_ids = self.data.select("SubjectId").unique().to_series().to_list()

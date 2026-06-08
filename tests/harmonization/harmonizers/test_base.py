@@ -10,8 +10,8 @@ from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.domain.followup import FollowUp
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.harmonization.harmonizers.base import (
-    BaseHarmonizer,
+from omop_etl.harmonization.harmonizers.base import BaseHarmonizer
+from omop_etl.harmonization.harmonizers.specs import (
     ScalarSpec,
     SingletonSpec,
     CollectionSpec,
@@ -915,7 +915,7 @@ class TestRunTemplateMethod:
                 return pl.DataFrame({"SubjectId": ["p1"], "v": [42]})
 
         harmonizer = TrackedHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
-        harmonizer.run()
+        harmonizer.process()
 
         assert call_order == ["create_patients", "first", "second"]
         assert harmonizer.patient_data["p1"].sex == "a"
@@ -931,7 +931,7 @@ class TestRunTemplateMethod:
         harmonizer = EmptyHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
 
         with pytest.raises(RuntimeError, match="patient_data is empty"):
-            harmonizer.run()
+            harmonizer.process()
 
     def test_processor_returning_none_is_skipped(self):
         class SkipHarmonizer(BaseHarmonizer):
@@ -943,7 +943,7 @@ class TestRunTemplateMethod:
                 return None
 
         harmonizer = SkipHarmonizer(data=pl.DataFrame({"SubjectId": ["p1"]}), trial_id="test")
-        harmonizer.run()  # shouldn't raise
+        harmonizer.process()  # shouldn't raise
 
         assert harmonizer.patient_data["p1"].sex is None
 
@@ -1029,7 +1029,7 @@ class TestEndToEndPipeline:
             E2ERawRow("p2", raw_mh_term="asthma", raw_mh_start=dt.date(2019, 8, 20)),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
-        harmonizer.run()
+        harmonizer.process()
 
         assert set(harmonizer.patient_data.keys()) == {"p1", "p2"}
         p1 = harmonizer.patient_data["p1"]
@@ -1071,7 +1071,7 @@ class TestEndToEndPipeline:
             E2ERawRow("p2", sex="male"),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
-        harmonizer.run()
+        harmonizer.process()
 
         p1 = harmonizer.patient_data["p1"]
         p2 = harmonizer.patient_data["p2"]
@@ -1099,7 +1099,7 @@ class TestEndToEndPipeline:
             E2ERawRow("p1", raw_mh_term="second", raw_mh_start=dt.date(2024, 2, 1)),
         ]
         harmonizer = E2EHarmonizer(data=_rows_to_df(rows), trial_id="TEST001")
-        harmonizer.run()
+        harmonizer.process()
 
         p1 = harmonizer.patient_data["p1"]
 

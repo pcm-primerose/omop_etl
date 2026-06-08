@@ -10,6 +10,7 @@ from omop_etl.harmonization.models.domain.eq5d import EQ5D
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
 from omop_etl.harmonization.models.patient import Patient
+from omop_etl.concept_mapping.core.models import MappedConcept
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.core.linkage import (
@@ -210,8 +211,9 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             concept_id: int,
             event_id: int | None,
             field_concept_id: int | None,
-            date: dt.date,
-            target: str,
+            *,
+            _date: dt.date = date,
+            _target: str = target,
         ) -> MeasurementRow:
             return MeasurementRow(
                 measurement_id=self.generate_row_id(
@@ -223,11 +225,11 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 ),
                 person_id=person_id,
                 measurement_concept_id=concept_id,
-                measurement_date=date,
+                measurement_date=_date,
                 measurement_datetime=datetime_value,
                 measurement_type_concept_id=ecrf_concept,
                 visit_occurrence_id=visit_occurrence_id,
-                measurement_source_value=target[:50],
+                measurement_source_value=_target[:50],
                 measurement_event_id=event_id,
                 meas_event_field_concept_id=field_concept_id,
             )
@@ -235,9 +237,9 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         rows: list[MeasurementRow] = []
         for concept in matches:
             if not targets:
-                rows.append(row(concept.concept_id, None, None, date, target))
+                rows.append(row(concept.concept_id, None, None))
             else:
-                rows.extend(row(concept.concept_id, t.event_id, t.field_concept_id, date, target) for t in targets)
+                rows.extend(row(concept.concept_id, t.event_id, t.field_concept_id) for t in targets)
         return rows
 
     def _build_tumor_assessment_rows(
@@ -287,7 +289,13 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 unit = self.concepts.lookup_structural("millimeter", domains={"Unit"})
                 unit_concept_id = unit.concept_id if unit else None
 
-                def lesion_row(event_id: int | None, field_concept_id: int | None) -> MeasurementRow:
+                def lesion_row(
+                    event_id: int | None,
+                    field_concept_id: int | None,
+                    *,
+                    _lesion: MappedConcept = lesion,
+                    _date: dt.date = date,
+                ) -> MeasurementRow:
                     return MeasurementRow(
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
@@ -297,8 +305,8 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                             event_id,
                         ),
                         person_id=person_id,
-                        measurement_concept_id=lesion.concept_id,
-                        measurement_date=date,
+                        measurement_concept_id=_lesion.concept_id,
+                        measurement_date=_date,
                         measurement_datetime=datetime_value,
                         measurement_type_concept_id=ecrf_concept,
                         value_as_number=size,
@@ -311,7 +319,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
                 targets = self._primary_cancer_link_targets(patient, ctx)
                 if not targets:
-                    rows.append(lesion_row(event_id=None, field_concept_id=None))
+                    rows.append(lesion_row(None, None))
                 else:
                     rows.extend(lesion_row(t.event_id, t.field_concept_id) for t in targets)
 

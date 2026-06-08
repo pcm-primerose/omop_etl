@@ -3,7 +3,7 @@ from typing import ClassVar
 import pytest
 import polars as pl
 
-from omop_etl.harmonization.harmonizers.base import (
+from omop_etl.harmonization.harmonizers.specs import (
     CollectionSpec,
     ScalarSpec,
     SingletonSpec,

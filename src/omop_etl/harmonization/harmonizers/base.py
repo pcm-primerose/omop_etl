@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from logging import getLogger
 import polars as pl
-from dataclasses import dataclass
 from typing import (
     Literal,
     Callable,
@@ -10,83 +9,24 @@ from typing import (
     Mapping,
     Any,
     ClassVar,
-    TypeVar,
 )
 
 from omop_etl.harmonization.core.cohort_lookups import (
     CohortLookups,
     load_cohort_lookups,
 )
+from omop_etl.harmonization.harmonizers.specs import (
+    ScalarSpec,
+    SingletonSpec,
+    CollectionSpec,
+    ProcessorSpec,
+    _SPEC_ATTR,
+)
 from omop_etl.harmonization.models.domain.base import DomainBase
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.models.patient import Patient
 
 log = getLogger(__name__)
-
-# processor function type: takes harmonizer instance, returns DataFrame or None
-type ProcessorFn = Callable[["BaseHarmonizer"], pl.DataFrame | None]
-
-# lets @scalar/@singleton/@collection decorators return the original function type
-_F = TypeVar("_F", bound=Callable[..., Any])
-
-
-@dataclass(frozen=True)
-class SpecBase:
-    """Base class for all processor specs with common fields."""
-
-    name: str
-    process: ProcessorFn
-    strict_schema: bool | None = None
-    skip_missing_patients: bool = False
-    subject_col: str = "SubjectId"
-
-
-@dataclass(frozen=True)
-class ScalarSpec(SpecBase):
-    """Spec for scalar patient attributes (e.g., cohort_name, sex, age)."""
-
-    kind: Literal["scalar"] = "scalar"
-    target_attr: str = ""
-    value_col: str = ""
-    on_duplicate: Literal["error", "first", "last"] = "error"
-
-
-@dataclass(frozen=True, kw_only=True)
-class SingletonSpec(SpecBase):
-    """Spec for singleton domain objects (one per patient)."""
-
-    target_domain: type[DomainBase]
-    kind: Literal["singleton"] = "singleton"
-    on_duplicate: Literal["error", "first", "last"] = "error"
-
-
-@dataclass(frozen=True, kw_only=True)
-class CollectionSpec(SpecBase):
-    """Spec for collection domain objects (multiple per patient)."""
-
-    target_domain: type[DomainBase]
-    kind: Literal["collection"] = "collection"
-    mode: Literal["replace", "extend"] = "replace"
-    order_by: tuple[str, ...] = ()
-    require_order_by: bool = False
-    items_col: str = "items"
-    on_natural_key_conflict: Literal["error", "warn"] = "warn"
-
-
-# union type for all specs
-ProcessorSpec = ScalarSpec | SingletonSpec | CollectionSpec
-
-
-# sentinel attribute name used to attach a spec to a decorated processor method.
-# __init_subclass__ on BaseHarmonizer scans class attributes for this marker and
-# collects the specs into the subclass's SPECS tuple in declaration order.
-_SPEC_ATTR = "__processor_spec__"
-
-
-def _derived_name(fn: Callable[..., Any]) -> str:
-    """Strip the conventional `_process_` prefix to get the logical spec name."""
-    name: str = getattr(fn, "__name__")
-    return name.removeprefix("_process_")
 
 
 def _dedup_by_natural_key(
@@ -145,118 +85,6 @@ def _dedup_by_natural_key(
     return result
 
 
-def scalar(
-    *,
-    name: str | None = None,
-    target_attr: str | None = None,
-    value_col: str | None = None,
-    on_duplicate: Literal["error", "first", "last"] = "error",
-    skip_missing_patients: bool = False,
-    subject_col: str = "SubjectId",
-    strict_schema: bool | None = None,
-) -> Callable[[_F], _F]:
-    """
-    Decorator: register a method as a scalar processor.
-
-    By default, `name`, `target_attr`, and `value_col` are derived from the method
-    name with the `_process_` prefix stripped, so `_process_sex` produces a spec
-    with name="sex" / target_attr="sex" / value_col="sex". Provide explicit kwargs
-    only when the method name doesn't match the desired Patient attribute or value
-    column.
-    """
-
-    def decorator(fn: _F) -> _F:
-        derived = _derived_name(fn)
-        spec = ScalarSpec(
-            name=name or derived,
-            process=fn,
-            target_attr=target_attr or derived,
-            value_col=value_col or derived,
-            on_duplicate=on_duplicate,
-            skip_missing_patients=skip_missing_patients,
-            subject_col=subject_col,
-            strict_schema=strict_schema,
-        )
-        setattr(fn, _SPEC_ATTR, spec)
-        return fn
-
-    return decorator
-
-
-def singleton(
-    target_domain: type[DomainBase],
-    *,
-    name: str | None = None,
-    on_duplicate: Literal["error", "first", "last"] = "error",
-    skip_missing_patients: bool = False,
-    subject_col: str = "SubjectId",
-    strict_schema: bool | None = None,
-) -> Callable[[_F], _F]:
-    """
-    Decorator: register a method as a singleton-domain processor.
-
-    `target_domain` is required. `name` defaults to the method name with the
-    `_process_` prefix stripped.
-    """
-
-    def decorator(fn: _F) -> _F:
-        derived = _derived_name(fn)
-        spec = SingletonSpec(
-            name=name or derived,
-            process=fn,
-            target_domain=target_domain,
-            on_duplicate=on_duplicate,
-            skip_missing_patients=skip_missing_patients,
-            subject_col=subject_col,
-            strict_schema=strict_schema,
-        )
-        setattr(fn, _SPEC_ATTR, spec)
-        return fn
-
-    return decorator
-
-
-def collection(
-    target_domain: type[DomainBase],
-    *,
-    name: str | None = None,
-    mode: Literal["replace", "extend"] = "replace",
-    order_by: tuple[str, ...] = (),
-    require_order_by: bool = False,
-    items_col: str = "items",
-    skip_missing_patients: bool = False,
-    subject_col: str = "SubjectId",
-    strict_schema: bool | None = None,
-    on_natural_key_conflict: Literal["error", "warn"] = "warn",
-) -> Callable[[_F], _F]:
-    """
-    Decorator: register a method as a collection-domain processor.
-
-    `target_domain` is required. `name` defaults to the method name with the
-    `_process_` prefix stripped.
-    """
-
-    def decorator(fn: _F) -> _F:
-        derived = _derived_name(fn)
-        spec = CollectionSpec(
-            name=name or derived,
-            process=fn,
-            target_domain=target_domain,
-            mode=mode,
-            order_by=order_by,
-            require_order_by=require_order_by,
-            items_col=items_col,
-            skip_missing_patients=skip_missing_patients,
-            subject_col=subject_col,
-            strict_schema=strict_schema,
-            on_natural_key_conflict=on_natural_key_conflict,
-        )
-        setattr(fn, _SPEC_ATTR, spec)
-        return fn
-
-    return decorator
-
-
 class BaseHarmonizer(ABC):
     """
     Abstract base class for harmonizing source data into domain models.
@@ -265,11 +93,11 @@ class BaseHarmonizer(ABC):
     Each spec maps a processor method (_process_{name}) to a target domain class
     and hydration strategy (singleton vs collection).
 
-    Workflow is enforced by run() template method:
+    Workflow is enforced by the process() template method:
         - _create_patients() creates Patient instances (subclass implements)
-        - _run_processors() iterates SPECS, calling each processor
+        - process() iterates SPECS, calling _run_spec() for each
         - Processor output is validated and conformed to target schema
-        - Domain objects are hydrated onto Patient instances
+        - Domain objects are hydrated onto Patient instances, returned as HarmonizedData
 
     Processor contract is extract, validate and hydrate.
     Each `_process_*` method (defined by subclasses, registered via the
@@ -322,108 +150,18 @@ class BaseHarmonizer(ABC):
         # cross-source cohort harmonization dictionaries:
         self.cohort_lookups: CohortLookups = load_cohort_lookups()
 
-    def _has_columns(self, *cols: str) -> bool:
-        """Check if all specified columns exist in self.data."""
-        return all(col in self.data.columns for col in cols)
-
-    def run(self) -> None:
-        """
-        Template method: executes harmonization pipeline in correct order.
-
-        Creates Patient instances and run spec-based processors.
-        Subclasses should not override this method, override the hooks instead.
-        """
-        self._create_patients()
-        self._run_processors()
-
-    @abstractmethod
-    def _create_patients(self) -> None:
-        """
-        Create Patient instances and populate patient_data.
-        Subclass must implement this to create Patient instances with at minimum patient_id.
-        """
-        ...
-
     def process(self) -> HarmonizedData:
-        """Run harmonization and return the harmonized output. Subclasses override."""
-        raise NotImplementedError(f"{type(self).__name__} must implement process()")
-
-    @classmethod
-    def _validate_specs(cls, specs: tuple[ProcessorSpec, ...]) -> None:
-        """
-        Validate a ProcessorSpec registry (typed variants).
-
-        Called from __init_subclass__ at class-definition time, so misconfigured
-        SPECS surface at import rather than at first instantiation.
-        """
-        name_counts = Counter(s.name for s in specs)
-        dupes = [n for n, count in name_counts.items() if count > 1]
-        if dupes:
-            raise ValueError(f"Duplicate processor names in SPECS: {dupes}")
-
-        for spec in specs:
-            if not spec.subject_col:
-                raise ValueError(f"{spec.name}: subject_col cannot be empty")
-
-            if isinstance(spec, ScalarSpec):
-                if not spec.target_attr:
-                    raise ValueError(f"{spec.name}: scalar requires target_attr")
-                if not spec.value_col:
-                    raise ValueError(f"{spec.name}: scalar requires value_col")
-                if not hasattr(Patient, spec.target_attr):
-                    raise ValueError(f"{spec.name}: Patient has no attribute '{spec.target_attr}'")
-
-            elif isinstance(spec, SingletonSpec):
-                try:
-                    Patient.get_attr_for_type(spec.target_domain)
-                except KeyError as e:
-                    raise ValueError(f"{spec.name}: {spec.target_domain.__name__} does not map to any Patient attribute") from e
-                if Patient.get_kind_for_type(spec.target_domain) != "singleton":
-                    raise ValueError(f"{spec.name}: @singleton used with {spec.target_domain.__name__}, but Patient maps it to a collection attribute")
-
-            elif isinstance(spec, CollectionSpec):
-                if spec.order_by:
-                    canonical = set(spec.target_domain.data_fields())
-                    invalid = set(spec.order_by) - canonical
-                    if invalid:
-                        raise ValueError(f"{spec.name}: order_by contains columns not in {spec.target_domain.__name__}.data_fields(): {invalid}")
-                if Patient.get_kind_for_type(spec.target_domain) != "collection":
-                    raise ValueError(f"{spec.name}: @collection used with {spec.target_domain.__name__}, but Patient maps it to a singleton attribute")
-
-                try:
-                    Patient.get_attr_for_type(spec.target_domain)
-                except KeyError as e:
-                    raise ValueError(f"{spec.name}: {spec.target_domain.__name__} does not map to any Patient attribute") from e
-
-        # two specs should not map to same Patient attr,
-        # unless all are collections with mode="extend"
-        attr_to_specs: dict[str, list[ProcessorSpec]] = {}
-        for spec in specs:
-            if isinstance(spec, ScalarSpec):
-                attr = spec.target_attr
-            else:
-                attr = Patient.get_attr_for_type(spec.target_domain)
-            attr_to_specs.setdefault(attr, []).append(spec)
-
-        for attr, mapped in attr_to_specs.items():
-            if len(mapped) > 1:
-                all_extend = all(isinstance(s, CollectionSpec) and s.mode == "extend" for s in mapped)
-                if not all_extend:
-                    spec_names = [s.name for s in mapped]
-                    raise ValueError(
-                        f"Multiple specs map to same Patient attribute '{attr}': {spec_names}. "
-                        f"This is only allowed when all are CollectionSpec with mode='extend'."
-                    )
-
-    def _run_processors(self) -> None:
-        """
-        Run all registered processors with metrics logging.
-        Uses callable dispatch: spec.process(self) instead of getattr.
-        """
+        """Run harmonization and return the harmonized output"""
+        self._create_patients()
         self._ensure_patients_initialized()
 
         for spec in self.SPECS:
             self._run_spec(spec)
+
+        return HarmonizedData(
+            patients=list(self.patient_data.values()),
+            trial_id=self.trial_id,
+        )
 
     def run_one(self, spec_name: str) -> None:
         """
@@ -437,13 +175,6 @@ class BaseHarmonizer(ABC):
         """
         self._ensure_patients_initialized()
         self._run_spec(self._get_spec(spec_name))
-
-    def _get_spec(self, spec_name: str) -> ProcessorSpec:
-        """Look up a spec by name, or raise if unknown."""
-        spec = next((s for s in self.SPECS if s.name == spec_name), None)
-        if spec is None:
-            raise ValueError(f"Unknown spec: {spec_name}")
-        return spec
 
     def validate_one(self, spec_name: str) -> pl.DataFrame | None:
         """
@@ -467,6 +198,25 @@ class BaseHarmonizer(ABC):
         if df is None:
             return None
         return self._validate_spec(spec, df)
+
+    @abstractmethod
+    def _create_patients(self) -> None:
+        """
+        Create Patient instances and populate patient_data.
+        Subclass must implement this to create Patient instances with at minimum patient_id.
+        """
+        ...
+
+    def _has_columns(self, *cols: str) -> bool:
+        """Check if all specified columns exist in self.data."""
+        return all(col in self.data.columns for col in cols)
+
+    def _get_spec(self, spec_name: str) -> ProcessorSpec:
+        """Look up a spec by name, or raise if unknown."""
+        spec = next((s for s in self.SPECS if s.name == spec_name), None)
+        if spec is None:
+            raise ValueError(f"Unknown spec: {spec_name}")
+        return spec
 
     def _run_spec(self, spec: ProcessorSpec) -> None:
         """
@@ -564,6 +314,73 @@ class BaseHarmonizer(ABC):
         self._log_validation_drops(spec, candidate_height, valid.height)
         self._log_processor_metrics(spec, valid)
         return valid
+
+    @classmethod
+    def _validate_specs(cls, specs: tuple[ProcessorSpec, ...]) -> None:
+        """
+        Validate a ProcessorSpec registry (typed variants).
+
+        Called from __init_subclass__ at class-definition time, so misconfigured
+        SPECS surface at import rather than at first instantiation.
+        """
+        name_counts = Counter(s.name for s in specs)
+        dupes = [n for n, count in name_counts.items() if count > 1]
+        if dupes:
+            raise ValueError(f"Duplicate processor names in SPECS: {dupes}")
+
+        for spec in specs:
+            if not spec.subject_col:
+                raise ValueError(f"{spec.name}: subject_col cannot be empty")
+
+            if isinstance(spec, ScalarSpec):
+                if not spec.target_attr:
+                    raise ValueError(f"{spec.name}: scalar requires target_attr")
+                if not spec.value_col:
+                    raise ValueError(f"{spec.name}: scalar requires value_col")
+                if not hasattr(Patient, spec.target_attr):
+                    raise ValueError(f"{spec.name}: Patient has no attribute '{spec.target_attr}'")
+
+            elif isinstance(spec, SingletonSpec):
+                try:
+                    Patient.get_attr_for_type(spec.target_domain)
+                except KeyError as e:
+                    raise ValueError(f"{spec.name}: {spec.target_domain.__name__} does not map to any Patient attribute") from e
+                if Patient.get_kind_for_type(spec.target_domain) != "singleton":
+                    raise ValueError(f"{spec.name}: @singleton used with {spec.target_domain.__name__}, but Patient maps it to a collection attribute")
+
+            elif isinstance(spec, CollectionSpec):
+                if spec.order_by:
+                    canonical = set(spec.target_domain.data_fields())
+                    invalid = set(spec.order_by) - canonical
+                    if invalid:
+                        raise ValueError(f"{spec.name}: order_by contains columns not in {spec.target_domain.__name__}.data_fields(): {invalid}")
+                if Patient.get_kind_for_type(spec.target_domain) != "collection":
+                    raise ValueError(f"{spec.name}: @collection used with {spec.target_domain.__name__}, but Patient maps it to a singleton attribute")
+
+                try:
+                    Patient.get_attr_for_type(spec.target_domain)
+                except KeyError as e:
+                    raise ValueError(f"{spec.name}: {spec.target_domain.__name__} does not map to any Patient attribute") from e
+
+        # two specs should not map to same Patient attr,
+        # unless all are collections with mode="extend"
+        attr_to_specs: dict[str, list[ProcessorSpec]] = {}
+        for spec in specs:
+            if isinstance(spec, ScalarSpec):
+                attr = spec.target_attr
+            else:
+                attr = Patient.get_attr_for_type(spec.target_domain)
+            attr_to_specs.setdefault(attr, []).append(spec)
+
+        for attr, mapped in attr_to_specs.items():
+            if len(mapped) > 1:
+                all_extend = all(isinstance(s, CollectionSpec) and s.mode == "extend" for s in mapped)
+                if not all_extend:
+                    spec_names = [s.name for s in mapped]
+                    raise ValueError(
+                        f"Multiple specs map to same Patient attribute '{attr}': {spec_names}. "
+                        f"This is only allowed when all are CollectionSpec with mode='extend'."
+                    )
 
     def _log_validation_drops(self, spec: ProcessorSpec, candidate_height: int, valid_height: int) -> None:
         """
