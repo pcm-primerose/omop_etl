@@ -61,7 +61,7 @@ class TestTumorTypeRows:
         assert row.person_id == PERSON_ID
         assert row.condition_concept_id == 4000
         assert row.condition_start_date == dt.date(2022, 6, 1)
-        assert row.condition_type_concept_id == 32817
+        assert row.condition_type_concept_id == 32809
         assert row.condition_source_value == "C50.9"
         assert row.condition_end_date is None
 

@@ -61,7 +61,7 @@ class TestPreviousTreatmentMainRows:
         assert row.procedure_concept_id == 4301351
         assert row.procedure_date == dt.date(2021, 3, 1)
         assert row.procedure_end_date == dt.date(2021, 3, 1)
-        assert row.procedure_type_concept_id == 32817
+        assert row.procedure_type_concept_id == 32809
         assert row.procedure_source_value == "Surgery"
 
     def test_no_procedure_match_skips(self, static_index, structural_index):

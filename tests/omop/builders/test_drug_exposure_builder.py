@@ -55,7 +55,7 @@ class TestTreatmentCycleRows:
         assert row.route_concept_id == 4171047
         assert row.quantity == 200.0
         assert row.dose_unit_source_value == "mg"
-        assert row.drug_type_concept_id == 32817
+        assert row.drug_type_concept_id == 32809
 
     def test_oral_cycle_produces_row(self, static_index, structural_index):
         patient = create_patient(PID, "test")

@@ -87,7 +87,7 @@ class TestEcogBaselineRows:
         assert len(ecog_result.rows) == 1
         assert ecog_result.rows[0].person_id == PERSON_ID
         assert ecog_result.rows[0].measurement_concept_id == 36305384
-        assert ecog_result.rows[0].measurement_type_concept_id == 32817
+        assert ecog_result.rows[0].measurement_type_concept_id == 32809
         assert ecog_result.rows[0].measurement_date == dt.date(2814, 1, 21)
         assert ecog_result.rows[0].value_as_concept_id == 36310827
         assert ecog_result.rows[0].measurement_datetime == dt.datetime(year=2814, month=1, day=21)
@@ -216,7 +216,7 @@ class TestTumorAssessmentRows:
         assert len(result.rows) == 2
         # lesion_size row
         row_1 = result.rows[0]
-        assert row_1.measurement_concept_id == 4084390
+        assert row_1.measurement_concept_id == 36768664
         assert row_1.measurement_date == dt.date(2040, 6, 14)
         assert row_1.value_as_number == 13.98
         assert row_1.value_as_concept_id is None
@@ -243,7 +243,7 @@ class TestTumorAssessmentRows:
 
         assert len(result.rows) == 1
         row = result.rows[0]
-        assert row.measurement_concept_id == 4084390  # lesion_size
+        assert row.measurement_concept_id == 36768664  # lesion_size
         assert row.measurement_date == dt.date(2040, 4, 1)
         assert row.value_as_number == 41.0
         assert row.measurement_source_value == "41.0"
@@ -282,7 +282,7 @@ class TestTumorAssessmentRows:
 
         # only the size row:
         assert len(result.rows) == 1
-        assert result.rows[0].measurement_concept_id == 4084390
+        assert result.rows[0].measurement_concept_id == 36768664
         assert result.rows[0].value_as_number == 28.987
 
     def test_only_not_evaluable(self, static_index, structural_index):
@@ -295,7 +295,7 @@ class TestTumorAssessmentRows:
 
         # size row and Not Evaluable row
         assert len(result.rows) == 2
-        assert result.rows[0].measurement_concept_id == 4084390  # lesion size
+        assert result.rows[0].measurement_concept_id == 36768664  # lesion size
         assert result.rows[0].value_as_number == 28.987
         assert result.rows[1].measurement_concept_id == 734317  # RECIST structural
         assert result.rows[1].value_as_concept_id == 45878793  # NE qualifier
@@ -314,13 +314,13 @@ class TestTumorAssessmentRows:
         assert len(result.rows) == 4
 
         # V05: size & precoordinated SD response
-        assert result.rows[0].measurement_concept_id == 4084390  # lesion size
+        assert result.rows[0].measurement_concept_id == 36768664  # lesion size
         assert result.rows[0].value_as_number == 28.987
         assert result.rows[1].measurement_concept_id == 1634680  # RECIST SD precoordinated
         assert result.rows[1].value_as_concept_id is None
 
         # V06: size & NE (structural RECIST and NE qualifier)
-        assert result.rows[2].measurement_concept_id == 4084390
+        assert result.rows[2].measurement_concept_id == 36768664
         assert result.rows[2].value_as_number == 300.0
         assert result.rows[3].measurement_concept_id == 734317
         assert result.rows[3].value_as_concept_id == 45878793
@@ -408,7 +408,7 @@ class TestC30Rows:
         assert row_1.value_as_concept_id == 45883172
         assert row_1.value_as_number == 1.0
         assert row_1.measurement_source_value == "not at all"
-        assert row_1.measurement_type_concept_id == 32817
+        assert row_1.measurement_type_concept_id == 32809
 
         # c30_q2
         row_2 = result.rows[1]
@@ -417,7 +417,7 @@ class TestC30Rows:
         assert row_2.value_as_concept_id == 45884456
         assert row_2.value_as_number == 3.0
         assert row_2.measurement_source_value == "quite a bit"
-        assert row_2.measurement_type_concept_id == 32817
+        assert row_2.measurement_type_concept_id == 32809
 
         assert result.rows[2].measurement_date == dt.date(2041, 5, 1)
 
@@ -597,7 +597,7 @@ class TestEQ5DRows:
         assert row_1.measurement_source_value == "I have no problems in walking about"
         assert row_1.measurement_concept_id == 742346
         assert row_1.value_as_concept_id is None
-        assert row_1.measurement_type_concept_id == 32817
+        assert row_1.measurement_type_concept_id == 32809
         assert row_1.person_id == PERSON_ID
         assert row_1.measurement_date == dt.date(2040, 5, 1)
         assert row_1.measurement_datetime == dt.datetime(2040, 5, 1)
@@ -1506,7 +1506,7 @@ class TestPrimaryCancerFKConsumption:
 
         result = MeasurementBuilder(ConceptLookupService(static_index, structural_index)).build(ctx)
 
-        size_result = [r for r in result.rows if r.measurement_concept_id == 4084390]
+        size_result = [r for r in result.rows if r.measurement_concept_id == 36768664]
         assert len(size_result) == 1
         assert size_result[0].measurement_event_id == 67890
         assert size_result[0].meas_event_field_concept_id == self.CDM_FIELD_CID

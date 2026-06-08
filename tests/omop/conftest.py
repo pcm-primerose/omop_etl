@@ -158,8 +158,7 @@ def _static(value_set: str, local_value: str, concept_id: int, domain_id: str) -
 @pytest.fixture
 def structural_index() -> dict[str, StructuralConcept]:
     return {
-        "ecrf": _structural("ecrf", 32817, "type concept"),
-        "observation_period": _structural("observation_period", 44814723, "type concept"),
+        "ecrf": _structural("ecrf", 32809, "type concept"),
         "patient_withdrawn": _structural("patient_withdrawn", 4087907, "observation"),
         "outpatient_visit": _structural("outpatient_visit", 9202, "visit"),
         "iv": _structural("iv", 4171047, "route"),
@@ -168,7 +167,7 @@ def structural_index() -> dict[str, StructuralConcept]:
         "vocab": _structural("vocab", 1146958, "metadata"),
         "ecog": _structural("ecog", 36305384, "measurement"),
         # measurement builder: target lesion absolute size
-        "lesion_size": _structural("lesion_size", 4084390, "measurement"),
+        "lesion_size": _structural("lesion_size", 36768664, "measurement"),
         # measurement builder: C30 questions
         "c30_q1": _structural("c30_q1", 701340, "measurement"),
         "c30_q2": _structural("c30_q2", 701341, "measurement"),

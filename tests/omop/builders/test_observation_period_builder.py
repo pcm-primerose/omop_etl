@@ -37,7 +37,7 @@ class TestObservationPeriodBuilder:
         assert row.person_id == PERSON_ID
         assert row.observation_period_start_date == dt.date(2023, 1, 1)
         assert row.observation_period_end_date == dt.date(2023, 6, 30)
-        assert row.period_type_concept_id == 32817
+        assert row.period_type_concept_id == 32809
 
     def test_missing_treatment_start_returns_empty(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)

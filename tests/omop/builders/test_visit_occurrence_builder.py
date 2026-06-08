@@ -54,7 +54,7 @@ class TestVisitOccurrenceBuilder:
         assert row.visit_end_date == dt.date(2023, 1, 15)
         assert row.visit_source_value == "V00VI"
         assert row.visit_concept_id == 9202  # outpatient_visit
-        assert row.visit_type_concept_id == 32817  # ecrf
+        assert row.visit_type_concept_id == 32809  # ecrf
 
     def test_visit_without_date_is_skipped(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)

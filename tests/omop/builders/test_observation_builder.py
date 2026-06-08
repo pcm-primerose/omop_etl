@@ -77,7 +77,7 @@ class TestEvaluableForEfficacy:
         row = result.rows[0]
         assert row.observation_concept_id == 0
         assert row.observation_date == dt.date(2023, 1, 10)
-        assert row.observation_type_concept_id == 32817
+        assert row.observation_type_concept_id == 32809
         assert row.observation_source_value == "evaluable_for_efficacy_analysis"
         assert row.observation_source_concept_id == 0
         assert row.value_as_concept_id == YES_CID
