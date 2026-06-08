@@ -6,6 +6,7 @@ import pytest
 from omop_etl.concept_mapping.core.models import StructuralConcept, StaticConcept
 from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.context import BuildContext
@@ -61,6 +62,24 @@ def publish_tumor_condition(
         OmopTables.CONDITION_OCCURRENCE,
         SourceReference(tumor.patient_id, Patient.Singletons.TUMOR_TYPE, tumor.natural_key()),
         [OmopRowReference(table=OmopTables.CONDITION_OCCURRENCE, row_id=condition_row_id, primary_concept_id=concept_id)],
+    )
+
+
+def publish_cycle_drug_exposure(
+    ctx: BuildContext,
+    cycle: TreatmentCycleComponent,
+    drug_exposure_row_id: int,
+    concept_id: int = 0,
+) -> None:
+    """
+    Test helper: simulate DrugExposureBuilder publishing a drug_exposure row for
+    a treatment cycle, so ObservationBuilder can resolve the cycle's metadata /
+    deviation modifier observations to it.
+    """
+    ctx.publish_rows(
+        OmopTables.DRUG_EXPOSURE,
+        SourceReference(cycle.patient_id, Patient.Collections.TREATMENT_CYCLES, cycle.natural_key()),
+        [OmopRowReference(table=OmopTables.DRUG_EXPOSURE, row_id=drug_exposure_row_id, primary_concept_id=concept_id)],
     )
 
 
@@ -186,10 +205,11 @@ def static_index() -> dict[tuple[str, str], StaticConcept]:
         ("sex", "m"): _static("sex", "m", 8507, "gender"),
         ("sex", "f"): _static("sex", "f", 8532, "gender"),
         # cdm_field for FK linkage (observation_event_id / measurement_event_id
-        # to condition_occurrence.condition_occurrence_id)
+        # to condition_occurrence.condition_occurrence_id, or to drug_exposure.drug_exposure_id)
         ("cdm_field", "condition_occurrence.condition_occurrence_id"): _static(
             "cdm_field", "condition_occurrence.condition_occurrence_id", 1147127, "metadata"
         ),
+        ("cdm_field", "drug_exposure.drug_exposure_id"): _static("cdm_field", "drug_exposure.drug_exposure_id", 1147094, "metadata"),
         ("ecog_code", "1"): _static("ecog_code", "1", 36310827, "meas value"),
         ("ecog_code", "0"): _static("ecog_code", "0", 36309661, "meas value"),
         # C30 shared answer scale (Q1–Q28)

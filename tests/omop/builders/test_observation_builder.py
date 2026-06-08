@@ -7,6 +7,7 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent, Rel
 from omop_etl.harmonization.models.domain.clinical_benefit import ClinicalBenefit
 from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment, TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.followup import FollowUp
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.observation import ObservationBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
@@ -17,6 +18,7 @@ from tests.omop.conftest import (
     create_build_context,
     create_patient,
     publish_ae_condition,
+    publish_cycle_drug_exposure,
 )
 
 PID = "p1"
@@ -1123,3 +1125,106 @@ class TestCombinedSources:
         assert set(by_event_id.keys()) == {100, 200}
         assert by_event_id[100].observation_date == dt.date(2023, 5, 1)
         assert by_event_id[200].observation_date == dt.date(2023, 6, 1)
+
+
+class TestTreatmentCycleMetadata:
+    """
+    Per-cycle metadata / deviation modifier observations (pattern 4), FK-linked
+    to the cycle's drug_exposure row(s). Skip-when-no-link: no published
+    drug_exposure, no observation.
+    """
+
+    DRUG_ROW_ID = 555_111
+    DRUG_FIELD_CID = 1147094  # cdm_field for drug_exposure.drug_exposure_id
+
+    @staticmethod
+    def _cycle(**fields: object) -> TreatmentCycleComponent:
+        cycle = TreatmentCycleComponent(patient_id=PID)
+        cycle.source_treatment_name = "Dabrafenib"
+        cycle.start_date = dt.date(2023, 2, 1)
+        for name, value in fields.items():
+            setattr(cycle, name, value)
+        return cycle
+
+    @staticmethod
+    def _rows(ctx, static_index, structural_index):
+        return ObservationBuilder(ConceptLookupService(static_index, structural_index)).build(ctx).rows
+
+    def test_number_field_links_to_drug_exposure(self, static_index, structural_index):
+        cycle = self._cycle(number_of_days_tablet_not_taken=3)
+        patient = create_patient(PID, TRIAL)
+        patient.treatment_cycles = [cycle]
+        ctx = create_build_context(patient, PERSON_ID)
+        publish_cycle_drug_exposure(ctx, cycle, self.DRUG_ROW_ID)
+
+        rows = self._rows(ctx, static_index, structural_index)
+        meta = [r for r in rows if r.observation_source_value == "number_of_days_tablet_not_taken"]
+        assert len(meta) == 1
+        row = meta[0]
+        assert row.observation_concept_id == 0
+        assert row.value_as_number == 3.0
+        assert row.value_source_value == "3"
+        assert row.observation_date == dt.date(2023, 2, 1)
+        assert row.observation_event_id == self.DRUG_ROW_ID
+        assert row.obs_event_field_concept_id == self.DRUG_FIELD_CID
+
+    def test_bool_field_maps_to_yes_no(self, static_index, structural_index):
+        _with_yes_no(structural_index)
+        cycle = self._cycle(was_dose_administered_to_spec=False)
+        patient = create_patient(PID, TRIAL)
+        patient.treatment_cycles = [cycle]
+        ctx = create_build_context(patient, PERSON_ID)
+        publish_cycle_drug_exposure(ctx, cycle, self.DRUG_ROW_ID)
+
+        rows = self._rows(ctx, static_index, structural_index)
+        meta = [r for r in rows if r.observation_source_value == "was_dose_administered_to_spec"]
+        assert len(meta) == 1
+        assert meta[0].value_as_concept_id == NO_CID
+        assert meta[0].value_source_value == "false"
+        assert meta[0].observation_event_id == self.DRUG_ROW_ID
+
+    def test_text_field_goes_to_value_as_string(self, static_index, structural_index):
+        cycle = self._cycle(reason_tablet_not_taken="patient forgot")
+        patient = create_patient(PID, TRIAL)
+        patient.treatment_cycles = [cycle]
+        ctx = create_build_context(patient, PERSON_ID)
+        publish_cycle_drug_exposure(ctx, cycle, self.DRUG_ROW_ID)
+
+        rows = self._rows(ctx, static_index, structural_index)
+        meta = [r for r in rows if r.observation_source_value == "reason_tablet_not_taken"]
+        assert len(meta) == 1
+        assert meta[0].value_as_string == "patient forgot"
+        assert meta[0].observation_event_id == self.DRUG_ROW_ID
+
+    def test_skips_when_no_drug_exposure_published(self, static_index, structural_index):
+        """metadata set, but nothing published: no rows."""
+        _with_yes_no(structural_index)
+        cycle = self._cycle(number_of_days_tablet_not_taken=3, was_dose_administered_to_spec=False)
+        patient = create_patient(PID, TRIAL)
+        patient.treatment_cycles = [cycle]
+        ctx = create_build_context(patient, PERSON_ID)
+        # deliberately no publish_cycle_drug_exposure
+
+        rows = self._rows(ctx, static_index, structural_index)
+        assert rows == ()
+
+    def test_multiple_fields_emit_one_row_each(self, static_index, structural_index):
+        _with_yes_no(structural_index)
+        cycle = self._cycle(
+            number_of_days_tablet_not_taken=2,
+            reason_tablet_not_taken="nausea",
+            was_dose_administered_to_spec=True,
+        )
+        patient = create_patient(PID, TRIAL)
+        patient.treatment_cycles = [cycle]
+        ctx = create_build_context(patient, PERSON_ID)
+        publish_cycle_drug_exposure(ctx, cycle, self.DRUG_ROW_ID)
+
+        rows = self._rows(ctx, static_index, structural_index)
+        sources = {r.observation_source_value for r in rows}
+        assert sources == {
+            "number_of_days_tablet_not_taken",
+            "reason_tablet_not_taken",
+            "was_dose_administered_to_spec",
+        }
+        assert len({r.observation_id for r in rows}) == 3  # distinct PKs

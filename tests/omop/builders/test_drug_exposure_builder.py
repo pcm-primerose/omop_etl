@@ -7,7 +7,8 @@ from omop_etl.harmonization.models.domain.treatment_cycle_component import Treat
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
 from omop_etl.omop.core.id_generator import sha1_bigint
-from omop_etl.omop.core.linkage import BuildResult
+from omop_etl.omop.core.linkage import BuildResult, SourceReference
+from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
     create_build_context,
     create_patient,
@@ -601,3 +602,63 @@ class TestIdUniqueness:
         result2 = builder.build(create_build_context(patient, PERSON_ID))
 
         assert result1.rows[0].drug_exposure_id == result2.rows[0].drug_exposure_id
+
+
+class TestTreatmentCyclePublication:
+    """
+    DrugExposureBuilder publishes each treatment cycle's drug_exposure row(s)
+    under the cycle SourceReference, so ObservationBuilder can FK-link the cycle's
+    metadata/deviation modifier observations to them.
+    """
+
+    @staticmethod
+    def _cycle_ref(cycle: TreatmentCycleComponent) -> SourceReference:
+        return SourceReference(PID, Patient.Collections.TREATMENT_CYCLES, cycle.natural_key())
+
+    def test_publishes_cycle_drug_exposure_row(self, static_index, structural_index):
+        patient = create_patient(PID, TRIAL)
+        cycle = TreatmentCycleComponent(patient_id=PID)
+        cycle.source_treatment_name = "Dabrafenib"
+        cycle.cycle_type = "oral"
+        cycle.start_date = dt.date(2023, 2, 1)
+        patient.treatment_cycles = [cycle]
+
+        ctx = create_build_context(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build_and_populate(ctx)
+
+        refs = ctx.resolve_rows(OmopTables.DRUG_EXPOSURE, self._cycle_ref(cycle))
+        assert len(refs) == 1
+        assert refs[0].row_id == rows[0].drug_exposure_id
+
+    def test_multi_concept_cycle_publishes_all_rows(self, static_index, structural_index):
+        """A cycle mapped to N Drug concepts publishes all N drug_exposure rows."""
+        semantic = create_semantic_index(
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                leaf_index=0,
+                concept_id=111,
+                name="drug a",
+                domain="drug",
+            ),
+            SemanticEntry(
+                patient_id=PID,
+                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                leaf_index=0,
+                concept_id=222,
+                name="drug b",
+                domain="drug",
+            ),
+        )
+        patient = create_patient(PID, TRIAL)
+        cycle = TreatmentCycleComponent(patient_id=PID)
+        cycle.source_treatment_name = "Combo"
+        cycle.start_date = dt.date(2023, 2, 1)
+        patient.treatment_cycles = [cycle]
+
+        ctx = create_build_context(patient, PERSON_ID)
+        rows = DrugExposureBuilder(ConceptLookupService(static_index, structural_index, semantic)).build_and_populate(ctx)
+
+        refs = ctx.resolve_rows(OmopTables.DRUG_EXPOSURE, self._cycle_ref(cycle))
+        assert len(refs) == 2
+        assert {r.row_id for r in refs} == {r.drug_exposure_id for r in rows}

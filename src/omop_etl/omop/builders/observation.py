@@ -1,10 +1,11 @@
 import datetime as dt
 from logging import getLogger
-from typing import ClassVar
+from typing import ClassVar, Any
 
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.end_of_treatment import TrialOutcomeStatus
 from omop_etl.harmonization.models.domain.followup import FollowUp
+from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.builders.context import BuildContext
@@ -23,11 +24,12 @@ log = getLogger(__name__)
 class ObservationBuilder(OmopBuilder[ObservationRow]):
     """
     Builds observation rows from patient scalars, the lost-to-followup singleton,
-    and adverse-event-derived facts (outcome, was_serious, turned_serious_date,
-    severity, relatedness, expectedness). All observation_concept_id domains
-    must not be in Condition, Procedure, Drug, Specimen, Measurement, or Device.
+    adverse-event-derived facts (outcome, was_serious, turned_serious_date,
+    severity, relatedness, expectedness), and per-treatment-cycle metadata /
+    deviation facts. All observation_concept_id domains must not be in Condition,
+    Procedure, Drug, Specimen, Measurement, or Device.
 
-    Three patterns:
+    Four patterns:
 
     1. Unmapped scalar source attributes (evaluable_for_efficacy_analysis,
        has_clinical_benefit_at_week_*, end_of_treatment_reason):
@@ -45,14 +47,21 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
        rows (multi-concept mapping), each modifier expands to N rows with the
        target row_id in the PK hash for distinctness.
 
-       Emit-anyway policy is enforced at the callsite: each AE modifier method
-       checks `if not targets` and emits one unlinked row when no linkage was
-       published (the assessment is meaningful regardless of whether the AE
-       produced a condition row).
+       Emit-anyway policy: each AE modifier method emits one unlinked row when
+       no linkage was published (the assessment is meaningful regardless of
+       whether the AE produced a condition row).
 
-    A row is only skipped when the source value or a required date is missing.
-    When a concept lookup misses, the row is still emitted with concept_id=0,
-    and the raw literal is stored in value_source_value or observation_source_value.
+    4. Treatment-cycle metadata / deviation modifier rows (days-tablet-not-taken,
+       administered-to-spec, reasons, ...): same modifier shape, FK-linked to the
+       cycle's drug_exposure row(s) (published by DrugExposureBuilder).
+       Skip-when-no-link policy (unlike pattern 3): a cycle modifier only means
+       something attached to the drug_exposure it modifies, so the row is dropped
+       when no drug_exposure was published for the cycle.
+
+    A row is only skipped when the source value or a required date is missing
+    (or, for pattern 4, when no FK target was published). When a concept lookup
+    misses, the row is still emitted with concept_id=0, and the raw literal is
+    stored in value_source_value or observation_source_value.
     """
 
     table_name: ClassVar[str] = OmopTables.OBSERVATION
@@ -87,6 +96,9 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             rows.extend(self._build_ae_severity(patient, person_id, observation_type_concept_id, ae, idx, ctx))
             rows.extend(self._build_ae_relatedness(patient, person_id, observation_type_concept_id, ae, ctx))
             rows.extend(self._build_ae_expected(patient, person_id, observation_type_concept_id, ae, ctx))
+
+        for cycle in patient.treatment_cycles:
+            rows.extend(self._build_treatment_cycle_metadata(patient, person_id, observation_type_concept_id, cycle, ctx))
 
         return BuildResult(rows=tuple(rows))
 
@@ -746,4 +758,109 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 rows.append(row(event_id=None, field_concept_id=None))
             else:
                 rows.extend(row(t.event_id, t.field_concept_id) for t in targets)
+        return rows
+
+    _CYCLE_METADATA_FIELDS: ClassVar[tuple[tuple[str, Any], ...]] = (
+        (TreatmentCycleComponent.Fields.RECEIVED_TREATMENT_THIS_CYCLE, bool),
+        (TreatmentCycleComponent.Fields.WAS_TOTAL_DOSE_DELIVERED, bool),
+        (TreatmentCycleComponent.Fields.WAS_DOSE_ADMINISTERED_TO_SPEC, bool),
+        (TreatmentCycleComponent.Fields.REASON_NOT_ADMINISTERED_TO_SPEC, str),
+        (TreatmentCycleComponent.Fields.NUMBER_OF_DAYS_TABLET_NOT_TAKEN, int),
+        (TreatmentCycleComponent.Fields.REASON_TABLET_NOT_TAKEN, str),
+        (TreatmentCycleComponent.Fields.WAS_TABLET_TAKEN_TO_PRESCRIPTION_IN_PREVIOUS_CYCLE, bool),
+    )
+
+    def _build_treatment_cycle_metadata(
+        self,
+        patient: Patient,
+        person_id: int,
+        observation_type_concept_id: int,
+        cycle: TreatmentCycleComponent,
+        ctx: BuildContext,
+    ) -> list[ObservationRow]:
+        """
+        Per-cycle metadata and deviation modifier observations, one row per non-None
+        field in `_CYCLE_METADATA_FIELDS` per linked drug_exposure row.
+
+        observation_concept_id = 0 (no Standard topic concept for trial drug
+        adherence / deviation in current vocab). Field name in
+        observation_source_value; the value lands in value_as_concept_id (Yes/No
+        for bools), value_as_number (ints), or value_as_string (free-text
+        reasons), with the raw literal in value_source_value. Dated to
+        cycle.start_date.
+
+        Skip-when-no-link: a cycle modifier only means something attached to the
+        drug_exposure it modifies, so the whole cycle's metadata is skipped when
+        DrugExposureBuilder published no row for it (e.g. a cycle with no drug
+        name). A cycle mapped to N Drug concepts links each metadata row to all N.
+        """
+        date = cycle.start_date
+        if date is None:
+            return []
+
+        targets = self._resolve_link_targets(
+            ctx,
+            target_table=OmopTables.DRUG_EXPOSURE,
+            source_ref=SourceReference(
+                patient.patient_id,
+                Patient.Collections.TREATMENT_CYCLES,
+                cycle.natural_key(),
+            ),
+        )
+        if not targets:
+            return []
+
+        rows: list[ObservationRow] = []
+        for field_name, kind in self._CYCLE_METADATA_FIELDS:
+            value = getattr(cycle, field_name)
+            if value is None:
+                continue
+
+            value_as_number: float | None = None
+            value_as_string: str | None = None
+            value_as_concept_id: int | None = None
+            if kind is bool:
+                value_as_concept_id = self._yes_no_concept_id(value)
+                value_source_value = str(value).lower()
+            elif kind is int:
+                value_as_number = float(value)
+                value_source_value = str(value)
+            else:
+                value_as_string = value[:60]
+                value_source_value = value[:50]
+
+            def row(
+                event_id: int,
+                field_concept_id: int,
+                *,
+                _date: dt.date = date,
+                _field: str = field_name,
+                _van: float | None = value_as_number,
+                _vas: str | None = value_as_string,
+                _vac: int | None = value_as_concept_id,
+                _vsv: str = value_source_value,
+            ) -> ObservationRow:
+                return ObservationRow(
+                    observation_id=self.generate_row_id(
+                        patient.patient_id,
+                        Patient.Collections.TREATMENT_CYCLES,
+                        *cycle.natural_key(),
+                        _field,
+                        event_id,
+                    ),
+                    person_id=person_id,
+                    observation_concept_id=0,
+                    observation_date=_date,
+                    observation_type_concept_id=observation_type_concept_id,
+                    value_as_number=_van,
+                    value_as_string=_vas,
+                    value_as_concept_id=_vac,
+                    observation_source_value=_field,
+                    observation_source_concept_id=0,
+                    value_source_value=_vsv,
+                    observation_event_id=event_id,
+                    obs_event_field_concept_id=field_concept_id,
+                )
+
+            rows.extend(row(t.event_id, t.field_concept_id) for t in targets)
         return rows
