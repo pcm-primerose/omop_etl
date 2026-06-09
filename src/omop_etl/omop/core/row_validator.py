@@ -14,9 +14,7 @@ class _RowValidationError(Exception):
 
 
 def _is_optional_type(type_hint) -> bool:
-    """Check if a type hint is Optional: includes None."""
     origin = get_origin(type_hint)
-    # handle None union type
     if origin is UnionType or origin is Union:
         return type(None) in get_args(type_hint)
     return False

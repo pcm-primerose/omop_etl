@@ -1,7 +1,7 @@
 from pydantic.dataclasses import dataclass as pd_dataclass
 from pydantic import Field as pd_field
 import datetime as dt
-from typing import ClassVar, Annotated
+from typing import Annotated
 
 from omop_etl.omop.core.row_validator import validate_required_fields
 
@@ -11,11 +11,7 @@ class PersonRow:
     """
     OMOP Person table row.
     https://ohdsi.github.io/CommonDataModel/cdm54.html#person
-
-    Natural key: person_id (effectively no deduplication - one per patient)
     """
-
-    natural_key_fields: ClassVar[tuple[str, ...]] = ("person_id",)
 
     person_id: int
     gender_concept_id: int
@@ -36,11 +32,7 @@ class PersonRow:
     location_id: int | None = None
     care_site_id: int | None = None
 
-    def natural_key(self) -> tuple:
-        return tuple(getattr(self, f) for f in self.natural_key_fields)
-
     def validate(self) -> None:
-        """Validate required fields based on type hints. Raises RowValidationError if invalid."""
         validate_required_fields(self)
 
 
@@ -50,10 +42,10 @@ class ObservationPeriodRow:
     OMOP ObservationPeriod table row.
     https://ohdsi.github.io/CommonDataModel/cdm54.html#observation_period
 
-    Natural key: person_id (one observation period per patient)
+    Identity: observation_period_id (the DB primary key). One period per patient
+    by construction; uniqueness is enforced by the DB primary key, not by
+    row-level dedup here.
     """
-
-    natural_key_fields: ClassVar[tuple[str, ...]] = ("person_id",)
 
     observation_period_id: int
     person_id: int
@@ -61,11 +53,7 @@ class ObservationPeriodRow:
     observation_period_end_date: dt.date
     period_type_concept_id: int
 
-    def natural_key(self) -> tuple:
-        return tuple(getattr(self, f) for f in self.natural_key_fields)
-
     def validate(self) -> None:
-        """Validate required fields based on type hints. Raises RowValidationError if invalid."""
         validate_required_fields(self)
 
 
@@ -89,7 +77,6 @@ class CdmSourceRow:
     cdm_version: Annotated[str | None, pd_field(max_length=10)] = None
 
     def validate(self) -> None:
-        """Validate required fields based on type hints. Raises RowValidationError if invalid."""
         validate_required_fields(self)
 
 
@@ -98,8 +85,6 @@ class VisitOccurrenceRow:
     """
     https://ohdsi.github.io/CommonDataModel/cdm54.html#visit_occurrence
     """
-
-    natural_key_fields: ClassVar[tuple[str, ...]] = ("person_id",)
 
     visit_occurrence_id: int
     person_id: int
@@ -247,6 +232,10 @@ class MeasurementRow:
 
 @pd_dataclass(frozen=True, slots=True)
 class ObservationRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#observation
+    """
+
     observation_id: int
     person_id: int
     observation_concept_id: int
@@ -268,6 +257,24 @@ class ObservationRow:
     value_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     observation_event_id: int | None = None
     obs_event_field_concept_id: int | None = None
+
+    def validate(self):
+        validate_required_fields(self)
+
+
+@pd_dataclass(frozen=True, slots=True)
+class DeathRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#death
+    """
+
+    person_id: int
+    death_date: dt.date
+    death_datetime: dt.datetime | None = None
+    death_type_concept_id: int | None = None
+    cause_concept_id: int | None = None
+    cause_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    cause_source_concept_id: int | None = None
 
     def validate(self):
         validate_required_fields(self)

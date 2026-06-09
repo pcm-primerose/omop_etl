@@ -277,24 +277,6 @@ class TestSkipBehavior:
         assert len(tables.observation_period) == 1
 
 
-class TestDedup:
-    def test_same_patient_twice_deduplicates(self, static_index, structural_index):
-        concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(
-            "p1",
-            "test",
-            sex="m",
-            date_of_birth=dt.date(1980, 1, 1),
-            treatment_start_date=dt.date(2023, 1, 1),
-        )
-        _with_eot(patient, dt.date(2023, 6, 30))
-
-        tables = OmopService(concepts).build([patient, patient])
-
-        assert len(tables.person) == 1
-        assert len(tables.observation_period) == 1
-
-
 class TestEmptyInput:
     def test_empty_patients_list(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
