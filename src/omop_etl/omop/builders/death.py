@@ -19,9 +19,7 @@ class DeathBuilder(OmopBuilder[DeathRow]):
         person_id = ctx.person_id
 
         ecrf_concept_candidate = self.concepts.lookup_structural(value_set="ecrf", domains={"type concept"})
-        if ecrf_concept_candidate is None:
-            raise RuntimeError("No eCRF concept found in structural mapping")
-        ecrf_concept = ecrf_concept_candidate.concept_id
+        ecrf_concept = ecrf_concept_candidate.concept_id if ecrf_concept_candidate else 0
 
         date_of_death = patient.date_of_death
         if date_of_death is None:
@@ -33,13 +31,11 @@ class DeathBuilder(OmopBuilder[DeathRow]):
             date_of_death.day,
         )
 
-        built_rows = [
-            DeathRow(
-                person_id=person_id,
-                death_date=date_of_death,
-                death_datetime=datetime_of_death,
-                death_type_concept_id=ecrf_concept,
-            )
-        ]
+        death_row = DeathRow(
+            person_id=person_id,
+            death_date=date_of_death,
+            death_datetime=datetime_of_death,
+            death_type_concept_id=ecrf_concept,
+        )
 
-        return BuildResult(rows=(tuple(built_rows)), publications=())
+        return BuildResult(rows=(death_row,), publications=())

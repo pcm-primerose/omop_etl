@@ -39,6 +39,7 @@ class TestDeathRows:
         assert row.person_id == PERSON_ID
         assert row.death_date == dt.date(1900, 1, 1)
         assert row.death_type_concept_id == 32809
+        assert row.death_datetime == dt.datetime(1900, 1, 1)
 
     def test_missing_date_of_date_returns_no_rows(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
@@ -47,4 +48,4 @@ class TestDeathRows:
 
         result = DeathBuilder(concepts).build(create_build_context(patient, PERSON_ID))
 
-        assert len(result.rows) == 0
+        assert result == BuildResult(rows=(), publications=())

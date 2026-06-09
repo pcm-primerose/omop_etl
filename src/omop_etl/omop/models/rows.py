@@ -3,13 +3,10 @@ from pydantic import Field as pd_field
 import datetime as dt
 from typing import Annotated
 
-from omop_etl.omop.core.row_validator import validate_required_fields
-
 
 @pd_dataclass(frozen=True, slots=True)
 class PersonRow:
     """
-    OMOP Person table row.
     https://ohdsi.github.io/CommonDataModel/cdm54.html#person
     """
 
@@ -32,19 +29,11 @@ class PersonRow:
     location_id: int | None = None
     care_site_id: int | None = None
 
-    def validate(self) -> None:
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class ObservationPeriodRow:
     """
-    OMOP ObservationPeriod table row.
     https://ohdsi.github.io/CommonDataModel/cdm54.html#observation_period
-
-    Identity: observation_period_id (the DB primary key). One period per patient
-    by construction; uniqueness is enforced by the DB primary key, not by
-    row-level dedup here.
     """
 
     observation_period_id: int
@@ -52,9 +41,6 @@ class ObservationPeriodRow:
     observation_period_start_date: dt.date
     observation_period_end_date: dt.date
     period_type_concept_id: int
-
-    def validate(self) -> None:
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -75,9 +61,6 @@ class CdmSourceRow:
     source_documentation_reference: Annotated[str | None, pd_field(max_length=255)] = None
     cdm_etl_reference: Annotated[str | None, pd_field(max_length=255)] = None
     cdm_version: Annotated[str | None, pd_field(max_length=10)] = None
-
-    def validate(self) -> None:
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -104,9 +87,6 @@ class VisitOccurrenceRow:
     discharged_to_source_value: str | None = None
     preceding_visit_occurrence_id: int | None = None
 
-    def validate(self):
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class ConditionOccurrenceRow:
@@ -130,9 +110,6 @@ class ConditionOccurrenceRow:
     condition_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     condition_source_concept_id: int | None = None
     condition_status_source_value: Annotated[str | None, pd_field(max_length=50)] = None
-
-    def validate(self):
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -165,9 +142,6 @@ class DrugExposureRow:
     route_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     dose_unit_source_value: Annotated[str | None, pd_field(max_length=50)] = None
 
-    def validate(self):
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class ProcedureOccurrenceRow:
@@ -191,9 +165,6 @@ class ProcedureOccurrenceRow:
     procedure_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     procedure_source_concept_id: int | None = None
     modifier_source_value: Annotated[str | None, pd_field(max_length=50)] = None
-
-    def validate(self):
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -226,9 +197,6 @@ class MeasurementRow:
     measurement_event_id: int | None = None
     meas_event_field_concept_id: int | None = None
 
-    def validate(self):
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class ObservationRow:
@@ -258,9 +226,6 @@ class ObservationRow:
     observation_event_id: int | None = None
     obs_event_field_concept_id: int | None = None
 
-    def validate(self):
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class DeathRow:
@@ -275,6 +240,3 @@ class DeathRow:
     cause_concept_id: int | None = None
     cause_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     cause_source_concept_id: int | None = None
-
-    def validate(self):
-        validate_required_fields(self)
