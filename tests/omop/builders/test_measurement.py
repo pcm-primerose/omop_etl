@@ -1,7 +1,7 @@
 import datetime as dt
 import pytest
 
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -32,7 +32,7 @@ from tests.omop.conftest import (
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestMeasurementBuilder:
@@ -601,7 +601,7 @@ class TestEQ5DRows:
         assert row_1.person_id == PERSON_ID
         assert row_1.measurement_date == dt.date(2040, 5, 1)
         assert row_1.measurement_datetime == dt.datetime(2040, 5, 1)
-        assert row_1.measurement_id == 6210852826500161921  # fixme: assert on expected hash from collection's natural key instead
+        assert row_1.measurement_id == 2245039028177716071  # fixme: assert on expected hash from collection's natural key instead
 
         # q2 level 5
         row_2 = result.rows[1]

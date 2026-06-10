@@ -5,7 +5,7 @@ from typing import ClassVar, Generic, TypeVar
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.core.id_generator import (
-    sha1_bigint,
+    sha256_bigint,
     normalize_row_id_part,
 )
 from omop_etl.omop.core.linkage import (
@@ -67,7 +67,7 @@ class OmopBuilder(ABC, Generic[T]):
             separators=(",", ":"),
         )
 
-        return sha1_bigint(namespace, payload)
+        return sha256_bigint(namespace, payload)
 
     def _resolve_link_targets(
         self,

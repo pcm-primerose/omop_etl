@@ -6,7 +6,7 @@ from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult, SourceReference
 from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
@@ -18,7 +18,7 @@ from tests.omop.conftest import (
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestConditionOccurrenceBuilder:

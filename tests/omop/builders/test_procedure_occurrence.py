@@ -5,7 +5,7 @@ from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult
 from tests.omop.conftest import (
     create_build_context,
@@ -16,7 +16,7 @@ from tests.omop.conftest import (
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestProcedureOccurrenceBuilder:

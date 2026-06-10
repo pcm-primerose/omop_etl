@@ -6,7 +6,7 @@ from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult, SourceReference
 from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
@@ -16,7 +16,7 @@ from tests.omop.conftest import (
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 def _visit(date: dt.date | None, event_id: str | None = "V00") -> Visit:

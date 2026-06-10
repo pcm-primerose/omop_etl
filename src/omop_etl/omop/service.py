@@ -13,7 +13,7 @@ from omop_etl.omop.builders.cdm_source import CdmSourceBuilder
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.models.tables import OmopTables
 
 
@@ -51,7 +51,7 @@ class OmopService:
         tables = OmopTables()
 
         for patient in patients:
-            person_id = sha1_bigint("person", patient.patient_id)
+            person_id = sha256_bigint("person", patient.patient_id)
             ctx = BuildContext(patient=patient, person_id=person_id)
 
             for builder in self._builders:

@@ -10,7 +10,7 @@ from omop_etl.harmonization.models.domain.treatment_cycle_component import Treat
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.context import BuildContext
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import (
     OmopRowReference,
     SourceReference,
@@ -26,7 +26,7 @@ from omop_etl.semantic_mapping.core.models import (
 
 def create_build_context(patient: Patient, person_id: int | None = None) -> BuildContext:
     if person_id is None:
-        person_id = sha1_bigint("person", patient.patient_id)
+        person_id = sha256_bigint("person", patient.patient_id)
     return BuildContext(patient=patient, person_id=person_id)
 
 

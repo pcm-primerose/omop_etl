@@ -3,13 +3,13 @@ import datetime as dt
 from tests.omop.conftest import create_patient, create_build_context
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.death import DeathBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult
 
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestDeathBuilder:
