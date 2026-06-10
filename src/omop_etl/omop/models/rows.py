@@ -240,3 +240,35 @@ class DeathRow:
     cause_concept_id: int | None = None
     cause_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     cause_source_concept_id: int | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class EpisodeRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#episode
+    """
+
+    episode_id: int
+    person_id: int
+    episode_concept_id: int
+    episode_start_date: dt.date
+    episode_start_datetime: dt.datetime | None = None
+    episode_end_date: dt.date | None = None
+    episode_end_datetime: dt.datetime | None = None
+    episode_parent_id: int | None = None
+    episode_number: int | None = None
+    episode_object_concept_id: int | None = None
+    episode_type_concept_id: int | None = None
+    episode_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    episode_source_concept_id: int | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class EpisodeEventRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#episode_event
+    """
+
+    episode_id: int
+    event_id: int
+    episode_event_field_concept_id: int

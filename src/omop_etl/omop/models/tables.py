@@ -12,6 +12,8 @@ from omop_etl.omop.models.rows import (
     ProcedureOccurrenceRow,
     MeasurementRow,
     DeathRow,
+    EpisodeRow,
+    EpisodeEventRow,
 )
 
 
@@ -45,6 +47,8 @@ class OmopTables:
     PROCEDURE_OCCURRENCE: ClassVar[str] = "procedure_occurrence"
     VISIT_OCCURRENCE: ClassVar[str] = "visit_occurrence"
     DEATH: ClassVar[str] = "death"
+    EPISODE: ClassVar[str] = "episode"
+    EPISODE_EVENT: ClassVar[str] = "episode_event"
 
     _tables: dict[str, list[Any]] = field(default_factory=dict)
 
@@ -111,3 +115,11 @@ class OmopTables:
     @property
     def death(self) -> list[DeathRow]:
         return self._tables.get(self.DEATH, [])
+
+    @property
+    def episode(self) -> list[EpisodeRow]:
+        return self._tables.get(self.EPISODE, [])
+
+    @property
+    def episode_event(self) -> list[EpisodeEventRow]:
+        return self._tables.get(self.EPISODE_EVENT, [])
