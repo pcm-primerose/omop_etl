@@ -196,6 +196,8 @@ def structural_index() -> dict[str, StructuralConcept]:
         "response_recist": _structural("response_recist", 734317, "measurement"),
         "response_irecist": _structural("response_irecist", 734318, "measurement"),
         "response_ranop": _structural("response_rano", 734345, "measurement"),
+        # episode builder: "Treatment regimen" episode kind
+        "treatment_regimen": _structural("treatment_regimen", 32531, "episode"),
     }
 
 

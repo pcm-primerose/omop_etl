@@ -13,6 +13,8 @@ from omop_etl.omop.builders.cdm_source import CdmSourceBuilder
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
+from omop_etl.omop.builders.episode import EpisodeBuilder
+from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.models.tables import OmopTables
 
@@ -42,6 +44,10 @@ class OmopService:
             ProcedureOccurrenceBuilder(concepts),
             MeasurementBuilder(concepts),
             ObservationBuilder(concepts),
+            # episodes abstract over drug_exposure; episode_event links the two,
+            # so both run after DrugExposureBuilder and EpisodeBuilder before EpisodeEventBuilder.
+            EpisodeBuilder(concepts),
+            EpisodeEventBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
