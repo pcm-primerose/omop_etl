@@ -52,7 +52,6 @@ def queries() -> List[Query]:
             query="aml",
             field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
             raw_value="AML",
-            leaf_index=None,
             target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
         Query(
@@ -61,7 +60,6 @@ def queries() -> List[Query]:
             query="missing in semantic data",
             field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
             raw_value="missing in semantic data",
-            leaf_index=None,
             target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
     ]

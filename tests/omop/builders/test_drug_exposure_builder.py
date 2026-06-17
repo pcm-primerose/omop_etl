@@ -144,7 +144,7 @@ class TestTreatmentCycleRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                leaf_index=0,
+                value="Pertuzumab",
                 concept_id=6001,
                 name="pertuzumab",
                 domain="drug",
@@ -153,7 +153,7 @@ class TestTreatmentCycleRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                leaf_index=1,
+                value="Trastuzumab",
                 concept_id=6002,
                 name="trastuzumab",
                 domain="drug",
@@ -186,7 +186,7 @@ class TestTreatmentCycleRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                leaf_index=0,
+                value="Trametinib",
                 concept_id=1234,
                 name="trametinib",
                 domain="drug",
@@ -212,7 +212,7 @@ class TestSemanticLookupStrategy:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                leaf_index=0,
+                value="Atezolizumab",
                 concept_id=5001,
                 name="atezolizumab",
                 domain="drug",
@@ -221,7 +221,7 @@ class TestSemanticLookupStrategy:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                leaf_index=0,
+                value="Atezolizumab",
                 concept_id=7777,
                 name="atezolizumab",
                 domain="drug",
@@ -246,7 +246,7 @@ class TestSemanticLookupStrategy:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                leaf_index=0,
+                value="Fulvestrant",
                 concept_id=5002,
                 name="fulvestrant",
                 domain="drug",
@@ -270,7 +270,7 @@ class TestSemanticLookupStrategy:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                leaf_index=0,
+                value="",
                 concept_id=5003,
                 name="fulvestrant",
                 domain="drug",
@@ -299,7 +299,7 @@ class TestSemanticLookupStrategy:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                leaf_index=0,
+                value="ingredient",
                 concept_id=5001,
                 name="ingredient",
                 domain="drug",
@@ -340,7 +340,7 @@ class TestPreviousTreatmentRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                leaf_index=0,
+                value="Zometa",
                 concept_id=1524674,
                 name="zoledronic acid",
                 domain="drug",
@@ -369,7 +369,7 @@ class TestPreviousTreatmentRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
+                value="Letrozole",
                 concept_id=1304850,
                 name="letrozole",
                 domain="drug",
@@ -394,7 +394,7 @@ class TestPreviousTreatmentRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
+                value="Drug A",
                 concept_id=100,
                 name="drug a",
                 domain="drug",
@@ -403,7 +403,7 @@ class TestPreviousTreatmentRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                leaf_index=0,
+                value="Drug B",
                 concept_id=200,
                 name="drug b",
                 domain="drug",
@@ -473,7 +473,7 @@ class TestConcomitantMedicationRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
-                leaf_index=0,
+                value="Oxynorm",
                 concept_id=1124957,
                 name="oxycodone",
                 domain="drug",
@@ -532,8 +532,10 @@ class TestConcomitantMedicationRows:
         from a single lookup, one drug_exposure row per ingredient."""
         concom_path = (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME)
         semantic = create_semantic_index(
-            SemanticEntry(patient_id=PID, field_path=concom_path, leaf_index=0, concept_id=19, name="vitamin d", domain="drug", vocab="rxnorm"),
-            SemanticEntry(patient_id=PID, field_path=concom_path, leaf_index=0, concept_id=20, name="calcium carbonate", domain="drug", vocab="rxnorm"),
+            SemanticEntry(patient_id=PID, field_path=concom_path, value="Calcigran Forte", concept_id=19, name="vitamin d", domain="drug", vocab="rxnorm"),
+            SemanticEntry(
+                patient_id=PID, field_path=concom_path, value="Calcigran Forte", concept_id=20, name="calcium carbonate", domain="drug", vocab="rxnorm"
+            ),
         )
         patient = create_patient(PID, "test")
         concom = ConcomitantMedication(patient_id=PID)
@@ -559,7 +561,7 @@ class TestIdUniqueness:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                leaf_index=0,
+                value="Zometa",
                 concept_id=1524674,
                 name="zoledronic acid",
                 domain="drug",
@@ -636,7 +638,7 @@ class TestTreatmentCyclePublication:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                leaf_index=0,
+                value="Combo",
                 concept_id=111,
                 name="drug a",
                 domain="drug",
@@ -644,7 +646,7 @@ class TestTreatmentCyclePublication:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                leaf_index=0,
+                value="Combo",
                 concept_id=222,
                 name="drug b",
                 domain="drug",

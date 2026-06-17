@@ -745,7 +745,7 @@ class TestBiomarkerRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF pathway",
                 concept_id=4002,
                 name="BRAF pathway",
                 domain="measurement",
@@ -770,7 +770,7 @@ class TestBiomarkerRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF V600E and KRAS G12C",
                 concept_id=4001,
                 name="BRAF V600E",
                 domain="measurement",
@@ -778,7 +778,7 @@ class TestBiomarkerRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF V600E and KRAS G12C",
                 concept_id=4002,
                 name="KRAS G12C",
                 domain="measurement",
@@ -800,7 +800,7 @@ class TestBiomarkerRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF V600E",
                 concept_id=999,
                 name="BRAF mutation as condition",
                 domain="condition",
@@ -835,7 +835,7 @@ class TestBiomarkerRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF V600E",
                 concept_id=4001,
                 name="BRAF V600E",
                 domain="measurement",
@@ -855,7 +855,7 @@ class TestBiomarkerRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF V600E",
                 concept_id=4001,
                 name="BRAF V600E",
                 domain="measurement",
@@ -892,7 +892,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Platelet count",
                 domain="measurement",
@@ -900,7 +900,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4002,
                 name="Decreased",
                 domain="meas value",
@@ -925,7 +925,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Platelet count",
                 domain="measurement",
@@ -947,7 +947,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4002,
                 name="Decreased",
                 domain="meas value",
@@ -974,7 +974,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Platelet count",
                 domain="measurement",
@@ -994,7 +994,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Platelet count",
                 domain="measurement",
@@ -1015,7 +1015,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Attribute A",
                 domain="measurement",
@@ -1023,7 +1023,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4003,
                 name="Attribute B",
                 domain="measurement",
@@ -1031,7 +1031,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4002,
                 name="Decreased",
                 domain="meas value",
@@ -1061,7 +1061,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Attribute A",
                 domain="measurement",
@@ -1069,7 +1069,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4003,
                 name="Attribute B",
                 domain="measurement",
@@ -1077,7 +1077,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4002,
                 name="Decreased",
                 domain="meas value",
@@ -1085,7 +1085,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4004,
                 name="Severe",
                 domain="meas value",
@@ -1115,7 +1115,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Platelet count",
                 domain="measurement",
@@ -1123,7 +1123,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=1,
+                value="Decreased hemoglobin",
                 concept_id=4011,
                 name="Hemoglobin",
                 domain="measurement",
@@ -1145,7 +1145,7 @@ class TestAdverseEventMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Decreased platelet count",
                 concept_id=4001,
                 name="Platelet count",
                 domain="measurement",
@@ -1184,7 +1184,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4001,
                 name="Hemoglobin measurement",
                 domain="measurement",
@@ -1192,7 +1192,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4002,
                 name="Decreased",
                 domain="meas value",
@@ -1216,7 +1216,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4001,
                 name="Hemoglobin measurement",
                 domain="measurement",
@@ -1237,7 +1237,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Hypertension",
                 concept_id=999,
                 name="Hypertension",
                 domain="condition",
@@ -1256,7 +1256,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4002,
                 name="Decreased",
                 domain="meas value",
@@ -1282,7 +1282,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4001,
                 name="Hemoglobin measurement",
                 domain="measurement",
@@ -1304,7 +1304,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4001,
                 name="Attribute A",
                 domain="measurement",
@@ -1312,7 +1312,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4003,
                 name="Attribute B",
                 domain="measurement",
@@ -1320,7 +1320,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4002,
                 name="Decreased",
                 domain="meas value",
@@ -1328,7 +1328,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4004,
                 name="Severe",
                 domain="meas value",
@@ -1354,7 +1354,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4001,
                 name="Hemoglobin measurement",
                 domain="measurement",
@@ -1362,7 +1362,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=1,
+                value="Elevated glucose",
                 concept_id=4011,
                 name="Glucose measurement",
                 domain="measurement",
@@ -1384,7 +1384,7 @@ class TestMedicalHistoryMeasurementRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Decreased hemoglobin",
                 concept_id=4001,
                 name="Hemoglobin measurement",
                 domain="measurement",
@@ -1517,7 +1517,7 @@ class TestPrimaryCancerFKConsumption:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF non-V600",
                 concept_id=4000,
                 name="braf non-v600",
                 domain="measurement",
@@ -1543,7 +1543,7 @@ class TestPrimaryCancerFKConsumption:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
+                value="BRAF non-V600",
                 concept_id=4000,
                 name="braf non-v600",
                 domain="measurement",

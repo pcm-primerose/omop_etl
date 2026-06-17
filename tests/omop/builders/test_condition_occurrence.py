@@ -41,7 +41,7 @@ class TestTumorTypeRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
+                value="C50.9",
                 concept_id=4000,
                 name="malignant neoplasm",
                 domain="condition",
@@ -71,7 +71,7 @@ class TestTumorTypeRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
-                leaf_index=None,
+                value="Breast cancer",
                 concept_id=4001,
                 name="breast cancer",
                 domain="condition",
@@ -96,7 +96,7 @@ class TestTumorTypeRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
+                value="C50.9",
                 concept_id=4000,
                 name="icd10 concept",
                 domain="condition",
@@ -104,7 +104,7 @@ class TestTumorTypeRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
-                leaf_index=None,
+                value="Breast cancer",
                 concept_id=4001,
                 name="main type concept",
                 domain="condition",
@@ -154,7 +154,7 @@ class TestTumorTypeRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
+                value="C50.9",
                 concept_id=4000,
                 name="neoplasm",
                 domain="condition",
@@ -177,7 +177,7 @@ class TestTumorTypeRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
+                value="C50.9",
                 concept_id=4000,
                 name="neoplasm",
                 domain="condition",
@@ -200,7 +200,7 @@ class TestMedicalHistoryRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Hypertension",
                 concept_id=316866,
                 name="hypertension",
                 domain="condition",
@@ -254,7 +254,7 @@ class TestMedicalHistoryRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Hypertension",
                 concept_id=316866,
                 name="hypertension",
                 domain="condition",
@@ -280,7 +280,7 @@ class TestAdverseEventRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Fever",
                 concept_id=437663,
                 name="fever",
                 domain="condition",
@@ -332,7 +332,7 @@ class TestAdverseEventRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="A" * 60,
                 concept_id=437663,
                 name="long condition",
                 domain="condition",
@@ -358,7 +358,7 @@ class TestCombinedSources:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
+                value="C50.9",
                 concept_id=4000,
                 name="neoplasm",
                 domain="condition",
@@ -366,7 +366,7 @@ class TestCombinedSources:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Hypertension",
                 concept_id=316866,
                 name="hypertension",
                 domain="condition",
@@ -374,7 +374,7 @@ class TestCombinedSources:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
+                value="Fever",
                 concept_id=437663,
                 name="fever",
                 domain="condition",
@@ -410,7 +410,7 @@ class TestCombinedSources:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="Hypertension",
                 concept_id=316866,
                 name="hypertension",
                 domain="condition",
@@ -438,11 +438,11 @@ class TestAdverseEventFKLinkage:
     the AE's condition row.
     """
 
-    def _ae_semantic(self, leaf_index: int, concept_id: int, name: str) -> SemanticEntry:  # noqa
+    def _ae_semantic(self, value: str, concept_id: int, name: str) -> SemanticEntry:  # noqa
         return SemanticEntry(
             patient_id=PID,
             field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-            leaf_index=leaf_index,
+            value=value,
             concept_id=concept_id,
             name=name,
             domain="condition",
@@ -453,7 +453,7 @@ class TestAdverseEventFKLinkage:
         return SourceReference(PID, Patient.Collections.ADVERSE_EVENTS, ae.natural_key())
 
     def test_publishes_link_for_ae(self, static_index, structural_index):
-        semantic = create_semantic_index(self._ae_semantic(0, 437663, "fever"))
+        semantic = create_semantic_index(self._ae_semantic("Fever", 437663, "fever"))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
@@ -489,8 +489,8 @@ class TestAdverseEventFKLinkage:
     def test_multi_ae_each_published_independently(self, static_index, structural_index):
         """Multiple AEs each publish under their own SourceReference (per-NK keying)."""
         semantic = create_semantic_index(
-            self._ae_semantic(0, 437663, "fever"),
-            self._ae_semantic(1, 4329847, "nausea"),
+            self._ae_semantic("Fever", 437663, "fever"),
+            self._ae_semantic("Nausea", 4329847, "nausea"),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -521,8 +521,8 @@ class TestAdverseEventFKLinkage:
         """One AE term mapping to multiple condition concepts: all rows published
         under the same AE SourceReference for 1:N downstream expansion."""
         semantic = create_semantic_index(
-            self._ae_semantic(0, 437663, "fever"),
-            self._ae_semantic(0, 999999, "alternative fever concept"),
+            self._ae_semantic("Fever", 437663, "fever"),
+            self._ae_semantic("Fever", 999999, "alternative fever concept"),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -542,7 +542,7 @@ class TestAdverseEventFKLinkage:
 
     def test_fk_publication_deterministic(self, static_index, structural_index):
         """Two independent builds of the same patient produce identical published_rows state."""
-        semantic = create_semantic_index(self._ae_semantic(0, 437663, "fever"))
+        semantic = create_semantic_index(self._ae_semantic("Fever", 437663, "fever"))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
@@ -573,7 +573,7 @@ class TestPrimaryCancerFKPublication:
         return SemanticEntry(
             patient_id=PID,
             field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-            leaf_index=None,
+            value="C50.9",
             concept_id=concept_id,
             name="neoplasm",
             domain="condition",

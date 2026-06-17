@@ -55,7 +55,7 @@ class TestOmopServiceOrchestration:
             SemanticEntry(
                 "p1",
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                None,
+                "C50.9",
                 4000,
                 "neoplasm",
                 "condition",
@@ -63,7 +63,7 @@ class TestOmopServiceOrchestration:
             SemanticEntry(
                 "p1",
                 (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                0,
+                "Hypertension",
                 316866,
                 "hypertension",
                 "condition",
@@ -71,7 +71,7 @@ class TestOmopServiceOrchestration:
             SemanticEntry(
                 "p1",
                 (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                0,
+                "Fever",
                 437663,
                 "fever",
                 "condition",
@@ -79,7 +79,7 @@ class TestOmopServiceOrchestration:
             SemanticEntry(
                 "p1",
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                0,
+                "Trametinib",
                 1234,
                 "trametinib",
                 "drug",
@@ -88,7 +88,7 @@ class TestOmopServiceOrchestration:
             SemanticEntry(
                 "p1",
                 (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
-                0,
+                "Oxynorm",
                 1124957,
                 "oxycodone",
                 "drug",
@@ -97,7 +97,7 @@ class TestOmopServiceOrchestration:
             SemanticEntry(
                 "p1",
                 (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                0,
+                "Surgery",
                 4301351,
                 "surgery",
                 "procedure",

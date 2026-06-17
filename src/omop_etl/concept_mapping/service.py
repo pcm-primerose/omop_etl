@@ -208,14 +208,14 @@ class ConceptLookupService:
         self,
         patient_id: str,
         field_path: tuple[str, ...],
-        value: str,
+        value: str | None,
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
         validity: Collection[str] | None = None,
     ) -> tuple[MappedConcept, ...]:
         """
-        Lookup semantic mappings for a source `value` at a patient field.
+        Look up semantic mappings for a source `value` at a patient field.
 
         Returns all matched concepts after filtering, as a tuple (may be empty).
         Raises RuntimeError if duplicate concept_ids are found (same concept

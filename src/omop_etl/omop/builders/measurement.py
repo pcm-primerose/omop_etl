@@ -190,14 +190,14 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             log.warning("Skipping biomarkers for %s: missing date", patient.patient_id)
             return []
 
-        target = biomarkers.target_biomarker
-        if target is None:
+        target_biomarker = biomarkers.target_biomarker
+        if target_biomarker is None:
             return []
 
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-            None,
+            target_biomarker,
             domains={OmopDomain.MEASUREMENTS},
         )
         if not matches:
@@ -213,7 +213,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             field_concept_id: int | None,
             *,
             _date: dt.date = date,
-            _target: str = target,
+            _target: str = target_biomarker,
         ) -> MeasurementRow:
             return MeasurementRow(
                 measurement_id=self.generate_row_id(
@@ -675,7 +675,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-            index,
+            mh.term,
             domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE},
         )
         if not matches:
@@ -757,7 +757,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         matches = self.concepts.lookup_semantic(
             patient.patient_id,
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-            index,
+            ae.term,
             domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE},
         )
         if not matches:

@@ -1,4 +1,4 @@
-from omop.conftest import create_patient, create_build_context
+from tests.omop.conftest import create_patient, create_build_context
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.episode import EpisodeBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint

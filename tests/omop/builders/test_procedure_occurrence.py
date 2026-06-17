@@ -39,7 +39,7 @@ class TestPreviousTreatmentMainRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
+                value="Surgery",
                 concept_id=4301351,
                 name="surgical procedure",
                 domain="procedure",
@@ -92,7 +92,7 @@ class TestPreviousTreatmentMainRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
+                value="Surgery",
                 concept_id=4301351,
                 name="surgical procedure",
                 domain="procedure",
@@ -117,7 +117,7 @@ class TestPreviousTreatmentAdditionalRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                leaf_index=0,
+                value="Hormone therapy",
                 concept_id=4061650,
                 name="hormone therapy",
                 domain="procedure",
@@ -156,7 +156,7 @@ class TestPreviousTreatmentAdditionalRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
+                value="Surgery",
                 concept_id=4301351,
                 name="surgical procedure",
                 domain="procedure",
@@ -164,7 +164,7 @@ class TestPreviousTreatmentAdditionalRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                leaf_index=0,
+                value="Hormone therapy",
                 concept_id=4061650,
                 name="hormone therapy",
                 domain="procedure",
@@ -192,7 +192,7 @@ class TestMedicalHistoryRows:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="ca mamma, opr",
                 concept_id=4194253,
                 name="operation on breast",
                 domain="procedure",
@@ -249,7 +249,7 @@ class TestCombinedSources:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
+                value="Surgery",
                 concept_id=4301351,
                 name="surgical procedure",
                 domain="procedure",
@@ -257,7 +257,7 @@ class TestCombinedSources:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
+                value="ca mamma, opr",
                 concept_id=4194253,
                 name="operation on breast",
                 domain="procedure",
@@ -288,7 +288,7 @@ class TestCombinedSources:
             SemanticEntry(
                 patient_id=PID,
                 field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
+                value="Surgery",
                 concept_id=4301351,
                 name="surgical procedure",
                 domain="procedure",

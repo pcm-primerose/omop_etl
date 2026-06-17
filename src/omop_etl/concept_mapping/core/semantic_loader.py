@@ -33,6 +33,8 @@ class SemanticResultIndex:
         self,
         patient_id: str,
         field_path: Tuple[str, ...],
-        value: str,
+        value: str | None,
     ) -> QueryResult | None:
+        if value is None:
+            return None
         return self._by_location.get((patient_id, field_path, _normalize(value)))

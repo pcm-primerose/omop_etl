@@ -97,7 +97,7 @@ class SemanticEntry:
 
     patient_id: str
     field_path: tuple[str, ...]
-    leaf_index: int | None
+    value: str
     concept_id: int | str
     name: str
     domain: str
@@ -115,12 +115,12 @@ class SemanticEntry:
 def create_semantic_index(*entries: SemanticEntry) -> SemanticResultIndex:
     """
     Build a SemanticResultIndex from one or more SemanticEntry instances.
-    Entries with the same (patient_id, field_path, leaf_index) are grouped into one QueryResult.
+    Entries with the same (patient_id, field_path, value) are grouped into one QueryResult.
     """
     grouped: dict[tuple, list[SemanticRow]] = defaultdict(list)
 
     for e in entries:
-        grouped[(e.patient_id, e.field_path, e.leaf_index)].append(
+        grouped[(e.patient_id, e.field_path, e.value)].append(
             SemanticRow(
                 term_id=e.term_id,
                 source_col=e.source_col,
@@ -138,8 +138,8 @@ def create_semantic_index(*entries: SemanticEntry) -> SemanticResultIndex:
         )
 
     results: list[QueryResult] = []
-    for (pid, fp, li), rows in grouped.items():
-        query = Query(patient_id=pid, id="test", query="test", field_path=fp, raw_value="test", leaf_index=li)
+    for (pid, fp, value), rows in grouped.items():
+        query = Query(patient_id=pid, id="test", query=value, field_path=fp, raw_value=value)
         results.append(QueryResult(patient_id=pid, query=query, results=rows))
 
     return SemanticResultIndex.from_batch(BatchQueryResult(results=tuple(results)))
