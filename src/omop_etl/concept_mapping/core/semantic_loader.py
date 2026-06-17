@@ -7,21 +7,25 @@ from omop_etl.semantic_mapping.core.models import (
 )
 
 
+def _normalize(value: str) -> str:
+    return value.lower().strip()
+
+
 @dataclass(frozen=True, slots=True)
 class SemanticResultIndex:
     """
-    Loads and indexes query results from semantic mapping
-    to enable mapping between Patient instances and QueryResult matches.
+    Indexes semantic-mapping query results by the normalized source value, so
+    builders resolve concepts by value.
     """
 
-    # internal: (patient_id, field_path, leaf_index) -> QueryResult
-    _by_location: Dict[Tuple[str, Tuple[str, ...], int | None], QueryResult]
+    # internal: (patient_id, field_path, normalized_value) -> QueryResult
+    _by_location: Dict[Tuple[str, Tuple[str, ...], str], QueryResult]
 
     @classmethod
     def from_batch(cls, batch: BatchQueryResult) -> SemanticResultIndex:
-        by_loc: Dict[Tuple[str, Tuple[str, ...], int | None], QueryResult] = {}
+        by_loc: Dict[Tuple[str, Tuple[str, ...], str], QueryResult] = {}
         for query_result in batch.results:
-            key = (query_result.patient_id, query_result.query.field_path, query_result.query.leaf_index)
+            key = (query_result.patient_id, query_result.query.field_path, _normalize(query_result.query.raw_value))
             by_loc[key] = query_result
         return cls(_by_location=by_loc)
 
@@ -29,6 +33,6 @@ class SemanticResultIndex:
         self,
         patient_id: str,
         field_path: Tuple[str, ...],
-        leaf_index: int | None,
+        value: str,
     ) -> QueryResult | None:
-        return self._by_location.get((patient_id, field_path, leaf_index))
+        return self._by_location.get((patient_id, field_path, _normalize(value)))

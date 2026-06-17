@@ -208,14 +208,14 @@ class ConceptLookupService:
         self,
         patient_id: str,
         field_path: tuple[str, ...],
-        leaf_index: int | None,
+        value: str,
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
         validity: Collection[str] | None = None,
     ) -> tuple[MappedConcept, ...]:
         """
-        Lookup semantic mappings for a patient field location.
+        Lookup semantic mappings for a source `value` at a patient field.
 
         Returns all matched concepts after filtering, as a tuple (may be empty).
         Raises RuntimeError if duplicate concept_ids are found (same concept
@@ -230,7 +230,7 @@ class ConceptLookupService:
         qr = self._semantic_index.lookup(
             patient_id=patient_id,
             field_path=field_path,
-            leaf_index=leaf_index,
+            value=value,
         )
         if qr is None or not qr.results:
             return ()
@@ -255,17 +255,17 @@ class ConceptLookupService:
                 path_str = ".".join(field_path)
                 details = [(c.concept_id, c.concept_name, c.domain_id) for c in mapped]
                 log.error(
-                    "Duplicate concept_id %s in semantic mapping: patient_id=%s, field_path=%s, leaf_index=%s, all matches=%s",
+                    "Duplicate concept_id %s in semantic mapping: patient_id=%s, field_path=%s, value=%s, all matches=%s",
                     m.concept_id,
                     patient_id,
                     path_str,
-                    leaf_index,
+                    value,
                     details,
                 )
                 raise RuntimeError(
                     f"Duplicate concept_id {m.concept_id} in semantic mapping: "
                     f"patient_id={patient_id}, field_path={path_str}, "
-                    f"leaf_index={leaf_index}, all matches={details}"
+                    f"value={value}, all matches={details}"
                 )
             seen_ids.add(m.concept_id)
 

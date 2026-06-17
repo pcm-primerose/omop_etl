@@ -75,6 +75,7 @@ class OmopDomain(str, Enum):
     MEAS_VALUE = "meas value"
     TYPE_CONCEPT = "type concept"
     EPISODE = "episode"
+    REGIMEN = "regimen"
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,12 +128,9 @@ class FieldConfig:
 class Query:
     """
     One value extracted from a Patient instance to map: its location
-    (patient_id, field_path, leaf_index) plus the raw_value to look up.
-
-    leaf_index is the instance's position in its NK-sorted (deterministic)
-    Patient collection, it correlates this query with its result within a run
-    and never reaches a persisted key (builders key on the NK, not leaf_index).
-    Query (and QueryResult) lifetime is constrained to the semantic-mapping module.
+    (patient_id, field_path) plus the raw_value to look up. Concepts are
+    resolved by the normalized raw_value. Query (and QueryResult) lifetime is
+    constrained to the semantic-mapping module.
     """
 
     patient_id: str
@@ -140,7 +138,6 @@ class Query:
     query: str
     field_path: tuple[str, ...]
     raw_value: str
-    leaf_index: None | int = None
     target: None | QueryTarget = None
 
 
@@ -194,7 +191,6 @@ class BatchQueryResult:
                         "query": q.query,
                         "field_path": ".".join(q.field_path),
                         "raw_value": q.raw_value,
-                        "leaf_index": q.leaf_index,
                         "term_id": sem_row.term_id,
                         "source_col": sem_row.source_col,
                         "source_term": sem_row.source_term,
@@ -222,7 +218,6 @@ class BatchQueryResult:
                     "query": q.query,
                     "field_path": ".".join(q.field_path),
                     "raw_value": q.raw_value,
-                    "leaf_index": q.leaf_index,
                 }
             )
         return pl.DataFrame(rows)
@@ -239,7 +234,6 @@ class BatchQueryResult:
                         "query": q.query,
                         "field_path": ".".join(q.field_path),
                         "raw_value": q.raw_value,
-                        "leaf_index": q.leaf_index,
                         "term_id": sem_row.term_id,
                         "source_col": sem_row.source_col,
                         "source_term": sem_row.source_term,
@@ -266,7 +260,6 @@ class BatchQueryResult:
                     "query": q.query,
                     "field_path": ".".join(q.field_path),
                     "raw_value": q.raw_value,
-                    "leaf_index": q.leaf_index,
                 }
             )
         return rows
