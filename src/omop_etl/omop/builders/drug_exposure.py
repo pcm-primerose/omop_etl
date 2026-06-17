@@ -49,9 +49,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 log.warning("Skipping previous treatment %d for %s: missing start_date", idx, patient.patient_id)
                 continue
             if prev.treatment:
-                rows.extend(self._build_previous_treatment_main_rows(patient, person_id, prev, idx, drug_type_concept_id))
+                rows.extend(self._build_previous_treatment_main_rows(patient, person_id, prev, drug_type_concept_id))
             if prev.additional_treatment:
-                rows.extend(self._build_previous_treatment_additional_rows(patient, person_id, prev, idx, drug_type_concept_id))
+                rows.extend(self._build_previous_treatment_additional_rows(patient, person_id, prev, drug_type_concept_id))
 
         for idx, concom in enumerate(patient.concomitant_medications):
             rows.extend(self._build_concomitant_medication_rows(patient, person_id, concom, idx, drug_type_concept_id))
@@ -187,7 +187,6 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         patient: Patient,
         person_id: int,
         prev: PreviousTreatment,
-        index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
         start_date = prev.start_date
@@ -228,7 +227,6 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         patient: Patient,
         person_id: int,
         prev: PreviousTreatment,
-        index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
         start_date = prev.start_date

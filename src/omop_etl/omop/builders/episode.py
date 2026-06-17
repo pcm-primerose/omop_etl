@@ -95,11 +95,10 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
                 # this should never happen
                 raise RuntimeError("TreatmentCycleComponent has several source_treatment_names across instances withtin one treatment_number!!!!")
 
-            # todo: refactor semantic mapping to be invariant to Patient indices
             drug_regimen = self.concepts.lookup_semantic(
-                patient_id=patient_id,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                leaf_index=None,
+                patient_id,
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                next(iter(treatment_name)),
                 domains={OmopDomain.REGIMEN},
             )
 

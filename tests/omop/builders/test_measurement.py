@@ -1110,7 +1110,7 @@ class TestAdverseEventMeasurementRows:
         assert any("Meas Value concepts" in rec.message for rec in caplog.records)
 
     def test_row_ids_unique_across_aes(self, static_index, structural_index):
-        # two AEs at different leaf_indexes: each maps independently
+        # two AEs: each maps independently
         semantic = create_semantic_index(
             SemanticEntry(
                 patient_id=PID,
