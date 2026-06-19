@@ -1,12 +1,12 @@
 from typing import ClassVar
-from collections import defaultdict
+from collections import defaultdict, Counter
 from logging import getLogger
 import datetime as dt
 
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
-from omop_etl.omop.core.linkage import RowPublication
+from omop_etl.omop.core.linkage import RowPublication, SourceReference, OmopRowReference
 from omop_etl.omop.models.rows import EpisodeRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
@@ -17,7 +17,19 @@ log = getLogger(__name__)
 
 
 class EpisodeBuilder(OmopBuilder[EpisodeRow]):
-    """ """
+    """
+    Treatment-regimen episodes are an abstraction over the drug_exposure rows of a
+    line of therapy, one episode record per line of therapy
+    (TreatmentCycleComponent.treatment_number), spanning that line's cycles
+    (min start to max end).
+
+    Each episode is published under SourceReference(patient, TREATMENT_CYCLES,
+    (treatment_number,)) so EpisodeEventBuilder can link the line's
+    drug_exposure rows to it via EPISODE_EVENT.
+
+    episode_concept_id is the 'treatment_regimen' Episode concept,
+    episodes are not emitted when it is missing, since a 0 here is meaningless.
+    """
 
     table_name: ClassVar[str] = OmopTables.EPISODE
 
@@ -25,13 +37,12 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
         patient = ctx.patient
         person_id = ctx.person_id
 
-        # todo: use treatment_regimen or treatment_cycle? think: regimen
-        # fixme
+        # todo: use treatment_regimen or treatment_cycle concept?
         regimen = self.concepts.lookup_structural("treatment_regimen", domains={OmopDomain.EPISODE})
         if regimen is None:
-            log.warning("No treatment_regiment Episode concept, skipping episodes for %s", patient.patient_id)
+            log.warning("No treatment_regimen Episode concept, skipping episodes for %s", patient.patient_id)
             return BuildResult(rows=(), publications=())
-        regiment_concept = regimen.concept_id
+        regimen_concept = regimen.concept_id
 
         ecrf = self.concepts.lookup_structural("ecrf", domains={OmopDomain.TYPE_CONCEPT})
         if ecrf is None:
@@ -42,23 +53,19 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
         publications: list[RowPublication] = []
 
         treatment_episode_rows = self._build_treatment_episodes(
-            cycles=patient.treatment_cycles, patient_id=patient.patient_id, person_id=person_id, ecrf_concept=ecrf_concept, regimen_concept=regiment_concept
+            cycles=patient.treatment_cycles,
+            patient_id=patient.patient_id,
+            person_id=person_id,
+            ecrf_concept=ecrf_concept,
+            regimen_concept=regimen_concept,
         )
-        # todo: need to pre-processes for publication method
-        # if treatment_episode_rows:
-        # publications.append(
-        #     )
-        # )
+        built_rows.extend(treatment_episode_rows)
 
-        print(f"treatment episodes: {treatment_episode_rows}")
+        treatment_episode_publications = self._publish_treatment_episodes(patient_id=patient.patient_id, rows=treatment_episode_rows)
+        publications.extend(treatment_episode_publications)
 
         return BuildResult(rows=tuple(built_rows), publications=tuple(publications))
 
-    # just iterate over grouped dict,
-    # return rows for EpisodeRow for each valid cycle per treatment,
-    # and generate FK from treatment cycle component NK fields,
-    # if we can avoid passing Patient to this and just use the dict it'd be nicer
-    # then if we get rows, we publish them from build() using separate method (cleaner)
     def _build_treatment_episodes(
         self,
         cycles: tuple[TreatmentCycleComponent, ...],
@@ -73,36 +80,36 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
 
         built_rows: list[EpisodeRow] = []
 
-        # todo: map study drugs
-        # 1. expand dict helper method to key by tuple(treatment_number, study_drug)?
-        # 2. get study drgus tuple and match to ... no
-        # 3. check most common source treatment name ... no
-        # 4.
-
-        # problem is that the source_treatment_name is in each cycle,
-        # but now we index by treatment name,
-        # and we then just map each treatment instead of each cycle,
-        # so we need to get the "global" treatment name for a combined cycle collection for each treatment number,
-        # can either extract this from
-
         for treatment_line in grouped_by_treatment:
             cycles = grouped_by_treatment[treatment_line]
 
-            # problem is: across every instance of TreatmentCycleComponent *with the same treatment number*,
-            # the source_treatment_name should be the same, we just trust the Patient model
-            treatment_name = set(cycle.source_treatment_name for cycle in cycles)
-            if len(treatment_name) != 1:
-                # this should never happen
-                raise RuntimeError("TreatmentCycleComponent has several source_treatment_names across instances withtin one treatment_number!!!!")
+            counts = Counter(cycle.source_treatment_name for cycle in cycles)
+            treatment_names = [s for s, count in counts.most_common() if s is not None]
+            if len(treatment_names) != 1:
+                log.warning(
+                    "Recieved treatment TreatmentCycleComponent instances of same line with different drugs for %s",
+                    patient_id,
+                )
+
+            treatment_name = treatment_names[0] if treatment_names else None
 
             drug_regimen = self.concepts.lookup_semantic(
                 patient_id,
-                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                next(iter(treatment_name)),
+                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                value=treatment_name,
                 domains={OmopDomain.REGIMEN},
             )
 
-            print(f"drug regimen: {drug_regimen}")
+            if len(drug_regimen) > 1:
+                log.warning(
+                    "One source_treatment_name entry maps to several concepts in Episode builder, taking first for %s",
+                    patient_id,
+                )
+            if len(drug_regimen) == 0:
+                log.warning(
+                    "Unmapped source_treatment_name, setting drug regimen concept id to 0, for %s",
+                    patient_id,
+                )
             drug_regimen_concept = drug_regimen[0].concept_id if drug_regimen else 0
 
             starts: list[dt.date] = []
@@ -139,7 +146,7 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
                     episode_number=treatment_line,
                     episode_object_concept_id=drug_regimen_concept,
                     episode_type_concept_id=ecrf_concept,
-                    episode_source_value=",".join(sorted(treatment_name)),
+                    episode_source_value=treatment_name,
                 )
             )
 
@@ -148,17 +155,26 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
     @staticmethod
     def _publish_treatment_episodes(
         patient_id: str,
-        treatment_episode_rows: list[EpisodeRow],
-        grouped_by_treatment: dict[int, tuple[TreatmentCycleComponent]],
-        regimen_concept: int,
-        episode_id: int,
+        rows: list[EpisodeRow],
     ) -> list[RowPublication]:
         publications: list[RowPublication] = []
 
-        # loop over treatment numbers in grouped_by_treatment
+        for row in rows:
+            publications.append(
+                RowPublication(
+                    target_table=OmopTables.EPISODE,
+                    source_ref=SourceReference(patient_id, Patient.Collections.TREATMENT_CYCLES, (row.episode_number,)),
+                    rows=(
+                        OmopRowReference(
+                            table=OmopTables.EPISODE,
+                            row_id=row.episode_id,
+                            primary_concept_id=row.episode_concept_id,
+                        ),
+                    ),
+                )
+            )
 
-        for treatment_number in grouped_by_treatment.items():
-            print(f"treatment_number: {treatment_number}")
+        return publications
 
     @staticmethod
     def _group_by_treatment_number(treatment_cycles: tuple[TreatmentCycleComponent, ...]) -> dict[int, list[TreatmentCycleComponent]]:

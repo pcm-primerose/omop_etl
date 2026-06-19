@@ -64,6 +64,10 @@ class ConceptLookupService:
     - Automatic tracking of hits and misses
     - Coverage statistics per value_set
     - Export of missed lookups to file
+
+    `_semantic_field_paths` is the allowed list of field_paths the
+    semantic pipeline extracts. A lookup for a field path not defined
+    there raises in `lookup_semantic`.
     """
 
     def __init__(
@@ -71,6 +75,7 @@ class ConceptLookupService:
         static_index: Mapping[tuple[str, str], StaticConcept],
         structural_index: Mapping[str, StructuralConcept] | None = None,
         semantic_index: SemanticResultIndex | None = None,
+        semantic_field_paths: Collection[tuple[str, ...]] | None = None,
         meta: RunMetadata | None = None,
         outdir: Path | None = None,
         layout: Layout = Layout.TRIAL_RUN,
@@ -78,6 +83,7 @@ class ConceptLookupService:
         self._static_index = static_index
         self._structural_index = structural_index
         self._semantic_index = semantic_index
+        self._semantic_field_paths = frozenset(semantic_field_paths) if semantic_field_paths is not None else None
         self._meta = meta
         self._result = LookupResult()
         self._exporter = ConceptLookupExporter(
@@ -110,10 +116,16 @@ class ConceptLookupService:
         structural_index = StructuralMapLoader(structural_path).as_index() if structural_path is not None else None
         semantic_index = SemanticResultIndex.from_batch(semantic_batch) if semantic_batch is not None else None
 
+        # the configured field allow-list drives the lookup-time wiring check
+        from omop_etl.semantic_mapping.core.semantic_config import DEFAULT_FIELD_CONFIGS
+
+        semantic_field_paths = {cfg.field_path for cfg in DEFAULT_FIELD_CONFIGS} if semantic_batch is not None else None
+
         return cls(
             static_index=static_index,
             structural_index=structural_index,
             semantic_index=semantic_index,
+            semantic_field_paths=semantic_field_paths,
             meta=meta,
             outdir=outdir,
             layout=layout,
@@ -224,6 +236,9 @@ class ConceptLookupService:
         ingredients) return multiple unique concepts, builders iterate and
         emit one row per concept.
         """
+        if self._semantic_field_paths is not None and tuple(field_path) not in self._semantic_field_paths:
+            raise ValueError(f"Semantic lookup for unconfigured field_path {field_path!r}; declare it in the semantic field config so it gets extracted.")
+
         if self._semantic_index is None:
             return ()
 

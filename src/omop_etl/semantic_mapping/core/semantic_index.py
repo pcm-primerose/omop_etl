@@ -6,7 +6,6 @@ from omop_etl.semantic_mapping.core.models import (
     Query,
     BatchQueryResult,
     QueryTarget,
-    OmopDomain,
 )
 
 
@@ -39,7 +38,6 @@ class SemanticIndex:
         if target is None:
             return candidates
 
-        doms = target.domains
         vocabs = target.vocabs
         classes = target.concept_classes
         validity = target.validity
@@ -47,8 +45,6 @@ class SemanticIndex:
 
         filtered: list[SemanticRow] = []
         for row in candidates:
-            if doms is not None and OmopDomain(row.omop_domain) not in doms:
-                continue
             if vocabs is not None and row.omop_vocab not in vocabs:
                 continue
             if classes is not None and row.omop_concept_class not in classes:
