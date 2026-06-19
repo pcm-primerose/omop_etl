@@ -4,17 +4,16 @@ from typing import Sequence, Set, List
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.infra.io.format_utils import expand_formats
 from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.semantic_mapping.core.models import SemanticMappingResult
 from omop_etl.semantic_mapping.core.pipeline import SemanticLookupPipeline
+from omop_etl.semantic_mapping.core.models import (
+    SemanticMappingResult,
+    FieldConfig,
+)
 from omop_etl.infra.io.types import (
     Layout,
     AnyFormatToken,
     WideFormat,
     WIDE_FORMATS,
-)
-from omop_etl.semantic_mapping.core.models import (
-    FieldConfig,
-    OmopDomain,
 )
 
 
@@ -38,8 +37,6 @@ class SemanticService:
         semantic_path: Path | None = None,
         configs: Sequence[FieldConfig] | None = None,
         enable_names: Set[str] | None = None,
-        required_domains: Set[OmopDomain] | None = None,
-        required_tags: Set[str] | None = None,
     ) -> SemanticMappingResult:
         supported_fmts: List[WideFormat] = expand_formats(formats, allowed=WIDE_FORMATS)
 
@@ -54,8 +51,6 @@ class SemanticService:
         return pipeline.run(
             harmonized_data=harmonized_data,
             enable_names=enable_names,
-            required_domains=required_domains,
-            required_tags=required_tags,
             write_output=write_output,
             input_path=input_path,
             formats=supported_fmts,

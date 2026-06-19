@@ -6,8 +6,6 @@ from omop_etl.semantic_mapping.core.models import (
     QueryResult,
     BatchQueryResult,
     SemanticRow,
-    QueryTarget,
-    OmopDomain,
 )
 
 
@@ -54,7 +52,6 @@ def sample_queries() -> List[Query]:
             query="aml",
             field_path=("diagnoses", "term"),
             raw_value="AML",
-            target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
         Query(
             patient_id="P1",
@@ -62,7 +59,6 @@ def sample_queries() -> List[Query]:
             query="diabetes",
             field_path=("diagnoses", "term"),
             raw_value="Diabetes",
-            target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
         Query(
             patient_id="P2",
@@ -70,7 +66,6 @@ def sample_queries() -> List[Query]:
             query="aspirin",
             field_path=("medications", "name"),
             raw_value="Aspirin",
-            target=QueryTarget(domains=[OmopDomain.DRUG]),
         ),
         Query(
             patient_id="P2",
@@ -78,7 +73,6 @@ def sample_queries() -> List[Query]:
             query="unknown_med",
             field_path=("medications", "name"),
             raw_value="Unknown Med",
-            target=QueryTarget(domains=[OmopDomain.DRUG]),
         ),
     ]
 
@@ -272,18 +266,3 @@ class TestSemanticRow:
         assert semantic_row.source_term == "aml"
         assert semantic_row.omop_concept_name == "acute myeloid leukemia"
         assert semantic_row.frequency == 10
-
-
-class TestQueryTarget:
-    def test_domains_converted_to_frozenset(self):
-        target = QueryTarget(domains=[OmopDomain.CONDITION, OmopDomain.DRUG])
-        assert isinstance(target.domains, frozenset)
-
-    def test_none_domains_stays_none(self):
-        target = QueryTarget(domains=None)
-        assert target.domains is None
-
-    def test_frozenset_unchanged(self):
-        fs = frozenset([OmopDomain.CONDITION])
-        target = QueryTarget(domains=fs)
-        assert target.domains is fs

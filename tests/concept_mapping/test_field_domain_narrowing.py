@@ -19,7 +19,6 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.semantic_mapping.core.models import (
     FieldConfig,
     OmopDomain,
-    QueryTarget,
     SemanticRow,
 )
 from omop_etl.semantic_mapping.core.query_extractor import extract_queries
@@ -69,8 +68,8 @@ def _build_index(configs: tuple[FieldConfig, ...]) -> SemanticResultIndex:
 def test_one_field_two_domains_both_resolve():
     # two builders look up the same field under different domains, both must resolve
     configs = (
-        FieldConfig(name="drug", field_path=FIELD, target=QueryTarget(domains={OmopDomain.DRUG})),
-        FieldConfig(name="regimen", field_path=FIELD, target=QueryTarget(domains={OmopDomain.REGIMEN})),
+        FieldConfig(name="drug", field_path=FIELD),
+        FieldConfig(name="regimen", field_path=FIELD),
     )
     service = ConceptLookupService(static_index={}, semantic_index=_build_index(configs))
 

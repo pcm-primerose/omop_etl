@@ -11,8 +11,6 @@ from omop_etl.semantic_mapping.core.models import (
     QueryResult,
     BatchQueryResult,
     SemanticRow,
-    QueryTarget,
-    OmopDomain,
 )
 
 
@@ -53,7 +51,6 @@ def batch_result(semantic_rows) -> BatchQueryResult:
         query="aml",
         field_path=("diagnoses", "term"),
         raw_value="AML",
-        target=QueryTarget(domains=[OmopDomain.CONDITION]),
     )
     query_missing = Query(
         patient_id="P2",
@@ -61,7 +58,6 @@ def batch_result(semantic_rows) -> BatchQueryResult:
         query="unknown",
         field_path=("diagnoses", "term"),
         raw_value="Unknown",
-        target=QueryTarget(domains=[OmopDomain.CONDITION]),
     )
 
     results = (

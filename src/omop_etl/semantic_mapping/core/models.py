@@ -1,7 +1,7 @@
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, List, Collection, Dict
+from typing import Tuple, List, Dict
 import polars as pl
 
 from omop_etl.infra.io.path_planner import WriterContext
@@ -79,49 +79,17 @@ class OmopDomain(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class QueryTarget:
-    """
-    Filter narrowing which SemanticRows count as a match for a query (by
-    domain, vocab, concept class, standard flag, validity). None = no filter on
-    that facet.
-    """
-
-    domains: Collection[OmopDomain] | None = None
-    vocabs: Collection[str] | None = None
-    concept_classes: Collection[str] | None = None
-    standard_flags: Collection[str] | None = None
-    validity: Collection[str] | None = None
-
-    def __post_init__(self) -> None:
-        def _fs(x):
-            if x is None:
-                return None
-            if isinstance(x, frozenset):
-                return x
-            return frozenset(x)
-
-        object.__setattr__(self, "domains", _fs(self.domains))
-        object.__setattr__(self, "vocabs", _fs(self.vocabs))
-        object.__setattr__(self, "concept_classes", _fs(self.concept_classes))
-        object.__setattr__(self, "standard_flags", _fs(self.standard_flags))
-        object.__setattr__(self, "validity", _fs(self.validity))
-
-
-@dataclass(frozen=True, slots=True)
 class FieldConfig:
     """
-    Configures one Patient field to extract queries from: the field_path to
-    walk and the QueryTarget filter applied to its matches.
+    Declares one Patient field to extract for semantic mapping, i.e. the
+    allow-list of *semantic fields*. It carries only the field_path to walk:
+    no domains (the consumer narrows by domain at lookup time, not here) and no
+    match-time filter. `name` is a label used for run selection
+    (`enable_names`) and coverage reporting.
     """
 
     name: str
     field_path: tuple[str, ...]
-    tags: Collection[str] = field(default_factory=frozenset)
-    target: QueryTarget | None = None
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.tags, frozenset):
-            object.__setattr__(self, "tags", frozenset(self.tags))
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,7 +106,6 @@ class Query:
     query: str
     field_path: tuple[str, ...]
     raw_value: str
-    target: None | QueryTarget = None
 
 
 @dataclass(frozen=True, slots=True)

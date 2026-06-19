@@ -33,7 +33,6 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]
                             patient_id=patient.patient_id,
                             query=val.lower().strip(),
                             field_path=cfg.field_path,
-                            target=cfg.target,
                             raw_value=val,
                         )
                     )
@@ -53,7 +52,6 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]
                     patient_id=patient.patient_id,
                     query=val.lower().strip(),
                     field_path=cfg.field_path,
-                    target=cfg.target,
                     raw_value=val,
                 )
             )
