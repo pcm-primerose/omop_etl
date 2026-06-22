@@ -218,7 +218,6 @@ class ConceptLookupService:
 
     def lookup_semantic(
         self,
-        patient_id: str,
         field_path: tuple[str, ...],
         value: str | None,
         *,
@@ -243,7 +242,6 @@ class ConceptLookupService:
             return ()
 
         qr = self._semantic_index.lookup(
-            patient_id=patient_id,
             field_path=field_path,
             value=value,
         )
@@ -270,18 +268,13 @@ class ConceptLookupService:
                 path_str = ".".join(field_path)
                 details = [(c.concept_id, c.concept_name, c.domain_id) for c in mapped]
                 log.error(
-                    "Duplicate concept_id %s in semantic mapping: patient_id=%s, field_path=%s, value=%s, all matches=%s",
+                    "Duplicate concept_id %s in semantic mapping: field_path=%s, value=%s, all matches=%s",
                     m.concept_id,
-                    patient_id,
                     path_str,
                     value,
                     details,
                 )
-                raise RuntimeError(
-                    f"Duplicate concept_id {m.concept_id} in semantic mapping: "
-                    f"patient_id={patient_id}, field_path={path_str}, "
-                    f"value={value}, all matches={details}"
-                )
+                raise RuntimeError(f"Duplicate concept_id {m.concept_id} in semantic mapping: field_path={path_str}, value={value}, all matches={details}")
             seen_ids.add(m.concept_id)
 
         return tuple(mapped)

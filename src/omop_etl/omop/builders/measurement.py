@@ -195,7 +195,6 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
             target_biomarker,
             domains={OmopDomain.MEASUREMENTS},
@@ -673,7 +672,6 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
             mh.term,
             domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE},
@@ -755,7 +753,6 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
             ae.term,
             domains={OmopDomain.MEASUREMENTS, OmopDomain.MEAS_VALUE},

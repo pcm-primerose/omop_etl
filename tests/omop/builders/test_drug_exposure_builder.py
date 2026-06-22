@@ -10,10 +10,11 @@ from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult, SourceReference
 from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
+    concept,
     create_build_context,
     create_patient,
-    create_semantic_index,
-    SemanticEntry,
+    mapping,
+    semantic_index,
 )
 
 PID = "p1"
@@ -140,24 +141,16 @@ class TestTreatmentCycleRows:
         """Combination drug (Phesgo = Pertuzumab + Trastuzumab) is split into two
         TreatmentCycleComponent instances with the same source_treatment_name but
         different ingredient_name. Each should map through its ingredient path."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                value="Pertuzumab",
-                concept_id=6001,
-                name="pertuzumab",
-                domain="drug",
-                vocab="rxnorm",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
+                "Pertuzumab",
+                concept(6001, "drug", vocab="rxnorm"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                value="Trastuzumab",
-                concept_id=6002,
-                name="trastuzumab",
-                domain="drug",
-                vocab="rxnorm",
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
+                "Trastuzumab",
+                concept(6002, "drug", vocab="rxnorm"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -182,16 +175,12 @@ class TestTreatmentCycleRows:
 
     def test_with_semantic_match_uses_mapped_concept(self, static_index, structural_index):
         """When a semantic mapping exists, the row uses the mapped concept_id."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                value="Trametinib",
-                concept_id=1234,
-                name="trametinib",
-                domain="drug",
-                vocab="rxnorm",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                "Trametinib",
+                concept(1234, "drug", vocab="rxnorm"),
+            ),
         )
         patient = create_patient(PID, "test")
         cycle = TreatmentCycleComponent(patient_id=PID)
@@ -208,24 +197,16 @@ class TestTreatmentCycleRows:
 class TestSemanticLookupStrategy:
     def test_uses_ingredient_name_when_available(self, static_index, structural_index):
         """When ingredient_name is populated, builder queries ingredient path instead of source_treatment_name"""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                value="Atezolizumab",
-                concept_id=5001,
-                name="atezolizumab",
-                domain="drug",
-                vocab="rxnorm",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
+                "Atezolizumab",
+                concept(5001, "drug", vocab="rxnorm"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                value="Atezolizumab",
-                concept_id=7777,
-                name="atezolizumab",
-                domain="drug",
-                vocab="rxnorm",
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                "Atezolizumab",
+                concept(7777, "drug", vocab="rxnorm"),
             ),
         )
         patient = create_patient(PID, "test")
@@ -242,16 +223,12 @@ class TestSemanticLookupStrategy:
 
     def test_falls_back_to_source_name_when_no_ingredient(self, static_index, structural_index):
         """When ingredient_name is None, builder queries source_treatment_name path."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                value="Fulvestrant",
-                concept_id=5002,
-                name="fulvestrant",
-                domain="drug",
-                vocab="rxnorm",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                "Fulvestrant",
+                concept(5002, "drug", vocab="rxnorm"),
+            ),
         )
         patient = create_patient(PID, "test")
         cycle = TreatmentCycleComponent(patient_id=PID)
@@ -266,16 +243,12 @@ class TestSemanticLookupStrategy:
         assert result.rows[0].drug_concept_id == 5002
 
     def test_missing_mappable_data_returns_empty_list(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                value="",
-                concept_id=5003,
-                name="fulvestrant",
-                domain="drug",
-                vocab="rxnorm",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                "",
+                concept(5003, "drug", vocab="rxnorm"),
+            ),
         )
 
         patient = create_patient(PID, "test")
@@ -295,15 +268,11 @@ class TestSemanticLookupStrategy:
         When indgredient_name is populated and source_treatment_name is None, use ingredient_name for mapping,
         this should never happen but should still work
         """
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                value="ingredient",
-                concept_id=5001,
-                name="ingredient",
-                domain="drug",
-                vocab="rxnorm",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
+                "ingredient",
+                concept(5001, "drug", vocab="rxnorm"),
             ),
         )
 
@@ -336,16 +305,12 @@ class TestPreviousTreatmentRows:
     """
 
     def test_additional_treatment_maps_to_drug(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                value="Zometa",
-                concept_id=1524674,
-                name="zoledronic acid",
-                domain="drug",
-                vocab="rxnorm",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
+                "Zometa",
+                concept(1524674, "drug", vocab="rxnorm"),
+            ),
         )
         patient = create_patient(PID, "test")
         prev = PreviousTreatment(patient_id=PID)
@@ -365,16 +330,12 @@ class TestPreviousTreatmentRows:
         assert row.drug_exposure_end_date == dt.date(2022, 12, 1)
 
     def test_main_treatment_maps_to_drug(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                value="Letrozole",
-                concept_id=1304850,
-                name="letrozole",
-                domain="drug",
-                vocab="rxnorm",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Letrozole",
+                concept(1304850, "drug", vocab="rxnorm"),
+            ),
         )
         patient = create_patient(PID, "test")
         prev = PreviousTreatment(patient_id=PID)
@@ -390,24 +351,16 @@ class TestPreviousTreatmentRows:
 
     def test_both_fields_map_to_drug_emits_two_result(self, static_index, structural_index):
         """When both main and additional treatment map to drug, emit one row each."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                value="Drug A",
-                concept_id=100,
-                name="drug a",
-                domain="drug",
-                vocab="rxnorm",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Drug A",
+                concept(100, "drug", vocab="rxnorm"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                value="Drug B",
-                concept_id=200,
-                name="drug b",
-                domain="drug",
-                vocab="rxnorm",
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
+                "Drug B",
+                concept(200, "drug", vocab="rxnorm"),
             ),
         )
         patient = create_patient(PID, "test")
@@ -469,16 +422,12 @@ class TestConcomitantMedicationRows:
         assert row.drug_exposure_end_date == dt.date(2023, 1, 20)
 
     def test_produces_row_with_mapped_concept(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
-                value="Oxynorm",
-                concept_id=1124957,
-                name="oxycodone",
-                domain="drug",
-                vocab="rxnorm",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
+                "Oxynorm",
+                concept(1124957, "drug", vocab="rxnorm"),
+            ),
         )
         patient = create_patient(PID, "test")
         concom = ConcomitantMedication(patient_id=PID)
@@ -530,11 +479,12 @@ class TestConcomitantMedicationRows:
     def test_multi_ingredient_produces_multiple_result(self, static_index, structural_index):
         """Combination drug (e.g. Calcigran Forte) returns multiple concepts
         from a single lookup, one drug_exposure row per ingredient."""
-        concom_path = (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME)
-        semantic = create_semantic_index(
-            SemanticEntry(patient_id=PID, field_path=concom_path, value="Calcigran Forte", concept_id=19, name="vitamin d", domain="drug", vocab="rxnorm"),
-            SemanticEntry(
-                patient_id=PID, field_path=concom_path, value="Calcigran Forte", concept_id=20, name="calcium carbonate", domain="drug", vocab="rxnorm"
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
+                "Calcigran Forte",
+                concept(19, "drug", vocab="rxnorm"),
+                concept(20, "drug", vocab="rxnorm"),
             ),
         )
         patient = create_patient(PID, "test")
@@ -557,16 +507,12 @@ class TestIdUniqueness:
     def test_ids_unique_across_sources(self, static_index, structural_index):
         """Rows from treatment_cycles, previous_treatments, and concomitant_medications
         all get unique drug_exposure_ids."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                value="Zometa",
-                concept_id=1524674,
-                name="zoledronic acid",
-                domain="drug",
-                vocab="rxnorm",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
+                "Zometa",
+                concept(1524674, "drug", vocab="rxnorm"),
+            ),
         )
         patient = create_patient(PID, "test")
 
@@ -634,22 +580,12 @@ class TestTreatmentCyclePublication:
 
     def test_multi_concept_cycle_publishes_all_rows(self, static_index, structural_index):
         """A cycle mapped to N Drug concepts publishes all N drug_exposure rows."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                value="Combo",
-                concept_id=111,
-                name="drug a",
-                domain="drug",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                value="Combo",
-                concept_id=222,
-                name="drug b",
-                domain="drug",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                "Combo",
+                concept(111, "drug"),
+                concept(222, "drug"),
             ),
         )
         patient = create_patient(PID, TRIAL)

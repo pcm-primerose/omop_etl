@@ -94,7 +94,6 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
             treatment_name = treatment_names[0] if treatment_names else None
 
             drug_regimen = self.concepts.lookup_semantic(
-                patient_id,
                 field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
                 value=treatment_name,
                 domains={OmopDomain.REGIMEN},

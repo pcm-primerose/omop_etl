@@ -16,9 +16,10 @@ from omop_etl.harmonization.models.domain.end_of_treatment import (
     TrialOutcomeStatus,
 )
 from tests.omop.conftest import (
+    concept,
     create_patient,
-    create_semantic_index,
-    SemanticEntry,
+    mapping,
+    semantic_index,
 )
 
 
@@ -51,57 +52,21 @@ class TestOmopServiceOrchestration:
 
     def test_all_builders_produce_output(self, static_index, structural_index):
         """A fully-populated patient with semantic entries produces rows in all tables."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                "p1",
-                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                "C50.9",
-                4000,
-                "neoplasm",
-                "condition",
-            ),
-            SemanticEntry(
-                "p1",
-                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                "Hypertension",
-                316866,
-                "hypertension",
-                "condition",
-            ),
-            SemanticEntry(
-                "p1",
-                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                "Fever",
-                437663,
-                "fever",
-                "condition",
-            ),
-            SemanticEntry(
-                "p1",
+        semantic = semantic_index(
+            mapping((Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE), "C50.9", concept(4000, "condition")),
+            mapping((Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM), "Hypertension", concept(316866, "condition")),
+            mapping((Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM), "Fever", concept(437663, "condition")),
+            mapping(
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
                 "Trametinib",
-                1234,
-                "trametinib",
-                "drug",
-                "rxnorm",
+                concept(1234, "drug", vocab="rxnorm"),
             ),
-            SemanticEntry(
-                "p1",
+            mapping(
                 (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
                 "Oxynorm",
-                1124957,
-                "oxycodone",
-                "drug",
-                "rxnorm",
+                concept(1124957, "drug", vocab="rxnorm"),
             ),
-            SemanticEntry(
-                "p1",
-                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                "Surgery",
-                4301351,
-                "surgery",
-                "procedure",
-            ),
+            mapping((Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT), "Surgery", concept(4301351, "procedure")),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
 

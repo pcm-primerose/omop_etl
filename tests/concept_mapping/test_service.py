@@ -207,7 +207,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index(qr)
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), "test")
+        result = service.lookup_semantic(("collection", "field"), "test")
 
         assert len(result) == 1
         assert result[0].concept_id == 12345
@@ -216,7 +216,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index()
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), "test")
+        result = service.lookup_semantic(("collection", "field"), "test")
 
         assert result == ()
 
@@ -231,7 +231,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index(qr)
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), "test")
+        result = service.lookup_semantic(("collection", "field"), "test")
 
         assert len(result) == 2
         assert {m.concept_id for m in result} == {111, 222}
@@ -248,7 +248,7 @@ class TestSemanticLookup:
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
         with pytest.raises(RuntimeError, match="Duplicate concept_id"):
-            service.lookup_semantic("P1", ("collection", "field"), "test")
+            service.lookup_semantic(("collection", "field"), "test")
 
     def test_domain_filter_narrows_results(self, static_index):
         query = _make_query()
@@ -263,7 +263,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index(qr)
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), "test", domains={"condition"})
+        result = service.lookup_semantic(("collection", "field"), "test", domains={"condition"})
 
         assert len(result) == 1
         assert result[0].concept_id == 111
@@ -271,6 +271,6 @@ class TestSemanticLookup:
     def test_no_semantic_index_returns_empty(self, static_index):
         service = ConceptLookupService(static_index=static_index, semantic_index=None)
 
-        result = service.lookup_semantic("P1", ("collection", "field"), "test")
+        result = service.lookup_semantic(("collection", "field"), "test")
 
         assert result == ()

@@ -111,7 +111,6 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
 
         if tumor.icd10_code:
             matches = self.concepts.lookup_semantic(
-                patient.patient_id,
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
                 tumor.icd10_code,
                 domains={OmopDomain.CONDITION},
@@ -120,7 +119,6 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
 
         elif tumor.main_tumor_type:
             matches = self.concepts.lookup_semantic(
-                patient.patient_id,
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
                 tumor.main_tumor_type,
                 domains={OmopDomain.CONDITION},
@@ -175,7 +173,6 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
             mh.term,
             domains={OmopDomain.CONDITION},
@@ -217,7 +214,6 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
             ae.term,
             domains={OmopDomain.CONDITION},

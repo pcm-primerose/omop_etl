@@ -59,7 +59,6 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
             prev.treatment,
             domains={OmopDomain.PROCEDURE},
@@ -98,7 +97,6 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
             prev.additional_treatment,
             domains={OmopDomain.PROCEDURE},
@@ -137,7 +135,6 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
             mh.term,
             domains={OmopDomain.PROCEDURE},

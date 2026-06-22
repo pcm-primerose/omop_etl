@@ -1,5 +1,4 @@
 import datetime as dt
-from collections import defaultdict
 from dataclasses import dataclass
 import pytest
 
@@ -92,55 +91,58 @@ def create_patient(patient_id: str, trial: str, **scalars: str | dt.date | None 
 
 
 @dataclass(frozen=True, slots=True)
-class SemanticEntry:
-    """Semantic mapping entry for test fixture construction."""
+class _SemanticGroup:
+    """One (field_path, value) -> concept(s) entry produced by mapping()."""
 
-    patient_id: str
     field_path: tuple[str, ...]
     value: str
-    concept_id: int | str
-    name: str
-    domain: str
-    vocab: str = "snomed"
-    concept_code: str = ""
-    concept_class: str = ""
-    standard_concept: str = "standard"
-    validity: str = "valid"
-    source_term: str = "test"
-    source_col: str = "test"
-    term_id: str = "test"
-    frequency: int = 1
+    rows: tuple[SemanticRow, ...]
 
 
-def create_semantic_index(*entries: SemanticEntry) -> SemanticResultIndex:
+def concept(
+    concept_id: int | str,
+    domain: str,
+    *,
+    name: str = "concept",
+    vocab: str = "snomed",
+    concept_code: str = "",
+    concept_class: str = "",
+    standard_concept: str = "standard",
+    validity: str = "valid",
+) -> SemanticRow:
     """
-    Build a SemanticResultIndex from one or more SemanticEntry instances.
-    Entries with the same (patient_id, field_path, value) are grouped into one QueryResult.
+    One OMOP concept a semantic term resolves to.
     """
-    grouped: dict[tuple, list[SemanticRow]] = defaultdict(list)
+    return SemanticRow(
+        term_id="test",
+        source_col="test",
+        source_term="test",
+        frequency=1,
+        omop_concept_id=str(concept_id),
+        omop_concept_code=concept_code or str(concept_id),
+        omop_concept_name=name,
+        omop_concept_class=concept_class,
+        omop_standard_concept=standard_concept,
+        omop_validity=validity,
+        omop_domain=domain,
+        omop_vocab=vocab,
+    )
 
-    for e in entries:
-        grouped[(e.patient_id, e.field_path, e.value)].append(
-            SemanticRow(
-                term_id=e.term_id,
-                source_col=e.source_col,
-                source_term=e.source_term,
-                frequency=e.frequency,
-                omop_concept_id=str(e.concept_id),
-                omop_concept_code=e.concept_code or str(e.concept_id),
-                omop_concept_name=e.name,
-                omop_concept_class=e.concept_class,
-                omop_standard_concept=e.standard_concept,
-                omop_validity=e.validity,
-                omop_domain=e.domain,
-                omop_vocab=e.vocab,
-            )
-        )
 
+def mapping(field_path: tuple[str, ...], value: str, *concepts: SemanticRow) -> _SemanticGroup:
+    """Group the concept(s) a semantic term (field_path, value) resolves to."""
+    return _SemanticGroup(field_path=field_path, value=value, rows=concepts)
+
+
+def semantic_index(*groups: _SemanticGroup) -> SemanticResultIndex:
+    """
+    Build a SemanticResultIndex from mapping() groups.
+    Each group is one (field_path, value) -> concept(s) entry.
+    """
     results: list[QueryResult] = []
-    for (pid, fp, value), rows in grouped.items():
-        query = Query(patient_id=pid, id="test", query=value, field_path=fp, raw_value=value)
-        results.append(QueryResult(patient_id=pid, query=query, results=rows))
+    for g in groups:
+        query = Query(patient_id="test", id="test", query=g.value, field_path=g.field_path, raw_value=g.value)
+        results.append(QueryResult(patient_id="test", query=query, results=list(g.rows)))
 
     return SemanticResultIndex.from_batch(BatchQueryResult(results=tuple(results)))
 
@@ -206,8 +208,6 @@ def static_index() -> dict[tuple[str, str], StaticConcept]:
     return {
         ("sex", "m"): _static("sex", "m", 8507, "gender"),
         ("sex", "f"): _static("sex", "f", 8532, "gender"),
-        # cdm_field for FK linkage (observation_event_id / measurement_event_id
-        # to condition_occurrence.condition_occurrence_id, or to drug_exposure.drug_exposure_id)
         ("cdm_field", "condition_occurrence.condition_occurrence_id"): _static(
             "cdm_field", "condition_occurrence.condition_occurrence_id", 1147127, "metadata"
         ),

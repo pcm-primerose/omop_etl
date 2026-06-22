@@ -107,14 +107,12 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         if cycle.ingredient_name:
             matches = self.concepts.lookup_semantic(
-                patient.patient_id,
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
                 cycle.ingredient_name,
                 domains={OmopDomain.DRUG},
             )
         else:
             matches = self.concepts.lookup_semantic(
-                patient.patient_id,
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
                 cycle.source_treatment_name,
                 domains={OmopDomain.DRUG},
@@ -195,7 +193,6 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         end_date = prev.end_date or start_date
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
             prev.treatment,
             domains={OmopDomain.DRUG},
@@ -235,7 +232,6 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
 
         end_date = prev.end_date or start_date
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
             prev.additional_treatment,
             domains={OmopDomain.DRUG},
@@ -281,7 +277,6 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         matches = self.concepts.lookup_semantic(
-            patient.patient_id,
             (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
             concom.medication_name,
             domains={OmopDomain.DRUG},
