@@ -147,8 +147,8 @@ def semantic_index(*groups: _SemanticGroup) -> SemanticResultIndex:
     return SemanticResultIndex.from_batch(BatchQueryResult(results=tuple(results)))
 
 
-def _structural(value_set: str, concept_id: int, domain_id: str) -> MappedConcept:
-    # value_set is the index key, carried by the caller
+def _structural(concept_id: int, domain_id: str) -> MappedConcept:
+    # the value_set key is carried by the caller
     return MappedConcept(
         concept_id=concept_id,
         concept_code="",
@@ -159,8 +159,8 @@ def _structural(value_set: str, concept_id: int, domain_id: str) -> MappedConcep
     )
 
 
-def _static(value_set: str, local_value: str, concept_id: int, domain_id: str) -> MappedConcept:
-    # value_set/local_value are the index key, carried by the caller
+def _static(concept_id: int, domain_id: str) -> MappedConcept:
+    # the (value_set, local_value) key is carried by the caller
     return MappedConcept(
         concept_id=concept_id,
         concept_code="",
@@ -174,86 +174,84 @@ def _static(value_set: str, local_value: str, concept_id: int, domain_id: str) -
 @pytest.fixture
 def structural_index() -> dict[str, MappedConcept]:
     return {
-        "ecrf": _structural("ecrf", 32809, "type concept"),
-        "patient_withdrawn": _structural("patient_withdrawn", 4087907, "observation"),
-        "outpatient_visit": _structural("outpatient_visit", 9202, "visit"),
-        "iv": _structural("iv", 4171047, "route"),
-        "oral": _structural("oral", 4132161, "route"),
-        "cdm": _structural("cdm", 705800, "metadata"),
-        "vocab": _structural("vocab", 1146958, "metadata"),
-        "ecog": _structural("ecog", 36305384, "measurement"),
+        "ecrf": _structural(32809, "type concept"),
+        "patient_withdrawn": _structural(4087907, "observation"),
+        "outpatient_visit": _structural(9202, "visit"),
+        "iv": _structural(4171047, "route"),
+        "oral": _structural(4132161, "route"),
+        "cdm": _structural(705800, "metadata"),
+        "vocab": _structural(1146958, "metadata"),
+        "ecog": _structural(36305384, "measurement"),
         # measurement builder: target lesion absolute size
-        "lesion_size": _structural("lesion_size", 36768664, "measurement"),
+        "lesion_size": _structural(36768664, "measurement"),
         # measurement builder: C30 questions
-        "c30_q1": _structural("c30_q1", 701340, "measurement"),
-        "c30_q2": _structural("c30_q2", 701341, "measurement"),
-        "c30_q29": _structural("c30_q29", 701367, "measurement"),
+        "c30_q1": _structural(701340, "measurement"),
+        "c30_q2": _structural(701341, "measurement"),
+        "c30_q29": _structural(701367, "measurement"),
         # EQ5D VAS
-        "eq5d_qol_score": _structural("eq5d_qol_score", 42537274, "measurement"),
-        "response_recist": _structural("response_recist", 734317, "measurement"),
-        "response_irecist": _structural("response_irecist", 734318, "measurement"),
-        "response_ranop": _structural("response_rano", 734345, "measurement"),
+        "eq5d_qol_score": _structural(42537274, "measurement"),
+        "response_recist": _structural(734317, "measurement"),
+        "response_irecist": _structural(734318, "measurement"),
+        "response_ranop": _structural(734345, "measurement"),
         # episode builder: "Treatment regimen" episode kind
-        "treatment_regimen": _structural("treatment_regimen", 32531, "episode"),
+        "treatment_regimen": _structural(32531, "episode"),
     }
 
 
 @pytest.fixture
 def static_index() -> dict[tuple[str, str], MappedConcept]:
     return {
-        ("sex", "m"): _static("sex", "m", 8507, "gender"),
-        ("sex", "f"): _static("sex", "f", 8532, "gender"),
-        ("cdm_field", "condition_occurrence.condition_occurrence_id"): _static(
-            "cdm_field", "condition_occurrence.condition_occurrence_id", 1147127, "metadata"
-        ),
-        ("cdm_field", "drug_exposure.drug_exposure_id"): _static("cdm_field", "drug_exposure.drug_exposure_id", 1147094, "metadata"),
-        ("ecog_code", "1"): _static("ecog_code", "1", 36310827, "meas value"),
-        ("ecog_code", "0"): _static("ecog_code", "0", 36309661, "meas value"),
+        ("sex", "m"): _static(8507, "gender"),
+        ("sex", "f"): _static(8532, "gender"),
+        ("cdm_field", "condition_occurrence.condition_occurrence_id"): _static(1147127, "metadata"),
+        ("cdm_field", "drug_exposure.drug_exposure_id"): _static(1147094, "metadata"),
+        ("ecog_code", "1"): _static(36310827, "meas value"),
+        ("ecog_code", "0"): _static(36309661, "meas value"),
         # C30 shared answer scale (Q1–Q28)
-        ("c30_answer_code", "1"): _static("c30_answer_code", "1", 45883172, "meas value"),
-        ("c30_answer_code", "2"): _static("c30_answer_code", "2", 45876949, "meas value"),
-        ("c30_answer_code", "3"): _static("c30_answer_code", "3", 45884456, "meas value"),
-        ("c30_answer_code", "4"): _static("c30_answer_code", "4", 45885256, "meas value"),
+        ("c30_answer_code", "1"): _static(45883172, "meas value"),
+        ("c30_answer_code", "2"): _static(45876949, "meas value"),
+        ("c30_answer_code", "3"): _static(45884456, "meas value"),
+        ("c30_answer_code", "4"): _static(45885256, "meas value"),
         # C30 global answer scale (Q29–Q30)
-        ("c30_global_answer_code", "1"): _static("c30_global_answer_code", "1", 45878558, "meas value"),
-        ("c30_global_answer_code", "2"): _static("c30_global_answer_code", "2", 1094227, "meas value"),
-        ("c30_global_answer_code", "3"): _static("c30_global_answer_code", "3", 45878305, "meas value"),
-        ("c30_global_answer_code", "4"): _static("c30_global_answer_code", "4", 45878304, "meas value"),
-        ("c30_global_answer_code", "5"): _static("c30_global_answer_code", "5", 45878730, "meas value"),
-        ("c30_global_answer_code", "6"): _static("c30_global_answer_code", "6", 45878254, "meas value"),
-        ("c30_global_answer_code", "7"): _static("c30_global_answer_code", "7", 45881924, "meas value"),
+        ("c30_global_answer_code", "1"): _static(45878558, "meas value"),
+        ("c30_global_answer_code", "2"): _static(1094227, "meas value"),
+        ("c30_global_answer_code", "3"): _static(45878305, "meas value"),
+        ("c30_global_answer_code", "4"): _static(45878304, "meas value"),
+        ("c30_global_answer_code", "5"): _static(45878730, "meas value"),
+        ("c30_global_answer_code", "6"): _static(45878254, "meas value"),
+        ("c30_global_answer_code", "7"): _static(45881924, "meas value"),
         # EQ5D
-        ("eq5d_q1_answer_code", "1"): _static("eq5d_q1_answer_code", "1", 742346, "measurement"),
-        ("eq5d_q1_answer_code", "2"): _static("eq5d_q1_answer_code", "2", 742347, "measurement"),
-        ("eq5d_q1_answer_code", "3"): _static("eq5d_q1_answer_code", "3", 742348, "measurement"),
-        ("eq5d_q1_answer_code", "4"): _static("eq5d_q1_answer_code", "4", 742349, "measurement"),
-        ("eq5d_q1_answer_code", "5"): _static("eq5d_q1_answer_code", "5", 742350, "measurement"),
-        ("eq5d_q2_answer_code", "1"): _static("eq5d_q2_answer_code", "1", 742351, "measurement"),
-        ("eq5d_q2_answer_code", "2"): _static("eq5d_q2_answer_code", "2", 742352, "measurement"),
-        ("eq5d_q2_answer_code", "3"): _static("eq5d_q2_answer_code", "3", 742353, "measurement"),
-        ("eq5d_q2_answer_code", "4"): _static("eq5d_q2_answer_code", "4", 742354, "measurement"),
-        ("eq5d_q2_answer_code", "5"): _static("eq5d_q2_answer_code", "5", 742355, "measurement"),
+        ("eq5d_q1_answer_code", "1"): _static(742346, "measurement"),
+        ("eq5d_q1_answer_code", "2"): _static(742347, "measurement"),
+        ("eq5d_q1_answer_code", "3"): _static(742348, "measurement"),
+        ("eq5d_q1_answer_code", "4"): _static(742349, "measurement"),
+        ("eq5d_q1_answer_code", "5"): _static(742350, "measurement"),
+        ("eq5d_q2_answer_code", "1"): _static(742351, "measurement"),
+        ("eq5d_q2_answer_code", "2"): _static(742352, "measurement"),
+        ("eq5d_q2_answer_code", "3"): _static(742353, "measurement"),
+        ("eq5d_q2_answer_code", "4"): _static(742354, "measurement"),
+        ("eq5d_q2_answer_code", "5"): _static(742355, "measurement"),
         # tumor-response scales:
         # recist
-        ("response_recist", "not evaluable"): _static("response_recist", "Not evaluable", 45878793, "Meas value"),
-        ("response_recist", "not evaluable (ne)"): _static("response_recist", "Not evaluable (NE)", 45878793, "Meas value"),
-        ("response_recist", "complete response (cr)"): _static("response_recist", "complete response (cr)", 1634772, "measurement"),
-        ("response_recist", "partial response (pr)"): _static("response_recist", "partial response (pr)", 1633368, "measurement"),
-        ("response_recist", "stable disease (sd)"): _static("response_recist", "stable disease (sd)", 1634680, "measurement"),
-        ("response_recist", "progressive disease (pd)"): _static("response_recist", "progressive disease (pd)", 1633597, "measurement"),
+        ("response_recist", "not evaluable"): _static(45878793, "Meas value"),
+        ("response_recist", "not evaluable (ne)"): _static(45878793, "Meas value"),
+        ("response_recist", "complete response (cr)"): _static(1634772, "measurement"),
+        ("response_recist", "partial response (pr)"): _static(1633368, "measurement"),
+        ("response_recist", "stable disease (sd)"): _static(1634680, "measurement"),
+        ("response_recist", "progressive disease (pd)"): _static(1633597, "measurement"),
         # irecist
-        ("response_irecist", "not evaluable"): _static("response_irecist", "Not evaluable", 45878793, "Meas value"),
-        ("response_irecist", "not evaluable (ne)"): _static("response_irecist", "Not evaluable (NE)", 45878793, "Meas value"),
-        ("response_irecist", "icomplete response (cr)"): _static("response_irecist", "icomplete response (cr)", 1633954, "measurement"),
-        ("response_irecist", "ipartial response (pr)"): _static("response_irecist", "ipartial response (pr)", 1635284, "measurement"),
-        ("response_irecist", "istable disease"): _static("response_irecist", "istable disease", 1635887, "measurement"),
-        ("response_irecist", "iconfirmed progressive disease"): _static("response_irecist", "iconfirmed progressive disease", 1633423, "measurement"),
-        ("response_irecist", "iunconfirmed progressive disease"): _static("response_irecist", "iunconfirmed progressive disease", 1633423, "measurement"),
+        ("response_irecist", "not evaluable"): _static(45878793, "Meas value"),
+        ("response_irecist", "not evaluable (ne)"): _static(45878793, "Meas value"),
+        ("response_irecist", "icomplete response (cr)"): _static(1633954, "measurement"),
+        ("response_irecist", "ipartial response (pr)"): _static(1635284, "measurement"),
+        ("response_irecist", "istable disease"): _static(1635887, "measurement"),
+        ("response_irecist", "iconfirmed progressive disease"): _static(1633423, "measurement"),
+        ("response_irecist", "iunconfirmed progressive disease"): _static(1633423, "measurement"),
         # rano
-        ("response_rano", "not evaluable"): _static("response_rano", "Not evaluable", 45878793, "Meas value"),
-        ("response_rano", "not evaluable (ne)"): _static("response_rano", "Not evaluable (NE)", 45878793, "Meas value"),
-        ("response_rano", "complete response (cr)"): _static("response_rano", "complete response (cr)", 1634853, "measurement"),
-        ("response_rano", "partial response (pr)"): _static("response_rano", "partial response (pr)", 1634574, "measurement"),
-        ("response_rano", "stable disease (sd)"): _static("response_rano", "stable disease (sd)", 1633447, "measurement"),
-        ("response_rano", "progressive disease (pd)"): _static("response_rano", "progressive disease (pd)", 1634653, "measurement"),
+        ("response_rano", "not evaluable"): _static(45878793, "Meas value"),
+        ("response_rano", "not evaluable (ne)"): _static(45878793, "Meas value"),
+        ("response_rano", "complete response (cr)"): _static(1634853, "measurement"),
+        ("response_rano", "partial response (pr)"): _static(1634574, "measurement"),
+        ("response_rano", "stable disease (sd)"): _static(1633447, "measurement"),
+        ("response_rano", "progressive disease (pd)"): _static(1634653, "measurement"),
     }

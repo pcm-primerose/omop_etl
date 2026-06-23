@@ -33,13 +33,13 @@ AE_OUTCOME_TOPIC_CID = 4231813
 
 def _with_yes_no(structural_index: dict) -> dict:
     """Yes/No structural Meas Value concepts (OHDSI ETL convention for booleans)."""
-    structural_index["yes"] = _structural("yes", YES_CID, "meas value")
-    structural_index["no"] = _structural("no", NO_CID, "meas value")
+    structural_index["yes"] = _structural(YES_CID, "meas value")
+    structural_index["no"] = _structural(NO_CID, "meas value")
     return structural_index
 
 
 def _with_ae_outcome_topic(structural_index: dict) -> dict:
-    structural_index["adverse_event_outcome"] = _structural("adverse_event_outcome", AE_OUTCOME_TOPIC_CID, "observation")
+    structural_index["adverse_event_outcome"] = _structural(AE_OUTCOME_TOPIC_CID, "observation")
     return structural_index
 
 
@@ -266,7 +266,7 @@ class TestEndOfTreatment:
 
     @staticmethod
     def _with_trial_completion(structural_index: dict) -> dict:
-        structural_index["trial_completion"] = _structural("trial_completion", TRIAL_COMPLETION_CID, "observation")
+        structural_index["trial_completion"] = _structural(TRIAL_COMPLETION_CID, "observation")
         return structural_index
 
     def test_completed_status_emits_completion_shape(self, static_index, structural_index):
@@ -305,7 +305,7 @@ class TestEndOfTreatment:
         assert result.rows[0].value_as_concept_id is None
 
     def test_withdrawn_with_mapped_reason_emits_withdrawal_shape(self, static_index, structural_index):
-        static_index[("eot_reason", "disease progression")] = _static("eot_reason", "disease progression", 1617595, "observation")
+        static_index[("eot_reason", "disease progression")] = _static(1617595, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.end_of_treatment = self._make_eot(
@@ -410,7 +410,7 @@ class TestLostToFollowup:
         return followup
 
     def test_lost_to_followup_true_emits_withdrawal_row(self, static_index, structural_index):
-        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", LOST_TO_FU_REASON_CID, "observation")
+        static_index[("lost_to_followup", "true")] = _static(LOST_TO_FU_REASON_CID, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.lost_to_followup = self._make_followup(True)
@@ -430,7 +430,7 @@ class TestLostToFollowup:
         """No patient_withdrawn structural: concept_id=0, row still emits with reason."""
         # remove the patient_withdrawn structural concept from the fixture
         structural_index.pop("patient_withdrawn", None)
-        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", LOST_TO_FU_REASON_CID, "observation")
+        static_index[("lost_to_followup", "true")] = _static(LOST_TO_FU_REASON_CID, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.lost_to_followup = self._make_followup(True)
@@ -501,7 +501,7 @@ class TestAdverseEventOutcome:
 
     def test_mapped_outcome_emits_row(self, static_index, structural_index):
         _with_ae_outcome_topic(structural_index)
-        static_index[("adverse_event_outcome", "recovering/resolving")] = _static("adverse_event_outcome", "recovering/resolving", 1074213, "observation")
+        static_index[("adverse_event_outcome", "recovering/resolving")] = _static(1074213, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Recovering/resolving")
         ctx = create_build_context(patient, PERSON_ID)
@@ -524,7 +524,7 @@ class TestAdverseEventOutcome:
         No topic structural: concept_id=0 but row still emits with mapped
         value and raw outcome preserved in value_source_value.
         """
-        static_index[("adverse_event_outcome", "recovering/resolving")] = _static("adverse_event_outcome", "recovering/resolving", 1074213, "observation")
+        static_index[("adverse_event_outcome", "recovering/resolving")] = _static(1074213, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = self._make_patient("Recovering/resolving")
         ctx = create_build_context(patient, PERSON_ID)
@@ -749,20 +749,20 @@ NOT_EXPECTED_CID = 1472269
 def _with_ae_severity(static_index: dict) -> dict:
     """`adverse_event_code` static result: grade 1..5: precoordinated CTCAE concepts."""
     for grade, cid in ((1, GRADE_1_CID), (2, GRADE_2_CID), (3, GRADE_3_CID), (4, GRADE_4_CID), (5, GRADE_5_CID)):
-        static_index[("adverse_event_code", str(grade))] = _static("adverse_event_code", str(grade), cid, "observation")
+        static_index[("adverse_event_code", str(grade))] = _static(cid, "observation")
     return static_index
 
 
 def _with_relatedness(static_index: dict) -> dict:
-    static_index[("relatedness", "related")] = _static("relatedness", "related", RELATED_CID, "meas value")
-    static_index[("relatedness", "not_related")] = _static("relatedness", "not_related", NOT_RELATED_CID, "meas value")
-    static_index[("relatedness", "unknown")] = _static("relatedness", "unknown", UNKNOWN_REL_CID, "meas value")
+    static_index[("relatedness", "related")] = _static(RELATED_CID, "meas value")
+    static_index[("relatedness", "not_related")] = _static(NOT_RELATED_CID, "meas value")
+    static_index[("relatedness", "unknown")] = _static(UNKNOWN_REL_CID, "meas value")
     return static_index
 
 
 def _with_expectedness(static_index: dict) -> dict:
-    static_index[("expectedness", "true")] = _static("expectedness", "true", EXPECTED_CID, "meas value")
-    static_index[("expectedness", "false")] = _static("expectedness", "false", NOT_EXPECTED_CID, "meas value")
+    static_index[("expectedness", "true")] = _static(EXPECTED_CID, "meas value")
+    static_index[("expectedness", "false")] = _static(NOT_EXPECTED_CID, "meas value")
     return static_index
 
 
@@ -1041,9 +1041,9 @@ class TestCombinedSources:
     def test_multi_source_uniqueness_and_determinism(self, static_index, structural_index):
         _with_yes_no(structural_index)
         _with_ae_outcome_topic(structural_index)
-        static_index[("eot_reason", "other")] = _static("eot_reason", "other", 35821954, "observation")
-        static_index[("lost_to_followup", "true")] = _static("lost_to_followup", "true", LOST_TO_FU_REASON_CID, "observation")
-        static_index[("adverse_event_outcome", "fatal")] = _static("adverse_event_outcome", "fatal", 4236718, "observation")
+        static_index[("eot_reason", "other")] = _static(35821954, "observation")
+        static_index[("lost_to_followup", "true")] = _static(LOST_TO_FU_REASON_CID, "observation")
+        static_index[("adverse_event_outcome", "fatal")] = _static(4236718, "observation")
 
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(

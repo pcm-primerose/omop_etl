@@ -397,7 +397,8 @@ class TestAdverseEventFKLinkage:
     the AE's condition row.
     """
 
-    def _ae_mapping(self, value: str, *concept_ids: int):
+    @staticmethod
+    def _ae_mapping(value: str, *concept_ids: int):
         return mapping(
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
             value,

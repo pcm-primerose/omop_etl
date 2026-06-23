@@ -1,6 +1,6 @@
 import datetime as dt
 import re
-from typing import ClassVar, get_type_hints, get_origin, get_args, Union
+from typing import ClassVar, get_type_hints, get_origin, get_args, Union, cast
 import pytest
 
 from omop_etl.harmonization.models.patient import Patient
@@ -124,6 +124,18 @@ class TestDomainSchemaCompleteness:
         assert not missing, f"{domain_cls.__name__} docstring does not name fields: {missing}"
 
 
+def _define_domain(name: str, fields: dict[str, str], **extra) -> type[DomainBase]:
+    """
+    Defines a DomainBase subclass so tests can assert what its definition does.
+    """
+    namespace = {
+        "Fields": type("Fields", (), dict(fields)),
+        "__init__": lambda self, patient_id: setattr(self, "_patient_id", patient_id),
+        **extra,
+    }
+    return cast(type[DomainBase], type(name, (DomainBase,), namespace))
+
+
 class TestEagerSchemaValidation:
     """
     The membership contract is validated eagerly at class-definition time via __init_subclass__.
@@ -131,64 +143,21 @@ class TestEagerSchemaValidation:
 
     def test_required_not_subset_raises_at_definition(self):
         with pytest.raises(ValueError, match="REQUIRED_FIELDS not a subset"):
-
-            class BadRequired(DomainBase):
-                class Fields:
-                    NAME = "name"
-
-                REQUIRED_FIELDS = ("ghost",)
-
-                def __init__(self, patient_id): ...
-
-                @property
-                def name(self):
-                    return None
+            _define_domain("BadRequired", {"NAME": "name"}, REQUIRED_FIELDS=("ghost",))
 
     def test_nk_not_subset_raises_at_definition(self):
         with pytest.raises(ValueError, match="NATURAL_KEY_FIELDS not a subset"):
-
-            class BadNK(DomainBase):
-                class Fields:
-                    NAME = "name"
-
-                NATURAL_KEY_FIELDS = ("ghost",)
-
-                def __init__(self, patient_id): ...
-
-                @property
-                def name(self):
-                    return None
+            _define_domain("BadNK", {"NAME": "name"}, NATURAL_KEY_FIELDS=("ghost",))
 
     def test_duplicate_fields_raise_at_definition(self):
         with pytest.raises(ValueError, match="duplicates"):
-
-            class DupFields(DomainBase):
-                class Fields:
-                    A = "x"
-                    B = "x"
-
-                def __init__(self, patient_id): ...
-
-                @property
-                def x(self):
-                    return None
+            _define_domain("DupFields", {"A": "x", "B": "x"})
 
     def test_field_without_property_is_deferred_to_data_fields(self):
-        # membership passes at definition
-        class GhostField(DomainBase):
-            class Fields:
-                NAME = "name"
-                GHOST = "ghost"  # no matching property
-
-            def __init__(self, patient_id): ...
-
-            @property
-            def name(self):
-                return None
-
-        # the property-existence check runs lazily on data_fields()
+        # membership passes at definition; the missing property for GHOST surfaces lazily
+        ghost = _define_domain("GhostField", {"NAME": "name", "GHOST": "ghost"})
         with pytest.raises(TypeError, match="has no property"):
-            GhostField.data_fields()
+            ghost.data_fields()
 
 
 SCALAR_TYPES = (str, int, float, bool, dt.date, dt.datetime)

@@ -521,7 +521,7 @@ class TestC30Rows:
             _make_c30(dt.date(2040, 5, 1), q1="Not at all", q1_code=1, q2="A little", q2_code=2),
         ]
         # only c30_q2 in the structural index
-        partial = {"c30_q2": _structural("c30_q2", 701341, "measurement")}
+        partial = {"c30_q2": _structural(701341, "measurement")}
         result = MeasurementBuilder(ConceptLookupService(static_index, partial)).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
@@ -1291,7 +1291,7 @@ class TestPrimaryCancerFKConsumption:
 
     def _with_millimeter(self, structural_index: dict) -> dict:
         """Add the millimeter unit concept (UCUM) so lesion-size result can populate unit_concept_id."""
-        structural_index["millimeter"] = _structural("millimeter", self.UNIT_MM_CID, "unit")
+        structural_index["millimeter"] = _structural(self.UNIT_MM_CID, "unit")
         return structural_index
 
     def test_baseline_lesion_size_links_to_primary_cancer(self, static_index, structural_index):

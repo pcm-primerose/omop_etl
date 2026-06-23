@@ -174,8 +174,10 @@ class ConceptLookupService:
         `value is None`. Inputs are lowercased and stripped before index access,
         records a hit/miss for coverage under the derived kind.
         """
+        kind: LookupType
+        record_value: str
         if value is None:
-            kind: LookupType = "structural"
+            kind = "structural"
             record_value = ""
             concept = self._structural.get(value_set.lower().strip())
         else:

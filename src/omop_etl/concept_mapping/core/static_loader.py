@@ -34,5 +34,12 @@ class StaticMapLoader:
         idx: dict[tuple[str, str], MappedConcept] = {}
         for r in self.as_rows():
             key = (r.value_set.lower().strip(), str(r.local_value).lower().strip())
+            existing = idx.get(key)
+            if existing is not None and existing.concept_id != r.concept_id:
+                raise ValueError(
+                    f"Duplicate static mapping for {key}: maps to both concept_id "
+                    f"{existing.concept_id} and {r.concept_id}. A curated source value "
+                    f"must map to exactly one concept: fix {self.path}."
+                )
             idx[key] = r.to_mapped()
         return idx

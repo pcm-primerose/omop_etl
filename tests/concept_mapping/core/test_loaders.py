@@ -1,5 +1,7 @@
 import logging
 
+import pytest
+
 from omop_etl.concept_mapping.core.static_loader import StaticMapLoader
 from omop_etl.concept_mapping.core.structural_loader import StructuralMapLoader
 
@@ -85,3 +87,45 @@ class TestMalformedCsvRows:
 
         assert ("sex", "m") in idx
         assert idx[("sex", "m")].vocabulary_id == ""
+
+
+class TestDuplicateCuratedKeys:
+    """
+    A curated source value must resolve to one concept, conflicting
+    duplicate keys are a curation error caught at load.
+    """
+
+    def test_static_conflicting_duplicate_raises(self, tmp_path):
+        # same (value_set, local_value): two different concept_ids
+        csv = tmp_path / "dup.csv"
+        csv.write_text(
+            "value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,"
+            "omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab\n"
+            "sex,m,8507,M,Male,Gender,Standard,Valid,Gender,Gender\n"
+            "sex,m,9999,M,Male,Gender,Standard,Valid,Gender,Gender\n"
+        )
+        with pytest.raises(ValueError, match="Duplicate static mapping"):
+            StaticMapLoader(csv).as_index()
+
+    def test_static_exact_duplicate_allowed(self, tmp_path):
+        # exact-duplicate row (same key, same concept_id) is harmless, not an error
+        csv = tmp_path / "dup.csv"
+        csv.write_text(
+            "value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,"
+            "omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab\n"
+            "sex,m,8507,M,Male,Gender,Standard,Valid,Gender,Gender\n"
+            "sex,m,8507,M,Male,Gender,Standard,Valid,Gender,Gender\n"
+        )
+        idx = StaticMapLoader(csv).as_index()
+        assert idx[("sex", "m")].concept_id == 8507
+
+    def test_structural_conflicting_duplicate_raises(self, tmp_path):
+        csv = tmp_path / "dup.csv"
+        csv.write_text(
+            "value_set,omop_concept_id,omop_concept_code,omop_concept_name,"
+            "omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab\n"
+            "ecrf,32817,OMOP4822053,EHR encounter record,Obs Type,Standard,Valid,Type Concept,Type Concept\n"
+            "ecrf,99999,OMOP4822053,EHR encounter record,Obs Type,Standard,Valid,Type Concept,Type Concept\n"
+        )
+        with pytest.raises(ValueError, match="Duplicate structural mapping"):
+            StructuralMapLoader(csv).as_index()

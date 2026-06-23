@@ -36,5 +36,12 @@ class StructuralMapLoader:
         idx: dict[str, MappedConcept] = {}
         for r in self.as_rows():
             key = r.value_set.lower().strip()
+            existing = idx.get(key)
+            if existing is not None and existing.concept_id != r.concept_id:
+                raise ValueError(
+                    f"Duplicate structural mapping for value_set={key!r}: maps to both "
+                    f"concept_id {existing.concept_id} and {r.concept_id}. A structural "
+                    f"value_set must map to exactly one concept: fix {self.path}."
+                )
             idx[key] = r.to_mapped()
         return idx
