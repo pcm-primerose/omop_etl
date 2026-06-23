@@ -249,7 +249,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     concept.concept_id,
                 ),
                 person_id=person_id,
-                drug_concept_id=int(concept.concept_id),
+                drug_concept_id=concept.concept_id,
                 drug_exposure_start_date=start_date,
                 drug_exposure_end_date=end_date,
                 drug_type_concept_id=drug_type_concept_id,

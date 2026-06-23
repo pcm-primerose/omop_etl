@@ -31,7 +31,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         person_id = ctx.person_id
         rows: list[ProcedureOccurrenceRow] = []
         ecrf = self.concepts.resolve("ecrf", domains={"type concept"})
-        procedure_type_concept_id = int(ecrf[0].concept_id) if ecrf else 0
+        procedure_type_concept_id = ecrf[0].concept_id if ecrf else 0
 
         for idx, prev in enumerate(patient.previous_treatments):
             if prev.start_date is None:

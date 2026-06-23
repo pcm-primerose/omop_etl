@@ -58,7 +58,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         rows: list[MeasurementRow] = []
         ecrf = self.concepts.resolve("ecrf", domains={"Type Concept"})
-        measurement_type_concept_id = int(ecrf[0].concept_id) if ecrf else 0
+        measurement_type_concept_id = ecrf[0].concept_id if ecrf else 0
 
         ecog_baseline = patient.ecog_baseline
         if ecog_baseline is not None:
@@ -141,7 +141,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             str(grade),
             domains={OmopDomain.MEAS_VALUE},
         )
-        value_as_concept_id = int(ecog_answer[0].concept_id) if ecog_answer else 0
+        value_as_concept_id = ecog_answer[0].concept_id if ecog_answer else 0
 
         row_id = self.generate_row_id(
             patient.patient_id,
@@ -159,7 +159,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 value_as_number=float(grade),
                 value_as_concept_id=value_as_concept_id,
                 visit_occurrence_id=ctx.resolve_visit_id(date),
-                measurement_source_value=str(grade)[0:50],
+                measurement_source_value=str(grade)[:50],
             )
         ]
 
@@ -528,7 +528,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             if answer_level is not None:
                 answer_set = "c30_global_answer_code" if n in (29, 30) else "c30_answer_code"
                 answer_concept = self.concepts.resolve(answer_set, str(answer_level), domains={OmopDomain.MEAS_VALUE})
-                value_as_concept_id = int(answer_concept[0].concept_id) if answer_concept else 0
+                value_as_concept_id = answer_concept[0].concept_id if answer_concept else 0
 
             source_value = answer_text if answer_text is not None else str(answer_level)
             rows.append(
@@ -704,7 +704,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         visit_occurrence_id = ctx.resolve_visit_id(date)
         source_value = term[:50] if term is not None else None
 
-        qualifier_ids: list[int] = [int(c.concept_id) for c in meas_value_concepts] if meas_value_concepts else [0]
+        qualifier_ids: list[int] = [c.concept_id for c in meas_value_concepts] if meas_value_concepts else [0]
 
         return [
             MeasurementRow(
@@ -792,7 +792,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
 
         # no meas value match yields single qualifier slot of 0 (categorical present in source
         # but unmapped, see CDM 5.4 measurement value_as_concept_id rules).
-        qualifier_ids: list[int] = [int(c.concept_id) for c in meas_value_concepts] if meas_value_concepts else [0]
+        qualifier_ids: list[int] = [c.concept_id for c in meas_value_concepts] if meas_value_concepts else [0]
 
         return [
             MeasurementRow(

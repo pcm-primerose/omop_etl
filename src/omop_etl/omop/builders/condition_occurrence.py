@@ -40,7 +40,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         rows: list[ConditionOccurrenceRow] = []
         publications: list[RowPublication] = []
         ecrf = self.concepts.resolve("ecrf", domains={"Type Concept"})
-        condition_type_concept_id = int(ecrf[0].concept_id) if ecrf else 0
+        condition_type_concept_id = ecrf[0].concept_id if ecrf else 0
 
         tumor_type = patient.tumor_type
         if tumor_type is not None:
