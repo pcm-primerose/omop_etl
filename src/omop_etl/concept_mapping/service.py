@@ -16,9 +16,8 @@ from omop_etl.infra.io.types import (
 )
 from omop_etl.concept_mapping.core.models import (
     MappedConcept,
-    StaticConcept,
-    StructuralConcept,
     LookupResult,
+    LookupType,
 )
 from omop_etl.semantic_mapping.core.models import (
     BatchQueryResult,
@@ -58,30 +57,29 @@ def _concept_matches_filter(
 
 class ConceptLookupService:
     """
-    Run-aware service for concept lookups.
-
-    Wraps static, structural, and semantic lookups with:
+    Run-aware service for concept lookups behind a single `resolve()` entry point
+    (curated value-set/structural lookups by `str` namespace, term-field/semantic
+    lookups by `field_path` tuple). Adds:
     - Automatic tracking of hits and misses
     - Coverage statistics per value_set
     - Export of missed lookups to file
 
-    `_semantic_field_paths` is the allowed list of field_paths the
-    semantic pipeline extracts. A lookup for a field path not defined
-    there raises in `lookup_semantic`.
+    `_semantic_field_paths` is the allowed list of field_paths the semantic pipeline
+    extracts. A `resolve()` for a field_path not declared there raises (a wiring bug).
     """
 
     def __init__(
         self,
-        static_index: Mapping[tuple[str, str], StaticConcept],
-        structural_index: Mapping[str, StructuralConcept] | None = None,
+        static_index: Mapping[tuple[str, str], MappedConcept],
+        structural_index: Mapping[str, MappedConcept] | None = None,
         semantic_index: SemanticResultIndex | None = None,
         semantic_field_paths: Collection[tuple[str, ...]] | None = None,
         meta: RunMetadata | None = None,
         outdir: Path | None = None,
         layout: Layout = Layout.TRIAL_RUN,
     ):
-        self._static_index = static_index
-        self._structural_index = structural_index
+        self._static: Mapping[tuple[str, str], MappedConcept] = static_index
+        self._structural: Mapping[str, MappedConcept] = structural_index or {}
         self._semantic_index = semantic_index
         self._semantic_field_paths = frozenset(semantic_field_paths) if semantic_field_paths is not None else None
         self._meta = meta
@@ -136,87 +134,64 @@ class ConceptLookupService:
         """Access the accumulated lookup results."""
         return self._result
 
-    def lookup_static(
+    def resolve(
         self,
-        value_set: str,
-        local_value: str,
+        namespace: str | tuple[str, ...],
+        value: str | None = None,
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
         validity: Collection[str] | None = None,
-    ) -> MappedConcept | None:
+    ) -> tuple[MappedConcept, ...]:
         """
-        Lookup a static mapping and track the result.
+        Resolve a source value to OMOP concept(s), the single lookup entry point.
 
-        Inputs are lowercased and stripped before index access.
+        `namespace` is a value-set name (`str`) for curated mappings, or a Patient
+        `field_path` (`tuple`) for term-field (semantic) mappings.
+        `value` is the source value to map, pass `None` for value-less constant mappings.
+        Returns all matching concepts after filtering, as a tuple (may be empty).
 
-        Optional filters narrow the returned concept by OMOP domain, vocabulary,
-        or standard flag. If the mapped concept does not match the filters,
-        returns None and records a miss.
+        A tuple namespace is validated against the configured term fields and raises
+        on an unconfigured field_path (a wiring bug), a `str` value-set is open (a
+        miss is just a data gap). The namespace *type* is the only discriminator.
         """
-        key = (value_set.lower().strip(), str(local_value).lower().strip())
-        c = self._static_index.get(key)
-        if c is None:
-            self._result.record_miss("static", value_set, local_value)
-            return None
+        if isinstance(namespace, tuple):
+            return self._resolve_term(namespace, value, domains=domains, vocabs=vocabs, validity=validity)
+        return self._resolve_curated(namespace, value, domains=domains, vocabs=vocabs, validity=validity)
 
-        concept = MappedConcept(
-            concept_id=c.concept_id,
-            concept_code=c.concept_code,
-            concept_name=c.concept_name,
-            domain_id=c.domain_id,
-            vocabulary_id=c.vocabulary_id,
-            validity=c.validity,
-        )
-        if not _concept_matches_filter(concept, domains, vocabs, validity):
-            # concept mapped but rejected by filter
-            return None
-
-        self._result.record_match("static", value_set, local_value, concept)
-        return concept
-
-    def lookup_structural(
+    def _resolve_curated(
         self,
         value_set: str,
+        value: str | None,
         *,
         domains: Collection[OmopDomain | str] | None = None,
         vocabs: Collection[str] | None = None,
         validity: Collection[str] | None = None,
-    ) -> MappedConcept | None:
+    ) -> tuple[MappedConcept, ...]:
         """
-        Lookup a structural mapping and track the result.
-
-        Optional filters validate that the mapped concept belongs to the expected
-        OMOP domain, vocabulary, or standard flag. If the concept fails the
-        filter, returns None and records a miss.
-
-        `value_set` is lowercased and stripped before index access for case-insensitive lookups.
+        Resolve a curated value-set lookup against the unified index: a value-keyed
+        `source_value` mapping, or a value-less constant (structural) mapping when
+        `value is None`. Inputs are lowercased and stripped before index access,
+        records a hit/miss for coverage under the derived kind.
         """
-        key = value_set.lower().strip()
-        if self._structural_index is None:
-            self._result.record_miss("structural", value_set, "")
-            return None
-        c = self._structural_index.get(key)
-        if c is None:
-            self._result.record_miss("structural", value_set, "")
-            return None
-
-        concept = MappedConcept(
-            concept_id=c.concept_id,
-            concept_code=c.concept_code,
-            concept_name=c.concept_name,
-            domain_id=c.domain_id,
-            vocabulary_id=c.vocabulary_id,
-            validity=c.validity,
-        )
+        if value is None:
+            kind: LookupType = "structural"
+            record_value = ""
+            concept = self._structural.get(value_set.lower().strip())
+        else:
+            kind = "static"
+            record_value = value
+            concept = self._static.get((value_set.lower().strip(), str(value).lower().strip()))
+        if concept is None:
+            self._result.record_miss(kind, value_set, record_value)
+            return ()
         if not _concept_matches_filter(concept, domains, vocabs, validity):
             # concept mapped but rejected by filter
-            return None
+            return ()
+        self._result.record_match(kind, value_set, record_value, concept)
+        return (concept,)
 
-        self._result.record_match("structural", value_set, "", concept)
-        return concept
-
-    def lookup_semantic(
+    def _resolve_term(
         self,
         field_path: tuple[str, ...],
         value: str | None,
@@ -226,14 +201,11 @@ class ConceptLookupService:
         validity: Collection[str] | None = None,
     ) -> tuple[MappedConcept, ...]:
         """
-        Look up semantic mappings for a source `value` at a patient field.
-
-        Returns all matched concepts after filtering, as a tuple (may be empty).
-        Raises RuntimeError if duplicate concept_ids are found (same concept
-        mapped twice = mapping file issue that must be resolved).
-        Legitimate multi-concept mappings (e.g. combination drugs with multiple
-        ingredients) return multiple unique concepts, builders iterate and
-        emit one row per concept.
+        Resolve a term-field (semantic) lookup for a source `value` at a Patient
+        field_path. Raises ValueError if the field_path is not configured (a wiring
+        bug), RuntimeError on a duplicate concept_id (a mapping-file issue).
+        Legitimate multi-concept mappings (e.g. combination drugs) return multiple
+        unique concepts, builders iterate and emit one row per concept.
         """
         if self._semantic_field_paths is not None and tuple(field_path) not in self._semantic_field_paths:
             raise ValueError(f"Semantic lookup for unconfigured field_path {field_path!r}; declare it in the semantic field config so it gets extracted.")

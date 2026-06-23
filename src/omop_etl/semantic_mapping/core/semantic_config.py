@@ -14,7 +14,7 @@ from omop_etl.semantic_mapping.core.models import FieldConfig
 # DEFAULT_FIELD_CONFIGS is the allow-list of Patient fields that are extracted for semantic mapping.
 # It's domain-agnostic: a field can map to concepts in several domains, and consumers narrows
 # by domain at lookup time. This config also drives the service-level wiring check,
-# a `lookup_semantic` for a field_path not declared here raises.
+# a `resolve()` for a field_path not declared here raises.
 DEFAULT_FIELD_CONFIGS: tuple[FieldConfig, ...] = (
     # adverse events
     FieldConfig(

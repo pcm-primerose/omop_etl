@@ -30,8 +30,8 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         patient = ctx.patient
         person_id = ctx.person_id
         rows: list[ProcedureOccurrenceRow] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
-        procedure_type_concept_id = int(ecrf.concept_id) if ecrf else 0
+        ecrf = self.concepts.resolve("ecrf", domains={"type concept"})
+        procedure_type_concept_id = int(ecrf[0].concept_id) if ecrf else 0
 
         for idx, prev in enumerate(patient.previous_treatments):
             if prev.start_date is None:
@@ -58,7 +58,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         if start_date is None:
             return []
 
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
             prev.treatment,
             domains={OmopDomain.PROCEDURE},
@@ -96,7 +96,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         if start_date is None:
             return []
 
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
             prev.additional_treatment,
             domains={OmopDomain.PROCEDURE},
@@ -134,7 +134,7 @@ class ProcedureOccurrenceBuilder(OmopBuilder[ProcedureOccurrenceRow]):
         if start_date is None:
             return []
 
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
             mh.term,
             domains={OmopDomain.PROCEDURE},

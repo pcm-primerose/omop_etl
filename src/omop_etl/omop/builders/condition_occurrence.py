@@ -39,8 +39,8 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         person_id = ctx.person_id
         rows: list[ConditionOccurrenceRow] = []
         publications: list[RowPublication] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        condition_type_concept_id = int(ecrf.concept_id) if ecrf else 0
+        ecrf = self.concepts.resolve("ecrf", domains={"Type Concept"})
+        condition_type_concept_id = int(ecrf[0].concept_id) if ecrf else 0
 
         tumor_type = patient.tumor_type
         if tumor_type is not None:
@@ -110,7 +110,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             return []
 
         if tumor.icd10_code:
-            matches = self.concepts.lookup_semantic(
+            matches = self.concepts.resolve(
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
                 tumor.icd10_code,
                 domains={OmopDomain.CONDITION},
@@ -118,7 +118,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             source_value = tumor.icd10_code
 
         elif tumor.main_tumor_type:
-            matches = self.concepts.lookup_semantic(
+            matches = self.concepts.resolve(
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
                 tumor.main_tumor_type,
                 domains={OmopDomain.CONDITION},
@@ -172,7 +172,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping medical history for %s: missing sequence_id", patient.patient_id)
             return []
 
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
             mh.term,
             domains={OmopDomain.CONDITION},
@@ -213,7 +213,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping adverse event %d for %s: missing start_date", index, patient.patient_id)
             return []
 
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
             ae.term,
             domains={OmopDomain.CONDITION},

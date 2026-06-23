@@ -73,8 +73,8 @@ def test_one_field_two_domains_both_resolve():
     )
     service = ConceptLookupService(static_index={}, semantic_index=_build_index(configs))
 
-    drug = service.lookup_semantic(FIELD, "Erivedge", domains={OmopDomain.DRUG})
-    regimen = service.lookup_semantic(FIELD, "Erivedge", domains={OmopDomain.REGIMEN})
+    drug = service.resolve(FIELD, "Erivedge", domains={OmopDomain.DRUG})
+    regimen = service.resolve(FIELD, "Erivedge", domains={OmopDomain.REGIMEN})
 
     assert [c.concept_id for c in drug] == [DRUG_CONCEPT]
     assert [c.concept_id for c in regimen] == [REGIMEN_CONCEPT]
@@ -87,7 +87,7 @@ def test_unconfigured_field_raises():
     other_field = (Patient.Collections.ADVERSE_EVENTS, "term")
 
     with pytest.raises(ValueError, match="unconfigured field_path"):
-        service.lookup_semantic(other_field, "anything", domains={OmopDomain.DRUG})
+        service.resolve(other_field, "anything", domains={OmopDomain.DRUG})
 
 
 def test_configured_but_unmapped_value_returns_empty():
@@ -95,6 +95,6 @@ def test_configured_but_unmapped_value_returns_empty():
     index = _build_index((FieldConfig(name="x", field_path=FIELD),))
     service = ConceptLookupService(static_index={}, semantic_index=index, semantic_field_paths={FIELD})
 
-    result = service.lookup_semantic(FIELD, "not-a-real-drug", domains={OmopDomain.DRUG})
+    result = service.resolve(FIELD, "not-a-real-drug", domains={OmopDomain.DRUG})
 
     assert result == ()

@@ -38,16 +38,16 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
         person_id = ctx.person_id
 
         # todo: use treatment_regimen or treatment_cycle concept?
-        regimen = self.concepts.lookup_structural("treatment_regimen", domains={OmopDomain.EPISODE})
-        if regimen is None:
+        regimen = self.concepts.resolve("treatment_regimen", domains={OmopDomain.EPISODE})
+        if not regimen:
             log.warning("No treatment_regimen Episode concept, skipping episodes for %s", patient.patient_id)
             return BuildResult(rows=(), publications=())
-        regimen_concept = regimen.concept_id
+        regimen_concept = regimen[0].concept_id
 
-        ecrf = self.concepts.lookup_structural("ecrf", domains={OmopDomain.TYPE_CONCEPT})
-        if ecrf is None:
+        ecrf = self.concepts.resolve("ecrf", domains={OmopDomain.TYPE_CONCEPT})
+        if not ecrf:
             log.warning("No eCRF concept found in structural file, setting to 0")
-        ecrf_concept = ecrf.concept_id if ecrf else 0
+        ecrf_concept = ecrf[0].concept_id if ecrf else 0
 
         built_rows: list[EpisodeRow] = []
         publications: list[RowPublication] = []
@@ -93,9 +93,9 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
 
             treatment_name = treatment_names[0] if treatment_names else None
 
-            drug_regimen = self.concepts.lookup_semantic(
-                field_path=(Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                value=treatment_name,
+            drug_regimen = self.concepts.resolve(
+                (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
+                treatment_name,
                 domains={OmopDomain.REGIMEN},
             )
 

@@ -33,8 +33,8 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         person_id = ctx.person_id
         rows: list[DrugExposureRow] = []
         publications: list[RowPublication] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
-        drug_type_concept_id = int(ecrf.concept_id) if ecrf else 0
+        ecrf = self.concepts.resolve("ecrf", domains={"type concept"})
+        drug_type_concept_id = int(ecrf[0].concept_id) if ecrf else 0
 
         for idx, cycle in enumerate(patient.treatment_cycles):
             cycle_rows = self._build_treatment_cycle_rows(patient, person_id, cycle, idx, drug_type_concept_id)
@@ -106,13 +106,13 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         if cycle.ingredient_name:
-            matches = self.concepts.lookup_semantic(
+            matches = self.concepts.resolve(
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
                 cycle.ingredient_name,
                 domains={OmopDomain.DRUG},
             )
         else:
-            matches = self.concepts.lookup_semantic(
+            matches = self.concepts.resolve(
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
                 cycle.source_treatment_name,
                 domains={OmopDomain.DRUG},
@@ -127,12 +127,12 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         if cycle.cycle_type and cycle.cycle_type == "iv":
             quantity = cycle.iv_dose_prescribed
             dose_unit = cycle.iv_dose_prescribed_unit
-            iv_route = self.concepts.lookup_structural("iv", domains={"Route"})
-            route_concept_id = iv_route.concept_id if iv_route else None
+            iv_route = self.concepts.resolve("iv", domains={"Route"})
+            route_concept_id = iv_route[0].concept_id if iv_route else None
         elif cycle.cycle_type and cycle.cycle_type == "oral":
             dose_unit = cycle.oral_dose_unit
-            oral_route = self.concepts.lookup_structural("oral", domains={"Route"})
-            route_concept_id = oral_route.concept_id if oral_route else None
+            oral_route = self.concepts.resolve("oral", domains={"Route"})
+            route_concept_id = oral_route[0].concept_id if oral_route else None
 
             per_day = cycle.oral_dose_prescribed_per_day
             if per_day is not None and end_date is not None:
@@ -192,7 +192,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         end_date = prev.end_date or start_date
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
             prev.treatment,
             domains={OmopDomain.DRUG},
@@ -231,7 +231,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         end_date = prev.end_date or start_date
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
             prev.additional_treatment,
             domains={OmopDomain.DRUG},
@@ -276,7 +276,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             log.warning(f"Skipping concomitant medication {index} for {patient.patient_id}: missing medication_name")
             return []
 
-        matches = self.concepts.lookup_semantic(
+        matches = self.concepts.resolve(
             (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
             concom.medication_name,
             domains={OmopDomain.DRUG},

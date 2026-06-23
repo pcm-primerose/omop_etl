@@ -2,7 +2,10 @@ import csv
 from pathlib import Path
 from logging import getLogger
 
-from omop_etl.concept_mapping.core.models import StructuralConcept
+from omop_etl.concept_mapping.core.models import (
+    StructuralConcept,
+    MappedConcept,
+)
 
 log = getLogger(__name__)
 
@@ -27,10 +30,11 @@ class StructuralMapLoader:
                 rows.append(StructuralConcept.from_csv_row(row))
         return rows
 
-    def as_index(self) -> dict[str, StructuralConcept]:
-        # key lowercased and stripped to match normalized values from from_csv_row
-        idx: dict[str, StructuralConcept] = {}
+    def as_index(self) -> dict[str, MappedConcept]:
+        # value-less constants: keyed by value_set alone, lowercased and stripped to
+        # match normalized values from from_csv_row
+        idx: dict[str, MappedConcept] = {}
         for r in self.as_rows():
             key = r.value_set.lower().strip()
-            idx[key] = r
+            idx[key] = r.to_mapped()
         return idx

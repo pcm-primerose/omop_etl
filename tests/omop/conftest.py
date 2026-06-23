@@ -2,7 +2,7 @@ import datetime as dt
 from dataclasses import dataclass
 import pytest
 
-from omop_etl.concept_mapping.core.models import StructuralConcept, StaticConcept
+from omop_etl.concept_mapping.core.models import MappedConcept
 from omop_etl.concept_mapping.core.semantic_loader import SemanticResultIndex
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
@@ -147,37 +147,32 @@ def semantic_index(*groups: _SemanticGroup) -> SemanticResultIndex:
     return SemanticResultIndex.from_batch(BatchQueryResult(results=tuple(results)))
 
 
-def _structural(value_set: str, concept_id: int, domain_id: str) -> StructuralConcept:
-    return StructuralConcept(
-        value_set=value_set,
+def _structural(value_set: str, concept_id: int, domain_id: str) -> MappedConcept:
+    # value_set is the index key, carried by the caller
+    return MappedConcept(
         concept_id=concept_id,
         concept_code="",
         concept_name="",
         domain_id=domain_id,
         vocabulary_id="",
         validity="valid",
-        concept_class="",
-        standard_concept="standard",
     )
 
 
-def _static(value_set: str, local_value: str, concept_id: int, domain_id: str) -> StaticConcept:
-    return StaticConcept(
-        value_set=value_set,
-        local_value=local_value,
+def _static(value_set: str, local_value: str, concept_id: int, domain_id: str) -> MappedConcept:
+    # value_set/local_value are the index key, carried by the caller
+    return MappedConcept(
         concept_id=concept_id,
         concept_code="",
         concept_name="",
-        concept_class="",
-        standard_concept="standard",
-        validity="valid",
         domain_id=domain_id,
         vocabulary_id="",
+        validity="valid",
     )
 
 
 @pytest.fixture
-def structural_index() -> dict[str, StructuralConcept]:
+def structural_index() -> dict[str, MappedConcept]:
     return {
         "ecrf": _structural("ecrf", 32809, "type concept"),
         "patient_withdrawn": _structural("patient_withdrawn", 4087907, "observation"),
@@ -204,7 +199,7 @@ def structural_index() -> dict[str, StructuralConcept]:
 
 
 @pytest.fixture
-def static_index() -> dict[tuple[str, str], StaticConcept]:
+def static_index() -> dict[tuple[str, str], MappedConcept]:
     return {
         ("sex", "m"): _static("sex", "m", 8507, "gender"),
         ("sex", "f"): _static("sex", "f", 8532, "gender"),

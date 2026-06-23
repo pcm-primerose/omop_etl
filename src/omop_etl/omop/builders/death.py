@@ -18,8 +18,8 @@ class DeathBuilder(OmopBuilder[DeathRow]):
         patient = ctx.patient
         person_id = ctx.person_id
 
-        ecrf = self.concepts.lookup_structural(value_set="ecrf", domains={"type concept"})
-        ecrf_concept = ecrf.concept_id if ecrf else 0
+        ecrf = self.concepts.resolve("ecrf", domains={"type concept"})
+        ecrf_concept = ecrf[0].concept_id if ecrf else 0
 
         date_of_death = patient.date_of_death
         if date_of_death is None:

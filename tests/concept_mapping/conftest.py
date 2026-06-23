@@ -4,6 +4,7 @@ from pathlib import Path
 from omop_etl.concept_mapping.core.models import (
     StaticConcept,
     StructuralConcept,
+    MappedConcept,
 )
 from omop_etl.infra.utils.run_context import RunMetadata
 
@@ -48,9 +49,9 @@ def static_concepts() -> list[StaticConcept]:
 
 
 @pytest.fixture
-def static_index(static_concepts) -> dict[tuple[str, str], StaticConcept]:
-    # mirror StaticMapLoader.as_index() normalization
-    return {(c.value_set.lower().strip(), c.local_value.lower().strip()): c for c in static_concepts}
+def static_index(static_concepts) -> dict[tuple[str, str], MappedConcept]:
+    # mirror StaticMapLoader.as_index(): value-keyed, projected to MappedConcept
+    return {(c.value_set.lower().strip(), c.local_value.lower().strip()): c.to_mapped() for c in static_concepts}
 
 
 @pytest.fixture
@@ -71,9 +72,9 @@ def structural_concepts() -> list[StructuralConcept]:
 
 
 @pytest.fixture
-def structural_index(structural_concepts) -> dict[str, StructuralConcept]:
-    # mirror StructuralMapLoader.as_index() normalization.
-    return {c.value_set.lower().strip(): c for c in structural_concepts}
+def structural_index(structural_concepts) -> dict[str, MappedConcept]:
+    # mirror StructuralMapLoader.as_index(): value-less, keyed by value_set, projected to MappedConcept
+    return {c.value_set.lower().strip(): c.to_mapped() for c in structural_concepts}
 
 
 @pytest.fixture
