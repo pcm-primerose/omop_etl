@@ -193,8 +193,10 @@ def structural_index() -> dict[str, MappedConcept]:
         "response_recist": _structural(734317, "measurement"),
         "response_irecist": _structural(734318, "measurement"),
         "response_ranop": _structural(734345, "measurement"),
-        # episode builder: "Treatment regimen" episode kind
+        # episode builder: Episode-vocabulary kind concepts
         "treatment_regimen": _structural(32531, "episode"),
+        "treatment_cycle": _structural(32532, "episode"),
+        "disease_episode": _structural(32533, "episode"),
     }
 
 
