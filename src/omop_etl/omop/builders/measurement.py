@@ -16,6 +16,8 @@ from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.core.linkage import (
     BuildResult,
     LinkTarget,
+    OmopRowReference,
+    RowPublication,
     SourceReference,
 )
 from omop_etl.omop.models.rows import MeasurementRow
@@ -57,6 +59,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         person_id = ctx.person_id
 
         rows: list[MeasurementRow] = []
+        publications: list[RowPublication] = []
         ecrf = self.concepts.resolve("ecrf", domains={"Type Concept"})
         measurement_type_concept_id = ecrf[0].concept_id if ecrf else 0
 
@@ -65,7 +68,10 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             rows.extend(self._build_ecog_rows(patient, person_id, measurement_type_concept_id, ecog_baseline, ctx))
 
         for idx, ta in enumerate(patient.tumor_assessments):
-            rows.extend(self._build_tumor_assessment_rows(patient, person_id, measurement_type_concept_id, ta, idx, ctx))
+            response_rows = self._build_tumor_assessment_rows(patient, person_id, measurement_type_concept_id, ta, idx, ctx)
+            rows.extend(response_rows)
+            if response_rows:
+                publications.append(self._response_publication(patient.patient_id, ta, response_rows))
 
         for idx, c30 in enumerate(patient.c30_collection):
             rows.extend(self._build_c30_rows(patient, person_id, measurement_type_concept_id, c30, idx, ctx))
@@ -83,7 +89,7 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
         for idx, ae in enumerate(patient.adverse_events):
             rows.extend(self._build_adverse_event_rows(patient, person_id, measurement_type_concept_id, ae, idx, ctx))
 
-        return BuildResult(rows=tuple(rows))
+        return BuildResult(rows=tuple(rows), publications=tuple(publications))
 
     def _primary_cancer_link_targets(self, patient: Patient, ctx: BuildContext) -> tuple[LinkTarget, ...]:
         """Resolve LinkTargets for the patient's primary cancer
@@ -817,3 +823,31 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             for m_concept in measurement_concepts
             for q_id in qualifier_ids
         ]
+
+    @staticmethod
+    def _response_publication(
+        patient_id: str,
+        ta: TumorAssessment,
+        rows: list[MeasurementRow],
+    ) -> RowPublication:
+        """
+        Publish assessment measurement rows to SourceReference so the
+        Disease Dynamic Episode (EpisodeEventBuilder) can link to the tumor-assessment
+        measurements that evidence each status run.
+        """
+        return RowPublication(
+            target_table=OmopTables.MEASUREMENT,
+            source_ref=SourceReference(
+                patient_id,
+                Patient.Collections.TUMOR_ASSESSMENTS,
+                ta.natural_key(),
+            ),
+            rows=tuple(
+                OmopRowReference(
+                    table=OmopTables.MEASUREMENT,
+                    row_id=row.measurement_id,
+                    primary_concept_id=row.measurement_concept_id,
+                )
+                for row in rows
+            ),
+        )

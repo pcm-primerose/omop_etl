@@ -137,6 +137,29 @@ class TestTumorTypeRows:
 
         assert result == BuildResult(rows=(), publications=())
 
+    def test_falls_back_to_main_when_icd10_unmapped(self, static_index, structural_index):
+        """icd10_code present but with no Condition mapping falls back to main_tumor_type."""
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
+                "Breast cancer",
+                concept(4001, "condition"),
+            ),
+        )
+        concepts = ConceptLookupService(static_index, structural_index, semantic)
+        patient = create_patient(PID, TRIAL)
+        tumor = TumorType(patient_id=PID)
+        tumor.icd10_code = "C99.99"  # no Condition mapping
+        tumor.main_tumor_type = "Breast cancer"  # mapped
+        tumor.date = dt.date(2022, 6, 1)
+        patient.tumor_type = tumor
+
+        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(result.rows) == 1
+        assert result.rows[0].condition_concept_id == 4001
+        assert result.rows[0].condition_source_value == "Breast cancer"  # the field that actually mapped
+
     def test_date_falls_back_to_treatment_start(self, static_index, structural_index):
         """When tumor.date is None, uses patient.treatment_start_date."""
         semantic = semantic_index(

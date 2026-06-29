@@ -1197,7 +1197,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         The baseline is a distinct clinical encounter that lives only in the VI
         sheet: the row carrying the assessment scale in VITUMA*. It is selected
-        by content (VITUMA* is populated), not by event id — the scale sits on
+        by content (VITUMA* is populated), not by event id, the scale sits on
         "V00" in some subjects and on "V00VI" in others (a separate VI row that
         shares the baseline date), so a literal EventId == "V00" match drops it.
         Dated at that VI row's visit date. The baseline target size is back-

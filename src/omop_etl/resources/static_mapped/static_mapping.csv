@@ -2,6 +2,8 @@ value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_c
 lost_to_followup,True,44811247,873211000000106,Lost to clinical trial follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
 cdm_field,condition_occurrence.condition_occurrence_id,1147127,CDM183,condition_occurrence.condition_occurrence_id,Field,Standard,Valid,Metadata,CDM
 cdm_field,drug_exposure.drug_exposure_id,1147094,CDM150,drug_exposure.drug_exposure_id,Field,Standard,Valid,Metadata,CDM
+cdm_field,measurement.measurement_id,1147139,CDM171,measurement.measurement_id,Field,Standard,Valid,Metadata,CDM
+cdm_field,measurement.person_id,1147139,CDM195,measurement.person_id,Field,Standard,Valid,Metadata,CDM
 sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
 sex,female,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
@@ -45,6 +47,18 @@ response_rano,Complete Response (CR),1634853,RANO-CR,RANO: complete response,Sta
 response_rano,Partial Response (PR),1634574,RANO-PR,RANO: partial response,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_rano,Stable Disease (SD),1633447,RANO-SD,RANO: stable disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
 response_rano,Progressive Disease (PD),1634653,RANO-PD,RANO: progressive disease,Staging/Grading,Standard,Valid,Measurement,Cancer Modifier
+dynamic_status,1634772,32946,OMOP4997718,Complete Remission,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1633954,32946,OMOP4997718,Complete Remission,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1634853,32946,OMOP4997718,Complete Remission,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1633368,32947,OMOP4997719,Partial Remission,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1635284,32947,OMOP4997719,Partial Remission,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1634574,32947,OMOP4997719,Partial Remission,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1634680,32948,OMOP4997720,Stable Disease,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1635887,32948,OMOP4997720,Stable Disease,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1633447,32948,OMOP4997720,Stable Disease,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1633597,32949,OMOP4997721,Progression,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1633423,32949,OMOP4997721,Progression,Disease Dynamic,Standard,Valid,Episode,Episode
+dynamic_status,1634653,32949,OMOP4997721,Progression,Disease Dynamic,Standard,Valid,Episode,Episode
 medical_history,Current/active,9181,55561003,Active,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 medical_history,Past,37109701,723506003,Resolved,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 medical_history,Present/dormant,9173,73425007,Inactive,Qualifier Value,Standard,Valid,Meas Value,SNOMED

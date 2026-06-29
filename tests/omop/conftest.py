@@ -51,16 +51,25 @@ def publish_tumor_condition(
     tumor: TumorType,
     condition_row_id: int,
     concept_id: int = 0,
+    event_date: dt.date | None = None,
 ) -> None:
     """
     Test helper: simulate ConditionOccurrenceBuilder publishing the primary
     cancer condition_occurrence row, so MeasurementBuilder can resolve the
-    tumor SourceReference for lesion-size / biomarker FK linkage.
+    tumor SourceReference for lesion-size / biomarker FK linkage, and
+    EpisodeBuilder can read the condition's start date for the Disease Episode.
     """
     ctx.publish_rows(
         OmopTables.CONDITION_OCCURRENCE,
         SourceReference(tumor.patient_id, Patient.Singletons.TUMOR_TYPE, tumor.natural_key()),
-        [OmopRowReference(table=OmopTables.CONDITION_OCCURRENCE, row_id=condition_row_id, primary_concept_id=concept_id)],
+        [
+            OmopRowReference(
+                table=OmopTables.CONDITION_OCCURRENCE,
+                row_id=condition_row_id,
+                primary_concept_id=concept_id,
+                event_date=event_date,
+            )
+        ],
     )
 
 
@@ -207,6 +216,7 @@ def static_index() -> dict[tuple[str, str], MappedConcept]:
         ("sex", "f"): _static(8532, "gender"),
         ("cdm_field", "condition_occurrence.condition_occurrence_id"): _static(1147127, "metadata"),
         ("cdm_field", "drug_exposure.drug_exposure_id"): _static(1147094, "metadata"),
+        ("cdm_field", "measurement.measurement_id"): _static(1147139, "metadata"),
         ("ecog_code", "1"): _static(36310827, "meas value"),
         ("ecog_code", "0"): _static(36309661, "meas value"),
         # C30 shared answer scale (Q1–Q28)
@@ -256,4 +266,17 @@ def static_index() -> dict[tuple[str, str], MappedConcept]:
         ("response_rano", "partial response (pr)"): _static(1634574, "measurement"),
         ("response_rano", "stable disease (sd)"): _static(1633447, "measurement"),
         ("response_rano", "progressive disease (pd)"): _static(1634653, "measurement"),
+        # disease dynamic episode: response Measurement concept to dynamic Episode concept
+        ("dynamic_status", "1634772"): _static(32946, "episode"),  # RECIST CR
+        ("dynamic_status", "1633954"): _static(32946, "episode"),  # iRECIST CR
+        ("dynamic_status", "1634853"): _static(32946, "episode"),  # RANO CR
+        ("dynamic_status", "1633368"): _static(32947, "episode"),  # RECIST PR
+        ("dynamic_status", "1635284"): _static(32947, "episode"),  # iRECIST PR
+        ("dynamic_status", "1634574"): _static(32947, "episode"),  # RANO PR
+        ("dynamic_status", "1634680"): _static(32948, "episode"),  # RECIST SD
+        ("dynamic_status", "1635887"): _static(32948, "episode"),  # iRECIST SD
+        ("dynamic_status", "1633447"): _static(32948, "episode"),  # RANO SD
+        ("dynamic_status", "1633597"): _static(32949, "episode"),  # RECIST PD
+        ("dynamic_status", "1633423"): _static(32949, "episode"),  # iRECIST PD
+        ("dynamic_status", "1634653"): _static(32949, "episode"),  # RANO PD
     }

@@ -40,7 +40,7 @@ class DrupHarmonizer(BaseHarmonizer):  # noqa
     def _process_cohort_name(self):
         """Process cohort names and update patient objects.
 
-        TODO: DRUP cohort normalization not implemented — emits the Cohort
+        TODO: DRUP cohort normalization not implemented, emits the Cohort
         singleton with raw_name only (no biomarker/cancer_type/drug parts,
         no normalized_name). Wire up a DRUP-specific normalization when the
         DRUP harmonizer is built out.

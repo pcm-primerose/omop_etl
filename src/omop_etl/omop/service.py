@@ -5,6 +5,7 @@ from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
+from omop_etl.omop.builders.death import DeathBuilder
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.builders.observation import ObservationBuilder
 from omop_etl.omop.builders.person import PersonBuilder
@@ -44,8 +45,7 @@ class OmopService:
             ProcedureOccurrenceBuilder(concepts),
             MeasurementBuilder(concepts),
             ObservationBuilder(concepts),
-            # episodes abstract over drug_exposure; episode_event links the two,
-            # so both run after DrugExposureBuilder and EpisodeBuilder before EpisodeEventBuilder.
+            DeathBuilder(concepts),
             EpisodeBuilder(concepts),
             EpisodeEventBuilder(concepts),
         ]
