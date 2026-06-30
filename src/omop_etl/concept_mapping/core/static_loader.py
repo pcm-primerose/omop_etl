@@ -2,7 +2,10 @@ import csv
 from pathlib import Path
 from logging import getLogger
 
-from omop_etl.concept_mapping.core.models import StaticConcept
+from omop_etl.concept_mapping.core.models import (
+    StaticConcept,
+    MappedConcept,
+)
 
 log = getLogger(__name__)
 
@@ -27,9 +30,16 @@ class StaticMapLoader:
                 rows.append(StaticConcept.from_csv_row(row))
         return rows
 
-    def as_index(self) -> dict[tuple[str, str], StaticConcept]:
-        idx: dict[tuple[str, str], StaticConcept] = {}
+    def as_index(self) -> dict[tuple[str, str], MappedConcept]:
+        idx: dict[tuple[str, str], MappedConcept] = {}
         for r in self.as_rows():
-            key = (r.value_set.lower().strip(), str(r.local_value).lower().strip())
-            idx[key] = r
+            key = (r.value_set.casefold().strip(), str(r.local_value).casefold().strip())
+            existing = idx.get(key)
+            if existing is not None and existing.concept_id != r.concept_id:
+                raise ValueError(
+                    f"Duplicate static mapping for {key}: maps to both concept_id "
+                    f"{existing.concept_id} and {r.concept_id}. A curated source value "
+                    f"must map to exactly one concept: fix {self.path}."
+                )
+            idx[key] = r.to_mapped()
         return idx

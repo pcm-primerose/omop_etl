@@ -5,6 +5,7 @@ from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.builders.context import BuildContext
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
+from omop_etl.omop.builders.death import DeathBuilder
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.builders.observation import ObservationBuilder
 from omop_etl.omop.builders.person import PersonBuilder
@@ -13,7 +14,12 @@ from omop_etl.omop.builders.cdm_source import CdmSourceBuilder
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
 from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.builders.episode import EpisodeBuilder
+from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
+from omop_etl.omop.builders.cohort import CohortBuilder
+from omop_etl.omop.builders.cohort_definition import CohortDefinitionBuilder
+from omop_etl.omop.builders.location import LocationBuilder
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.models.tables import OmopTables
 
 
@@ -42,6 +48,10 @@ class OmopService:
             ProcedureOccurrenceBuilder(concepts),
             MeasurementBuilder(concepts),
             ObservationBuilder(concepts),
+            DeathBuilder(concepts),
+            EpisodeBuilder(concepts),
+            EpisodeEventBuilder(concepts),
+            CohortBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
@@ -51,7 +61,7 @@ class OmopService:
         tables = OmopTables()
 
         for patient in patients:
-            person_id = sha1_bigint("person", patient.patient_id)
+            person_id = sha256_bigint("person", patient.patient_id)
             ctx = BuildContext(patient=patient, person_id=person_id)
 
             for builder in self._builders:
@@ -60,5 +70,17 @@ class OmopService:
 
         # singleton metadata row
         tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts).build())
+
+        # cross-patient reference: one cohort_definition per distinct arm observed
+        tables.extend(
+            OmopTables.COHORT_DEFINITION,
+            CohortDefinitionBuilder(self._concepts).build(patients),
+        )
+
+        # cross-patient reference: one location per distinct trial country
+        tables.extend(
+            OmopTables.LOCATION,
+            LocationBuilder(self._concepts).build(patients),
+        )
 
         return tables

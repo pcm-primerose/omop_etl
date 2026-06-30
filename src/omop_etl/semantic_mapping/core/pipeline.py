@@ -9,7 +9,6 @@ from omop_etl.semantic_mapping.core.loader import LoadSemantics
 from omop_etl.semantic_mapping.core.semantic_config import DEFAULT_FIELD_CONFIGS
 from omop_etl.semantic_mapping.core.semantic_index import SemanticIndex
 from omop_etl.semantic_mapping.core.models import (
-    OmopDomain,
     Query,
     FieldConfig,
 )
@@ -55,8 +54,6 @@ class SemanticLookupPipeline:
         self,
         harmonized_data: HarmonizedData,
         enable_names: Set[str] | None = None,
-        required_domains: Set[OmopDomain] | None = None,
-        required_tags: Set[str] | None = None,
         input_path: Path | None = None,
         formats: Sequence[WideFormat] = ("csv",),
         write_output: bool | None = None,
@@ -64,8 +61,6 @@ class SemanticLookupPipeline:
         configs = self._build_configs(
             base_configs=self._field_configs,
             enable_names=enable_names,
-            required_domains=required_domains,
-            required_tags=required_tags,
         )
 
         # validate FieldConfig against first 10 Patient instances
@@ -97,19 +92,11 @@ class SemanticLookupPipeline:
     def _build_configs(
         base_configs: Sequence[FieldConfig],
         enable_names: Set[str] | None = None,
-        required_domains: Set[OmopDomain] | None = None,
-        required_tags: Set[str] | None = None,
     ) -> list[FieldConfig]:
         configs = list(base_configs)
 
         if enable_names is not None:
             configs = [c for c in configs if c.name in enable_names]
-
-        if required_domains is not None:
-            configs = [c for c in configs if c.target and c.target.domains is not None and any(dom in required_domains for dom in c.target.domains)]
-
-        if required_tags is not None:
-            configs = [c for c in configs if any(tag in required_tags for tag in c.tags)]
 
         return configs
 

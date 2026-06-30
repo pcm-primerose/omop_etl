@@ -77,11 +77,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         patient = ctx.patient
         person_id = ctx.person_id
 
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        if ecrf is None:
+        ecrf = self.concepts.resolve("ecrf", domains={"Type Concept"})
+        if not ecrf:
             raise RuntimeError("Missing ecrf concept in structural mapping")
 
-        observation_type_concept_id = ecrf.concept_id
+        observation_type_concept_id = ecrf[0].concept_id
 
         rows: list[ObservationRow] = []
         rows.extend(self._build_evaluable(patient, person_id, observation_type_concept_id))
@@ -121,8 +121,8 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         Resolve True to Yes and False to No via the structural Meas Value
         concepts. Returns 0 when the mapping is missing.
         """
-        concept = self.concepts.lookup_structural("yes" if value else "no", domains={OmopDomain.MEAS_VALUE})
-        return concept.concept_id if concept else 0
+        concept = self.concepts.resolve("yes" if value else "no", domains={OmopDomain.MEAS_VALUE})
+        return concept[0].concept_id if concept else 0
 
     def _bool_observation(
         self,
@@ -152,7 +152,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             value_as_concept_id=self._yes_no_concept_id(value),
             observation_source_value=field_name,
             observation_source_concept_id=0,
-            value_source_value=str(value).lower(),
+            value_source_value=str(value).casefold(),
             observation_event_id=observation_event_id,
             obs_event_field_concept_id=obs_event_field_concept_id,
         )
@@ -290,12 +290,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         value_source_value = reason[:50] if reason else None
 
         if status is TrialOutcomeStatus.COMPLETED:
-            topic = self.concepts.lookup_structural("trial_completion")
+            topic = self.concepts.resolve("trial_completion")
             return [
                 ObservationRow(
                     observation_id=row_id,
                     person_id=person_id,
-                    observation_concept_id=topic.concept_id if topic else 0,
+                    observation_concept_id=topic[0].concept_id if topic else 0,
                     observation_date=date,
                     observation_type_concept_id=observation_type_concept_id,
                     value_as_concept_id=None,
@@ -307,16 +307,16 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             ]
 
         # WITHDRAWN status
-        topic = self.concepts.lookup_structural("patient_withdrawn")
-        withdrawal_reason = self.concepts.lookup_static("eot_reason", reason) if reason else None
+        topic = self.concepts.resolve("patient_withdrawn")
+        withdrawal_reason = self.concepts.resolve("eot_reason", reason) if reason else None
         return [
             ObservationRow(
                 observation_id=row_id,
                 person_id=person_id,
-                observation_concept_id=topic.concept_id if topic else 0,
+                observation_concept_id=topic[0].concept_id if topic else 0,
                 observation_date=date,
                 observation_type_concept_id=observation_type_concept_id,
-                value_as_concept_id=withdrawal_reason.concept_id if withdrawal_reason else 0,
+                value_as_concept_id=withdrawal_reason[0].concept_id if withdrawal_reason else 0,
                 value_as_string=value_as_string,
                 observation_source_value=Patient.Singletons.END_OF_TREATMENT,
                 observation_source_concept_id=0,
@@ -361,8 +361,8 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             log.warning("Skipping lost_to_followup for %s: missing date_lost_to_followup", patient.patient_id)
             return []
 
-        topic = self.concepts.lookup_structural("patient_withdrawn")
-        reason = self.concepts.lookup_static(FollowUp.Fields.LOST_TO_FOLLOWUP, str(value))
+        topic = self.concepts.resolve("patient_withdrawn")
+        reason = self.concepts.resolve(FollowUp.Fields.LOST_TO_FOLLOWUP, str(value))
 
         return [
             ObservationRow(
@@ -372,10 +372,10 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     *followup.natural_key(),
                 ),
                 person_id=person_id,
-                observation_concept_id=topic.concept_id if topic else 0,
+                observation_concept_id=topic[0].concept_id if topic else 0,
                 observation_date=date,
                 observation_type_concept_id=observation_type_concept_id,
-                value_as_concept_id=reason.concept_id if reason else 0,
+                value_as_concept_id=reason[0].concept_id if reason else 0,
                 observation_source_value=Patient.Singletons.LOST_TO_FOLLOWUP,
                 observation_source_concept_id=0,
                 value_source_value=str(value).lower(),
@@ -408,8 +408,8 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             log.warning("Skipping AE %d outcome for %s: missing start_date", index, patient.patient_id)
             return []
 
-        topic_concept = self.concepts.lookup_structural("adverse_event_outcome")
-        outcome_concept = self.concepts.lookup_static("adverse_event_outcome", raw_outcome)
+        topic_concept = self.concepts.resolve("adverse_event_outcome")
+        outcome_concept = self.concepts.resolve("adverse_event_outcome", raw_outcome)
 
         def row(
             event_id: int | None,
@@ -426,10 +426,10 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     event_id,
                 ),
                 person_id=person_id,
-                observation_concept_id=topic_concept.concept_id if topic_concept else 0,
+                observation_concept_id=topic_concept[0].concept_id if topic_concept else 0,
                 observation_date=_date,
                 observation_type_concept_id=observation_type_concept_id,
-                value_as_concept_id=outcome_concept.concept_id if outcome_concept else 0,
+                value_as_concept_id=outcome_concept[0].concept_id if outcome_concept else 0,
                 observation_source_value=AdverseEvent.Fields.OUTCOME,
                 observation_source_concept_id=0,
                 value_source_value=str(raw_outcome)[:50],
@@ -576,7 +576,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             log.warning("Skipping AE %d severity for %s: missing start_date", index, patient.patient_id)
             return []
 
-        topic = self.concepts.lookup_static("adverse_event_code", str(grade))
+        topic = self.concepts.resolve("adverse_event_code", str(grade))
 
         def row(
             event_id: int | None,
@@ -593,7 +593,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     event_id,
                 ),
                 person_id=person_id,
-                observation_concept_id=topic.concept_id if topic else 0,
+                observation_concept_id=topic[0].concept_id if topic else 0,
                 observation_date=_date,
                 observation_type_concept_id=observation_type_concept_id,
                 value_as_concept_id=None,
@@ -652,7 +652,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 continue
             status_value = status.value
             field_name = f"related_to_treatment_{treatment_num}"
-            concept = self.concepts.lookup_static("relatedness", status_value)
+            concept = self.concepts.resolve("relatedness", status_value)
 
             def row(
                 event_id: int | None,
@@ -672,7 +672,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     observation_concept_id=0,
                     observation_date=_date,
                     observation_type_concept_id=observation_type_concept_id,
-                    value_as_concept_id=concept.concept_id if concept else 0,
+                    value_as_concept_id=concept[0].concept_id if concept else 0,
                     observation_source_value=field_name,
                     observation_source_concept_id=0,
                     value_source_value=status_value,
@@ -724,8 +724,8 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             if expected is None:
                 continue
             field_name = f"was_serious_grade_expected_treatment_{treatment_num}"
-            value_literal = str(expected).lower()
-            concept = self.concepts.lookup_static("expectedness", value_literal)
+            value_literal = str(expected).casefold()
+            concept = self.concepts.resolve("expectedness", value_literal)
 
             def row(
                 event_id: int | None,
@@ -745,7 +745,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     observation_concept_id=0,
                     observation_date=_date,
                     observation_type_concept_id=observation_type_concept_id,
-                    value_as_concept_id=concept.concept_id if concept else 0,
+                    value_as_concept_id=concept[0].concept_id if concept else 0,
                     observation_source_value=field_name,
                     observation_source_concept_id=0,
                     value_source_value=value_literal,

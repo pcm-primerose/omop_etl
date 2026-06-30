@@ -16,9 +16,10 @@ from omop_etl.harmonization.models.domain.end_of_treatment import (
     TrialOutcomeStatus,
 )
 from tests.omop.conftest import (
+    concept,
     create_patient,
-    create_semantic_index,
-    SemanticEntry,
+    mapping,
+    semantic_index,
 )
 
 
@@ -51,57 +52,21 @@ class TestOmopServiceOrchestration:
 
     def test_all_builders_produce_output(self, static_index, structural_index):
         """A fully-populated patient with semantic entries produces rows in all tables."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                "p1",
-                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                None,
-                4000,
-                "neoplasm",
-                "condition",
-            ),
-            SemanticEntry(
-                "p1",
-                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                0,
-                316866,
-                "hypertension",
-                "condition",
-            ),
-            SemanticEntry(
-                "p1",
-                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                0,
-                437663,
-                "fever",
-                "condition",
-            ),
-            SemanticEntry(
-                "p1",
+        semantic = semantic_index(
+            mapping((Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE), "C50.9", concept(4000, "condition")),
+            mapping((Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM), "Hypertension", concept(316866, "condition")),
+            mapping((Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM), "Fever", concept(437663, "condition")),
+            mapping(
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                0,
-                1234,
-                "trametinib",
-                "drug",
-                "rxnorm",
+                "Trametinib",
+                concept(1234, "drug", vocab="rxnorm"),
             ),
-            SemanticEntry(
-                "p1",
+            mapping(
                 (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
-                0,
-                1124957,
-                "oxycodone",
-                "drug",
-                "rxnorm",
+                "Oxynorm",
+                concept(1124957, "drug", vocab="rxnorm"),
             ),
-            SemanticEntry(
-                "p1",
-                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                0,
-                4301351,
-                "surgery",
-                "procedure",
-            ),
+            mapping((Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT), "Surgery", concept(4301351, "procedure")),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
 
@@ -274,24 +239,6 @@ class TestSkipBehavior:
         tables = OmopService(concepts).build([p_ok, p_no_dates])
 
         assert len(tables.person) == 2
-        assert len(tables.observation_period) == 1
-
-
-class TestDedup:
-    def test_same_patient_twice_deduplicates(self, static_index, structural_index):
-        concepts = ConceptLookupService(static_index, structural_index)
-        patient = create_patient(
-            "p1",
-            "test",
-            sex="m",
-            date_of_birth=dt.date(1980, 1, 1),
-            treatment_start_date=dt.date(2023, 1, 1),
-        )
-        _with_eot(patient, dt.date(2023, 6, 30))
-
-        tables = OmopService(concepts).build([patient, patient])
-
-        assert len(tables.person) == 1
         assert len(tables.observation_period) == 1
 
 

@@ -82,14 +82,48 @@ class ImpressHarmonizer(BaseHarmonizer):
         df = df.with_columns(
             pl.col("_raw_biomarker").str.to_lowercase().replace_strict(biomarker_map, default=None).alias(cols.TARGET_BIOMARKER),
             pl.col("_raw_cancer_type").str.to_lowercase().replace_strict(cancer_type_map, default=None).alias(cols.CANCER_TYPE),
-            # drugs: collect non-null allocation columns into a list, verbatim
+            # keep raw drug names to log parsing failuered
             pl.concat_list([pl.col(c) for c in drug_cols]).list.drop_nulls().alias(cols.DRUGS),
         )
 
+        # strip brand name from drug ingredients, raw value when no parens, casefold and sort
+        ingredients = (
+            df.select("SubjectId", cols.DRUGS)
+            .explode(cols.DRUGS)
+            .filter(pl.col(cols.DRUGS).is_not_null())
+            .with_columns(
+                pl.coalesce([self._drug_ingredient(pl.col(cols.DRUGS)), pl.col(cols.DRUGS)])
+                .str.strip_chars()
+                .str.to_lowercase()
+                .str.split(" and ")
+                .alias("_ingredient"),
+            )
+            .explode("_ingredient")
+            .with_columns(pl.col("_ingredient").str.strip_chars())
+            .filter(pl.col("_ingredient").str.len_chars() > 0)
+            .group_by("SubjectId")
+            .agg(pl.col("_ingredient").unique().sort().alias("_ingredients"))
+        )
+        df = df.join(ingredients, on="SubjectId", how="left")
+
+        failures = (
+            df.select("SubjectId", cols.RAW_NAME, cols.DRUGS)
+            .explode(cols.DRUGS)
+            .filter(pl.col(cols.DRUGS).str.contains(r"\(") & self._drug_ingredient(pl.col(cols.DRUGS)).is_null())
+        )
+        for row in failures.iter_rows(named=True):
+            log.warning(
+                "Cohort drug parse: no ingredient from %r for subject %s (raw cohort %r)",
+                row[cols.DRUGS],
+                row["SubjectId"],
+                row[cols.RAW_NAME],
+            )
+
         base = pl.concat_str([pl.col(cols.TARGET_BIOMARKER), pl.col(cols.CANCER_TYPE)], separator="/")
+        has_ingredients = pl.col("_ingredients").is_not_null() & (pl.col("_ingredients").list.len() > 0)
         normalized = (
             pl.when(pl.col(cols.TARGET_BIOMARKER).is_not_null() & pl.col(cols.CANCER_TYPE).is_not_null())
-            .then(pl.when(pl.col(cols.DRUGS).list.len() > 0).then(pl.concat_str([base, pl.col(cols.DRUGS).list.join(" + ")], separator="/")).otherwise(base))
+            .then(pl.when(has_ingredients).then(pl.concat_str([base, pl.col("_ingredients").list.join(" + ")], separator="/")).otherwise(base))
             .otherwise(None)
             .alias(cols.NORMALIZED_NAME)
         )
@@ -745,6 +779,20 @@ class ImpressHarmonizer(BaseHarmonizer):
             PolarsParsers.to_optional_utf8(pl.col("CT_CTTYPESP")).str.strip_chars().alias(cols.ADDITIONAL_TREATMENT),
         ).filter(pl.col(cols.TREATMENT).is_not_null())
 
+    @staticmethod
+    def _drug_ingredient(name: pl.Expr) -> pl.Expr:
+        """
+        The ingredient inside a "Brand (Ingredient)" drug string, null when there is
+        no parenthetical. Shared by treatment-cycle parsing and cohort-name
+        canonicalization so both strip the brand identically.
+        """
+        return name.str.extract(r"\((.+)\)", 1).str.strip_chars()
+
+    @staticmethod
+    def _drug_brand(name: pl.Expr) -> pl.Expr:
+        """The brand before a "Brand (Ingredient)" drug string, null when there is no parenthetical."""
+        return name.str.extract(r"^(.+?)\s*\(", 1).str.strip_chars()
+
     @collection(
         TreatmentCycleComponent,
         order_by=("start_date",),
@@ -888,7 +936,6 @@ class ImpressHarmonizer(BaseHarmonizer):
             - "Brand (Ingredient)": 1 row, brand + ingredient extracted
             - "Plain Name": 1 row, ingredient_name=None, brand_name=None
             """
-            has_parens = pl.col(cols.SOURCE_TREATMENT_NAME).str.contains(r"\(")
             is_combo = pl.col(cols.SOURCE_TREATMENT_NAME).str.contains(r"\(.*\band\b.*\)") & pl.col(cols.IV_DOSE_PRESCRIBED).cast(
                 pl.Utf8, strict=False
             ).str.contains("/")
@@ -896,16 +943,10 @@ class ImpressHarmonizer(BaseHarmonizer):
             combo = frame.filter(is_combo)
             non_combo = frame.filter(~is_combo)
 
-            # non-combination rows retained as one row
+            # non-combination rows retained as one row, brand/ingredient null when no parenthetical
             non_combo = non_combo.with_columns(
-                pl.when(has_parens)
-                .then(pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"^(.+?)\s*\(", 1).str.strip_chars())
-                .otherwise(None)
-                .alias(cols.BRAND_NAME),
-                pl.when(has_parens)
-                .then(pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"\((.+)\)", 1).str.strip_chars())
-                .otherwise(None)
-                .alias(cols.INGREDIENT_NAME),
+                self._drug_brand(pl.col(cols.SOURCE_TREATMENT_NAME)).alias(cols.BRAND_NAME),
+                self._drug_ingredient(pl.col(cols.SOURCE_TREATMENT_NAME)).alias(cols.INGREDIENT_NAME),
                 pl.lit(None, dtype=pl.Int64).alias(cols.COMPONENT_INDEX),
                 pl.col(cols.IV_DOSE_PRESCRIBED).cast(pl.Float64, strict=False),
             )
@@ -916,8 +957,8 @@ class ImpressHarmonizer(BaseHarmonizer):
             # combination IV rows parsed to separate rows
             split = (
                 combo.with_columns(
-                    pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"^(.+?)\s*\(", 1).str.strip_chars().alias(cols.BRAND_NAME),
-                    pl.col(cols.SOURCE_TREATMENT_NAME).str.extract(r"\((.+)\)", 1).str.split(" and ").alias("_ingredients"),
+                    self._drug_brand(pl.col(cols.SOURCE_TREATMENT_NAME)).alias(cols.BRAND_NAME),
+                    self._drug_ingredient(pl.col(cols.SOURCE_TREATMENT_NAME)).str.split(" and ").alias("_ingredients"),
                     pl.col(cols.IV_DOSE_PRESCRIBED).cast(pl.Utf8).str.split("/").alias("_doses"),
                 )
                 .with_columns(
@@ -1197,7 +1238,7 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         The baseline is a distinct clinical encounter that lives only in the VI
         sheet: the row carrying the assessment scale in VITUMA*. It is selected
-        by content (VITUMA* is populated), not by event id — the scale sits on
+        by content (VITUMA* is populated), not by event id, the scale sits on
         "V00" in some subjects and on "V00VI" in others (a separate VI row that
         shares the baseline date), so a literal EventId == "V00" match drops it.
         Dated at that VI row's visit date. The baseline target size is back-
@@ -1319,7 +1360,13 @@ class ImpressHarmonizer(BaseHarmonizer):
             "RA_RAiUNPDT",
             "RA_RARECBAS",
         ]
-        rnrsp_cols = ["RNRSP_TERNCFB", "RNRSP_TERNCFN", "RNRSP_RNRSPNLCD", "RNRSP_RNRSPCL", "RNRSP_TERNTBAS"]
+        rnrsp_cols = [
+            "RNRSP_TERNCFB",
+            "RNRSP_TERNCFN",
+            "RNRSP_RNRSPNLCD",
+            "RNRSP_RNRSPCL",
+            "RNRSP_TERNTBAS",
+        ]
 
         def has_signal(columns: list[str]) -> pl.Expr:
             # null, empty, and whitespace-only cells are "no signal"

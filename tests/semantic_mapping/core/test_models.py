@@ -6,8 +6,6 @@ from omop_etl.semantic_mapping.core.models import (
     QueryResult,
     BatchQueryResult,
     SemanticRow,
-    QueryTarget,
-    OmopDomain,
 )
 
 
@@ -54,8 +52,6 @@ def sample_queries() -> List[Query]:
             query="aml",
             field_path=("diagnoses", "term"),
             raw_value="AML",
-            leaf_index=0,
-            target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
         Query(
             patient_id="P1",
@@ -63,8 +59,6 @@ def sample_queries() -> List[Query]:
             query="diabetes",
             field_path=("diagnoses", "term"),
             raw_value="Diabetes",
-            leaf_index=1,
-            target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
         Query(
             patient_id="P2",
@@ -72,8 +66,6 @@ def sample_queries() -> List[Query]:
             query="aspirin",
             field_path=("medications", "name"),
             raw_value="Aspirin",
-            leaf_index=0,
-            target=QueryTarget(domains=[OmopDomain.DRUG]),
         ),
         Query(
             patient_id="P2",
@@ -81,8 +73,6 @@ def sample_queries() -> List[Query]:
             query="unknown_med",
             field_path=("medications", "name"),
             raw_value="Unknown Med",
-            leaf_index=1,
-            target=QueryTarget(domains=[OmopDomain.DRUG]),
         ),
     ]
 
@@ -121,7 +111,6 @@ class TestBatchQueryResult:
             "query",
             "field_path",
             "raw_value",
-            "leaf_index",
             "term_id",
             "source_col",
             "source_term",
@@ -148,26 +137,15 @@ class TestBatchQueryResult:
         assert "diagnoses.term" in field_paths
         assert "medications.name" in field_paths
 
-    def test_to_matches_df_preserves_leaf_index(self, batch_result):
-        df = batch_result.to_matches_df()
-        leaf_indices = df["leaf_index"].to_list()
-        assert 0 in leaf_indices
-        assert 1 not in leaf_indices  # only q1 (idx=0) and q3 (idx=0) matched
-
     def test_to_missing_df_structure(self, batch_result):
         df = batch_result.to_missing_df()
 
-        expected_columns = {"patient_id", "query_id", "query", "field_path", "raw_value", "leaf_index"}
+        expected_columns = {"patient_id", "query_id", "query", "field_path", "raw_value"}
         assert set(df.columns) == expected_columns
 
     def test_to_missing_df_row_count(self, batch_result):
         df = batch_result.to_missing_df()
         assert df.height == 2
-
-    def test_to_missing_df_preserves_leaf_index(self, batch_result):
-        df = batch_result.to_missing_df()
-        leaf_indices = df["leaf_index"].to_list()
-        assert 1 in leaf_indices  # q2 and q4 both have leaf_index=1
 
     def test_to_matches_dict_returns_list(self, batch_result):
         result = batch_result.to_matches_dict()
@@ -180,7 +158,6 @@ class TestBatchQueryResult:
 
         assert "patient_id" in first_row
         assert "query_id" in first_row
-        assert "leaf_index" in first_row
         assert "omop_concept_id" in first_row
 
     def test_to_missing_dict_returns_list(self, batch_result):
@@ -289,18 +266,3 @@ class TestSemanticRow:
         assert semantic_row.source_term == "aml"
         assert semantic_row.omop_concept_name == "acute myeloid leukemia"
         assert semantic_row.frequency == 10
-
-
-class TestQueryTarget:
-    def test_domains_converted_to_frozenset(self):
-        target = QueryTarget(domains=[OmopDomain.CONDITION, OmopDomain.DRUG])
-        assert isinstance(target.domains, frozenset)
-
-    def test_none_domains_stays_none(self):
-        target = QueryTarget(domains=None)
-        assert target.domains is None
-
-    def test_frozenset_unchanged(self):
-        fs = frozenset([OmopDomain.CONDITION])
-        target = QueryTarget(domains=fs)
-        assert target.domains is fs

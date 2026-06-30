@@ -11,58 +11,58 @@ from omop_etl.semantic_mapping.core.models import (
 
 
 class TestConceptLookupService:
-    def test_lookup_static_hit(self, static_index):
+    def test_resolve_static_hit(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "M")
+        result = service.resolve("sex", "M")
 
-        assert result is not None
-        assert result.concept_id == 8507
-        assert result.concept_name == "Male"
+        assert len(result) == 1
+        assert result[0].concept_id == 8507
+        assert result[0].concept_name == "Male"
 
-    def test_lookup_static_miss(self, static_index):
+    def test_resolve_static_miss(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "X")
+        result = service.resolve("sex", "X")
 
-        assert result is None
+        assert result == ()
         assert len(service.result.missed["static"]) == 1
 
-    def test_lookup_structural_hit(self, static_index, structural_index):
+    def test_resolve_structural_hit(self, static_index, structural_index):
         service = ConceptLookupService(
             static_index=static_index,
             structural_index=structural_index,
         )
 
-        result = service.lookup_structural("ecrf")
+        result = service.resolve("ecrf")
 
-        assert result is not None
-        assert result.concept_id == 32817
+        assert len(result) == 1
+        assert result[0].concept_id == 32817
 
-    def test_lookup_structural_miss(self, static_index, structural_index):
+    def test_resolve_structural_miss(self, static_index, structural_index):
         service = ConceptLookupService(
             static_index=static_index,
             structural_index=structural_index,
         )
 
-        result = service.lookup_structural("unknown")
+        result = service.resolve("unknown")
 
-        assert result is None
+        assert result == ()
         assert len(service.result.missed["structural"]) == 1
 
     def test_result_accumulates(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        service.lookup_static("sex", "M")
-        service.lookup_static("sex", "F")
-        service.lookup_static("sex", "X")
+        service.resolve("sex", "M")
+        service.resolve("sex", "F")
+        service.resolve("sex", "X")
 
         assert len(service.result.matched["static"]) == 2
         assert len(service.result.missed["static"]) == 1
 
     def test_reset_clears_results(self, static_index):
         service = ConceptLookupService(static_index=static_index)
-        service.lookup_static("sex", "M")
+        service.resolve("sex", "M")
 
         service.reset()
 
@@ -72,40 +72,40 @@ class TestConceptLookupService:
 class TestCaseInsensitiveLookups:
     """Lookup keys are case-normalized and stripped"""
 
-    def test_lookup_static_matches_uppercase_input(self, static_index):
+    def test_resolve_static_matches_uppercase_input(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
         # fixture indexes under ("sex", "m"): caller passes "M"
-        result = service.lookup_static("sex", "M")
+        result = service.resolve("sex", "M")
 
-        assert result is not None
-        assert result.concept_id == 8507
+        assert len(result) == 1
+        assert result[0].concept_id == 8507
 
-    def test_lookup_static_matches_titlecase_value_set(self, static_index):
+    def test_resolve_static_matches_titlecase_value_set(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
         # value_set case-insensitive too
-        result = service.lookup_static("SEX", "m")
+        result = service.resolve("SEX", "m")
 
-        assert result is not None
+        assert result
 
-    def test_lookup_static_strips_whitespace(self, static_index):
+    def test_resolve_static_strips_whitespace(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("  sex  ", "  M  ")
+        result = service.resolve("  sex  ", "  M  ")
 
-        assert result is not None
+        assert result
 
-    def test_lookup_structural_matches_uppercase_input(self, static_index, structural_index):
+    def test_resolve_structural_matches_uppercase_input(self, static_index, structural_index):
         service = ConceptLookupService(
             static_index=static_index,
             structural_index=structural_index,
         )
 
-        result = service.lookup_structural("ECRF")
+        result = service.resolve("ECRF")
 
-        assert result is not None
-        assert result.concept_id == 32817
+        assert len(result) == 1
+        assert result[0].concept_id == 32817
 
     def test_domain_filter_is_case_insensitive(self, static_index):
         """Filter accepts mixed-case domain strings and still matches."""
@@ -113,16 +113,16 @@ class TestCaseInsensitiveLookups:
 
         # fixture domain_id is "Gender": filter passes "gender" / "GENDER" / "Gender"
         for domain_filter in ("gender", "GENDER", "Gender"):
-            result = service.lookup_static("sex", "M", domains={domain_filter})
-            assert result is not None, f"filter {domain_filter!r} should match"
+            result = service.resolve("sex", "M", domains={domain_filter})
+            assert result, f"filter {domain_filter!r} should match"
 
     def test_domain_filter_rejects_regardless_of_case(self, static_index):
-        """Wrong-domain filter returns None regardless of case."""
+        """Wrong-domain filter returns an empty tuple regardless of case."""
         service = ConceptLookupService(static_index=static_index)
 
         for domain_filter in ("procedure", "PROCEDURE", "Procedure"):
-            result = service.lookup_static("sex", "M", domains={domain_filter})
-            assert result is None, f"filter {domain_filter!r} should reject"
+            result = service.resolve("sex", "M", domains={domain_filter})
+            assert result == (), f"filter {domain_filter!r} should reject"
 
     def test_filter_reject_is_not_recorded_as_miss(self, static_index):
         """
@@ -132,42 +132,42 @@ class TestCaseInsensitiveLookups:
         """
         service = ConceptLookupService(static_index=static_index)
 
-        service.lookup_static("sex", "M", domains={"Procedure"})
+        service.resolve("sex", "M", domains={"Procedure"})
 
         assert len(service.result.missed["static"]) == 0
 
     def test_vocab_filter_matches(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "M", vocabs={"Gender"})
-        assert result is not None
+        result = service.resolve("sex", "M", vocabs={"Gender"})
+        assert result
 
     def test_vocab_filter_misses(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "M", vocabs={"SNOMED"})
-        assert result is None
+        result = service.resolve("sex", "M", vocabs={"SNOMED"})
+        assert result == ()
 
     def test_validity_filter_matches(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "M", validity={"Valid"})
-        assert result is not None
+        result = service.resolve("sex", "M", validity={"Valid"})
+        assert result
 
     def test_validity_filter_misses(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "M", validity={"Deleted"})
-        assert result is None
+        result = service.resolve("sex", "M", validity={"Deleted"})
+        assert result == ()
 
     def test_combined_filters(self, static_index):
         service = ConceptLookupService(static_index=static_index)
 
-        result = service.lookup_static("sex", "M", domains={"Gender"}, vocabs={"Gender"}, validity={"Valid"})
-        assert result is not None
+        result = service.resolve("sex", "M", domains={"Gender"}, vocabs={"Gender"}, validity={"Valid"})
+        assert result
 
-        result = service.lookup_static("sex", "M", domains={"Gender"}, vocabs={"SNOMED"})
-        assert result is None
+        result = service.resolve("sex", "M", domains={"Gender"}, vocabs={"SNOMED"})
+        assert result == ()
 
 
 def _make_semantic_row(concept_id: str, domain: str = "condition", name: str = "test") -> SemanticRow:
@@ -187,8 +187,8 @@ def _make_semantic_row(concept_id: str, domain: str = "condition", name: str = "
     )
 
 
-def _make_query(patient_id: str = "P1", field_path: tuple[str, ...] = ("collection", "field"), leaf_index: int = 0) -> Query:
-    return Query(patient_id=patient_id, id="q1", query="test", field_path=field_path, raw_value="test", leaf_index=leaf_index)
+def _make_query(patient_id: str = "P1", field_path: tuple[str, ...] = ("collection", "field"), value: str = "test") -> Query:
+    return Query(patient_id=patient_id, id="q1", query=value, field_path=field_path, raw_value=value)
 
 
 def _build_semantic_index(*query_results: QueryResult) -> SemanticResultIndex:
@@ -197,7 +197,7 @@ def _build_semantic_index(*query_results: QueryResult) -> SemanticResultIndex:
 
 class TestSemanticLookup:
     """
-    lookup_semantic returns a tuple of concepts (0, 1, or N),
+    resolve() on a term-field (field_path) returns a tuple of concepts (0, 1, or N),
     raises on duplicate concept_ids (mapping file issue).
     """
 
@@ -207,7 +207,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index(qr)
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), 0)
+        result = service.resolve(("collection", "field"), "test")
 
         assert len(result) == 1
         assert result[0].concept_id == 12345
@@ -216,7 +216,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index()
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), 0)
+        result = service.resolve(("collection", "field"), "test")
 
         assert result == ()
 
@@ -231,7 +231,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index(qr)
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), 0)
+        result = service.resolve(("collection", "field"), "test")
 
         assert len(result) == 2
         assert {m.concept_id for m in result} == {111, 222}
@@ -248,7 +248,7 @@ class TestSemanticLookup:
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
         with pytest.raises(RuntimeError, match="Duplicate concept_id"):
-            service.lookup_semantic("P1", ("collection", "field"), 0)
+            service.resolve(("collection", "field"), "test")
 
     def test_domain_filter_narrows_results(self, static_index):
         query = _make_query()
@@ -263,7 +263,7 @@ class TestSemanticLookup:
         idx = _build_semantic_index(qr)
 
         service = ConceptLookupService(static_index=static_index, semantic_index=idx)
-        result = service.lookup_semantic("P1", ("collection", "field"), 0, domains={"condition"})
+        result = service.resolve(("collection", "field"), "test", domains={"condition"})
 
         assert len(result) == 1
         assert result[0].concept_id == 111
@@ -271,6 +271,6 @@ class TestSemanticLookup:
     def test_no_semantic_index_returns_empty(self, static_index):
         service = ConceptLookupService(static_index=static_index, semantic_index=None)
 
-        result = service.lookup_semantic("P1", ("collection", "field"), 0)
+        result = service.resolve(("collection", "field"), "test")
 
         assert result == ()

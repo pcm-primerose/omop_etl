@@ -5,6 +5,7 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
+from omop_etl.concept_mapping.core.models import MappedConcept
 from omop_etl.omop.models.rows import ConditionOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
@@ -39,8 +40,8 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         person_id = ctx.person_id
         rows: list[ConditionOccurrenceRow] = []
         publications: list[RowPublication] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        condition_type_concept_id = int(ecrf.concept_id) if ecrf else 0
+        ecrf = self.concepts.resolve("ecrf", domains={"Type Concept"})
+        condition_type_concept_id = ecrf[0].concept_id if ecrf else 0
 
         tumor_type = patient.tumor_type
         if tumor_type is not None:
@@ -94,6 +95,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                     table=OmopTables.CONDITION_OCCURRENCE,
                     row_id=row.condition_occurrence_id,
                     primary_concept_id=row.condition_concept_id,
+                    event_date=row.condition_start_date,
                 )
                 for row in condition_rows
             ),
@@ -109,27 +111,29 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
         if tumor is None:
             return []
 
+        if not tumor.icd10_code and not tumor.main_tumor_type:
+            log.warning("Skipping tumor type for %s: no icd10_code or main_tumor_type", patient.patient_id)
+            return []
+
+        matches: tuple[MappedConcept, ...] = ()
+        source_value: str | None = None
+
         if tumor.icd10_code:
-            matches = self.concepts.lookup_semantic(
-                patient.patient_id,
+            matches = self.concepts.resolve(
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                None,
+                tumor.icd10_code,
                 domains={OmopDomain.CONDITION},
             )
             source_value = tumor.icd10_code
 
-        elif tumor.main_tumor_type:
-            matches = self.concepts.lookup_semantic(
-                patient.patient_id,
+        # fall back to the tumor-type name when icd10 is absent or did not map to a Condition
+        if not matches and tumor.main_tumor_type:
+            matches = self.concepts.resolve(
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
-                None,
+                tumor.main_tumor_type,
                 domains={OmopDomain.CONDITION},
             )
             source_value = tumor.main_tumor_type
-
-        else:
-            log.warning("Skipping tumor type for %s: no icd10_code or main_tumor_type", patient.patient_id)
-            return []
 
         if not matches:
             return []
@@ -151,7 +155,7 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
                 condition_concept_id=concept.concept_id,
                 condition_start_date=date,
                 condition_type_concept_id=condition_type_concept_id,
-                condition_source_value=source_value,
+                condition_source_value=source_value[:50] if source_value else None,
             )
             for concept in matches
         ]
@@ -174,10 +178,9 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping medical history for %s: missing sequence_id", patient.patient_id)
             return []
 
-        matches = self.concepts.lookup_semantic(
-            patient.patient_id,
+        matches = self.concepts.resolve(
             (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-            index,
+            mh.term,
             domains={OmopDomain.CONDITION},
         )
         if not matches:
@@ -216,10 +219,9 @@ class ConditionOccurrenceBuilder(OmopBuilder[ConditionOccurrenceRow]):
             log.warning("Skipping adverse event %d for %s: missing start_date", index, patient.patient_id)
             return []
 
-        matches = self.concepts.lookup_semantic(
-            patient.patient_id,
+        matches = self.concepts.resolve(
             (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-            index,
+            ae.term,
             domains={OmopDomain.CONDITION},
         )
         if not matches:

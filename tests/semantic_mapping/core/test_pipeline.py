@@ -8,8 +8,6 @@ from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.semantic_mapping.core.pipeline import SemanticLookupPipeline
 from omop_etl.semantic_mapping.core.models import (
     FieldConfig,
-    OmopDomain,
-    QueryTarget,
     SemanticMappingResult,
 )
 
@@ -34,8 +32,6 @@ def custom_configs() -> List[FieldConfig]:
         FieldConfig(
             name="custom.field",
             field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
-            target=QueryTarget(domains={OmopDomain.CONDITION}),
-            tags={"custom", "test"},
         ),
     ]
 
@@ -109,18 +105,8 @@ class TestSemanticLookupPipeline:
 class TestBuildConfigs:
     def test_build_configs_returns_all_when_no_filters(self):
         configs = [
-            FieldConfig(
-                name="config1",
-                field_path=("a",),
-                target=QueryTarget(domains={OmopDomain.CONDITION}),
-                tags={"tag1"},
-            ),
-            FieldConfig(
-                name="config2",
-                field_path=("b",),
-                target=QueryTarget(domains={OmopDomain.DRUG}),
-                tags={"tag2"},
-            ),
+            FieldConfig(name="config1", field_path=("a",)),
+            FieldConfig(name="config2", field_path=("b",)),
         ]
 
         result = SemanticLookupPipeline._build_configs(configs)
@@ -143,75 +129,16 @@ class TestBuildConfigs:
         names = {c.name for c in result}
         assert names == {"config1", "config3"}
 
-    def test_build_configs_filter_by_domain(self):
+    def test_build_configs_enable_names_subset(self):
         configs = [
-            FieldConfig(
-                name="condition_config",
-                field_path=("a",),
-                target=QueryTarget(domains={OmopDomain.CONDITION}),
-            ),
-            FieldConfig(
-                name="drug_config",
-                field_path=("b",),
-                target=QueryTarget(domains={OmopDomain.DRUG}),
-            ),
-            FieldConfig(
-                name="no_target",
-                field_path=("c",),
-            ),
+            FieldConfig(name="match", field_path=("a",)),
+            FieldConfig(name="other1", field_path=("b",)),
+            FieldConfig(name="other2", field_path=("c",)),
         ]
 
         result = SemanticLookupPipeline._build_configs(
             configs,
-            required_domains={OmopDomain.CONDITION},
-        )
-
-        assert len(result) == 1
-        assert result[0].name == "condition_config"
-
-    def test_build_configs_filter_by_tags(self):
-        configs = [
-            FieldConfig(name="config1", field_path=("a",), tags={"important", "medical"}),
-            FieldConfig(name="config2", field_path=("b",), tags={"other"}),
-            FieldConfig(name="config3", field_path=("c",), tags={"important"}),
-        ]
-
-        result = SemanticLookupPipeline._build_configs(
-            configs,
-            required_tags={"important"},
-        )
-
-        assert len(result) == 2
-        names = {c.name for c in result}
-        assert names == {"config1", "config3"}
-
-    def test_build_configs_combined_filters(self):
-        configs = [
-            FieldConfig(
-                name="match",
-                field_path=("a",),
-                target=QueryTarget(domains={OmopDomain.CONDITION}),
-                tags={"important"},
-            ),
-            FieldConfig(
-                name="wrong_domain",
-                field_path=("b",),
-                target=QueryTarget(domains={OmopDomain.DRUG}),
-                tags={"important"},
-            ),
-            FieldConfig(
-                name="wrong_tag",
-                field_path=("c",),
-                target=QueryTarget(domains={OmopDomain.CONDITION}),
-                tags={"other"},
-            ),
-        ]
-
-        result = SemanticLookupPipeline._build_configs(
-            configs,
-            enable_names={"match", "wrong_domain", "wrong_tag"},
-            required_domains={OmopDomain.CONDITION},
-            required_tags={"important"},
+            enable_names={"match"},
         )
 
         assert len(result) == 1

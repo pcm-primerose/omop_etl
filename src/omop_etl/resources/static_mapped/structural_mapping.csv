@@ -48,4 +48,7 @@ vocab,1146958,CDM14,vocabulary.vocabulary_version,Field,Standard,Valid,Metadata,
 outpatient_visit,9202,OP,Outpatient Visit,Visit,Standard,Valid,Visit,Visit
 oral,4132161,26643006,Oral,Qualifier Value,Standard,Valid,Route,SNOMED
 iv,4171047,47625008,Intravenous,Qualifier Value,Standard,Valid,Route,SNOMED
-
+treatment_regimen,32531,OMOP4822256,Treatment Regimen,Treatment,Standard,Valid,Episode,Episode
+treatment_cycle,32532,OMOP4822255,Treatment Cycle,Treatment,Standard,Valid,Episode,Episode
+disease_episode,32533,OMOP4822254,Disease Episode,Episode of Care,Standard,Valid,Episode,Episode
+cohort_subject,1147314,CDM370,person,Table,Standard,Valid,Metadata,CDM

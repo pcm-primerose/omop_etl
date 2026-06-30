@@ -48,7 +48,7 @@ class LoadSemantics:
         # e.g. collapse "OxyNorm" and "Oxynorm" both mapping to oxycodone
         raw: dict[str, list[SemanticRow]] = defaultdict(list)
         for row in rows:
-            key = row.source_term.lower().strip()
+            key = row.source_term.casefold().strip()
             raw[key].append(row)
 
         idx: dict[str, list[SemanticRow]] = {}

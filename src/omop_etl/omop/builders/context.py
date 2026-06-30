@@ -80,7 +80,7 @@ class BuildContext:
         Resolve a visit_occurrence_id by date against the patient's published
         Visit rows. Visits are 1:1 by date (NK = (date,)), so date-lookup is
         NK-lookup. OMOP-endorsed: an event is assigned the visit that subsumes
-        its date (cdm54 §measurement/observation).
+        its date (cdm54 measurement/observation).
 
         Returns None when no visit covers the date (e.g. a VI/assessment date
         mismatch). The event is then emitted unlinked, the gap is logged once

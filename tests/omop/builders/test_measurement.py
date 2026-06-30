@@ -1,7 +1,7 @@
 import datetime as dt
 import pytest
 
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.biomarkers import Biomarkers
@@ -21,18 +21,19 @@ from omop_etl.omop.core.linkage import (
 )
 from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
-    SemanticEntry,
     _structural,
+    concept,
     create_build_context,
     create_patient,
-    create_semantic_index,
+    mapping,
     publish_tumor_condition,
+    semantic_index,
 )
 
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestMeasurementBuilder:
@@ -520,7 +521,7 @@ class TestC30Rows:
             _make_c30(dt.date(2040, 5, 1), q1="Not at all", q1_code=1, q2="A little", q2_code=2),
         ]
         # only c30_q2 in the structural index
-        partial = {"c30_q2": _structural("c30_q2", 701341, "measurement")}
+        partial = {"c30_q2": _structural(701341, "measurement")}
         result = MeasurementBuilder(ConceptLookupService(static_index, partial)).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
@@ -601,7 +602,7 @@ class TestEQ5DRows:
         assert row_1.person_id == PERSON_ID
         assert row_1.measurement_date == dt.date(2040, 5, 1)
         assert row_1.measurement_datetime == dt.datetime(2040, 5, 1)
-        assert row_1.measurement_id == 6210852826500161921  # fixme: assert on expected hash from collection's natural key instead
+        assert row_1.measurement_id == 2245039028177716071  # fixme: assert on expected hash from collection's natural key instead
 
         # q2 level 5
         row_2 = result.rows[1]
@@ -741,14 +742,11 @@ def _make_biomarkers(
 class TestBiomarkerRows:
     def test_maps_target_biomarker(self, static_index, structural_index):
         # the builder maps a single resolved target_biomarker
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=4002,
-                name="BRAF pathway",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+                "BRAF pathway",
+                concept(4002, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -766,22 +764,12 @@ class TestBiomarkerRows:
     def test_compound_biomarker_emits_one_row_per_concept(self, static_index, structural_index):
         # single source term maps to two distinct Measurement concepts,
         # semantic mapping is single source of truth, one row per matched concept
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=4001,
-                name="BRAF V600E",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=4002,
-                name="KRAS G12C",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+                "BRAF V600E and KRAS G12C",
+                concept(4001, "measurement"),
+                concept(4002, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -796,14 +784,11 @@ class TestBiomarkerRows:
         assert len({r.measurement_id for r in result.rows}) == 2, "row IDs distinct since concept_id is part of the key"
 
     def test_condition_domain_match_does_not_emit_here(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=999,
-                name="BRAF mutation as condition",
-                domain="condition",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+                "BRAF V600E",
+                concept(999, "condition"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -831,14 +816,11 @@ class TestBiomarkerRows:
         assert result == BuildResult(rows=(), publications=())
 
     def test_missing_date_returns_empty(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=4001,
-                name="BRAF V600E",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+                "BRAF V600E",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -851,14 +833,11 @@ class TestBiomarkerRows:
         assert result == BuildResult(rows=(), publications=())
 
     def test_row_id_deterministic(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=4001,
-                name="BRAF V600E",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+                "BRAF V600E",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -888,22 +867,12 @@ def _make_ae(
 class TestAdverseEventMeasurementRows:
     def test_term_with_measurement_and_meas_value_emits_row(self, static_index, structural_index):
         # term maps to Measurement attribute and Meas Value qualifier
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Platelet count",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4002,
-                name="Decreased",
-                domain="meas value",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
+                concept(4002, "meas value"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -921,14 +890,11 @@ class TestAdverseEventMeasurementRows:
 
     def test_measurement_only_no_meas_value_uses_zero(self, static_index, structural_index):
         # AE term mapping present, but no meas value mapping: value_as_concept_id = 0.
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Platelet count",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -943,14 +909,11 @@ class TestAdverseEventMeasurementRows:
 
     def test_meas_value_only_skips_row(self, static_index, structural_index):
         # no measurement-domain match: no row
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4002,
-                name="Decreased",
-                domain="meas value",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4002, "meas value"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -970,14 +933,11 @@ class TestAdverseEventMeasurementRows:
         assert result == BuildResult(rows=(), publications=())
 
     def test_missing_start_date_skips_row(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Platelet count",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -990,14 +950,11 @@ class TestAdverseEventMeasurementRows:
         assert result == BuildResult(rows=(), publications=())
 
     def test_grade_none_yields_value_as_number_none(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Platelet count",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1011,30 +968,13 @@ class TestAdverseEventMeasurementRows:
     def test_multiple_measurement_concepts_emit_one_row_each(self, static_index, structural_index):
         # if a term maps to multiple measurement concepts, one row per
         # concept: all share the same meas value qualifier when present
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Attribute A",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4003,
-                name="Attribute B",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4002,
-                name="Decreased",
-                domain="meas value",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
+                concept(4003, "measurement"),
+                concept(4002, "meas value"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1057,38 +997,14 @@ class TestAdverseEventMeasurementRows:
     def test_cross_product_when_multiple_meas_values(self, static_index, structural_index, caplog):
         # Unusual but supported: 2 Measurement attributes * 2 Meas Value qualifiers
         # yields 4 result, the cross-product. Builder logs the multi-Meas-Value case.
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Attribute A",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4003,
-                name="Attribute B",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4002,
-                name="Decreased",
-                domain="meas value",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4004,
-                name="Severe",
-                domain="meas value",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
+                concept(4003, "measurement"),
+                concept(4002, "meas value"),
+                concept(4004, "meas value"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1110,23 +1026,17 @@ class TestAdverseEventMeasurementRows:
         assert any("Meas Value concepts" in rec.message for rec in caplog.records)
 
     def test_row_ids_unique_across_aes(self, static_index, structural_index):
-        # two AEs at different leaf_indexes: each maps independently
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Platelet count",
-                domain="measurement",
+        # two AEs: each maps independently
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=1,
-                concept_id=4011,
-                name="Hemoglobin",
-                domain="measurement",
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4011, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1141,14 +1051,11 @@ class TestAdverseEventMeasurementRows:
         assert len({r.measurement_id for r in result.rows}) == 2
 
     def test_row_id_deterministic(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Platelet count",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Decreased platelet count",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1180,22 +1087,12 @@ def _make_mh(
 class TestMedicalHistoryMeasurementRows:
     def test_term_with_measurement_and_meas_value_emits_row(self, static_index, structural_index):
         # "decreased hemoglobin": Hemoglobin measurement (Measurement) + Decreased (Meas Value)
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Hemoglobin measurement",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4002,
-                name="Decreased",
-                domain="meas value",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4001, "measurement"),
+                concept(4002, "meas value"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1212,14 +1109,11 @@ class TestMedicalHistoryMeasurementRows:
         assert row.measurement_date == dt.date(2039, 1, 1)
 
     def test_measurement_only_no_meas_value_uses_zero(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Hemoglobin measurement",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1233,14 +1127,11 @@ class TestMedicalHistoryMeasurementRows:
 
     def test_condition_only_skips_row(self, static_index, structural_index):
         # Condition-domain hit belongs to condition_occurrence builder, not here.
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=999,
-                name="Hypertension",
-                domain="condition",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Hypertension",
+                concept(999, "condition"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1252,14 +1143,11 @@ class TestMedicalHistoryMeasurementRows:
 
     def test_meas_value_only_skips_row(self, static_index, structural_index):
         # Meas Value alone (no Measurement attribute): not a measurement row.
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4002,
-                name="Decreased",
-                domain="meas value",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4002, "meas value"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1278,14 +1166,11 @@ class TestMedicalHistoryMeasurementRows:
         assert result == BuildResult(rows=(), publications=())
 
     def test_missing_start_date_skips_row(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Hemoglobin measurement",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1300,38 +1185,14 @@ class TestMedicalHistoryMeasurementRows:
 
     def test_cross_product_when_multiple_meas_values(self, static_index, structural_index, caplog):
         # 2 Measurement * 2 Meas Value yields 4 result: warns on cardinality anomaly.
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Attribute A",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4003,
-                name="Attribute B",
-                domain="measurement",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4002,
-                name="Decreased",
-                domain="meas value",
-            ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4004,
-                name="Severe",
-                domain="meas value",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4001, "measurement"),
+                concept(4003, "measurement"),
+                concept(4002, "meas value"),
+                concept(4004, "meas value"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1350,22 +1211,16 @@ class TestMedicalHistoryMeasurementRows:
 
     def test_row_ids_unique_across_histories(self, static_index, structural_index):
         # two MH instances with distinct sequence_ids: row_ids differ.
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Hemoglobin measurement",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4001, "measurement"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=1,
-                concept_id=4011,
-                name="Glucose measurement",
-                domain="measurement",
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Elevated glucose",
+                concept(4011, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1380,14 +1235,11 @@ class TestMedicalHistoryMeasurementRows:
         assert len({r.measurement_id for r in result.rows}) == 2
 
     def test_row_id_deterministic(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4001,
-                name="Hemoglobin measurement",
-                domain="measurement",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Decreased hemoglobin",
+                concept(4001, "measurement"),
             ),
         )
         patient = create_patient(PID, TRIAL)
@@ -1439,7 +1291,7 @@ class TestPrimaryCancerFKConsumption:
 
     def _with_millimeter(self, structural_index: dict) -> dict:
         """Add the millimeter unit concept (UCUM) so lesion-size result can populate unit_concept_id."""
-        structural_index["millimeter"] = _structural("millimeter", self.UNIT_MM_CID, "unit")
+        structural_index["millimeter"] = _structural(self.UNIT_MM_CID, "unit")
         return structural_index
 
     def test_baseline_lesion_size_links_to_primary_cancer(self, static_index, structural_index):
@@ -1513,15 +1365,12 @@ class TestPrimaryCancerFKConsumption:
         assert size_result[0].unit_concept_id == self.UNIT_MM_CID
 
     def test_biomarker_links_to_primary_cancer(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=4000,
-                name="braf non-v600",
-                domain="measurement",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+                "BRAF non-V600",
+                concept(4000, "measurement"),
+            ),
         )
         patient = create_patient(PID, TRIAL)
         biomarkers = Biomarkers(PID)
@@ -1539,15 +1388,12 @@ class TestPrimaryCancerFKConsumption:
         assert result.rows[0].meas_event_field_concept_id == self.CDM_FIELD_CID
 
     def test_biomarker_no_fk_when_primary_cancer_not_published(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
-                leaf_index=None,
-                concept_id=4000,
-                name="braf non-v600",
-                domain="measurement",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.BIOMARKERS, Biomarkers.Fields.TARGET_BIOMARKER),
+                "BRAF non-V600",
+                concept(4000, "measurement"),
+            ),
         )
         patient = create_patient(PID, TRIAL)
         biomarkers = Biomarkers(PID)

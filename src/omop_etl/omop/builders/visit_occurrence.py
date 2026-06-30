@@ -35,15 +35,15 @@ class VisitOccurrenceBuilder(OmopBuilder[VisitOccurrenceRow]):
         person_id = ctx.person_id
         rows: list[VisitOccurrenceRow] = []
         publications: list[RowPublication] = []
-        outpatient = self.concepts.lookup_structural("outpatient_visit", domains={"Visit"})
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"Type Concept"})
-        if outpatient is None:
+        outpatient = self.concepts.resolve("outpatient_visit", domains={"Visit"})
+        ecrf = self.concepts.resolve("ecrf", domains={"Type Concept"})
+        if not outpatient:
             raise ValueError(f"Outpatient not found in structural lookup: {outpatient}")
-        if ecrf is None:
+        if not ecrf:
             raise ValueError(f"eCRF concept not found in structural lookup: {ecrf}")
 
-        visit_concept_id = outpatient.concept_id
-        visit_type_concept_id = ecrf.concept_id
+        visit_concept_id = outpatient[0].concept_id
+        visit_type_concept_id = ecrf[0].concept_id
 
         # Visits are date-ordered by natural key, so iterating yields the visit
         # chain: track the previous visit for preceding_visit_occurrence_id

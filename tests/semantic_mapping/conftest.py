@@ -9,8 +9,6 @@ from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.semantic_mapping.core.models import (
     Query,
-    OmopDomain,
-    QueryTarget,
     FieldConfig,
 )
 
@@ -52,8 +50,6 @@ def queries() -> List[Query]:
             query="aml",
             field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
             raw_value="AML",
-            leaf_index=None,
-            target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
         Query(
             patient_id="B",
@@ -61,8 +57,6 @@ def queries() -> List[Query]:
             query="missing in semantic data",
             field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
             raw_value="missing in semantic data",
-            leaf_index=None,
-            target=QueryTarget(domains=[OmopDomain.CONDITION]),
         ),
     ]
     return queries
@@ -113,13 +107,10 @@ def patients() -> List[Patient]:
 
 @pytest.fixture
 def configs() -> List[FieldConfig]:
-    tumor_config = FieldConfig(
-        name="tumor type main", field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE), target=QueryTarget([OmopDomain.CONDITION])
-    )
+    tumor_config = FieldConfig(name="tumor type main", field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE))
     medical_history_config = FieldConfig(
         name="medical histories",
         field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-        target=QueryTarget([OmopDomain.CONDITION, OmopDomain.PROCEDURE]),
     )
 
     return [tumor_config, medical_history_config]

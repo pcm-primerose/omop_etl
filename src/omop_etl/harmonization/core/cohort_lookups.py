@@ -40,7 +40,7 @@ def _read_lookup(filename: str, key_col: str, val_col: str) -> dict[str, str]:
     for raw_key, raw_val in zip(df[key_col].to_list(), df[val_col].to_list()):
         if raw_key is None or raw_val is None:
             continue
-        key = str(raw_key).strip().lower()
+        key = str(raw_key).strip().casefold()
         val = str(raw_val).strip()
         if not key or not val:
             continue

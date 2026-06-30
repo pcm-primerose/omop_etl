@@ -265,3 +265,28 @@ bf4fb12f-07d3-57c6-b40c-b0cb7363ce3c,TR_TRNAME,Tafinlar (Dabrafenib),13,43532299
 bf4fb12f-07d3-57c6-b40c-b0cb7363ce3c-1,TR_TRNAME,Dabrafenib,13,43532299,1424911,dabrafenib,Ingredient,Standard,Valid,Drug,RxNorm
 need-to-re-run,DM_DMSEX,male,1,8507,M,MALE,Gender,Standard,Valid,Gender,Gender
 need-to-re-run,DM_DMSEX,female,1,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
+,TR_TRNAME,Erivedge (Vismodegib),0,35804821,15595,Vismodegib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Tecentriq (Atezolizumab),0,35804138,5450,Atezolizumab monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Zelboraf (Vermurafenib),0,35804101,5142,Vemurafenib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Cotellic (Cobimetinibhemifumarat),0,35805321,17789,Cobimetinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Phesgo (Pertuzumab and Trastuzumab),0,35804314,9691,Pertuzumab and Trastuzumab,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Lynparza (Olaparib),0,35804269,8256,Olaparib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+no monotherapy concept,TR_TRNAME,Piqray (Alpelisib),0,35101866,10413,Alpelisib and Fulvestrant,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Tafinlar (Dabrafenib),0,35804434,11071,Dabrafenib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Mekinist (Trametinib),0,35806139,25886,Trametinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Avastin (Bevacizumab),0,35803688,3350,Bevacizumab monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Alecensa (Alectinib hydrochloride),0,35804390,10668,Alectinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Jemperli (Dostalimab),0,905669,34981,Dostarlimab monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Pemazyre (Pemigatinib),0,912018,13367,Pemigatinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Pemzyre,0,912018,13367,Pemigatinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Teva (imatinib),0,35804083,4907,Imatinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Fulvestrant,0,35804284,8935,Fulvestrant monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Tepmetkop (Tepotinib),0,905731,61163,Tepotinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Pemigatinib,0,912018,13367,Pemigatinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Rozlytrek (Entrektinib),0,35101963,48540,Entrectinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Bortezomib,0,35804520,11189,Bortezomib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Melfalan,0,35804011,4244,Melphalan monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Ceritinib,0,35804391,10693,Ceritinib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Actinomycine D,0,35805247,17590,Dactinomycin monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Zejula (Niraparib),0,35806485,32012,Niraparib monotherapy,Regimen,Standard,Valid,Regimen,HemOnc
+,TR_TRNAME,Rybrevant (Amivantamab),0,905634,29758,Amivantamab monotherapy,Regimen,Standard,Valid,Regimen,HemOnc

@@ -5,8 +5,6 @@ from omop_etl.semantic_mapping.core.models import (
     QueryResult,
     Query,
     BatchQueryResult,
-    QueryTarget,
-    OmopDomain,
 )
 
 
@@ -20,9 +18,8 @@ class SemanticIndex:
         results: list[QueryResult] = []
 
         for q in queries:
-            query = q.query.lower().strip()
+            query = q.query.casefold().strip()
             candidates = self.indexed_corpus.get(query, [])
-            candidates = self._filter_by_target(candidates, q.target)
 
             results.append(
                 QueryResult(
@@ -33,30 +30,3 @@ class SemanticIndex:
             )
 
         return BatchQueryResult(results=tuple(results))
-
-    @staticmethod
-    def _filter_by_target(candidates: list[SemanticRow], target: QueryTarget | None) -> list[SemanticRow]:
-        if target is None:
-            return candidates
-
-        doms = target.domains
-        vocabs = target.vocabs
-        classes = target.concept_classes
-        validity = target.validity
-        standard = target.standard_flags
-
-        filtered: list[SemanticRow] = []
-        for row in candidates:
-            if doms is not None and OmopDomain(row.omop_domain) not in doms:
-                continue
-            if vocabs is not None and row.omop_vocab not in vocabs:
-                continue
-            if classes is not None and row.omop_concept_class not in classes:
-                continue
-            if standard is not None and row.omop_standard_concept not in standard:
-                continue
-            if validity is not None and row.omop_validity not in validity:
-                continue
-            filtered.append(row)
-
-        return filtered

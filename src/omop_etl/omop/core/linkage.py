@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import TypeVar, Hashable, Generic
+import datetime as dt
 
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.models.tables import OmopTables
@@ -41,11 +42,15 @@ class OmopRowReference:
     `condition_concept_id`), used publisher-side for deterministic
     sort ordering. `0` is valid (CDM convention: unmapped primary).
     `table` must be a `OmopTables.*` constant.
+
+    `event_date` optionally carries the published row's clinical date so
+    date-driven consumers can read this instead of recomputing.
     """
 
     table: str
     row_id: int
     primary_concept_id: int
+    event_date: dt.date | None = None
 
     def __post_init__(self):
         if self.table not in OmopTables.values():

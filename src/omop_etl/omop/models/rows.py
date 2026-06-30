@@ -1,21 +1,14 @@
 from pydantic.dataclasses import dataclass as pd_dataclass
 from pydantic import Field as pd_field
 import datetime as dt
-from typing import ClassVar, Annotated
-
-from omop_etl.omop.core.row_validator import validate_required_fields
+from typing import Annotated
 
 
 @pd_dataclass(frozen=True, slots=True)
 class PersonRow:
     """
-    OMOP Person table row.
     https://ohdsi.github.io/CommonDataModel/cdm54.html#person
-
-    Natural key: person_id (effectively no deduplication - one per patient)
     """
-
-    natural_key_fields: ClassVar[tuple[str, ...]] = ("person_id",)
 
     person_id: int
     gender_concept_id: int
@@ -36,37 +29,18 @@ class PersonRow:
     location_id: int | None = None
     care_site_id: int | None = None
 
-    def natural_key(self) -> tuple:
-        return tuple(getattr(self, f) for f in self.natural_key_fields)
-
-    def validate(self) -> None:
-        """Validate required fields based on type hints. Raises RowValidationError if invalid."""
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class ObservationPeriodRow:
     """
-    OMOP ObservationPeriod table row.
     https://ohdsi.github.io/CommonDataModel/cdm54.html#observation_period
-
-    Natural key: person_id (one observation period per patient)
     """
-
-    natural_key_fields: ClassVar[tuple[str, ...]] = ("person_id",)
 
     observation_period_id: int
     person_id: int
     observation_period_start_date: dt.date
     observation_period_end_date: dt.date
     period_type_concept_id: int
-
-    def natural_key(self) -> tuple:
-        return tuple(getattr(self, f) for f in self.natural_key_fields)
-
-    def validate(self) -> None:
-        """Validate required fields based on type hints. Raises RowValidationError if invalid."""
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -88,18 +62,12 @@ class CdmSourceRow:
     cdm_etl_reference: Annotated[str | None, pd_field(max_length=255)] = None
     cdm_version: Annotated[str | None, pd_field(max_length=10)] = None
 
-    def validate(self) -> None:
-        """Validate required fields based on type hints. Raises RowValidationError if invalid."""
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class VisitOccurrenceRow:
     """
     https://ohdsi.github.io/CommonDataModel/cdm54.html#visit_occurrence
     """
-
-    natural_key_fields: ClassVar[tuple[str, ...]] = ("person_id",)
 
     visit_occurrence_id: int
     person_id: int
@@ -118,9 +86,6 @@ class VisitOccurrenceRow:
     discharged_to_concept_id: int | None = None
     discharged_to_source_value: str | None = None
     preceding_visit_occurrence_id: int | None = None
-
-    def validate(self):
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -145,9 +110,6 @@ class ConditionOccurrenceRow:
     condition_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     condition_source_concept_id: int | None = None
     condition_status_source_value: Annotated[str | None, pd_field(max_length=50)] = None
-
-    def validate(self):
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -180,9 +142,6 @@ class DrugExposureRow:
     route_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     dose_unit_source_value: Annotated[str | None, pd_field(max_length=50)] = None
 
-    def validate(self):
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class ProcedureOccurrenceRow:
@@ -206,9 +165,6 @@ class ProcedureOccurrenceRow:
     procedure_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     procedure_source_concept_id: int | None = None
     modifier_source_value: Annotated[str | None, pd_field(max_length=50)] = None
-
-    def validate(self):
-        validate_required_fields(self)
 
 
 @pd_dataclass(frozen=True, slots=True)
@@ -241,12 +197,13 @@ class MeasurementRow:
     measurement_event_id: int | None = None
     meas_event_field_concept_id: int | None = None
 
-    def validate(self):
-        validate_required_fields(self)
-
 
 @pd_dataclass(frozen=True, slots=True)
 class ObservationRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#observation
+    """
+
     observation_id: int
     person_id: int
     observation_concept_id: int
@@ -269,5 +226,98 @@ class ObservationRow:
     observation_event_id: int | None = None
     obs_event_field_concept_id: int | None = None
 
-    def validate(self):
-        validate_required_fields(self)
+
+@pd_dataclass(frozen=True, slots=True)
+class DeathRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#death
+    """
+
+    person_id: int
+    death_date: dt.date
+    death_datetime: dt.datetime | None = None
+    death_type_concept_id: int | None = None
+    cause_concept_id: int | None = None
+    cause_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    cause_source_concept_id: int | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class EpisodeRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#episode
+    """
+
+    episode_id: int
+    person_id: int
+    episode_concept_id: int
+    episode_start_date: dt.date
+    episode_start_datetime: dt.datetime | None = None
+    episode_end_date: dt.date | None = None
+    episode_end_datetime: dt.datetime | None = None
+    episode_parent_id: int | None = None
+    episode_number: int | None = None
+    episode_object_concept_id: int | None = None
+    episode_type_concept_id: int | None = None
+    episode_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    episode_source_concept_id: int | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class EpisodeEventRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#episode_event
+    """
+
+    episode_id: int
+    event_id: int
+    episode_event_field_concept_id: int
+
+
+@pd_dataclass(frozen=True, slots=True)
+class CohortRow:
+    """
+    OMOP RESULTS-schema cohort table row: one trial-arm membership per patient.
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#cohort
+    """
+
+    cohort_definition_id: int
+    subject_id: int
+    cohort_start_date: dt.date
+    cohort_end_date: dt.date
+
+
+@pd_dataclass(frozen=True, slots=True)
+class CohortDefinitionRow:
+    """
+    OMOP RESULTS-schema cohort_definition table row: one per distinct trial arm.
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#cohort_definition
+    """
+
+    cohort_definition_id: int
+    cohort_definition_name: Annotated[str, pd_field(max_length=255)]
+    definition_type_concept_id: int
+    subject_concept_id: int
+    cohort_definition_description: Annotated[str | None, pd_field(max_length=2147483647)] = None
+    cohort_definition_syntax: Annotated[str | None, pd_field(max_length=2147483647)] = None
+    cohort_initiation_date: dt.date | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class LocationRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#location
+    """
+
+    location_id: int
+    address_1: Annotated[str | None, pd_field(max_length=50)] = None
+    address_2: Annotated[str | None, pd_field(max_length=50)] = None
+    city: Annotated[str | None, pd_field(max_length=50)] = None
+    state: Annotated[str | None, pd_field(max_length=2)] = None
+    zip: Annotated[str | None, pd_field(max_length=9)] = None
+    county: Annotated[str | None, pd_field(max_length=20)] = None
+    location_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    country_concept_id: int | None = None
+    country_source_value: Annotated[str | None, pd_field(max_length=80)] = None
+    latitude: float | None = None
+    longitude: float | None = None

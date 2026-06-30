@@ -22,7 +22,7 @@ class TreatmentCycleComponent(DomainBase):
     - brand_name: Drug brand name, parsed from source_treatment_name.
     - component_index: Index of this administered drug component, if multiple drugs administered at one date.
     - cycle_type: Type of drug administered in this component, Oral or IV.
-    - treatment_number: The patient's treatment number of this cycle component.
+    - treatment_number: The patient's treatment number of this cycle component (treatment line number).
     - cycle_number: Source-defined sequence id for this treatment cycle component.
     - end_date: Inferred or taken from eCRF source, end date of this cycle.
     - received_treatment_this_cycle: If the patient received treatment this cycle (is the cycle valid).

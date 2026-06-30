@@ -11,8 +11,6 @@ from omop_etl.semantic_mapping.core.models import (
     QueryResult,
     BatchQueryResult,
     SemanticRow,
-    QueryTarget,
-    OmopDomain,
 )
 
 
@@ -53,8 +51,6 @@ def batch_result(semantic_rows) -> BatchQueryResult:
         query="aml",
         field_path=("diagnoses", "term"),
         raw_value="AML",
-        leaf_index=0,
-        target=QueryTarget(domains=[OmopDomain.CONDITION]),
     )
     query_missing = Query(
         patient_id="P2",
@@ -62,8 +58,6 @@ def batch_result(semantic_rows) -> BatchQueryResult:
         query="unknown",
         field_path=("diagnoses", "term"),
         raw_value="Unknown",
-        leaf_index=1,
-        target=QueryTarget(domains=[OmopDomain.CONDITION]),
     )
 
     results = (
@@ -115,7 +109,6 @@ class TestSemanticExporter:
         assert isinstance(matches, list)
         assert len(matches) == 1
         assert matches[0]["patient_id"] == "P1"
-        assert matches[0]["leaf_index"] == 0
 
     def test_export_json_missing_content(self, tmp_path, batch_result, run_meta):
         exporter = SemanticExporter(base_out=tmp_path)
@@ -136,7 +129,6 @@ class TestSemanticExporter:
         assert isinstance(missing, list)
         assert len(missing) == 1
         assert missing[0]["patient_id"] == "P2"
-        assert missing[0]["leaf_index"] == 1
 
     def test_export_csv(self, tmp_path, batch_result, run_meta):
         exporter = SemanticExporter(base_out=tmp_path)

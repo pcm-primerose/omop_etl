@@ -2,7 +2,10 @@ import csv
 from pathlib import Path
 from logging import getLogger
 
-from omop_etl.concept_mapping.core.models import StructuralConcept
+from omop_etl.concept_mapping.core.models import (
+    StructuralConcept,
+    MappedConcept,
+)
 
 log = getLogger(__name__)
 
@@ -27,10 +30,18 @@ class StructuralMapLoader:
                 rows.append(StructuralConcept.from_csv_row(row))
         return rows
 
-    def as_index(self) -> dict[str, StructuralConcept]:
-        # key lowercased and stripped to match normalized values from from_csv_row
-        idx: dict[str, StructuralConcept] = {}
+    def as_index(self) -> dict[str, MappedConcept]:
+        # value-less constants: keyed by value_set alone, lowercased and stripped to
+        # match normalized values from from_csv_row
+        idx: dict[str, MappedConcept] = {}
         for r in self.as_rows():
-            key = r.value_set.lower().strip()
-            idx[key] = r
+            key = r.value_set.casefold().strip()
+            existing = idx.get(key)
+            if existing is not None and existing.concept_id != r.concept_id:
+                raise ValueError(
+                    f"Duplicate structural mapping for value_set={key!r}: maps to both "
+                    f"concept_id {existing.concept_id} and {r.concept_id}. A structural "
+                    f"value_set must map to exactly one concept: fix {self.path}."
+                )
+            idx[key] = r.to_mapped()
         return idx

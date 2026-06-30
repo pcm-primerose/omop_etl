@@ -52,15 +52,15 @@ class TestProcessCohort:
         assert row.item(0, Cohort.Fields.RAW_NAME) == "BRAF Non-V600mut/Pancreatic/Trametinib + Dabrafenib"
         assert row.item(0, Cohort.Fields.TARGET_BIOMARKER) == "BRAF Non-V600"
         assert row.item(0, Cohort.Fields.CANCER_TYPE) == "Pancreatic cancer"
-        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Trametinib", "Dabrafenib"]
-        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "BRAF Non-V600/Pancreatic cancer/Trametinib + Dabrafenib"
+        assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Trametinib", "Dabrafenib"]  # raw, verbatim
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "BRAF Non-V600/Pancreatic cancer/dabrafenib + trametinib"
 
     def test_single_drug_composition(self, cohort_fixture):
         df = self._harmonizer(cohort_fixture)._process_cohort()
         assert df is not None
         row = df.filter(pl.col("SubjectId") == "cohort_hit_2")
         assert row.item(0, Cohort.Fields.DRUGS).to_list() == ["Pertuzumab"]
-        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "HER2 expression/Cholangiocarcinoma/Pertuzumab"
+        assert row.item(0, Cohort.Fields.NORMALIZED_NAME) == "HER2 expression/Cholangiocarcinoma/pertuzumab"
 
     def test_unmapped_parts_leave_normalized_none_but_keep_raw_and_drugs(self, cohort_fixture):
         df = self._harmonizer(cohort_fixture)._process_cohort()
@@ -79,7 +79,7 @@ class TestProcessCohort:
         h.run_one("cohort")
         cohort = h.patient_data["cohort_hit_1"].cohort
         assert cohort is not None
-        assert cohort.normalized_name == "BRAF Non-V600/Pancreatic cancer/Trametinib + Dabrafenib"
+        assert cohort.normalized_name == "BRAF Non-V600/Pancreatic cancer/dabrafenib + trametinib"
         assert cohort.drugs == ("Trametinib", "Dabrafenib")
 
     def test_hydrates_unmapped_cohort_with_none_normalized(self, cohort_fixture):
@@ -93,6 +93,81 @@ class TestProcessCohort:
         assert cohort.normalized_name is None
         assert cohort.raw_name == "UnknownMarker/UnknownTumor/DrugX"
         assert cohort.drugs == ("DrugX",)
+
+
+_CANON_COLS = (
+    "SubjectId",
+    "COH_EventDate",
+    "COH_COHORTNAME",
+    "COH_COHCTN",
+    "COH_COHTT",
+    "COH_COHALLO1",
+    "COH_COHALLO1__2",
+    "COH_COHALLO1__3",
+    "COH_COHALLO2",
+    "COH_COHALLO2__2",
+    "COH_COHALLO2__3",
+)
+
+
+def _coh(sid: str, **allocations: str) -> dict:
+    """One COH row mapping to BRAF Non-V600 / Pancreatic cancer; drugs via COH_COHALLO* kwargs."""
+    return {
+        "SubjectId": sid,
+        "COH_EventDate": "2030-01-01",
+        "COH_COHORTNAME": f"raw {sid}",
+        "COH_COHCTN": "BRAF Non-V600mut",
+        "COH_COHTT": "Pancreatic",
+        **allocations,
+    }
+
+
+def _cohort_frame(*rows: dict) -> pl.DataFrame:
+    return pl.from_dicts([{c: r.get(c) for c in _CANON_COLS} for r in rows], schema={c: pl.Utf8 for c in _CANON_COLS})
+
+
+class TestCohortDrugCanonicalization:
+    """
+    The name's drug part is brand-stripped, casefolded, split, sorted and
+    deduped, so the same cohort hashes to one cohort_definition_id regardless of
+    brand presence, column order, or case.
+    """
+
+    @staticmethod
+    def _normalized(*rows: dict, sid: str) -> str | None:
+        h = ImpressHarmonizer(data=_cohort_frame(*rows), trial_id="T")
+        h.cohort_lookups = _COHORT_LOOKUPS
+        return h._process_cohort().filter(pl.col("SubjectId") == sid).item(0, Cohort.Fields.NORMALIZED_NAME)
+
+    def test_strips_brand_to_ingredient(self):
+        # "Brand (Ingredient)": just the ingredient
+        name = self._normalized(_coh("p", COH_COHALLO1="Piqray (Alpelisib)"), sid="p")
+        assert name == "BRAF Non-V600/Pancreatic cancer/alpelisib"
+
+    def test_splits_in_column_combo(self):
+        """A single allocation naming two ingredients splits into both"""
+        name = self._normalized(_coh("p", COH_COHALLO1="Phesgo (Pertuzumab and Trastuzumab)"), sid="p")
+        assert name == "BRAF Non-V600/Pancreatic cancer/pertuzumab + trastuzumab"
+
+    def test_order_invariant_across_columns(self):
+        """Same two drugs, opposite column order: identical canonical name (and id)"""
+        a = self._normalized(_coh("a", COH_COHALLO1="Mekinist (Trametinib)", COH_COHALLO2="Tafinlar (Dabrafenib)"), sid="a")
+        b = self._normalized(_coh("b", COH_COHALLO1="Tafinlar (Dabrafenib)", COH_COHALLO2="Mekinist (Trametinib)"), sid="b")
+        assert a == b == "BRAF Non-V600/Pancreatic cancer/dabrafenib + trametinib"
+
+    def test_dedups_repeated_ingredient(self):
+        """brand-wrapped and bare spelling of the same drug collapse to one."""
+        name = self._normalized(_coh("p", COH_COHALLO1="Piqray (Alpelisib)", COH_COHALLO1__2="Alpelisib"), sid="p")
+        assert name == "BRAF Non-V600/Pancreatic cancer/alpelisib"
+
+    def test_logs_unparseable_brand_wrapper(self, caplog):
+        """Malformed paren yields no ingredient: raw passes through and logged."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="omop_etl.harmonization.harmonizers.impress"):
+            self._normalized(_coh("subj_x", COH_COHALLO1="Tafinlar ("), sid="subj_x")
+
+        assert any("Cohort drug parse" in r.message and "subj_x" in r.message for r in caplog.records)
 
 
 class TestProcessSex:

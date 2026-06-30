@@ -5,18 +5,19 @@ from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.previous_treatments import PreviousTreatment
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.procedure_occurrence import ProcedureOccurrenceBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult
 from tests.omop.conftest import (
+    concept,
     create_build_context,
     create_patient,
-    create_semantic_index,
-    SemanticEntry,
+    mapping,
+    semantic_index,
 )
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestProcedureOccurrenceBuilder:
@@ -35,15 +36,12 @@ class TestProcedureOccurrenceBuilder:
 
 class TestPreviousTreatmentMainRows:
     def test_all_fields(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
-                concept_id=4301351,
-                name="surgical procedure",
-                domain="procedure",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Surgery",
+                concept(4301351, "procedure"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -88,15 +86,12 @@ class TestPreviousTreatmentMainRows:
         assert result == BuildResult(rows=(), publications=())
 
     def test_end_date_can_be_none(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
-                concept_id=4301351,
-                name="surgical procedure",
-                domain="procedure",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Surgery",
+                concept(4301351, "procedure"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -113,15 +108,12 @@ class TestPreviousTreatmentMainRows:
 
 class TestPreviousTreatmentAdditionalRows:
     def test_additional_treatment_produces_row(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                leaf_index=0,
-                concept_id=4061650,
-                name="hormone therapy",
-                domain="procedure",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
+                "Hormone therapy",
+                concept(4061650, "procedure"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -152,22 +144,16 @@ class TestPreviousTreatmentAdditionalRows:
 
     def test_both_fields_produce_separate_result(self, static_index, structural_index):
         """When both treatment and additional_treatment map to Procedure, emit one row each."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
-                concept_id=4301351,
-                name="surgical procedure",
-                domain="procedure",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Surgery",
+                concept(4301351, "procedure"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-                leaf_index=0,
-                concept_id=4061650,
-                name="hormone therapy",
-                domain="procedure",
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
+                "Hormone therapy",
+                concept(4061650, "procedure"),
             ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
@@ -188,15 +174,12 @@ class TestPreviousTreatmentAdditionalRows:
 
 class TestMedicalHistoryRows:
     def test_past_surgery_produces_row(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4194253,
-                name="operation on breast",
-                domain="procedure",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "ca mamma, opr",
+                concept(4194253, "procedure"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -245,22 +228,16 @@ class TestMedicalHistoryRows:
 
 class TestCombinedSources:
     def test_all_sources_combined(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
-                concept_id=4301351,
-                name="surgical procedure",
-                domain="procedure",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Surgery",
+                concept(4301351, "procedure"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=4194253,
-                name="operation on breast",
-                domain="procedure",
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "ca mamma, opr",
+                concept(4194253, "procedure"),
             ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
@@ -284,15 +261,12 @@ class TestCombinedSources:
         assert len(ids) == len(set(ids)), "All procedure_occurrence_ids must be unique"
 
     def test_row_ids_are_deterministic(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-                leaf_index=0,
-                concept_id=4301351,
-                name="surgical procedure",
-                domain="procedure",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Surgery",
+                concept(4301351, "procedure"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)

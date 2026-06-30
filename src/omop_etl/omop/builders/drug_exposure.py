@@ -33,8 +33,8 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         person_id = ctx.person_id
         rows: list[DrugExposureRow] = []
         publications: list[RowPublication] = []
-        ecrf = self.concepts.lookup_structural("ecrf", domains={"type concept"})
-        drug_type_concept_id = int(ecrf.concept_id) if ecrf else 0
+        ecrf = self.concepts.resolve("ecrf", domains={"type concept"})
+        drug_type_concept_id = int(ecrf[0].concept_id) if ecrf else 0
 
         for idx, cycle in enumerate(patient.treatment_cycles):
             cycle_rows = self._build_treatment_cycle_rows(patient, person_id, cycle, idx, drug_type_concept_id)
@@ -49,9 +49,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 log.warning("Skipping previous treatment %d for %s: missing start_date", idx, patient.patient_id)
                 continue
             if prev.treatment:
-                rows.extend(self._build_previous_treatment_main_rows(patient, person_id, prev, idx, drug_type_concept_id))
+                rows.extend(self._build_previous_treatment_main_rows(patient, person_id, prev, drug_type_concept_id))
             if prev.additional_treatment:
-                rows.extend(self._build_previous_treatment_additional_rows(patient, person_id, prev, idx, drug_type_concept_id))
+                rows.extend(self._build_previous_treatment_additional_rows(patient, person_id, prev, drug_type_concept_id))
 
         for idx, concom in enumerate(patient.concomitant_medications):
             rows.extend(self._build_concomitant_medication_rows(patient, person_id, concom, idx, drug_type_concept_id))
@@ -106,17 +106,15 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         if cycle.ingredient_name:
-            matches = self.concepts.lookup_semantic(
-                patient.patient_id,
+            matches = self.concepts.resolve(
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.INGREDIENT_NAME),
-                index,
+                cycle.ingredient_name,
                 domains={OmopDomain.DRUG},
             )
         else:
-            matches = self.concepts.lookup_semantic(
-                patient.patient_id,
+            matches = self.concepts.resolve(
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
-                index,
+                cycle.source_treatment_name,
                 domains={OmopDomain.DRUG},
             )
 
@@ -129,12 +127,12 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         if cycle.cycle_type and cycle.cycle_type == "iv":
             quantity = cycle.iv_dose_prescribed
             dose_unit = cycle.iv_dose_prescribed_unit
-            iv_route = self.concepts.lookup_structural("iv", domains={"Route"})
-            route_concept_id = iv_route.concept_id if iv_route else None
+            iv_route = self.concepts.resolve("iv", domains={"Route"})
+            route_concept_id = iv_route[0].concept_id if iv_route else None
         elif cycle.cycle_type and cycle.cycle_type == "oral":
             dose_unit = cycle.oral_dose_unit
-            oral_route = self.concepts.lookup_structural("oral", domains={"Route"})
-            route_concept_id = oral_route.concept_id if oral_route else None
+            oral_route = self.concepts.resolve("oral", domains={"Route"})
+            route_concept_id = oral_route[0].concept_id if oral_route else None
 
             per_day = cycle.oral_dose_prescribed_per_day
             if per_day is not None and end_date is not None:
@@ -187,7 +185,6 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         patient: Patient,
         person_id: int,
         prev: PreviousTreatment,
-        index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
         start_date = prev.start_date
@@ -195,10 +192,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         end_date = prev.end_date or start_date
-        matches = self.concepts.lookup_semantic(
-            patient.patient_id,
+        matches = self.concepts.resolve(
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
-            index,
+            prev.treatment,
             domains={OmopDomain.DRUG},
         )
         if not matches:
@@ -228,7 +224,6 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         patient: Patient,
         person_id: int,
         prev: PreviousTreatment,
-        index: int,
         drug_type_concept_id: int,
     ) -> list[DrugExposureRow]:
         start_date = prev.start_date
@@ -236,10 +231,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             return []
 
         end_date = prev.end_date or start_date
-        matches = self.concepts.lookup_semantic(
-            patient.patient_id,
+        matches = self.concepts.resolve(
             (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.ADDITIONAL_TREATMENT),
-            index,
+            prev.additional_treatment,
             domains={OmopDomain.DRUG},
         )
         if not matches:
@@ -255,7 +249,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     concept.concept_id,
                 ),
                 person_id=person_id,
-                drug_concept_id=int(concept.concept_id),
+                drug_concept_id=concept.concept_id,
                 drug_exposure_start_date=start_date,
                 drug_exposure_end_date=end_date,
                 drug_type_concept_id=drug_type_concept_id,
@@ -282,10 +276,9 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             log.warning(f"Skipping concomitant medication {index} for {patient.patient_id}: missing medication_name")
             return []
 
-        matches = self.concepts.lookup_semantic(
-            patient.patient_id,
+        matches = self.concepts.resolve(
             (Patient.Collections.CONCOMITANT_MEDICATIONS, ConcomitantMedication.Fields.MEDICATION_NAME),
-            index,
+            concom.medication_name,
             domains={OmopDomain.DRUG},
         )
         end_date_or_start = end_date or start_date

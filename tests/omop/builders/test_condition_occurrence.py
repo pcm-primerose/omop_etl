@@ -6,19 +6,20 @@ from omop_etl.harmonization.models.domain.medical_history import MedicalHistory
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult, SourceReference
 from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
+    concept,
     create_build_context,
     create_patient,
-    create_semantic_index,
-    SemanticEntry,
+    mapping,
+    semantic_index,
 )
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestConditionOccurrenceBuilder:
@@ -37,15 +38,12 @@ class TestConditionOccurrenceBuilder:
 
 class TestTumorTypeRows:
     def test_all_fields_with_icd10(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
-                concept_id=4000,
-                name="malignant neoplasm",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                "C50.9",
+                concept(4000, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -67,15 +65,12 @@ class TestTumorTypeRows:
 
     def test_falls_back_to_main_tumor_type(self, static_index, structural_index):
         """When icd10_code is None, uses main_tumor_type for lookup."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
-                leaf_index=None,
-                concept_id=4001,
-                name="breast cancer",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
+                "Breast cancer",
+                concept(4001, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -92,22 +87,16 @@ class TestTumorTypeRows:
 
     def test_icd10_preferred_over_main_tumor_type(self, static_index, structural_index):
         """When both exist, icd10_code is used"""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
-                concept_id=4000,
-                name="icd10 concept",
-                domain="condition",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                "C50.9",
+                concept(4000, "condition"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
-                leaf_index=None,
-                concept_id=4001,
-                name="main type concept",
-                domain="condition",
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
+                "Breast cancer",
+                concept(4001, "condition"),
             ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
@@ -148,17 +137,37 @@ class TestTumorTypeRows:
 
         assert result == BuildResult(rows=(), publications=())
 
+    def test_falls_back_to_main_when_icd10_unmapped(self, static_index, structural_index):
+        """icd10_code present but with no Condition mapping falls back to main_tumor_type."""
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.MAIN_TUMOR_TYPE),
+                "Breast cancer",
+                concept(4001, "condition"),
+            ),
+        )
+        concepts = ConceptLookupService(static_index, structural_index, semantic)
+        patient = create_patient(PID, TRIAL)
+        tumor = TumorType(patient_id=PID)
+        tumor.icd10_code = "C99.99"  # no Condition mapping
+        tumor.main_tumor_type = "Breast cancer"  # mapped
+        tumor.date = dt.date(2022, 6, 1)
+        patient.tumor_type = tumor
+
+        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(result.rows) == 1
+        assert result.rows[0].condition_concept_id == 4001
+        assert result.rows[0].condition_source_value == "Breast cancer"  # the field that actually mapped
+
     def test_date_falls_back_to_treatment_start(self, static_index, structural_index):
         """When tumor.date is None, uses patient.treatment_start_date."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
-                concept_id=4000,
-                name="neoplasm",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                "C50.9",
+                concept(4000, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL, treatment_start_date=dt.date(2023, 1, 1))
@@ -173,15 +182,12 @@ class TestTumorTypeRows:
 
     def test_no_usable_date_skips(self, static_index, structural_index):
         """When both tumor.date and treatment_start_date are None, skip."""
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
-                concept_id=4000,
-                name="neoplasm",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                "C50.9",
+                concept(4000, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -196,15 +202,12 @@ class TestTumorTypeRows:
 
 class TestMedicalHistoryRows:
     def test_all_fields(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=316866,
-                name="hypertension",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Hypertension",
+                concept(316866, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -250,15 +253,12 @@ class TestMedicalHistoryRows:
         assert result == BuildResult(rows=(), publications=())
 
     def test_ongoing_condition_has_no_end_date(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=316866,
-                name="hypertension",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Hypertension",
+                concept(316866, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -276,15 +276,12 @@ class TestMedicalHistoryRows:
 
 class TestAdverseEventRows:
     def test_all_fields(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=437663,
-                name="fever",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Fever",
+                concept(437663, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -328,15 +325,12 @@ class TestAdverseEventRows:
 
     def test_long_term_is_truncated_to_50_chars(self, static_index, structural_index):
         long_term = "A" * 60
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=437663,
-                name="long condition",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "A" * 60,
+                concept(437663, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -354,30 +348,21 @@ class TestAdverseEventRows:
 
 class TestCombinedSources:
     def test_all_sources_combined(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-                leaf_index=None,
-                concept_id=4000,
-                name="neoplasm",
-                domain="condition",
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                "C50.9",
+                concept(4000, "condition"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=316866,
-                name="hypertension",
-                domain="condition",
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Hypertension",
+                concept(316866, "condition"),
             ),
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-                leaf_index=0,
-                concept_id=437663,
-                name="fever",
-                domain="condition",
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Fever",
+                concept(437663, "condition"),
             ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
@@ -406,15 +391,12 @@ class TestCombinedSources:
         assert len(ids) == len(set(ids)), "All condition_occurrence_ids must be unique"
 
     def test_row_ids_are_deterministic(self, static_index, structural_index):
-        semantic = create_semantic_index(
-            SemanticEntry(
-                patient_id=PID,
-                field_path=(Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
-                leaf_index=0,
-                concept_id=316866,
-                name="hypertension",
-                domain="condition",
-            )
+        semantic = semantic_index(
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Hypertension",
+                concept(316866, "condition"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -438,14 +420,12 @@ class TestAdverseEventFKLinkage:
     the AE's condition row.
     """
 
-    def _ae_semantic(self, leaf_index: int, concept_id: int, name: str) -> SemanticEntry:  # noqa
-        return SemanticEntry(
-            patient_id=PID,
-            field_path=(Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
-            leaf_index=leaf_index,
-            concept_id=concept_id,
-            name=name,
-            domain="condition",
+    @staticmethod
+    def _ae_mapping(value: str, *concept_ids: int):
+        return mapping(
+            (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+            value,
+            *(concept(cid, "condition") for cid in concept_ids),
         )
 
     @staticmethod
@@ -453,7 +433,7 @@ class TestAdverseEventFKLinkage:
         return SourceReference(PID, Patient.Collections.ADVERSE_EVENTS, ae.natural_key())
 
     def test_publishes_link_for_ae(self, static_index, structural_index):
-        semantic = create_semantic_index(self._ae_semantic(0, 437663, "fever"))
+        semantic = semantic_index(self._ae_mapping("Fever", 437663))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
@@ -488,9 +468,9 @@ class TestAdverseEventFKLinkage:
 
     def test_multi_ae_each_published_independently(self, static_index, structural_index):
         """Multiple AEs each publish under their own SourceReference (per-NK keying)."""
-        semantic = create_semantic_index(
-            self._ae_semantic(0, 437663, "fever"),
-            self._ae_semantic(1, 4329847, "nausea"),
+        semantic = semantic_index(
+            self._ae_mapping("Fever", 437663),
+            self._ae_mapping("Nausea", 4329847),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -520,9 +500,8 @@ class TestAdverseEventFKLinkage:
     def test_multi_concept_ae_publishes_all_rows(self, static_index, structural_index):
         """One AE term mapping to multiple condition concepts: all rows published
         under the same AE SourceReference for 1:N downstream expansion."""
-        semantic = create_semantic_index(
-            self._ae_semantic(0, 437663, "fever"),
-            self._ae_semantic(0, 999999, "alternative fever concept"),
+        semantic = semantic_index(
+            self._ae_mapping("Fever", 437663, 999999),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -542,7 +521,7 @@ class TestAdverseEventFKLinkage:
 
     def test_fk_publication_deterministic(self, static_index, structural_index):
         """Two independent builds of the same patient produce identical published_rows state."""
-        semantic = create_semantic_index(self._ae_semantic(0, 437663, "fever"))
+        semantic = semantic_index(self._ae_mapping("Fever", 437663))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
@@ -569,14 +548,11 @@ class TestPrimaryCancerFKPublication:
     """
 
     @staticmethod
-    def _tumor_semantic(concept_id: int) -> SemanticEntry:
-        return SemanticEntry(
-            patient_id=PID,
-            field_path=(Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
-            leaf_index=None,
-            concept_id=concept_id,
-            name="neoplasm",
-            domain="condition",
+    def _tumor_mapping(*concept_ids: int):
+        return mapping(
+            (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+            "C50.9",
+            *(concept(cid, "condition") for cid in concept_ids),
         )
 
     @staticmethod
@@ -584,7 +560,7 @@ class TestPrimaryCancerFKPublication:
         return SourceReference(PID, Patient.Singletons.TUMOR_TYPE, tumor.natural_key())
 
     def test_publishes_primary_cancer_id_from_tumor_type(self, static_index, structural_index):
-        semantic = create_semantic_index(self._tumor_semantic(4000))
+        semantic = semantic_index(self._tumor_mapping(4000))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
         tumor = TumorType(patient_id=PID)
@@ -625,9 +601,8 @@ class TestPrimaryCancerFKPublication:
 
     def test_multi_concept_tumor_publishes_all_rows(self, static_index, structural_index):
         """Two semantic matches for the tumor: both rows published under the tumor SourceReference."""
-        semantic = create_semantic_index(
-            self._tumor_semantic(4000),
-            self._tumor_semantic(4001),
+        semantic = semantic_index(
+            self._tumor_mapping(4000, 4001),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)

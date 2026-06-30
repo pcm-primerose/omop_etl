@@ -7,7 +7,7 @@ LookupType = Literal["static", "structural", "semantic"]
 
 def _norm(v: str | None) -> str:
     """Lowercase and strip a CSV value, defaulting None to empty string."""
-    return (v or "").lower().strip()
+    return (v or "").casefold().strip()
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +48,19 @@ class StaticConcept:
             vocabulary_id=_norm(row["omop_vocab"]),
         )
 
+    def to_mapped(self) -> MappedConcept:
+        """
+        Project this curated row to the unified MappedConcept.
+        """
+        return MappedConcept(
+            concept_id=self.concept_id,
+            concept_code=self.concept_code,
+            concept_name=self.concept_name,
+            domain_id=self.domain_id,
+            vocabulary_id=self.vocabulary_id,
+            validity=self.validity,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class StructuralConcept:
@@ -74,6 +87,17 @@ class StructuralConcept:
             validity=_norm(row["omop_validity"]),
             domain_id=_norm(row["omop_domain"]),
             vocabulary_id=_norm(row["omop_vocab"]),
+        )
+
+    def to_mapped(self) -> MappedConcept:
+        """Project this curated row to the unified MappedConcept."""
+        return MappedConcept(
+            concept_id=self.concept_id,
+            concept_code=self.concept_code,
+            concept_name=self.concept_name,
+            domain_id=self.domain_id,
+            vocabulary_id=self.vocabulary_id,
+            validity=self.validity,
         )
 
     def __iter__(self):

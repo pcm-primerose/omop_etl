@@ -4,7 +4,7 @@ from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.end_of_treatment import EndOfTreatment, TrialOutcomeStatus
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.observation_period import ObservationPeriodBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult
 from tests.omop.conftest import (
     create_build_context,
@@ -13,7 +13,7 @@ from tests.omop.conftest import (
 
 PID = "p1"
 TRIAL = "test"
-PERSON_ID = sha1_bigint("person", PID)
+PERSON_ID = sha256_bigint("person", PID)
 
 
 def _set_eot(patient: Patient, *, date: dt.date | None, status: TrialOutcomeStatus = TrialOutcomeStatus.WITHDRAWN) -> None:

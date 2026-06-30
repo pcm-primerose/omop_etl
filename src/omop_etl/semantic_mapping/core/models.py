@@ -1,7 +1,7 @@
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, List, Collection, Dict
+from typing import Tuple, List, Dict
 import polars as pl
 
 from omop_etl.infra.io.path_planner import WriterContext
@@ -22,7 +22,7 @@ class OutputPaths:
 
 def _norm(v: str | None) -> str:
     """Lowercase and strip a csv value, defaulting None to empty string."""
-    return (v or "").lower().strip()
+    return (v or "").casefold().strip()
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,64 +74,32 @@ class OmopDomain(str, Enum):
     DEVICE = "device"
     MEAS_VALUE = "meas value"
     TYPE_CONCEPT = "type concept"
-
-
-@dataclass(frozen=True, slots=True)
-class QueryTarget:
-    """
-    Filter narrowing which SemanticRows count as a match for a query (by
-    domain, vocab, concept class, standard flag, validity). None = no filter on
-    that facet.
-    """
-
-    domains: Collection[OmopDomain] | None = None
-    vocabs: Collection[str] | None = None
-    concept_classes: Collection[str] | None = None
-    standard_flags: Collection[str] | None = None
-    validity: Collection[str] | None = None
-
-    def __post_init__(self) -> None:
-        def _fs(x):
-            if x is None:
-                return None
-            if isinstance(x, frozenset):
-                return x
-            return frozenset(x)
-
-        object.__setattr__(self, "domains", _fs(self.domains))
-        object.__setattr__(self, "vocabs", _fs(self.vocabs))
-        object.__setattr__(self, "concept_classes", _fs(self.concept_classes))
-        object.__setattr__(self, "standard_flags", _fs(self.standard_flags))
-        object.__setattr__(self, "validity", _fs(self.validity))
+    EPISODE = "episode"
+    REGIMEN = "regimen"
+    GEOGRAPHY = "geography"
 
 
 @dataclass(frozen=True, slots=True)
 class FieldConfig:
     """
-    Configures one Patient field to extract queries from: the field_path to
-    walk and the QueryTarget filter applied to its matches.
+    Declares one Patient field to extract for semantic mapping, i.e. the
+    allow-list of *semantic fields*. It carries only the field_path to walk:
+    no domains (the consumer narrows by domain at lookup time, not here) and no
+    match-time filter. `name` is a label used for run selection
+    (`enable_names`) and coverage reporting.
     """
 
     name: str
     field_path: tuple[str, ...]
-    tags: Collection[str] = field(default_factory=frozenset)
-    target: QueryTarget | None = None
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.tags, frozenset):
-            object.__setattr__(self, "tags", frozenset(self.tags))
 
 
 @dataclass(frozen=True, slots=True)
 class Query:
     """
     One value extracted from a Patient instance to map: its location
-    (patient_id, field_path, leaf_index) plus the raw_value to look up.
-
-    leaf_index is the instance's position in its NK-sorted (deterministic)
-    Patient collection, it correlates this query with its result within a run
-    and never reaches a persisted key (builders key on the NK, not leaf_index).
-    Query (and QueryResult) lifetime is constrained to the semantic-mapping module.
+    (patient_id, field_path) plus the raw_value to look up. Concepts are
+    resolved by the normalized raw_value. Query (and QueryResult) lifetime is
+    constrained to the semantic-mapping module.
     """
 
     patient_id: str
@@ -139,8 +107,6 @@ class Query:
     query: str
     field_path: tuple[str, ...]
     raw_value: str
-    leaf_index: None | int = None
-    target: None | QueryTarget = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +159,6 @@ class BatchQueryResult:
                         "query": q.query,
                         "field_path": ".".join(q.field_path),
                         "raw_value": q.raw_value,
-                        "leaf_index": q.leaf_index,
                         "term_id": sem_row.term_id,
                         "source_col": sem_row.source_col,
                         "source_term": sem_row.source_term,
@@ -221,7 +186,6 @@ class BatchQueryResult:
                     "query": q.query,
                     "field_path": ".".join(q.field_path),
                     "raw_value": q.raw_value,
-                    "leaf_index": q.leaf_index,
                 }
             )
         return pl.DataFrame(rows)
@@ -238,7 +202,6 @@ class BatchQueryResult:
                         "query": q.query,
                         "field_path": ".".join(q.field_path),
                         "raw_value": q.raw_value,
-                        "leaf_index": q.leaf_index,
                         "term_id": sem_row.term_id,
                         "source_col": sem_row.source_col,
                         "source_term": sem_row.source_term,
@@ -265,7 +228,6 @@ class BatchQueryResult:
                     "query": q.query,
                     "field_path": ".".join(q.field_path),
                     "raw_value": q.raw_value,
-                    "leaf_index": q.leaf_index,
                 }
             )
         return rows

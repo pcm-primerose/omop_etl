@@ -2,7 +2,7 @@ import datetime as dt
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.person import PersonBuilder
-from omop_etl.omop.core.id_generator import sha1_bigint
+from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.core.linkage import BuildResult
 from tests.omop.conftest import (
     create_build_context,
@@ -15,7 +15,7 @@ class TestPersonBuilder:
         """check every PersonRow field has the expected value."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient("p1", "test", sex="m", date_of_birth=dt.date(1980, 5, 15))
-        person_id = sha1_bigint("person", "p1")
+        person_id = sha256_bigint("person", "p1")
 
         result = PersonBuilder(concepts).build(create_build_context(patient, person_id))
 
@@ -68,7 +68,7 @@ class TestPersonBuilder:
     def test_row_id_is_deterministic(self, static_index, structural_index):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient("p1", "test", sex="m", date_of_birth=dt.date(1980, 1, 1))
-        person_id = sha1_bigint("person", "p1")
+        person_id = sha256_bigint("person", "p1")
 
         rows_a = PersonBuilder(concepts).build(create_build_context(patient, person_id))
         rows_b = PersonBuilder(concepts).build(create_build_context(patient, person_id))

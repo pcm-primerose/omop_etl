@@ -19,23 +19,20 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]
 
         # collections
         if isinstance(attr, (list, tuple, set)):
-            for idx, item in enumerate(attr):
+            for item in attr:
                 val = _get_nested_attr(item, tail) if tail else item
                 if isinstance(val, str) and val:
                     query_id = _make_query_id(
                         patient_id=patient.patient_id,
                         field_path=cfg.field_path,
-                        leaf_index=idx,
                         raw_value=val,
                     )
                     queries.append(
                         Query(
                             id=query_id,
                             patient_id=patient.patient_id,
-                            query=val.lower().strip(),
+                            query=val.casefold().strip(),
                             field_path=cfg.field_path,
-                            leaf_index=idx,
-                            target=cfg.target,
                             raw_value=val,
                         )
                     )
@@ -47,17 +44,14 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]
             query_id = _make_query_id(
                 patient_id=patient.patient_id,
                 field_path=cfg.field_path,
-                leaf_index=None,
                 raw_value=val,
             )
             queries.append(
                 Query(
                     id=query_id,
                     patient_id=patient.patient_id,
-                    query=val.lower().strip(),
+                    query=val.casefold().strip(),
                     field_path=cfg.field_path,
-                    leaf_index=None,
-                    target=cfg.target,
                     raw_value=val,
                 )
             )
@@ -68,15 +62,13 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]
 def _make_query_id(
     patient_id: str,
     field_path: tuple[str, ...],
-    leaf_index: int | None,
     raw_value: str,
 ) -> str:
     key = "|".join(
         [
             patient_id,
             ".".join(field_path),
-            "" if leaf_index is None else str(leaf_index),
-            raw_value.strip().lower(),
+            raw_value.strip().casefold(),
         ]
     )
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]

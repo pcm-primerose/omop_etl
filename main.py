@@ -8,7 +8,6 @@ from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.omop.service import OmopService
-from omop_etl.omop.models.tables import OmopTables
 from omop_etl.preprocessing.service import (
     make_ecrf_config,
     PreprocessService,
@@ -86,10 +85,8 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
 
     # build OMOP rows using the concept service
     omop_service = OmopService(concepts=concept_service)
-    tables: OmopTables = omop_service.build(harmonized_result.patients)
-
-    # todo: remove
-    # print(f"built tables: {tables}")
+    tables = omop_service.build(harmonized_result.patients)
+    # print(f"cohort: {tables.location}")
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")

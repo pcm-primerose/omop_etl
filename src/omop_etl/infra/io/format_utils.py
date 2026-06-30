@@ -44,7 +44,7 @@ def expand_formats(
     requested: list[F] = []
 
     for tok in raw:
-        t = tok.lower()
+        t = tok.casefold()
         if t == "all":
             for f in allowed:
                 if f not in seen:
