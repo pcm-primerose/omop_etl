@@ -41,16 +41,16 @@ def _concept_matches_filter(
     like "Gender", "Visit", "Route", "Type Concept", "Metadata").
     """
     if domains is not None:
-        wanted = {d.lower() for d in domains}
-        if (concept.domain_id or "").lower() not in wanted:
+        wanted = {d.casefold() for d in domains}
+        if (concept.domain_id or "").casefold() not in wanted:
             return False
     if vocabs is not None:
-        wanted_v = {v.lower() for v in vocabs}
-        if (concept.vocabulary_id or "").lower() not in wanted_v:
+        wanted_v = {v.casefold() for v in vocabs}
+        if (concept.vocabulary_id or "").casefold() not in wanted_v:
             return False
     if validities is not None:
-        wanted_s = {s.lower() for s in validities}
-        if (concept.validity or "").lower() not in wanted_s:
+        wanted_s = {s.casefold() for s in validities}
+        if (concept.validity or "").casefold() not in wanted_s:
             return False
     return True
 
@@ -179,11 +179,11 @@ class ConceptLookupService:
         if value is None:
             kind = "structural"
             record_value = ""
-            concept = self._structural.get(value_set.lower().strip())
+            concept = self._structural.get(value_set.casefold().strip())
         else:
             kind = "static"
             record_value = value
-            concept = self._static.get((value_set.lower().strip(), str(value).lower().strip()))
+            concept = self._static.get((value_set.casefold().strip(), str(value).casefold().strip()))
         if concept is None:
             self._result.record_miss(kind, value_set, record_value)
             return ()

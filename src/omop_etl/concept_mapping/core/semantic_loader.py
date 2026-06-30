@@ -8,7 +8,7 @@ from omop_etl.semantic_mapping.core.models import (
 
 
 def _normalize(value: str) -> str:
-    return value.lower().strip()
+    return value.casefold().strip()
 
 
 @dataclass(frozen=True, slots=True)

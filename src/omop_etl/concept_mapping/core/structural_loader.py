@@ -35,7 +35,7 @@ class StructuralMapLoader:
         # match normalized values from from_csv_row
         idx: dict[str, MappedConcept] = {}
         for r in self.as_rows():
-            key = r.value_set.lower().strip()
+            key = r.value_set.casefold().strip()
             existing = idx.get(key)
             if existing is not None and existing.concept_id != r.concept_id:
                 raise ValueError(

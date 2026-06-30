@@ -152,7 +152,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             value_as_concept_id=self._yes_no_concept_id(value),
             observation_source_value=field_name,
             observation_source_concept_id=0,
-            value_source_value=str(value).lower(),
+            value_source_value=str(value).casefold(),
             observation_event_id=observation_event_id,
             obs_event_field_concept_id=obs_event_field_concept_id,
         )
@@ -724,7 +724,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             if expected is None:
                 continue
             field_name = f"was_serious_grade_expected_treatment_{treatment_num}"
-            value_literal = str(expected).lower()
+            value_literal = str(expected).casefold()
             concept = self.concepts.resolve("expectedness", value_literal)
 
             def row(

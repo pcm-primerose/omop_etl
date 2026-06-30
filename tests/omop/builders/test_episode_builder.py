@@ -2,7 +2,6 @@ import datetime as dt
 
 import pytest
 
-from tests.omop.conftest import create_patient, create_build_context, semantic_index, mapping, concept
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -11,8 +10,18 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.condition_occurrence import ConditionOccurrenceBuilder
 from omop_etl.omop.builders.episode import EpisodeBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
-from omop_etl.omop.core.linkage import BuildResult, SourceReference
 from omop_etl.omop.models.tables import OmopTables
+from omop_etl.omop.core.linkage import (
+    BuildResult,
+    SourceReference,
+)
+from tests.omop.conftest import (
+    create_patient,
+    create_build_context,
+    semantic_index,
+    mapping,
+    concept,
+)
 
 PID = "p1"
 TRIAL = "test"
@@ -76,7 +85,7 @@ def _dynamic_episode_concept(static_index: dict, value_set: str, response: str) 
     the same fixture chain it uses: response -> Measurement concept -> dynamic_status.
     """
     measurement = static_index[(value_set, response.lower())].concept_id
-    return static_index[("dynamic_status", str(measurement))].concept_id
+    return static_index[("dynamic_status", str(measurement).lower())].concept_id
 
 
 @pytest.fixture

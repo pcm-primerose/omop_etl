@@ -10,11 +10,19 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessment
-from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
-from omop_etl.omop.core.linkage import RowPublication, SourceReference, OmopRowReference
 from omop_etl.omop.models.rows import EpisodeRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
+from omop_etl.omop.builders.base import (
+    BuildContext,
+    BuildResult,
+    OmopBuilder,
+)
+from omop_etl.omop.core.linkage import (
+    RowPublication,
+    SourceReference,
+    OmopRowReference,
+)
 
 log = getLogger(__name__)
 

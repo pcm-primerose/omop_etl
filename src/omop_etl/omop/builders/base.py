@@ -1,13 +1,9 @@
-import json
 from abc import ABC, abstractmethod
 from typing import ClassVar, Generic, TypeVar
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.context import BuildContext
-from omop_etl.omop.core.id_generator import (
-    sha256_bigint,
-    normalize_row_id_part,
-)
+from omop_etl.omop.core.id_generator import row_id
 from omop_etl.omop.core.linkage import (
     BuildResult,
     SourceReference,
@@ -55,19 +51,10 @@ class OmopBuilder(ABC, Generic[T]):
         """
         Deterministic 63-bit row ID from `(namespace, patient_id, *key_parts)`.
         Namespace defaults to `table_name`. `patient_id` is required positional
-        to prevent cross-patient PK collisions. `key_parts` are normalized via
-        `normalize_row_id_part` then JSON-serialized to avoid delimiter and
-        None-drop collisions.
+        to prevent cross-patient PK collisions, passed as the leading id part.
         """
         namespace = self.id_namespace or self.table_name
-
-        payload = json.dumps(
-            [patient_id, *(normalize_row_id_part(p) for p in key_parts)],
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
-
-        return sha256_bigint(namespace, payload)
+        return row_id(namespace, patient_id, *key_parts)
 
     def _resolve_link_targets(
         self,

@@ -1,7 +1,6 @@
 import datetime as dt
 import pytest
 
-from tests.omop.conftest import create_patient, create_build_context, semantic_index, mapping, concept
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
@@ -13,6 +12,13 @@ from omop_etl.omop.builders.episode import EpisodeBuilder
 from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
+from tests.omop.conftest import (
+    create_patient,
+    create_build_context,
+    semantic_index,
+    mapping,
+    concept,
+)
 
 PID = "p1"
 TRIAL = "test"
@@ -43,7 +49,7 @@ def _cycle(treatment_number: int, cycle_number: int, start: dt.date) -> Treatmen
 
 
 def _component(treatment_number: int, cycle_number: int, start: dt.date, ingredient: str) -> TreatmentCycleComponent:
-    """One ingredient of a combination drug: shares (treatment_number, cycle_number)."""
+    """One ingredient of a combination drug."""
     c = TreatmentCycleComponent(patient_id=PID)
     c.source_treatment_name = "Phesgo (Pertuzumab and Trastuzumab)"
     c.ingredient_name = ingredient
@@ -55,7 +61,7 @@ def _component(treatment_number: int, cycle_number: int, start: dt.date, ingredi
 
 @pytest.fixture
 def cycle_only_structural(structural_index):
-    """structural_index minus the regimen concept."""
+    """structural_index without the regimen concept."""
     return {k: v for k, v in structural_index.items() if k != "treatment_regimen"}
 
 
@@ -78,7 +84,7 @@ class TestTreatmentCycleDrugLinks:
         patient.treatment_cycles = [c1, c2]
         ctx = create_build_context(patient, PERSON_ID)
 
-        # DrugExposureBuilder publishes each component's drug row, EpisodeBuilder the cycle episode
+        # populate context with published rows
         drug_rows = DrugExposureBuilder(concepts).build_and_populate(ctx)
         episode_rows = EpisodeBuilder(concepts).build_and_populate(ctx)
 

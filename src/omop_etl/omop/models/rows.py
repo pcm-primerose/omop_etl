@@ -272,3 +272,32 @@ class EpisodeEventRow:
     episode_id: int
     event_id: int
     episode_event_field_concept_id: int
+
+
+@pd_dataclass(frozen=True, slots=True)
+class CohortRow:
+    """
+    OMOP RESULTS-schema cohort table row: one trial-arm membership per patient.
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#cohort
+    """
+
+    cohort_definition_id: int
+    subject_id: int
+    cohort_start_date: dt.date
+    cohort_end_date: dt.date
+
+
+@pd_dataclass(frozen=True, slots=True)
+class CohortDefinitionRow:
+    """
+    OMOP RESULTS-schema cohort_definition table row: one per distinct trial arm.
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#cohort_definition
+    """
+
+    cohort_definition_id: int
+    cohort_definition_name: Annotated[str, pd_field(max_length=255)]
+    definition_type_concept_id: int
+    subject_concept_id: int
+    cohort_definition_description: Annotated[str | None, pd_field(max_length=2147483647)] = None
+    cohort_definition_syntax: Annotated[str | None, pd_field(max_length=2147483647)] = None
+    cohort_initiation_date: dt.date | None = None

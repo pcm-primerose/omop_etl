@@ -16,6 +16,8 @@ from omop_etl.omop.builders.visit_occurrence import VisitOccurrenceBuilder
 from omop_etl.omop.builders.drug_exposure import DrugExposureBuilder
 from omop_etl.omop.builders.episode import EpisodeBuilder
 from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
+from omop_etl.omop.builders.cohort import CohortBuilder
+from omop_etl.omop.builders.cohort_definition import CohortDefinitionBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.models.tables import OmopTables
 
@@ -48,6 +50,7 @@ class OmopService:
             DeathBuilder(concepts),
             EpisodeBuilder(concepts),
             EpisodeEventBuilder(concepts),
+            CohortBuilder(concepts),
         ]
 
     def build(self, patients: Sequence[Patient]) -> OmopTables:
@@ -66,5 +69,11 @@ class OmopService:
 
         # singleton metadata row
         tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts).build())
+
+        # cross-patient reference: one cohort_definition per distinct arm observed
+        tables.extend(
+            OmopTables.COHORT_DEFINITION,
+            CohortDefinitionBuilder(self._concepts).build(patients),
+        )
 
         return tables

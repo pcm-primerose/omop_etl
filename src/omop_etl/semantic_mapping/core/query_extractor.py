@@ -31,7 +31,7 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]
                         Query(
                             id=query_id,
                             patient_id=patient.patient_id,
-                            query=val.lower().strip(),
+                            query=val.casefold().strip(),
                             field_path=cfg.field_path,
                             raw_value=val,
                         )
@@ -50,7 +50,7 @@ def extract_queries(patient: Patient, configs: List[FieldConfig]) -> List[Query]
                 Query(
                     id=query_id,
                     patient_id=patient.patient_id,
-                    query=val.lower().strip(),
+                    query=val.casefold().strip(),
                     field_path=cfg.field_path,
                     raw_value=val,
                 )
@@ -68,7 +68,7 @@ def _make_query_id(
         [
             patient_id,
             ".".join(field_path),
-            raw_value.strip().lower(),
+            raw_value.strip().casefold(),
         ]
     )
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]

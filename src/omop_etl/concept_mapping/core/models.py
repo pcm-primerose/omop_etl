@@ -7,7 +7,7 @@ LookupType = Literal["static", "structural", "semantic"]
 
 def _norm(v: str | None) -> str:
     """Lowercase and strip a CSV value, defaulting None to empty string."""
-    return (v or "").lower().strip()
+    return (v or "").casefold().strip()
 
 
 @dataclass(frozen=True, slots=True)

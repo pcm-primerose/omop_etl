@@ -77,7 +77,7 @@ class HarmonizationPipeline:
 
     @staticmethod
     def _read_input(path: Path, schema: pl.Schema | None = None) -> pl.DataFrame:
-        suf = path.suffix.lower()
+        suf = path.suffix.casefold()
 
         if suf == ".parquet":
             if schema is None:

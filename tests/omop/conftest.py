@@ -206,6 +206,8 @@ def structural_index() -> dict[str, MappedConcept]:
         "treatment_regimen": _structural(32531, "episode"),
         "treatment_cycle": _structural(32532, "episode"),
         "disease_episode": _structural(32533, "episode"),
+        # cohort_definition builder: subject domain concept (Person table)
+        "cohort_subject": _structural(1147314, "metadata"),
     }
 
 

@@ -18,7 +18,7 @@ class SemanticIndex:
         results: list[QueryResult] = []
 
         for q in queries:
-            query = q.query.lower().strip()
+            query = q.query.casefold().strip()
             candidates = self.indexed_corpus.get(query, [])
 
             results.append(

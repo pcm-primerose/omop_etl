@@ -33,7 +33,7 @@ class StaticMapLoader:
     def as_index(self) -> dict[tuple[str, str], MappedConcept]:
         idx: dict[tuple[str, str], MappedConcept] = {}
         for r in self.as_rows():
-            key = (r.value_set.lower().strip(), str(r.local_value).lower().strip())
+            key = (r.value_set.casefold().strip(), str(r.local_value).casefold().strip())
             existing = idx.get(key)
             if existing is not None and existing.concept_id != r.concept_id:
                 raise ValueError(

@@ -10,7 +10,7 @@ _TRIALS: Dict[str, type[BaseHarmonizer]] = {
 
 
 def resolve_harmonizer(trial: str) -> type[BaseHarmonizer]:
-    key = trial.lower()
+    key = trial.casefold()
     try:
         return _TRIALS[key]
     except KeyError:

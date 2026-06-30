@@ -1,4 +1,5 @@
 import hashlib
+import json
 import datetime as dt
 
 
@@ -34,3 +35,15 @@ def normalize_row_id_part(part: RowIdPart) -> object:
         return part
 
     raise TypeError(f"Unsupported row-id key part: {part!r} ({type(part).__name__})")
+
+
+def row_id(namespace: str, *parts: RowIdPart) -> int:
+    """
+    Deterministic 63-bit row id from `(namespace, *parts)`.
+    """
+    payload = json.dumps(
+        [normalize_row_id_part(p) for p in parts],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return sha256_bigint(namespace, payload)

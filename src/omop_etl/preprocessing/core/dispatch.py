@@ -16,7 +16,7 @@ _TRIALS: Dict[str, Processor] = {
 
 
 def resolve_preprocessor(trial: str) -> Processor:
-    key = trial.lower()
+    key = trial.casefold()
     try:
         return _TRIALS[key]
     except KeyError:
