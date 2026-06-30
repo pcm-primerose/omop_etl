@@ -86,8 +86,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     # build OMOP rows using the concept service
     omop_service = OmopService(concepts=concept_service)
     tables = omop_service.build(harmonized_result.patients)
-    print(f"cohort: {tables.cohort}")
-    print(f"cohort definiton: {tables.cohort_definition}")
+    # print(f"cohort: {tables.location}")
 
     # export concept lookup tracking (missed lookups, coverage stats)
     concept_service.export(formats="csv")

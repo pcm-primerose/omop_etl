@@ -76,6 +76,7 @@ class OmopDomain(str, Enum):
     TYPE_CONCEPT = "type concept"
     EPISODE = "episode"
     REGIMEN = "regimen"
+    GEOGRAPHY = "geography"
 
 
 @dataclass(frozen=True, slots=True)

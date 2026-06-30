@@ -18,6 +18,7 @@ from omop_etl.omop.builders.episode import EpisodeBuilder
 from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
 from omop_etl.omop.builders.cohort import CohortBuilder
 from omop_etl.omop.builders.cohort_definition import CohortDefinitionBuilder
+from omop_etl.omop.builders.location import LocationBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.models.tables import OmopTables
 
@@ -74,6 +75,12 @@ class OmopService:
         tables.extend(
             OmopTables.COHORT_DEFINITION,
             CohortDefinitionBuilder(self._concepts).build(patients),
+        )
+
+        # cross-patient reference: one location per distinct trial country
+        tables.extend(
+            OmopTables.LOCATION,
+            LocationBuilder(self._concepts).build(patients),
         )
 
         return tables

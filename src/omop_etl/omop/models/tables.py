@@ -16,6 +16,7 @@ from omop_etl.omop.models.rows import (
     EpisodeEventRow,
     CohortRow,
     CohortDefinitionRow,
+    LocationRow,
 )
 
 
@@ -53,6 +54,7 @@ class OmopTables:
     EPISODE_EVENT: ClassVar[str] = "episode_event"
     COHORT: ClassVar[str] = "cohort"
     COHORT_DEFINITION: ClassVar[str] = "cohort_definition"
+    LOCATION: ClassVar[str] = "location"
 
     _tables: dict[str, list[Any]] = field(default_factory=dict)
 
@@ -135,3 +137,7 @@ class OmopTables:
     @property
     def cohort_definition(self) -> list[CohortDefinitionRow]:
         return self._tables.get(self.COHORT_DEFINITION, [])
+
+    @property
+    def location(self) -> list[LocationRow]:
+        return self._tables.get(self.LOCATION, [])

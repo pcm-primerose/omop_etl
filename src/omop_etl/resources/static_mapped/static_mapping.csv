@@ -165,3 +165,7 @@ eot_reason_code,1,45884383,LA7266-5,Adverse event,Answer,Standard,Valid,Meas Val
 eot_reason_code,6,4111347,285384003,General health deterioration,Clinical Finding,Standard,Valid,Observation,SNOMED
 eot_reason_code,3,45878680,LA4389-8,Refused,Answer,Standard,Valid,Meas Value,LOINC
 eot_reason_code,5,44810920,871401000000109,Withdrawn from research study,Clinical Finding,Standard,Valid,Observation,SNOMED
+trial_country,drup,42032171,2323309,Netherlands,2nd level,Standard,Valid,Geography,OSM
+trial_country,impress,4328758,223673006,Norway,Location,Standard,Valid,Geography,SNOMED
+trial_country,finprove,4320323,223665002,Finland,Location,Standard,Valid,Geography,SNOMED
+trial_country,protarget,41930999,50046,Denmark,2nd level,Standard,Valid,Geography,OSM

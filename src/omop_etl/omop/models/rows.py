@@ -301,3 +301,23 @@ class CohortDefinitionRow:
     cohort_definition_description: Annotated[str | None, pd_field(max_length=2147483647)] = None
     cohort_definition_syntax: Annotated[str | None, pd_field(max_length=2147483647)] = None
     cohort_initiation_date: dt.date | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class LocationRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#location
+    """
+
+    location_id: int
+    address_1: Annotated[str | None, pd_field(max_length=50)] = None
+    address_2: Annotated[str | None, pd_field(max_length=50)] = None
+    city: Annotated[str | None, pd_field(max_length=50)] = None
+    state: Annotated[str | None, pd_field(max_length=2)] = None
+    zip: Annotated[str | None, pd_field(max_length=9)] = None
+    county: Annotated[str | None, pd_field(max_length=20)] = None
+    location_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    country_concept_id: int | None = None
+    country_source_value: Annotated[str | None, pd_field(max_length=80)] = None
+    latitude: float | None = None
+    longitude: float | None = None
