@@ -28,6 +28,7 @@ dev = [
   "ty>=0.0.8",
   "complexipy>=5.1.0",
   "scalene>=2.0.1",
+  "radon>=6.0.1",
 ]
 
 [build-system]

@@ -68,10 +68,10 @@ class Vocabulary:
         return cls(concepts)
 
     @classmethod
-    def from_csv(cls, path: Path) -> Self:
-        """Load a tab-delimited OMOP CONCEPT subset file."""
+    def from_csv(cls, path: Path, delim: str = "\t") -> Self:
+        """Load a OMOP CONCEPT subset file."""
         with path.open(newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f, delimiter="\t")
+            reader = csv.DictReader(f, delimiter=delim)
             _validate_header(reader.fieldnames, path)
             return cls.from_concept_rows(reader)
 

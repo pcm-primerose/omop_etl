@@ -1,10 +1,12 @@
 import logging
-
 import pytest
 
 from omop_etl.concept_mapping.core.models import MappedConcept
 from omop_etl.concept_mapping.core.vocabulary import Vocabulary
-from tests.concept_mapping.conftest import ConceptRow, write_concept_tsv
+from tests.concept_mapping.conftest import (
+    ConceptRow,
+    write_concept_tsv,
+)
 
 
 def _vocab(*rows: ConceptRow) -> Vocabulary:
@@ -12,7 +14,7 @@ def _vocab(*rows: ConceptRow) -> Vocabulary:
 
 
 def _hydrated(vocab: Vocabulary, concept_id: int) -> MappedConcept:
-    """hydrate() + a presence assert, so field assertions don't trip on `| None`."""
+    """hydrate() + presence assert to avoid None type warnings."""
     concept = vocab.hydrate(concept_id)
     assert concept is not None, f"expected concept {concept_id} in vocabulary"
     return concept
