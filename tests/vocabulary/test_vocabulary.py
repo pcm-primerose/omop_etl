@@ -2,8 +2,8 @@ import logging
 import pytest
 
 from omop_etl.concept_mapping.core.models import MappedConcept
-from omop_etl.concept_mapping.core.vocabulary import Vocabulary
-from tests.concept_mapping.conftest import (
+from omop_etl.vocabulary.vocabulary import Vocabulary
+from tests.vocabulary.conftest import (
     ConceptRow,
     write_concept_tsv,
 )
@@ -48,14 +48,14 @@ class TestVocabulary:
         assert vocab.hydrate(999) is None
 
     def test_identical_duplicate_deduped_silently(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="omop_etl.concept_mapping.core.vocabulary"):
+        with caplog.at_level(logging.WARNING, logger="omop_etl.vocabulary.vocabulary"):
             vocab = _vocab(ConceptRow(4112853), ConceptRow(4112853))
 
         assert len(vocab) == 1
         assert caplog.records == []  # identical attributes: no warning
 
     def test_conflicting_duplicate_warns_and_keeps_first(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="omop_etl.concept_mapping.core.vocabulary"):
+        with caplog.at_level(logging.WARNING, logger="omop_etl.vocabulary.vocabulary"):
             vocab = _vocab(
                 ConceptRow(4112853, concept_name="Malignant melanoma"),
                 ConceptRow(4112853, concept_name="Something else"),

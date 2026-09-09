@@ -5,7 +5,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Self
 
-from omop_etl.concept_mapping.core.models import MappedConcept
+from omop_etl.concept_mapping.core.models import MappedConcept, validity_from_invalid_reason
 
 log = getLogger(__name__)
 
@@ -95,7 +95,7 @@ def _concept_row_to_mapped(row: Mapping[str, str | None]) -> MappedConcept:
         concept_name=_cell(row, "concept_name"),
         domain_id=_cell(row, "domain_id"),
         vocabulary_id=_cell(row, "vocabulary_id"),
-        validity="valid" if invalid_reason == "" else "invalid",
+        validity=validity_from_invalid_reason(invalid_reason),
     )
 
 

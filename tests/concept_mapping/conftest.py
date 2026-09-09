@@ -1,5 +1,4 @@
 import pytest
-from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from omop_etl.concept_mapping.core.models import (
@@ -7,38 +6,7 @@ from omop_etl.concept_mapping.core.models import (
     StructuralConcept,
     MappedConcept,
 )
-from omop_etl.concept_mapping.core.vocabulary import CONCEPT_COLUMNS
 from omop_etl.infra.utils.run_context import RunMetadata
-
-
-@dataclass(frozen=True, slots=True)
-class ConceptRow:
-    """
-    One OMOP CONCEPT row (Athena export shape) for vocabulary tests. Only concept_id
-    is the subject, the rest default to a plausible standard/valid SNOMED conditions.
-    """
-
-    concept_id: int
-    concept_name: str = "Malignant melanoma"
-    domain_id: str = "Condition"
-    vocabulary_id: str = "SNOMED"
-    concept_class_id: str = "Clinical Finding"
-    standard_concept: str = "S"
-    concept_code: str = "93655004"
-    valid_start_date: str = "20020131"
-    valid_end_date: str = "20991231"
-    invalid_reason: str = ""
-
-    def as_row(self) -> dict[str, str]:
-        return {k: str(v) for k, v in asdict(self).items()}
-
-
-def write_concept_tsv(path: Path, *rows: ConceptRow) -> Path:
-    """Write ConceptRows to a tab-delimited OMOP CONCEPT file, as Vocabulary.from_csv reads."""
-    lines = ["\t".join(CONCEPT_COLUMNS)]
-    lines += ["\t".join(r.as_row()[column] for column in CONCEPT_COLUMNS) for r in rows]
-    path.write_text("\n".join(lines) + "\n")
-    return path
 
 
 @pytest.fixture

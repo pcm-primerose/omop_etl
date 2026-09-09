@@ -10,6 +10,11 @@ def _norm(v: str | None) -> str:
     return (v or "").casefold().strip()
 
 
+def validity_from_invalid_reason(invalid_reason: str) -> str:
+    """OMOP convention: blank `invalid_reason` = valid, `D`/`U` (or anything else) = invalid."""
+    return "valid" if invalid_reason.strip() == "" else "invalid"
+
+
 @dataclass(frozen=True, slots=True)
 class MappedConcept:
     concept_id: int
@@ -38,14 +43,14 @@ class StaticConcept:
         return cls(
             value_set=_norm(row["value_set"]),
             local_value=_norm(row["local_value"]),
-            concept_id=int(row["omop_concept_id"]),
-            concept_code=_norm(row["omop_concept_code"]),
-            concept_name=_norm(row["omop_concept_name"]),
-            concept_class=_norm(row["omop_concept_class"]),
-            standard_concept=_norm(row["omop_standard_concept"]),
-            validity=_norm(row["omop_validity"]),
-            domain_id=_norm(row["omop_domain"]),
-            vocabulary_id=_norm(row["omop_vocab"]),
+            concept_id=int(row["concept_id"]),
+            concept_code=_norm(row["concept_code"]),
+            concept_name=_norm(row["concept_name"]),
+            concept_class=_norm(row["concept_class_id"]),
+            standard_concept=_norm(row["standard_concept"]),
+            validity=validity_from_invalid_reason(row.get("invalid_reason") or ""),
+            domain_id=_norm(row["domain_id"]),
+            vocabulary_id=_norm(row["vocabulary_id"]),
         )
 
     def to_mapped(self) -> MappedConcept:
@@ -79,14 +84,14 @@ class StructuralConcept:
     def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
         return cls(
             value_set=_norm(row["value_set"]),
-            concept_id=int(row["omop_concept_id"]),
-            concept_code=_norm(row["omop_concept_code"]),
-            concept_name=_norm(row["omop_concept_name"]),
-            concept_class=_norm(row["omop_concept_class"]),
-            standard_concept=_norm(row["omop_standard_concept"]),
-            validity=_norm(row["omop_validity"]),
-            domain_id=_norm(row["omop_domain"]),
-            vocabulary_id=_norm(row["omop_vocab"]),
+            concept_id=int(row["concept_id"]),
+            concept_code=_norm(row["concept_code"]),
+            concept_name=_norm(row["concept_name"]),
+            concept_class=_norm(row["concept_class_id"]),
+            standard_concept=_norm(row["standard_concept"]),
+            validity=validity_from_invalid_reason(row.get("invalid_reason") or ""),
+            domain_id=_norm(row["domain_id"]),
+            vocabulary_id=_norm(row["vocabulary_id"]),
         )
 
     def to_mapped(self) -> MappedConcept:

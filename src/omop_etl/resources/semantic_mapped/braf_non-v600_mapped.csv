@@ -195,7 +195,7 @@ d3fff833-a4ab-56d4-ae0f-76b2a7fea1cb,COH_COHTTYPE__2,Salivary Gland Cancer,1,411
 b36cf15c-8eef-5b61-8ca7-8a8eefaeaab6,COH_ICD10COD,C34.9,2,4311499,93986008,Primary malignant neoplasm of respiratory tract,Disorder,Standard,Valid,Condition,SNOMED
 e1fd68a5-855f-58ba-af0c-0ee4f984a83f,COH_ICD10COD,C25.9,2,199754,372003004,Primary malignant neoplasm of pancreas,Disorder,Standard,Valid,Condition,SNOMED
 651d2aa2-3e45-5f2f-a3fd-57c1edae6d1b,COH_ICD10COD,C41.1,1,379756,93886007,Primary malignant neoplasm of mandible,Disorder,Standard,Valid,Condition,SNOMED
-374f1c62-f67e-5f8e-be80-8791b59a63bb,COH_ICD10COD,C68,1,176349,94125001,Primary malignant neoplasm of urinary system,Disorder,Standard,Valid,Condition,SNOMED
+374f1c62-f67e-5f8e-be80-8791b59a63bb,COH_ICD10COD,C68,1,76349,94125001,Primary malignant neoplasm of urinary system,Disorder,Standard,Valid,Condition,SNOMED
 4ff9708b-d295-561f-8e77-cf3d3c0392c2,COH_ICD10COD,C18.9,1,197500,93761005,Primary malignant neoplasm of colon,Disorder,Standard,Valid,Condition,SNOMED
 ae2ad189-9296-576c-bf0a-73c0f11b19a7,COH_ICD10COD,C67.9,1,196360,93689003,Primary malignant neoplasm of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
 c648926d-0e47-5fea-b4d0-eea1441d1cf9,COH_ICD10COD,C08.9,1,4247836,93883004,Primary malignant neoplasm of major salivary gland,Disorder,Standard,Valid,Condition,SNOMED
@@ -207,7 +207,7 @@ ba26fec0-dbab-5612-b737-b59938a10160,COH_ICD10DES,NSCLC,1,4115276,254637007,Non-
 2b30f454-3ccf-53c2-8a1a-59a37557ad1e,COH_ICD10DES,Malignant neoplasm og lung,1,443388,363358000,Malignant neoplasm of lung,Disorder,Standard,Valid,Condition,SNOMED
 cead6e82-896b-58ae-b445-7d007a7272ac,COH_ICD10DES,Malignant neoplasm of mandible,1,40490993,448668007,Malignant neoplasm of mandible,Disorder,Standard,Valid,Condition,SNOMED
 afc05665-c0bb-5a45-b5d5-eb571fea1e08,COH_ICD10DES,Urothelial carcinoma,1,4113111,255109008,Transitional cell carcinoma of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
-20a25052-61c5-5998-9400-0af98a5bcd12,COH_ICD10DES,"Malignant neoplasm of colon, unspecified",1,1197500,93761005,Primary malignant neoplasm of colon,Disorder,Standard,Valid,Condition,SNOMED
+20a25052-61c5-5998-9400-0af98a5bcd12,COH_ICD10DES,"Malignant neoplasm of colon, unspecified",1,197500,93761005,Primary malignant neoplasm of colon,Disorder,Standard,Valid,Condition,SNOMED
 fed6b606-3528-5ec8-a75b-4cefb4d9d2de,COH_ICD10DES,Bladder cancer,1,4113110,255108000,Carcinoma of urinary bladder,Disorder,Standard,Valid,Condition,SNOMED
 9f28939d-5fe7-5aa9-ac6f-5f32377200a4,COH_ICD10DES,Pancreatic cancer,1,4180793,363418001,Malignant tumor of pancreas,Disorder,Standard,Valid,Condition,SNOMED
 1cbddf14-d8dd-597f-a509-ea513aa9d27a,COH_ICD10DES,Pancreatic adenocarcinoma,1,37311469,792907004,Pancreatic ductal adenocarcinoma,Disorder,Standard,Valid,Condition,SNOMED
@@ -255,7 +255,7 @@ fb30ae75-2962-515b-a06e-ee72e0ad8107,MH_MHTERM,stroke (brain infarct),1,381316,2
 f7445f4a-8d1f-5620-b567-9074b2ac88a1,MH_MHTERM,"ca pancreas,opr",1,4105909,29630005,Operation on pancreas,Procedure,Standard,Valid,Procedure,SNOMED
 9bf221e4-e43e-5963-a0e5-95ef57cd3510,MH_MHTERM,Multiple myeloma,1,437233,109989006,Multiple myeloma,Disorder,Standard,Valid,Condition,SNOMED
 ac7326d9-1870-5705-aaf1-4650ae372865,MH_MHTERM,"ca mamma, opr",1,4194253,392090004,Operation on breast,Procedure,Standard,Valid,Procedure,SNOMED
-c07275fa-b739-5a0a-beff-aa4ee431242a,MH_MHTERM,chronic marginal periodontitis,1,098062,252283005,Marginal periodontitis,Disorder,Standard,Valid,Condition,SNOMED
+c07275fa-b739-5a0a-beff-aa4ee431242a,MH_MHTERM,chronic marginal periodontitis,1,4098062,252283005,Marginal periodontitis,Disorder,Standard,Valid,Condition,SNOMED
 0a9e9fa3-9504-5e53-b400-975cb753ed27,MH_MHTERM,Thyroid cyst,1,138113,72325004,Cyst of thyroid,Disorder,Standard,Valid,Condition,SNOMED
 efaf1bd0-8bc1-5f1a-9e12-8e454e97da95,MH_MHTERM,Esophagitis,1,30753,16761005,Esophagitis,Disorder,Standard,Valid,Condition,SNOMED
 e2df0b9b-4acf-516f-81bf-93728a8bcbec,MH_MHTERM,Toxic gastroenteritis and colitis,1,197596,71583005,Toxic gastroenteritis,Disorder,Standard,Valid,Condition,SNOMED
