@@ -18,9 +18,9 @@ class TestCollectConceptIds:
 
     def test_blank_concept_id_raises(self, tmp_path):
         path = tmp_path / "bad_mapping.csv"
-        path.write_text("value_set,local_value,omop_concept_id\nsex,M,\n")
+        path.write_text("value_set,source_value,concept_id\nsex,M,\n")
 
-        with pytest.raises(ValueError, match="blank `omop_concept_id`"):
+        with pytest.raises(ValueError, match="blank `concept_id`"):
             collect_concept_ids([path])
 
 

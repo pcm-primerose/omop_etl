@@ -53,9 +53,21 @@ class TestOmopServiceOrchestration:
     def test_all_builders_produce_output(self, static_index, structural_index):
         """A fully-populated patient with semantic entries produces rows in all tables."""
         semantic = semantic_index(
-            mapping((Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE), "C50.9", concept(4000, "condition")),
-            mapping((Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM), "Hypertension", concept(316866, "condition")),
-            mapping((Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM), "Fever", concept(437663, "condition")),
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                "C50.9",
+                concept(4000, "condition"),
+            ),
+            mapping(
+                (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
+                "Hypertension",
+                concept(316866, "condition"),
+            ),
+            mapping(
+                (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
+                "Fever",
+                concept(437663, "condition"),
+            ),
             mapping(
                 (Patient.Collections.TREATMENT_CYCLES, TreatmentCycleComponent.Fields.SOURCE_TREATMENT_NAME),
                 "Trametinib",

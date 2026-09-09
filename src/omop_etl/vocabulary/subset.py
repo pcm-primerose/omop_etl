@@ -1,4 +1,3 @@
-import csv
 from collections.abc import Iterable
 from dataclasses import dataclass
 from logging import getLogger
@@ -31,13 +30,13 @@ def collect_concept_ids(mapping_files: Iterable[Path]) -> set[int]:
     """
     ids: set[int] = {NO_MATCHING_CONCEPT}
     for path in mapping_files:
-        with open(path, newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                raw = (row.get("concept_id") or "").strip()
-                if not raw:
-                    raise ValueError(f"Row in {path} has a blank `concept_id`: {row}")
-                else:
-                    ids.add(int(raw))
+        df = pl.read_csv(path, comment_prefix="#", infer_schema_length=0)
+        for row in df.iter_rows(named=True):
+            raw = (row.get("concept_id") or "").strip()
+            if not raw:
+                raise ValueError(f"Row in {path} has a blank `concept_id`: {row}")
+            else:
+                ids.add(int(raw))
     return ids
 
 

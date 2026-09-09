@@ -123,18 +123,15 @@ def concept(
     One OMOP concept a semantic term resolves to.
     """
     return SemanticRow(
-        term_id="test",
-        source_col="test",
-        source_term="test",
-        frequency=1,
-        omop_concept_id=str(concept_id),
-        omop_concept_code=concept_code or str(concept_id),
-        omop_concept_name=name,
-        omop_concept_class=concept_class,
-        omop_standard_concept=standard_concept,
-        omop_validity=validity,
-        omop_domain=domain,
-        omop_vocab=vocab,
+        source_value="test",
+        concept_id=str(concept_id),
+        concept_code=concept_code or str(concept_id),
+        concept_name=name,
+        concept_class_id=concept_class,
+        standard_concept=standard_concept,
+        validity=validity,
+        domain_id=domain,
+        vocabulary_id=vocab,
     )
 
 
@@ -169,7 +166,7 @@ def _structural(concept_id: int, domain_id: str) -> MappedConcept:
 
 
 def _static(concept_id: int, domain_id: str) -> MappedConcept:
-    # the (value_set, local_value) key is carried by the caller
+    # the (value_set, source_value) key is carried by the caller
     return MappedConcept(
         concept_id=concept_id,
         concept_code="",

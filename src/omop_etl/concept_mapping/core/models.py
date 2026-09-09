@@ -28,11 +28,11 @@ class MappedConcept:
 @dataclass(frozen=True, slots=True)
 class StaticConcept:
     value_set: str
-    local_value: str
+    source_value: str
     concept_id: int
     concept_code: str
     concept_name: str
-    concept_class: str
+    concept_class_id: str
     standard_concept: str
     validity: str
     domain_id: str
@@ -42,13 +42,13 @@ class StaticConcept:
     def from_csv_row(cls, row: dict[str, str]) -> StaticConcept:
         return cls(
             value_set=_norm(row["value_set"]),
-            local_value=_norm(row["local_value"]),
+            source_value=_norm(row["source_value"]),
             concept_id=int(row["concept_id"]),
             concept_code=_norm(row["concept_code"]),
             concept_name=_norm(row["concept_name"]),
-            concept_class=_norm(row["concept_class_id"]),
+            concept_class_id=_norm(row["concept_class_id"]),
             standard_concept=_norm(row["standard_concept"]),
-            validity=validity_from_invalid_reason(row.get("invalid_reason") or ""),
+            validity=_norm(row["validity"]),
             domain_id=_norm(row["domain_id"]),
             vocabulary_id=_norm(row["vocabulary_id"]),
         )
@@ -76,7 +76,7 @@ class StructuralConcept:
     domain_id: str
     vocabulary_id: str
     validity: str
-    concept_class: str
+    concept_class_id: str
     standard_concept: str
     table_name: str | None = None
 
@@ -87,9 +87,9 @@ class StructuralConcept:
             concept_id=int(row["concept_id"]),
             concept_code=_norm(row["concept_code"]),
             concept_name=_norm(row["concept_name"]),
-            concept_class=_norm(row["concept_class_id"]),
+            concept_class_id=_norm(row["concept_class_id"]),
             standard_concept=_norm(row["standard_concept"]),
-            validity=validity_from_invalid_reason(row.get("invalid_reason") or ""),
+            validity=_norm(row["validity"]),
             domain_id=_norm(row["domain_id"]),
             vocabulary_id=_norm(row["vocabulary_id"]),
         )
@@ -115,7 +115,7 @@ class MissedLookup:
 
     lookup_type: LookupType
     value_set: str
-    local_value: str
+    source_value: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,18 +141,18 @@ class LookupResult:
         self,
         lookup_type: LookupType,
         value_set: str,
-        local_value: str,
+        source_value: str,
         concept: MappedConcept,
     ) -> None:
-        self.matched[lookup_type].append((value_set, local_value, concept))
+        self.matched[lookup_type].append((value_set, source_value, concept))
 
     def record_miss(
         self,
         lookup_type: LookupType,
         value_set: str,
-        local_value: str,
+        source_value: str,
     ) -> None:
-        self.missed[lookup_type].append(MissedLookup(lookup_type=lookup_type, value_set=value_set, local_value=local_value))
+        self.missed[lookup_type].append(MissedLookup(lookup_type=lookup_type, value_set=value_set, source_value=source_value))
 
     def coverage_by_field(self, lookup_type: LookupType) -> Dict[str, FieldCoverage]:
         """Compute coverage statistics per value_set for a lookup type."""
@@ -169,14 +169,14 @@ class LookupResult:
         result: Dict[str, FieldCoverage] = {}
         for vs, c in counts.items():
             total = c["matched"] + c["missed"]
-            frac = round(c["matched"] / total, 5) if total > 0 else 0.0
+            fraction = round(c["matched"] / total, 5) if total > 0 else 0.0
             result[vs] = FieldCoverage(
                 value_set=vs,
                 lookup_type=lookup_type,
                 matched=c["matched"],
                 missed=c["missed"],
                 total=total,
-                coverage_fraction=frac,
+                coverage_fraction=fraction,
             )
 
         return result

@@ -1,4 +1,12 @@
-value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
+# static_mapping.csv:
+# value_set is the internal identifier to use for lookups in builders.
+# source_value stores all unique source values and their mappings.
+# one unique (value_set, source_value) pair must map to only one concept_id.
+# subsequent columns are from Athena, this file is validated against the Athena at runtime
+# and concept_id and the metadata columns must match what is in that Athana version.
+# note that the Atehna CONCEPT file doesn't have validity, but invalid_reason and invalid start to end dates,
+# this is reformatted internally and checked against each concept id.
+value_set,source_value,concept_id,concept_code,concept_name,concept_class_id,standard_concept,validity,domain_id,vocabulary_id
 lost_to_followup,True,44811247,873211000000106,Lost to clinical trial follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
 cdm_field,condition_occurrence.condition_occurrence_id,1147127,CDM183,condition_occurrence.condition_occurrence_id,Field,Standard,Valid,Metadata,CDM
 cdm_field,drug_exposure.drug_exposure_id,1147094,CDM150,drug_exposure.drug_exposure_id,Field,Standard,Valid,Metadata,CDM

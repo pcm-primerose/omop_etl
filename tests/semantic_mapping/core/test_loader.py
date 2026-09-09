@@ -1,4 +1,5 @@
 import pytest
+import polars as pl
 
 from omop_etl.semantic_mapping.core.loader import LoadSemantics
 from omop_etl.semantic_mapping.core.models import SemanticRow
@@ -24,8 +25,8 @@ class TestLoadSemantics:
         rows = loader.as_rows()
 
         # AML in source should be lowercased
-        aml_row = next(r for r in rows if "aml" in r.source_term.lower())
-        assert aml_row.source_term == "aml"
+        aml_row = next(r for r in rows if "aml" in r.source_value.lower())
+        assert aml_row.source_value == "aml"
 
     def test_as_indexed_returns_dict(self, semantic_file):
         loader = LoadSemantics(semantic_file)
@@ -53,15 +54,21 @@ class TestLoadSemantics:
 
     def test_index_groups_duplicate_terms(self, tmp_path):
         # CSV with duplicate source_terms
-        csv_content = """\
-term_id,source_col,source_term,frequency,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
-t1,col,cancer,1,100,C100,cancer type 1,cls,S,Valid,condition,SNOMED
-t2,col,cancer,2,200,C200,cancer type 2,cls,S,Valid,condition,ICD10
-t3,col,other,1,300,C300,other thing,cls,S,Valid,condition,SNOMED
-"""
-
+        df = pl.DataFrame(
+            data={
+                "source_value": ["cancer", "cancer", "other"],
+                "concept_id": [100, 200, 300],
+                "concept_code": ["C100", "C200", "C300"],
+                "concept_name": ["cancer type 1", "cancer type 2", "other thing"],
+                "concept_class_id": ["cls", "cls", "cls"],
+                "standard_concept": ["S", "S", "S"],
+                "validity": ["", "", ""],
+                "domain_id": ["condition", "condition", "condition"],
+                "vocabulary_id": ["SNOMED", "ICD10", "SNOMED"],
+            }
+        )
         csv_path = tmp_path / "test.csv"
-        csv_path.write_text(csv_content)
+        df.write_csv(csv_path)
 
         loader = LoadSemantics(csv_path)
         indexed = loader.as_indexed()
@@ -78,32 +85,26 @@ t3,col,other,1,300,C300,other thing,cls,S,Valid,condition,SNOMED
     def test_index_static_method(self):
         rows = [
             SemanticRow(
-                term_id="t1",
-                source_col="c",
-                source_term="Term A",
-                frequency=1,
-                omop_concept_id="1",
-                omop_concept_code="C1",
-                omop_concept_name="name1",
-                omop_concept_class="cls",
-                omop_standard_concept="S",
-                omop_validity="valid",
-                omop_domain="condition",
-                omop_vocab="SNOMED",
+                source_value="Term A",
+                concept_id="1",
+                concept_code="C1",
+                concept_name="name1",
+                concept_class_id="cls",
+                standard_concept="S",
+                validity="valid",
+                domain_id="condition",
+                vocabulary_id="SNOMED",
             ),
             SemanticRow(
-                term_id="t2",
-                source_col="c",
-                source_term="term a",
-                frequency=2,
-                omop_concept_id="2",
-                omop_concept_code="C2",
-                omop_concept_name="name2",
-                omop_concept_class="cls",
-                omop_standard_concept="S",
-                omop_validity="valid",
-                omop_domain="condition",
-                omop_vocab="ICD10",
+                source_value="term a",
+                concept_id="2",
+                concept_code="C2",
+                concept_name="name2",
+                concept_class_id="cls",
+                standard_concept="S",
+                validity="valid",
+                domain_id="condition",
+                vocabulary_id="ICD10",
             ),
         ]
 
@@ -118,77 +119,65 @@ t3,col,other,1,300,C300,other thing,cls,S,Valid,condition,SNOMED
         If they map to the same concept_id, _index should keep only one."""
         rows = [
             SemanticRow(
-                term_id="t1",
-                source_col="c",
-                source_term="OxyNorm",
-                frequency=3,
-                omop_concept_id="1124957",
-                omop_concept_code="7804",
-                omop_concept_name="oxycodone",
-                omop_concept_class="ingredient",
-                omop_standard_concept="standard",
-                omop_validity="valid",
-                omop_domain="drug",
-                omop_vocab="rxnorm",
+                source_value="OxyNorm",
+                concept_id="1124957",
+                concept_code="7804",
+                concept_name="oxycodone",
+                concept_class_id="ingredient",
+                standard_concept="standard",
+                validity="valid",
+                domain_id="drug",
+                vocabulary_id="rxnorm",
             ),
             SemanticRow(
-                term_id="t2",
-                source_col="c",
-                source_term="oxynorm",
-                frequency=2,
-                omop_concept_id="1124957",
-                omop_concept_code="7804",
-                omop_concept_name="oxycodone",
-                omop_concept_class="ingredient",
-                omop_standard_concept="standard",
-                omop_validity="valid",
-                omop_domain="drug",
-                omop_vocab="rxnorm",
+                source_value="oxynorm",
+                concept_id="1124957",
+                concept_code="7804",
+                concept_name="oxycodone",
+                concept_class_id="ingredient",
+                standard_concept="standard",
+                validity="valid",
+                domain_id="drug",
+                vocabulary_id="rxnorm",
             ),
         ]
 
         indexed = LoadSemantics._index(rows)
 
         assert len(indexed["oxynorm"]) == 1
-        assert indexed["oxynorm"][0].omop_concept_id == "1124957"
+        assert indexed["oxynorm"][0].concept_id == "1124957"
 
     def test_index_keeps_different_concept_ids(self):
         """Multi-ingredient drugs (e.g. Calcigran Forte) should keep all concepts."""
         rows = [
             SemanticRow(
-                term_id="t1",
-                source_col="c",
-                source_term="calcigran forte",
-                frequency=2,
-                omop_concept_id="19009405",
-                omop_concept_code="11253",
-                omop_concept_name="vitamin d",
-                omop_concept_class="ingredient",
-                omop_standard_concept="standard",
-                omop_validity="valid",
-                omop_domain="drug",
-                omop_vocab="rxnorm",
+                source_value="calcigran forte",
+                concept_id="19009405",
+                concept_code="11253",
+                concept_name="vitamin d",
+                concept_class_id="ingredient",
+                standard_concept="standard",
+                validity="valid",
+                domain_id="drug",
+                vocabulary_id="rxnorm",
             ),
             SemanticRow(
-                term_id="t1",
-                source_col="c",
-                source_term="calcigran forte",
-                frequency=2,
-                omop_concept_id="19035704",
-                omop_concept_code="1897",
-                omop_concept_name="calcium carbonate",
-                omop_concept_class="ingredient",
-                omop_standard_concept="standard",
-                omop_validity="valid",
-                omop_domain="drug",
-                omop_vocab="rxnorm",
+                source_value="calcigran forte",
+                concept_id="19035704",
+                concept_code="1897",
+                concept_name="calcium carbonate",
+                concept_class_id="ingredient",
+                standard_concept="standard",
+                validity="valid",
+                domain_id="drug",
+                vocabulary_id="rxnorm",
             ),
         ]
 
         indexed = LoadSemantics._index(rows)
 
         assert len(indexed["calcigran forte"]) == 2
-        concept_ids = {r.omop_concept_id for r in indexed["calcigran forte"]}
+        concept_ids = {r.concept_id for r in indexed["calcigran forte"]}
         assert concept_ids == {"19009405", "19035704"}
 
 
