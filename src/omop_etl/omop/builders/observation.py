@@ -631,7 +631,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         `qualifier_source_value` for context.
 
         FK-linked to the AE's condition_occurrence row(s); cross-product of
-        per-treatment facts × link targets. Emit-anyway: when no linkage,
+        per-treatment facts * link targets. Emit-anyway: when no linkage,
         emit unlinked rows (one per non-None per-treatment fact). Whole
         method skipped when start_date is None; per-treatment row skipped
         when status is None.
@@ -706,7 +706,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         mapped Expected/Not-Expected concept in `value_as_concept_id`,
         boolean literal in `value_source_value`, treatment drug name in
         `qualifier_source_value`. FK-linked to the AE's condition_occurrence
-        row(s); cross-product of per-treatment facts × link targets.
+        row(s); cross-product of per-treatment facts * link targets.
         Emit-anyway when no linkage.
         """
         date = ae.start_date

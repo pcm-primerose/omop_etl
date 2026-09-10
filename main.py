@@ -16,9 +16,12 @@ from omop_etl.preprocessing.service import (
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
+from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
 from omop_etl.env_config import (
     ATHENA_DIR,
+    DATA_ROOT,
     DEFAULT_DATASET,
+    MAPPING_DIR,
     SYNTHETIC_DATASETS,
     resolve_dataset,
     LOG_LEVEL,
@@ -27,20 +30,13 @@ from omop_etl.vocabulary.service import VocabularyService, VocabularyResult
 
 log = getLogger(__name__)
 
-# fixme: default resource paths: make dev defaults!
-#   should detect if a dev is running this,
-#   how to handle this so it never causes issues in prod?
-#   must load from env
-RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"
-DEFAULT_STATIC_CSV = RESOURCES_DIR / "static_mapping.csv"
-DEFAULT_STRUCTURAL_CSV = RESOURCES_DIR / "structural_mapping.csv"
 
-
-def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, trial: str = "IMPRESS") -> int:
+def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, mapping_dir: Path, trial: str = "IMPRESS") -> int:
     """
     End-to-end run of OMOP ETL.
     """
     base_root.mkdir(parents=True, exist_ok=True)
+    paths = resolve_mapping_paths(mapping_dir)
 
     # set up configs & meta
     ecrf_config = make_ecrf_config(trial=trial)
@@ -51,7 +47,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, t
     vocabulary_service = VocabularyService(
         outdir=base_root,
         athena_dir=athena_dir,
-        mapping_files=[DEFAULT_STATIC_CSV, DEFAULT_STRUCTURAL_CSV],
+        mapping_files=paths.as_list(),
     )
     vocabulary_result: VocabularyResult = vocabulary_service.run(_meta)
     log.info("Validated mappings against Athena %s", vocabulary_result.athena_version)
@@ -88,13 +84,14 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, t
         input_path=None,
         harmonized_data=harmonized_result,
         meta=_meta,
+        semantic_path=paths.semantic,
         write_output=True,
     )
 
     # concept lookup service: loads static/structural mappings, tracks lookups
     concept_service = ConceptLookupService.from_paths(
-        static_path=DEFAULT_STATIC_CSV,
-        structural_path=DEFAULT_STRUCTURAL_CSV,
+        static_path=paths.static,
+        structural_path=paths.structural,
         semantic_batch=semantic_result.batch_result,
         meta=_meta,
         outdir=base_root,
@@ -133,11 +130,12 @@ def main() -> int:
         default=ATHENA_DIR,
         help=f"Dir containing this release's Athena CSVs (CONCEPT.csv, VOCABULARY.csv, ...). Defaults to {ATHENA_DIR}.",
     )
-    # parser.add_argument(
-    #     "--mapping-dir",
-    #     type=Path,
-    #     default=
-    # )
+    parser.add_argument(
+        "--mapping-dir",
+        type=Path,
+        default=MAPPING_DIR,
+        help=f"Dir containing static.csv/structural.csv/semantic.csv. Defaults to {MAPPING_DIR}.",
+    )
     args = parser.parse_args()
 
     dataset_path = resolve_dataset(args.dataset) if args.dataset else DEFAULT_DATASET
@@ -145,11 +143,14 @@ def main() -> int:
         parser.error(f"Dataset path does not exist: {dataset_path}")
     if not args.athena_dir.exists():
         parser.error(f"Athena dir does not exist: {args.athena_dir}")
+    if not args.mapping_dir.exists():
+        parser.error(f"Mapping dir does not exist: {args.mapping_dir}")
     configure_logger(level=LOG_LEVEL)
     return run_pipeline(
         preprocessing_input=dataset_path,
-        base_root=Path(__file__).parent / ".data",
+        base_root=DATA_ROOT,
         athena_dir=args.athena_dir,
+        mapping_dir=args.mapping_dir,
     )
 
 

@@ -44,6 +44,21 @@ def _resolve_athena_dir() -> Path:
 
 ATHENA_DIR = _resolve_athena_dir()
 
+
+def _resolve_mapping_dir() -> Path:
+    """
+    MAPPING_DIR from env, resolved relative to PROJECT_ROOT if the env value is a
+    relative path, else the mappings/ files used in prod.
+    """
+    env_val = os.getenv("MAPPING_DIR")
+    if env_val is None:
+        return PROJECT_ROOT / "mappings"
+    p = Path(env_val)
+    return p if p.is_absolute() else PROJECT_ROOT / p
+
+
+MAPPING_DIR = _resolve_mapping_dir()
+
 # debug for dev, info for prod
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 

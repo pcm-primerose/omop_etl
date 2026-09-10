@@ -179,14 +179,3 @@ class TestLoadSemantics:
         assert len(indexed["calcigran forte"]) == 2
         concept_ids = {r.concept_id for r in indexed["calcigran forte"]}
         assert concept_ids == {"19009405", "19035704"}
-
-
-class TestLoadSemanticsDefaultPath:
-    def test_init_without_path_uses_default(self):
-        # verifies loader can be initialized without a path
-        # should use default resource path
-        try:
-            loader = LoadSemantics(path=None)
-            assert loader.path is not None
-        except (FileNotFoundError, ValueError):
-            pytest.skip("No default semantic mapping file in resources")

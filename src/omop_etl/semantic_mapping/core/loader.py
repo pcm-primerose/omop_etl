@@ -1,25 +1,21 @@
 from collections import defaultdict
-from importlib.resources.abc import Traversable
 from pathlib import Path
 from logging import getLogger
 from typing import List
-from importlib.resources import files as pkg_files
 
 from omop_etl.semantic_mapping.core.models import SemanticRow
 from omop_etl.infra.utils.mapping_io import read_mapping_csv
 
-_BASE_SEMANTIC_MAPPED = pkg_files("omop_etl.resources.semantic_mapped")
 log = getLogger(__name__)
 
 
 class LoadSemantics:
-    def __init__(self, path: Path | None = None):
-        self.path = path if path else _resolve_base(_BASE_SEMANTIC_MAPPED)
+    def __init__(self, path: Path):
+        self.path = path
 
     def as_rows(self) -> list[SemanticRow]:
         rows: list[SemanticRow] = []
-        # Path.open accepts newline="", but Traversable.open does not
-        f = self.path.open("r", newline="") if isinstance(self.path, Path) else self.path.open("r")
+        f = self.path.open("r", newline="")
         df = read_mapping_csv(f)
         for line_no, row in enumerate(df.iter_rows(named=True), start=2):
             none_cols = [k for k, v in row.items() if v is None]
@@ -65,15 +61,3 @@ class LoadSemantics:
             idx[key] = list(seen.values())
 
         return idx
-
-
-def _resolve_base(base: Traversable) -> Traversable:
-    candidates = [entry for entry in base.iterdir() if entry.is_file()]
-    if not candidates:
-        raise ValueError(f"No semantic mapping files found in {base.name}")
-    if len(candidates) > 1:
-        log.warning(
-            "Base semantic dir contains several semantic files, current impl picks the first: %s",
-            [c.name for c in candidates],
-        )
-    return candidates[0]

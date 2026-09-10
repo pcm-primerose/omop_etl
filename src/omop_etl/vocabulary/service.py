@@ -13,9 +13,8 @@ from omop_etl.vocabulary.core.vocabulary import Vocabulary
 @dataclass(frozen=True, slots=True)
 class VocabularyResult:
     """
-    Everything downstream builders need from Athena for this run: the concept_id ->
-    attributes hydration lookup, the release version to log/stamp for
-    reproducibility, and the validation report that confirmed it's all clean.
+    Everything downstream builders need from Athena for this run: the concept_id to
+    attributes hydration lookup, the Athena version and the valiation report.
     """
 
     vocabulary: Vocabulary
@@ -49,12 +48,9 @@ class VocabularyService:
             report_path = self._exporter.write_validation_report(report, meta)
             raise MappingValidationError(f"{len(report.errors)} mapping validation error(s), see: {report_path}")
 
-        # one scan of CONCEPT.csv (validate_mappings already did its own), reused for
-        # the written concept subset file, the missing/flagged check, and building
-        # this run's Vocabulary -- no re-reading anything back off disk
-        concept_ids = collect_concept_ids(self.mapping_files)
-        subset = scan_concept_subset(self.athena_dir, concept_ids)
-        concept_subset_report(subset, concept_ids)
+        concept_ids_from_mapping_files = collect_concept_ids(self.mapping_files)
+        subset = scan_concept_subset(self.athena_dir, concept_ids_from_mapping_files)
+        concept_subset_report(subset, concept_ids_from_mapping_files)
         self._exporter.write_concept_subset(subset, meta)
 
         vocabulary = Vocabulary.from_concept_rows(subset.iter_rows(named=True))

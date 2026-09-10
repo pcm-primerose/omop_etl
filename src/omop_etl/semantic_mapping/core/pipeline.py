@@ -27,14 +27,13 @@ class SemanticLookupPipeline:
         self,
         trial: str,
         meta: RunMetadata,
-        semantics_path: Path | None = None,
+        semantics_path: Path,
         layout: Layout = Layout.TRIAL_RUN,
         field_configs: Sequence[FieldConfig] | None = None,
         exporter: SemanticExporter | None = None,
         outdir: Path | None = None,
     ):
         self.meta = meta
-        # resolve semantic path (default in resources if not given)
         loader = LoadSemantics(semantics_path)
         self._index = SemanticIndex(indexed_corpus=loader.as_indexed())
 

@@ -15,7 +15,7 @@ class Vocabulary:
     """
     Store mappings of mapping files' concept_id to `AthenaConcept` from the Atena bundle.
 
-    Mapping files store only `concept_id`; this layer hydrates name/domain/vocabulary/
+    Mapping files store only `concept_id`, this layer hydrates name/domain/vocabulary/
     validity from the subset generated from Athena concepts, so vocabulary metadata is
     loaded from the concept database instead of hardcoded.
     """

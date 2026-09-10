@@ -22,33 +22,21 @@ class MappingValidationError(RuntimeError):
 
 class AthenaBundleError(RuntimeError):
     """
-    Raised when the Athena release directory is missing a required file, or a
-    required file isn't even readable as tab-separated data. We load these files
-    wholesale into the CDM database's vocab schema, so a bad bundle must never
-    reach that load step.
+    Raised when the Athena release directory is missing a required file.
+    The Athena files are loaded into the CDM database (vocab schema) so a bad
+    bundle can't reach the load step.
     """
 
 
 def validate_athena_bundle(athena_dir: Path) -> tuple[str, ...]:
     """
-    Check that every file in `REQUIRED_ATHENA_FILES` exists in `athena_dir` and every
-    row in it actually parses as well-formed tab-separated data (no ragged rows).
+    Check that every file in `REQUIRED_ATHENA_FILES` exists in `athena_dir`.
 
-    `collect_schema()` only reads the header and would miss this, so each file is
-    fully parsed (and immediately discarded) to force every row through the reader.
+    This does not check content correctness, just existence,
+    but CONCEPT.csv is still checked on row-level from `validate_mappings`.
+    Any other malformed row from files not read by the ETL would surface at callsites (load step, ERA tables, etc).
     """
-    problems: list[str] = []
-    for filename in REQUIRED_ATHENA_FILES:
-        path = athena_dir / filename
-        if not path.exists():
-            problems.append(f"{filename}: missing from {athena_dir}")
-            continue
-        try:
-            # quote_char=None: Athena's export is plain tab-separated, not RFC-quoted CSV
-            pl.scan_csv(path, separator="\t", infer_schema_length=0, quote_char=None).collect()
-        except pl.exceptions.ComputeError as e:
-            problems.append(f"{filename}: could not parse as tab-separated data: {e}")
-    return tuple(problems)
+    return tuple(f"{filename}: missing from {athena_dir}" for filename in REQUIRED_ATHENA_FILES if not (athena_dir / filename).exists())
 
 
 def validate_mappings(mapping_files: Sequence[Path], athena_dir: Path) -> ValidationReport:

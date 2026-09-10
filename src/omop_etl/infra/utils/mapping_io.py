@@ -1,10 +1,9 @@
+from dataclasses import dataclass
+from pathlib import Path
 import polars as pl
 
-# The Athena-aligned concept columns every mapping file (static/structural/semantic)
-# carries — identical to Athena's own CONCEPT columns, except `validity` (stores the
-# derived "valid"/"invalid" form, not raw `invalid_reason`). Genuinely shared across
-# concept_mapping, semantic_mapping, and vocabulary — the single source of truth for
-# the header names, so a rename is a one-place edit instead of a multi-file hunt.
+# concept columns from mapping files, same colnames as Athena, except for validity
+# which is derived (valid/invalid isntead of the raw invalid_reason)
 MAPPING_CONCEPT_COLUMNS = (
     "concept_id",
     "concept_code",
@@ -16,13 +15,34 @@ MAPPING_CONCEPT_COLUMNS = (
     "vocabulary_id",
 )
 
+# the three canonical mapping files' fixed names inside a mapping dir (see
+# `resolve_mapping_paths`), kept here since it's cross-module
+STATIC_MAPPING_FILENAME = "static.csv"
+STRUCTURAL_MAPPING_FILENAME = "structural.csv"
+SEMANTIC_MAPPING_FILENAME = "semantic.csv"
+
+
+@dataclass(frozen=True, slots=True)
+class MappingPaths:
+    static: Path
+    structural: Path
+    semantic: Path
+
+    def as_list(self) -> list[Path]:
+        return [self.static, self.structural, self.semantic]
+
+
+def resolve_mapping_paths(mapping_dir: Path) -> MappingPaths:
+    """The three canonical mapping files in `mapping_dir`."""
+    return MappingPaths(
+        static=mapping_dir / STATIC_MAPPING_FILENAME,
+        structural=mapping_dir / STRUCTURAL_MAPPING_FILENAME,
+        semantic=mapping_dir / SEMANTIC_MAPPING_FILENAME,
+    )
+
 
 def read_mapping_csv(source) -> pl.DataFrame:
     """
-    Read a mapping CSV (static/structural/semantic) — the single place that knows
-    how: skips the leading `#` documentation preamble every mapping file carries,
-    reads every column as str (matching `MAPPING_CONCEPT_COLUMNS` consumers'
-    expectations). `source` is anything `pl.read_csv` accepts (a path, or an
-    already-open file object, e.g. semantic_mapping's `Traversable.open()` result).
+    Read a mapping CSV file (static/structural/semantic).
     """
     return pl.read_csv(source, comment_prefix="#", infer_schema_length=0)

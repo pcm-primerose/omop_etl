@@ -16,7 +16,7 @@ ATHENA_CONCEPT_COLUMNS = (
     "invalid_reason",
 )
 
-# Every file the CDM vocab schema needs, loaded from Athena bundle
+# every file the CDM vocab schema needs, loaded from Athena bundle
 REQUIRED_ATHENA_FILES = (
     "CONCEPT.csv",
     "VOCABULARY.csv",

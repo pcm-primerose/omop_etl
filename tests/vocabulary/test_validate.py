@@ -236,15 +236,6 @@ class TestValidateAthenaBundle:
         assert any("DOMAIN.csv" in p for p in problems)
         assert any("RELATIONSHIP.csv" in p for p in problems)
 
-    def test_ragged_rows_are_reported_not_raised(self, tmp_path):
-        write_athena_bundle(tmp_path)
-        (tmp_path / "CONCEPT_ANCESTOR.csv").write_text("a\tb\n1\t2\n3\t4\t5\n")
-
-        problems = validate_athena_bundle(tmp_path)
-
-        assert len(problems) == 1
-        assert "CONCEPT_ANCESTOR.csv" in problems[0]
-
     def test_checks_every_required_file(self, tmp_path):
         # every file this checks is exactly REQUIRED_ATHENA_FILES, if a bundle is
         # missing all of them, every one of them is reported

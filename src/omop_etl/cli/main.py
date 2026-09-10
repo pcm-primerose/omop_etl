@@ -13,6 +13,7 @@ from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import BatchQueryResult
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
 from omop_etl.vocabulary.service import VocabularyService
 
 from omop_etl.omop.service import OmopService
@@ -55,18 +56,19 @@ def _build_tables(
     meta: RunMetadata,
     outdir: Path,
     *,
-    static_mapping: Path,
-    structural_mapping: Path,
+    mapping_dir: Path,
     with_semantic: bool,
 ) -> OmopTables:
+    paths = resolve_mapping_paths(mapping_dir)
+
     semantic_batch: BatchQueryResult | None = None
     if with_semantic:
-        result = SemanticService().run(harmonized_data=harmonized, meta=meta, trial=meta.trial)
+        result = SemanticService().run(harmonized_data=harmonized, meta=meta, trial=meta.trial, semantic_path=paths.semantic)
         semantic_batch = result.batch_result
 
     concept_service = ConceptLookupService.from_paths(
-        static_path=static_mapping,
-        structural_path=structural_mapping,
+        static_path=paths.static,
+        structural_path=paths.structural,
         semantic_batch=semantic_batch,
         meta=meta,
         outdir=outdir,
@@ -86,7 +88,7 @@ def cmd_load(args: argparse.Namespace) -> int:
     VocabularyService(
         outdir=args.outdir,
         athena_dir=args.athena_dir,
-        mapping_files=[args.static_mapping, args.structural_mapping],
+        mapping_files=resolve_mapping_paths(args.mapping_dir).as_list(),
     ).run(meta)
 
     harmonized = run_pipeline(
@@ -100,8 +102,7 @@ def cmd_load(args: argparse.Namespace) -> int:
         harmonized,
         meta=meta,
         outdir=args.outdir,
-        static_mapping=args.static_mapping,
-        structural_mapping=args.structural_mapping,
+        mapping_dir=args.mapping_dir,
         with_semantic=args.with_semantic,
     )
 
@@ -125,8 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     load.add_argument("--outdir", type=Path, required=True)
     load.add_argument("--trial", default="IMPRESS")
     load.add_argument("--athena-dir", type=Path, required=True, help="Dir containing this release's Athena CSVs (CONCEPT.csv, VOCABULARY.csv, ...)")
-    load.add_argument("--static-mapping", type=Path, required=True)
-    load.add_argument("--structural-mapping", type=Path, required=True)
+    load.add_argument("--mapping-dir", type=Path, required=True, help="Dir containing static.csv/structural.csv/semantic.csv")
 
     load.add_argument("--dsn", default=None)
     load.add_argument("--truncate", action="store_true")
