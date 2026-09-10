@@ -13,16 +13,16 @@ from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import BatchQueryResult
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.vocabulary.service import VocabularyService
 
 from omop_etl.omop.service import OmopService
 from omop_etl.omop.models.tables import OmopTables
 
 
-def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str) -> HarmonizedData:
+def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str, meta: RunMetadata) -> HarmonizedData:
     base_root.mkdir(parents=True, exist_ok=True)
 
     ecrf_config = make_ecrf_config(trial=trial)
-    meta = RunMetadata.create(trial)
 
     preprocessor = PreprocessService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
     preprocessing_result: PreprocessResult = preprocessor.run(
@@ -79,17 +79,26 @@ def _build_tables(
 
 def cmd_load(args: argparse.Namespace) -> int:
     configure_logger(level=args.log_level)
+    meta = RunMetadata.create(args.trial)
+
+    # The ETL must never run on invalid mappings: this validates the mapping files
+    # against Athena and raises before anything else runs if there's a problem.
+    VocabularyService(
+        outdir=args.outdir,
+        athena_dir=args.athena_dir,
+        mapping_files=[args.static_mapping, args.structural_mapping],
+    ).run(meta)
 
     harmonized = run_pipeline(
         preprocessing_input=args.input,
         base_root=args.outdir,
         trial=args.trial,
+        meta=meta,
     )
 
-    # todo: don't create new run context
     tables = _build_tables(
         harmonized,
-        meta=RunMetadata.create(args.trial),
+        meta=meta,
         outdir=args.outdir,
         static_mapping=args.static_mapping,
         structural_mapping=args.structural_mapping,
@@ -115,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     load.add_argument("--input", type=Path, required=True)
     load.add_argument("--outdir", type=Path, required=True)
     load.add_argument("--trial", default="IMPRESS")
+    load.add_argument("--athena-dir", type=Path, required=True, help="Dir containing this release's Athena CSVs (CONCEPT.csv, VOCABULARY.csv, ...)")
     load.add_argument("--static-mapping", type=Path, required=True)
     load.add_argument("--structural-mapping", type=Path, required=True)
 

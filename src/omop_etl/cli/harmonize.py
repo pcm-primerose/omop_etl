@@ -6,7 +6,7 @@ from omop_etl.infra.utils.find_latest_run import find_latest_run_output
 from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.logging.logging_setup import configure_logger
-from omop_etl.config import (
+from omop_etl.env_config import (
     DATA_ROOT,
     LOG_LEVEL,
 )

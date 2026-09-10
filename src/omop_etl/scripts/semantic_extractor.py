@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import ClassVar, Sequence, Mapping, Dict, Literal
 import polars as pl
 
-from omop_etl.config import (
+from omop_etl.env_config import (
     DATA_ROOT,
     DEFAULT_DATASET,
 )

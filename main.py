@@ -1,4 +1,5 @@
 import argparse
+from logging import getLogger
 from pathlib import Path
 
 from omop_etl.concept_mapping.service import ConceptLookupService
@@ -15,20 +16,27 @@ from omop_etl.preprocessing.service import (
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import SemanticMappingResult
-from omop_etl.config import (
+from omop_etl.env_config import (
+    ATHENA_DIR,
     DEFAULT_DATASET,
     SYNTHETIC_DATASETS,
     resolve_dataset,
     LOG_LEVEL,
 )
+from omop_etl.vocabulary.service import VocabularyService, VocabularyResult
 
-# default resource paths: make dev defaults later
+log = getLogger(__name__)
+
+# fixme: default resource paths: make dev defaults!
+#   should detect if a dev is running this,
+#   how to handle this so it never causes issues in prod?
+#   must load from env
 RESOURCES_DIR = Path(__file__).parent / "src" / "omop_etl" / "resources" / "static_mapped"
 DEFAULT_STATIC_CSV = RESOURCES_DIR / "static_mapping.csv"
 DEFAULT_STRUCTURAL_CSV = RESOURCES_DIR / "structural_mapping.csv"
 
 
-def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRESS") -> int:
+def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, trial: str = "IMPRESS") -> int:
     """
     End-to-end run of OMOP ETL.
     """
@@ -37,6 +45,16 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
     # set up configs & meta
     ecrf_config = make_ecrf_config(trial=trial)
     _meta = RunMetadata.create(trial)
+
+    # validate mappings against Athena and hydrate the concept lookup vocabulary,
+    # raises and stops the pipeline before anything else runs if mappings are invalid
+    vocabulary_service = VocabularyService(
+        outdir=base_root,
+        athena_dir=athena_dir,
+        mapping_files=[DEFAULT_STATIC_CSV, DEFAULT_STRUCTURAL_CSV],
+    )
+    vocabulary_result: VocabularyResult = vocabulary_service.run(_meta)
+    log.info("Validated mappings against Athena %s", vocabulary_result.athena_version)
 
     # run preprocessing
     preprocessor = PreprocessService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
@@ -73,7 +91,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str = "IMPRE
         write_output=True,
     )
 
-    # concept lookup service - loads static/structural mappings, tracks lookups
+    # concept lookup service: loads static/structural mappings, tracks lookups
     concept_service = ConceptLookupService.from_paths(
         static_path=DEFAULT_STATIC_CSV,
         structural_path=DEFAULT_STRUCTURAL_CSV,
@@ -109,15 +127,29 @@ def main() -> int:
         default=None,
         help=f"Dataset name ({', '.join(SYNTHETIC_DATASETS)}) or explicit path. Defaults to 'impress_150'.",
     )
+    parser.add_argument(
+        "--athena-dir",
+        type=Path,
+        default=ATHENA_DIR,
+        help=f"Dir containing this release's Athena CSVs (CONCEPT.csv, VOCABULARY.csv, ...). Defaults to {ATHENA_DIR}.",
+    )
+    # parser.add_argument(
+    #     "--mapping-dir",
+    #     type=Path,
+    #     default=
+    # )
     args = parser.parse_args()
 
     dataset_path = resolve_dataset(args.dataset) if args.dataset else DEFAULT_DATASET
     if not dataset_path.exists():
         parser.error(f"Dataset path does not exist: {dataset_path}")
+    if not args.athena_dir.exists():
+        parser.error(f"Athena dir does not exist: {args.athena_dir}")
     configure_logger(level=LOG_LEVEL)
     return run_pipeline(
         preprocessing_input=dataset_path,
         base_root=Path(__file__).parent / ".data",
+        athena_dir=args.athena_dir,
     )
 
 

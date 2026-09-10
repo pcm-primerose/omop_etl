@@ -1,8 +1,8 @@
 import pytest
 
-from omop_etl.vocabulary.subset import collect_concept_ids, generate_concept_subset
+from omop_etl.vocabulary.core.subset import collect_concept_ids, concept_subset_report, scan_concept_subset
 from omop_etl.infra.utils.constants import NO_MATCHING_CONCEPT
-from tests.vocabulary.conftest import ConceptRow, write_concept_tsv
+from tests.vocabulary.conftest import ConceptRow, write_concept_csv
 
 
 class TestCollectConceptIds:
@@ -24,47 +24,48 @@ class TestCollectConceptIds:
             collect_concept_ids([path])
 
 
-class TestGenerateConceptSubset:
-    def test_writes_only_the_wanted_concepts(self, tmp_path):
-        source = write_concept_tsv(
-            tmp_path / "CONCEPT.csv",
+class TestScanConceptSubset:
+    def test_returns_only_the_wanted_concepts(self, tmp_path):
+        write_concept_csv(
+            tmp_path,
             ConceptRow(4112853),
             ConceptRow(8507, concept_name="Male", domain_id="Gender", vocabulary_id="Gender"),
             ConceptRow(999999, concept_name="Not wanted"),  # present in source, not in any mapping
         )
-        out_path = tmp_path / "subset" / "concept_subset.tsv"
 
-        report = generate_concept_subset(source, {4112853, 8507}, out_path)
+        subset = scan_concept_subset(tmp_path, {4112853, 8507})
 
-        assert report.written_count == 2
-        written_ids = {int(line.split("\t")[0]) for line in out_path.read_text().splitlines()[1:]}
-        assert written_ids == {4112853, 8507}
+        assert set(subset.get_column("concept_id").cast(int).to_list()) == {4112853, 8507}
 
+
+class TestConceptSubsetReport:
     def test_reports_mapping_ids_missing_from_this_vocab_release(self, tmp_path):
-        source = write_concept_tsv(tmp_path / "CONCEPT.csv", ConceptRow(4112853))
+        write_concept_csv(tmp_path, ConceptRow(4112853))
+        subset = scan_concept_subset(tmp_path, {4112853, 55555})
 
-        report = generate_concept_subset(source, {4112853, 55555}, tmp_path / "out.tsv")
+        report = concept_subset_report(subset, {4112853, 55555})
 
         assert report.missing_concept_ids == frozenset({55555})
 
     def test_flags_non_standard_and_invalid_concepts(self, tmp_path):
-        source = write_concept_tsv(
-            tmp_path / "CONCEPT.csv",
+        write_concept_csv(
+            tmp_path,
             ConceptRow(1, standard_concept=""),  # non-standard
             ConceptRow(2, invalid_reason="D"),  # invalid (deprecated)
             ConceptRow(3),  # clean: standard + valid, never flagged
         )
+        subset = scan_concept_subset(tmp_path, {1, 2, 3})
 
-        report = generate_concept_subset(source, {1, 2, 3}, tmp_path / "out.tsv")
+        report = concept_subset_report(subset, {1, 2, 3})
 
         flagged = {f.concept_id: f.reason for f in report.flagged_concepts}
         assert flagged == {1: "non-standard (null)", 2: "invalid (D)"}
 
     def test_no_matching_concept_sentinel_is_never_flagged(self, tmp_path):
         # real Athena shape: "No matching concept" has a blank standard_concept, which
-        # would otherwise trip the non-standard flag on every single generation run
-        source = write_concept_tsv(
-            tmp_path / "CONCEPT.csv",
+        # would otherwise trip the non-standard flag on every single report
+        write_concept_csv(
+            tmp_path,
             ConceptRow(
                 NO_MATCHING_CONCEPT,
                 concept_name="No matching concept",
@@ -75,15 +76,8 @@ class TestGenerateConceptSubset:
                 concept_code="No matching concept",
             ),
         )
+        subset = scan_concept_subset(tmp_path, {NO_MATCHING_CONCEPT})
 
-        report = generate_concept_subset(source, {NO_MATCHING_CONCEPT}, tmp_path / "out.tsv")
+        report = concept_subset_report(subset, {NO_MATCHING_CONCEPT})
 
         assert report.flagged_concepts == ()
-
-    def test_creates_missing_parent_directories(self, tmp_path):
-        source = write_concept_tsv(tmp_path / "CONCEPT.csv", ConceptRow(4112853))
-        out_path = tmp_path / "nested" / "dir" / "concept_subset.tsv"
-
-        generate_concept_subset(source, {4112853}, out_path)
-
-        assert out_path.exists()

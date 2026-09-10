@@ -6,6 +6,7 @@ import polars as pl
 
 from omop_etl.infra.io.path_planner import WriterContext
 from omop_etl.infra.utils.run_context import RunMetadata
+from omop_etl.concept_mapping.core.models import concept_fields_from_csv_row
 
 
 @dataclass(frozen=True)
@@ -46,14 +47,7 @@ class SemanticRow:
     def from_csv_row(cls, row: dict[str, str]) -> "SemanticRow":
         return cls(
             source_value=_norm(row["source_value"]),
-            concept_id=_norm(row["concept_id"]),
-            concept_code=_norm(row["concept_code"]),
-            concept_name=_norm(row["concept_name"]),
-            concept_class_id=_norm(row["concept_class_id"]),
-            standard_concept=_norm(row["standard_concept"]),
-            validity=_norm(row["validity"]),
-            domain_id=_norm(row["domain_id"]),
-            vocabulary_id=_norm(row["vocabulary_id"]),
+            **concept_fields_from_csv_row(row),
         )
 
 

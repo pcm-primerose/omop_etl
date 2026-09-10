@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from omop_etl.config import (
+from omop_etl.env_config import (
     DEFAULT_DATASET,
     DATA_ROOT,
 )

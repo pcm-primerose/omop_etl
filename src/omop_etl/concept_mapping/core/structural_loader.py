@@ -1,11 +1,11 @@
 from pathlib import Path
 from logging import getLogger
-import polars as pl
 
 from omop_etl.concept_mapping.core.models import (
     StructuralConcept,
     MappedConcept,
 )
+from omop_etl.infra.utils.mapping_io import read_mapping_csv
 
 log = getLogger(__name__)
 
@@ -16,7 +16,7 @@ class StructuralMapLoader:
 
     def as_rows(self) -> list[StructuralConcept]:
         rows: list[StructuralConcept] = []
-        df = pl.read_csv(self.path, comment_prefix="#", infer_schema_length=0)
+        df = read_mapping_csv(self.path)
         for line_no, row in enumerate(df.iter_rows(named=True), start=2):
             none_cols = [k for k, v in row.items() if v is None]
             if none_cols:

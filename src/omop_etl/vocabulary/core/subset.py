@@ -1,26 +1,14 @@
 from collections.abc import Iterable
-from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 import polars as pl
 
-from omop_etl.vocabulary.vocabulary import CONCEPT_COLUMNS
+from omop_etl.vocabulary.core.helpers import ATHENA_CONCEPT_COLUMNS
 from omop_etl.infra.utils.constants import NO_MATCHING_CONCEPT
+from omop_etl.infra.utils.mapping_io import read_mapping_csv
+from omop_etl.vocabulary.core.models import ConceptSubsetReport, FlaggedConcept
 
 log = getLogger(__name__)
-
-
-@dataclass(frozen=True, slots=True)
-class FlaggedConcept:
-    concept_id: int
-    reason: str  # non-standard or invalid
-
-
-@dataclass(frozen=True, slots=True)
-class ConceptSubsetReport:
-    written_count: int
-    missing_concept_ids: frozenset[int]
-    flagged_concepts: tuple[FlaggedConcept, ...]
 
 
 def collect_concept_ids(mapping_files: Iterable[Path]) -> set[int]:
@@ -30,8 +18,7 @@ def collect_concept_ids(mapping_files: Iterable[Path]) -> set[int]:
     """
     ids: set[int] = {NO_MATCHING_CONCEPT}
     for path in mapping_files:
-        df = pl.read_csv(path, comment_prefix="#", infer_schema_length=0)
-        for row in df.iter_rows(named=True):
+        for row in read_mapping_csv(path).iter_rows(named=True):
             raw = (row.get("concept_id") or "").strip()
             if not raw:
                 raise ValueError(f"Row in {path} has a blank `concept_id`: {row}")
@@ -40,25 +27,33 @@ def collect_concept_ids(mapping_files: Iterable[Path]) -> set[int]:
     return ids
 
 
-def generate_concept_subset(concept_source: Path, concept_ids: set[int], out_path: Path) -> ConceptSubsetReport:
+def scan_concept_subset(athena_dir: Path, concept_ids: Iterable[int]) -> pl.DataFrame:
     """
-    Filter the full OMOP `CONCEPT` file to `concept_ids` from actual mappings, write
-    the subset (the `Vocabulary` source, same columns). The CONCEPT file is scanned
-    lazily so the Athena dataset doesn't fully load into memory.
-
-    Reports: `missing_concept_ids` which are the mapping ids not present in this vocab release,
-    and `flagged_concepts` are the mapped concepts that are non-standard or invalid.
-    `NO_MATCHING_CONCEPT` is not flagged, it's a sentinel.
+    Filter Athena's `CONCEPT.csv` in `athena_dir` to `concept_ids` from actual
+    mappings (plus `NO_MATCHING_CONCEPT`), lazily so the full Athena dataset doesn't
+    load into memory. Same columns as `Vocabulary` hydrates from and the concept
+    subset file written by `VocabularyExporter.write_concept_subset`.
     """
     wanted = list(concept_ids)
-    subset = (
+    return (
         # quote_char=None: Athena can have `"` in fields
-        pl.scan_csv(concept_source, separator="\t", infer_schema_length=0, quote_char=None)
+        pl.scan_csv(athena_dir / "CONCEPT.csv", separator="\t", infer_schema_length=0, quote_char=None)
         .filter(pl.col("concept_id").cast(pl.Int64).is_in(wanted))
-        .select(CONCEPT_COLUMNS)
+        .select(ATHENA_CONCEPT_COLUMNS)
         .collect()
     )
 
+
+def concept_subset_report(subset: pl.DataFrame, concept_ids: set[int]) -> ConceptSubsetReport:
+    """
+    Reports: `missing_concept_ids` which are the mapping ids not present in this vocab release,
+    and `flagged_concepts` are the mapped concepts that are non-standard or invalid.
+    `NO_MATCHING_CONCEPT` is not flagged, it's a sentinel.
+
+    Logs a warning if either is non-empty, by the time this is called, mapping
+    validation should have already guaranteed every mapped id is present/standard/
+    valid, so a hit here means those two checks have drifted apart from each other.
+    """
     found = {int(cid) for cid in subset.get_column("concept_id")}
     missing_concept_ids = frozenset(concept_ids - found)
 
@@ -68,8 +63,13 @@ def generate_concept_subset(concept_source: Path, concept_ids: set[int], out_pat
         if int(row["concept_id"]) != NO_MATCHING_CONCEPT and (row["standard_concept"] != "S" or (row["invalid_reason"] or "") != "")
     )
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    subset.write_csv(out_path, separator="\t")
+    if missing_concept_ids or flagged_concepts:
+        log.warning(
+            "Concept subset has concepts mapping validation should have already caught: missing=%s flagged=%s",
+            missing_concept_ids,
+            flagged_concepts,
+        )
+
     return ConceptSubsetReport(written_count=subset.height, missing_concept_ids=missing_concept_ids, flagged_concepts=flagged_concepts)
 
 

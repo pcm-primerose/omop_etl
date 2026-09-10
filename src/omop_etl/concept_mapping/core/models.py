@@ -1,6 +1,8 @@
 from dataclasses import dataclass, astuple, field
 from typing import Literal, Dict, List
 
+from omop_etl.infra.utils.mapping_io import MAPPING_CONCEPT_COLUMNS
+
 
 LookupType = Literal["static", "structural", "semantic"]
 
@@ -10,9 +12,12 @@ def _norm(v: str | None) -> str:
     return (v or "").casefold().strip()
 
 
-def validity_from_invalid_reason(invalid_reason: str) -> str:
-    """OMOP convention: blank `invalid_reason` = valid, `D`/`U` (or anything else) = invalid."""
-    return "valid" if invalid_reason.strip() == "" else "invalid"
+def concept_fields_from_csv_row(row: dict[str, str]) -> dict[str, str]:
+    """
+    Read `MAPPING_CONCEPT_COLUMNS` from a mapping-file row, lowercased and stripped.
+    Callers that need `concept_id` as `int` cast it themselves.
+    """
+    return {col: (row[col] or "").casefold().strip() for col in MAPPING_CONCEPT_COLUMNS}
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,17 +45,12 @@ class StaticConcept:
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StaticConcept:
+        fields = concept_fields_from_csv_row(row)
+        fields["concept_id"] = int(fields["concept_id"])  # fixme: Expected type 'str' (matched generic type '_VT'), got 'int' instead
         return cls(
             value_set=_norm(row["value_set"]),
             source_value=_norm(row["source_value"]),
-            concept_id=int(row["concept_id"]),
-            concept_code=_norm(row["concept_code"]),
-            concept_name=_norm(row["concept_name"]),
-            concept_class_id=_norm(row["concept_class_id"]),
-            standard_concept=_norm(row["standard_concept"]),
-            validity=_norm(row["validity"]),
-            domain_id=_norm(row["domain_id"]),
-            vocabulary_id=_norm(row["vocabulary_id"]),
+            **fields,
         )
 
     def to_mapped(self) -> MappedConcept:
@@ -82,16 +82,11 @@ class StructuralConcept:
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
+        fields = concept_fields_from_csv_row(row)
+        fields["concept_id"] = int(fields["concept_id"])  # fixme: Expected type 'str' (matched generic type '_VT'), got 'int' instead
         return cls(
             value_set=_norm(row["value_set"]),
-            concept_id=int(row["concept_id"]),
-            concept_code=_norm(row["concept_code"]),
-            concept_name=_norm(row["concept_name"]),
-            concept_class_id=_norm(row["concept_class_id"]),
-            standard_concept=_norm(row["standard_concept"]),
-            validity=_norm(row["validity"]),
-            domain_id=_norm(row["domain_id"]),
-            vocabulary_id=_norm(row["vocabulary_id"]),
+            **fields,
         )
 
     def to_mapped(self) -> MappedConcept:

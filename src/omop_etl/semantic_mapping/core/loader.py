@@ -4,9 +4,9 @@ from pathlib import Path
 from logging import getLogger
 from typing import List
 from importlib.resources import files as pkg_files
-import polars as pl
 
 from omop_etl.semantic_mapping.core.models import SemanticRow
+from omop_etl.infra.utils.mapping_io import read_mapping_csv
 
 _BASE_SEMANTIC_MAPPED = pkg_files("omop_etl.resources.semantic_mapped")
 log = getLogger(__name__)
@@ -20,7 +20,7 @@ class LoadSemantics:
         rows: list[SemanticRow] = []
         # Path.open accepts newline="", but Traversable.open does not
         f = self.path.open("r", newline="") if isinstance(self.path, Path) else self.path.open("r")
-        df = pl.read_csv(f, comment_prefix="#", infer_schema_length=0)
+        df = read_mapping_csv(f)
         for line_no, row in enumerate(df.iter_rows(named=True), start=2):
             none_cols = [k for k, v in row.items() if v is None]
             if none_cols:

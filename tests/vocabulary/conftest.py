@@ -1,9 +1,9 @@
 import pytest
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, fields
 from pathlib import Path
 import polars as pl
 
-from omop_etl.vocabulary.vocabulary import CONCEPT_COLUMNS
+from omop_etl.vocabulary.core.helpers import ATHENA_CONCEPT_COLUMNS, REQUIRED_ATHENA_FILES
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,12 +28,55 @@ class ConceptRow:
         return {k: str(v) for k, v in asdict(self).items()}
 
 
-def write_concept_tsv(path: Path, *rows: ConceptRow) -> Path:
-    """Write ConceptRows to a tab-delimited OMOP CONCEPT file, as Vocabulary.from_csv reads."""
-    lines = ["\t".join(CONCEPT_COLUMNS)]
-    lines += ["\t".join(r.as_row()[column] for column in CONCEPT_COLUMNS) for r in rows]
-    path.write_text("\n".join(lines) + "\n")
-    return path
+@dataclass(frozen=True, slots=True)
+class VocabularyRow:
+    vocabulary_id: str | None = None
+    vocabulary_name: str = "OMOP Standardized Vocabularies"
+    vocabulary_reference: str = "OMOP generated"
+    vocabulary_version: str = "v5.0 01-JAN-26"
+    vocabulary_concept_id: str = "44819096"
+
+    def as_row(self) -> dict[str, str]:
+        return {k: str(v) for k, v in asdict(self).items()}
+
+
+_VOCABULARY_COLUMNS = tuple(f.name for f in fields(VocabularyRow))
+
+
+def write_concept_csv(athena_dir: Path, *rows: ConceptRow) -> Path:
+    """
+    Write Athena's CONCEPT.csv into `athena_dir` and return its path.
+    """
+    concept_path = athena_dir / "CONCEPT.csv"
+    lines = ["\t".join(ATHENA_CONCEPT_COLUMNS)]
+    lines += ["\t".join(r.as_row()[column] for column in ATHENA_CONCEPT_COLUMNS) for r in rows]
+    concept_path.write_text("\n".join(lines) + "\n")
+    return concept_path
+
+
+def write_vocabulary_csv(athena_dir: Path, row: VocabularyRow = VocabularyRow()) -> Path:
+    """Write Athena's VOCABULARY.csv into `athena_dir` and return its path."""
+    vocabulary_path = athena_dir / "VOCABULARY.csv"
+    values = row.as_row()
+    lines = ["\t".join(_VOCABULARY_COLUMNS), "\t".join(values[column] for column in _VOCABULARY_COLUMNS)]
+    vocabulary_path.write_text("\n".join(lines) + "\n")
+    return vocabulary_path
+
+
+def write_athena_bundle(athena_dir: Path, *, skip: tuple[str, ...] = ()) -> Path:
+    """
+    Write a minimal, well-formed placeholder for every file in `REQUIRED_ATHENA_FILES`
+    into `athena_dir`, for bundle-presence/readability tests.
+    """
+    if "CONCEPT.csv" not in skip:
+        write_concept_csv(athena_dir, ConceptRow(4112853))
+    if "VOCABULARY.csv" not in skip and not (athena_dir / "VOCABULARY.csv").exists():
+        write_vocabulary_csv(athena_dir)
+    for filename in REQUIRED_ATHENA_FILES:
+        if filename in ("CONCEPT.csv", "VOCABULARY.csv") or filename in skip:
+            continue
+        (athena_dir / filename).write_text("placeholder_column\n")
+    return athena_dir
 
 
 @pytest.fixture
