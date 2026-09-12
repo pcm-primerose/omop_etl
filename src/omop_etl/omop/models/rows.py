@@ -321,3 +321,47 @@ class LocationRow:
     country_source_value: Annotated[str | None, pd_field(max_length=80)] = None
     latitude: float | None = None
     longitude: float | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class ConditionEraRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#condition_era
+    """
+
+    condition_era_id: int
+    person_id: int
+    condition_concept_id: int
+    condition_era_start_date: dt.date
+    condition_era_end_date: dt.date
+    condition_occurrence_count: int | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class DrugEraRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#drug_era
+    """
+
+    drug_era_id: int
+    person_id: int
+    drug_concept_id: int
+    drug_era_start_date: dt.date
+    drug_era_end_date: dt.date
+    drug_exposure_count: int | None = None
+    gap_days: int | None = None
+
+
+@pd_dataclass(frozen=True, slots=True)
+class DoseEraRow:
+    """
+    https://ohdsi.github.io/CommonDataModel/cdm54.html#dose_era
+    """
+
+    dose_era_id: int
+    person_id: int
+    drug_concept_id: int
+    unit_concept_id: int
+    dose_value: int
+    dose_era_start_date: dt.date
+    dose_era_end_date: dt.date

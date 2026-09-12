@@ -19,6 +19,7 @@ from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
 from omop_etl.omop.builders.cohort import CohortBuilder
 from omop_etl.omop.builders.cohort_definition import CohortDefinitionBuilder
 from omop_etl.omop.builders.location import LocationBuilder
+from omop_etl.omop.builders.condition_era import ConditionEraBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.models.tables import OmopTables
 
@@ -81,6 +82,13 @@ class OmopService:
         tables.extend(
             OmopTables.LOCATION,
             LocationBuilder(self._concepts).build(patients),
+        )
+
+        # derived era tables: pure transform over already-built rows
+        # todo: add drug (and maybe dose) later
+        tables.extend(
+            OmopTables.CONDITION_ERA,
+            ConditionEraBuilder().build(tables.condition_occurrence),
         )
 
         return tables

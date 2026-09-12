@@ -17,6 +17,9 @@ from omop_etl.omop.models.rows import (
     CohortRow,
     CohortDefinitionRow,
     LocationRow,
+    ConditionEraRow,
+    DrugEraRow,
+    DoseEraRow,
 )
 
 
@@ -55,6 +58,9 @@ class OmopTables:
     COHORT: ClassVar[str] = "cohort"
     COHORT_DEFINITION: ClassVar[str] = "cohort_definition"
     LOCATION: ClassVar[str] = "location"
+    CONDITION_ERA: ClassVar[str] = "condition_era"
+    DRUG_ERA: ClassVar[str] = "drug_era"
+    DOSE_ERA: ClassVar[str] = "dose_era"
 
     _tables: dict[str, list[Any]] = field(default_factory=dict)
 
@@ -141,3 +147,15 @@ class OmopTables:
     @property
     def location(self) -> list[LocationRow]:
         return self._tables.get(self.LOCATION, [])
+
+    @property
+    def condition_era(self) -> list[ConditionEraRow]:
+        return self._tables.get(self.CONDITION_ERA, [])
+
+    @property
+    def drug_era(self) -> list[DrugEraRow]:
+        return self._tables.get(self.DRUG_ERA, [])
+
+    @property
+    def dose_era(self) -> list[DoseEraRow]:
+        return self._tables.get(self.DOSE_ERA, [])
