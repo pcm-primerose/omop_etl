@@ -247,7 +247,7 @@ class TestEndOfTreatment:
     """
     Reads the EndOfTreatment singleton and branches on status:
     - COMPLETED: topic = trial_completion (40482840), no value_as_concept_id.
-    - WITHDRAWN: topic = patient_withdrawn (4087907),
+    - WITHDRAWN: topic = patient_withdrawn (37470332),
       value_as_concept_id = mapped eot_reason concept (or 0).
     """
 
@@ -305,7 +305,7 @@ class TestEndOfTreatment:
         assert result.rows[0].value_as_concept_id is None
 
     def test_withdrawn_with_mapped_reason_emits_withdrawal_shape(self, static_index, structural_index):
-        static_index[("eot_reason", "disease progression")] = _static(1617595, "observation")
+        static_index[("eot_reason", "disease progression")] = _static(1340506, "observation")
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.end_of_treatment = self._make_eot(
@@ -319,7 +319,7 @@ class TestEndOfTreatment:
         row = result.rows[0]
         assert row.observation_concept_id == PATIENT_WITHDRAWN_CID
         assert row.observation_date == dt.date(2023, 8, 1)
-        assert row.value_as_concept_id == 1617595
+        assert row.value_as_concept_id == 1340506
         assert row.observation_source_value == "end_of_treatment"
         assert row.value_as_string == "Disease progression"
         assert row.value_source_value == "Disease progression"
@@ -389,7 +389,7 @@ class TestEndOfTreatment:
         assert any("no date" in rec.message for rec in caplog.records)
 
 
-PATIENT_WITHDRAWN_CID = 4087907
+PATIENT_WITHDRAWN_CID = 37470332
 LOST_TO_FU_REASON_CID = 44811247
 
 
@@ -397,7 +397,7 @@ class TestLostToFollowup:
     """
     Clinical-trials CDM shape (Topic 1 / item 5 of the delta):
     observation_concept_id is `patient_withdrawn`: "Patient withdrawn
-    from trial" (4087907), value_as_concept_id is the withdrawal reason
+    from trial" (37470332), value_as_concept_id is the withdrawal reason
     `lost_to_followup,True`: "Lost to clinical trial follow-up"
     (44811247). Only emitted when lost_to_followup is True.
     """

@@ -146,6 +146,7 @@ def main() -> int:
     if not args.mapping_dir.exists():
         parser.error(f"Mapping dir does not exist: {args.mapping_dir}")
     configure_logger(level=LOG_LEVEL)
+
     return run_pipeline(
         preprocessing_input=dataset_path,
         base_root=DATA_ROOT,

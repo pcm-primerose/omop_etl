@@ -181,7 +181,7 @@ def _static(concept_id: int, domain_id: str) -> MappedConcept:
 def structural_index() -> dict[str, MappedConcept]:
     return {
         "ecrf": _structural(32809, "type concept"),
-        "patient_withdrawn": _structural(4087907, "observation"),
+        "patient_withdrawn": _structural(37470332, "observation"),
         "outpatient_visit": _structural(9202, "visit"),
         "iv": _structural(4171047, "route"),
         "oral": _structural(4132161, "route"),

@@ -334,7 +334,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         Encoded per clinical-trials CDM guideline as a "Patient withdrawn
         from trial" observation with the withdrawal reason in
         value_as_concept_id:
-        - observation_concept_id: structural `patient_withdrawn`: 4087907
+        - observation_concept_id: structural `patient_withdrawn`: 37470332
           "Patient withdrawn from trial" (or 0 if missing).
         - value_as_concept_id: static `lost_to_followup,True`: 44811247
           "Lost to clinical trial follow-up" (or 0 if missing).
