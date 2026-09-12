@@ -9,14 +9,13 @@ class CdmSourceBuilder:
     Builds the singleton CdmSource row with CDM metadata.
     """
 
-    def __init__(self, concepts: ConceptLookupService):
+    def __init__(self, concepts: ConceptLookupService, athena_version: str):
         self.concepts = concepts
+        self.athena_version = athena_version
 
     def build(self) -> CdmSourceRow:
         cdm_concept = self.concepts.resolve("cdm", domains={"Metadata"})
-        vocab_concept = self.concepts.resolve("vocab", domains={"Metadata"})
         cdm_version_concept_id = int(cdm_concept[0].concept_id) if cdm_concept else 0
-        cdm_vocabulary_version = str(vocab_concept[0].concept_id) if vocab_concept else ""
 
         return CdmSourceRow(
             cdm_source_name="PRIME-ROSE OMOP ETL",
@@ -29,5 +28,5 @@ class CdmSourceBuilder:
             cdm_release_date=dt.date.today(),
             cdm_version="v5.4",
             cdm_version_concept_id=cdm_version_concept_id,
-            vocabulary_version=cdm_vocabulary_version,
+            vocabulary_version=self.athena_version,
         )

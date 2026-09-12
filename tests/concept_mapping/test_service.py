@@ -172,18 +172,15 @@ class TestCaseInsensitiveLookups:
 
 def _make_semantic_row(concept_id: str, domain: str = "condition", name: str = "test") -> SemanticRow:
     return SemanticRow(
-        term_id="t1",
-        source_col="col",
-        source_term="term",
-        frequency=1,
-        omop_concept_id=concept_id,
-        omop_concept_code="code",
-        omop_concept_name=name,
-        omop_concept_class="class",
-        omop_standard_concept="concept",
-        omop_validity="standard",
-        omop_domain=domain,
-        omop_vocab="snomed",
+        source_value="term",
+        concept_id=concept_id,
+        concept_code="code",
+        concept_name=name,
+        concept_class_id="class",
+        standard_concept="concept",
+        validity="standard",
+        domain_id=domain,
+        vocabulary_id="snomed",
     )
 
 

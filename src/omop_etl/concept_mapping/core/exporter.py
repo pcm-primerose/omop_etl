@@ -143,11 +143,11 @@ class ConceptLookupExporter:
             {
                 "lookup_type": m.lookup_type,
                 "value_set": m.value_set,
-                "local_value": m.local_value,
+                "source_value": m.source_value,
             }
             for m in missed
         ]
-        return pl.DataFrame(rows) if rows else pl.DataFrame(schema={"lookup_type": str, "value_set": str, "local_value": str})
+        return pl.DataFrame(rows) if rows else pl.DataFrame(schema={"lookup_type": str, "value_set": str, "source_value": str})
 
     @staticmethod
     def _coverage_to_dict(coverage: Dict[str, FieldCoverage]) -> Dict[str, Dict]:

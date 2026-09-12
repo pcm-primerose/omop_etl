@@ -1,5 +1,7 @@
 from collections.abc import Sequence
 
+import polars as pl
+
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder
@@ -19,8 +21,12 @@ from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
 from omop_etl.omop.builders.cohort import CohortBuilder
 from omop_etl.omop.builders.cohort_definition import CohortDefinitionBuilder
 from omop_etl.omop.builders.location import LocationBuilder
+from omop_etl.omop.builders.condition_era import ConditionEraBuilder
+from omop_etl.omop.builders.drug_era import DrugEraBuilder
+from omop_etl.omop.builders.dose_era import DoseEraBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
 from omop_etl.omop.models.tables import OmopTables
+from omop_etl.vocabulary.core.vocabulary import Vocabulary
 
 
 class OmopService:
@@ -32,8 +38,11 @@ class OmopService:
     (like visit_occurrence) are built first.
     """
 
-    def __init__(self, concepts: ConceptLookupService):
+    def __init__(self, concepts: ConceptLookupService, vocabulary: Vocabulary, concept_ancestor: pl.DataFrame, athena_version: str):
         self._concepts = concepts
+        self._vocabulary = vocabulary
+        self._concept_ancestor = concept_ancestor
+        self._athena_version = athena_version
         # Builder order matters:
         # builders whose publications are consumed downstream must run first.
         # VisitOccurrenceBuilder publishes the date-anchored visit map.
@@ -69,7 +78,7 @@ class OmopService:
                 tables.extend(builder.table_name, list(rows))
 
         # singleton metadata row
-        tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts).build())
+        tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts, self._athena_version).build())
 
         # cross-patient reference: one cohort_definition per distinct arm observed
         tables.extend(
@@ -81,6 +90,20 @@ class OmopService:
         tables.extend(
             OmopTables.LOCATION,
             LocationBuilder(self._concepts).build(patients),
+        )
+
+        # derived era tables: pure transforms over already-built rows
+        tables.extend(
+            OmopTables.CONDITION_ERA,
+            ConditionEraBuilder().build(tables.condition_occurrence),
+        )
+        tables.extend(
+            OmopTables.DRUG_ERA,
+            DrugEraBuilder().build(tables.drug_exposure, self._concept_ancestor, self._vocabulary),
+        )
+        tables.extend(
+            OmopTables.DOSE_ERA,
+            DoseEraBuilder().build(tables.drug_exposure, self._concept_ancestor, self._vocabulary, self._concepts),
         )
 
         return tables

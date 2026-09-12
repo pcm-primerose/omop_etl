@@ -6,6 +6,7 @@ import polars as pl
 
 from omop_etl.infra.io.path_planner import WriterContext
 from omop_etl.infra.utils.run_context import RunMetadata
+from omop_etl.concept_mapping.core.models import concept_fields_from_csv_row
 
 
 @dataclass(frozen=True)
@@ -32,34 +33,21 @@ class SemanticRow:
     a single OMOP concept candidate (loaded from the mapping CSV).
     """
 
-    term_id: str
-    source_col: str
-    source_term: str
-    frequency: int
-    omop_concept_id: str
-    omop_concept_code: str
-    omop_concept_name: str
-    omop_concept_class: str
-    omop_standard_concept: str
-    omop_validity: str
-    omop_domain: str
-    omop_vocab: str
+    source_value: str
+    concept_id: str
+    concept_code: str
+    concept_name: str
+    concept_class_id: str
+    standard_concept: str
+    validity: str
+    domain_id: str
+    vocabulary_id: str
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> "SemanticRow":
         return cls(
-            term_id=_norm(row["term_id"]),
-            source_col=_norm(row["source_col"]),
-            source_term=_norm(row["source_term"]),
-            frequency=int(row.get("frequency") or 0),
-            omop_concept_id=_norm(row["omop_concept_id"]),
-            omop_concept_code=_norm(row["omop_concept_code"]),
-            omop_concept_name=_norm(row["omop_concept_name"]),
-            omop_concept_class=_norm(row["omop_concept_class"]),
-            omop_standard_concept=_norm(row["omop_standard_concept"]),
-            omop_validity=_norm(row["omop_validity"]),
-            omop_domain=_norm(row["omop_domain"]),
-            omop_vocab=_norm(row["omop_vocab"]),
+            source_value=_norm(row["source_value"]),
+            **concept_fields_from_csv_row(row),
         )
 
 
@@ -159,18 +147,15 @@ class BatchQueryResult:
                         "query": q.query,
                         "field_path": ".".join(q.field_path),
                         "raw_value": q.raw_value,
-                        "term_id": sem_row.term_id,
-                        "source_col": sem_row.source_col,
-                        "source_term": sem_row.source_term,
-                        "frequency": sem_row.frequency,
-                        "omop_concept_id": sem_row.omop_concept_id,
-                        "omop_concept_code": sem_row.omop_concept_code,
-                        "omop_concept_name": sem_row.omop_concept_name,
-                        "omop_concept_class": sem_row.omop_concept_class,
-                        "omop_standard_concept": sem_row.omop_standard_concept,
-                        "omop_validity": sem_row.omop_validity,
-                        "omop_domain": sem_row.omop_domain,
-                        "omop_vocab": sem_row.omop_vocab,
+                        "source_value": sem_row.source_value,
+                        "concept_id": sem_row.concept_id,
+                        "concept_code": sem_row.concept_code,
+                        "concept_name": sem_row.concept_name,
+                        "concept_class_id": sem_row.concept_class_id,
+                        "standard_concept": sem_row.standard_concept,
+                        "validity": sem_row.validity,
+                        "domain_id": sem_row.domain_id,
+                        "vocabulary_id": sem_row.vocabulary_id,
                     }
                 )
         return pl.DataFrame(rows)
@@ -202,18 +187,15 @@ class BatchQueryResult:
                         "query": q.query,
                         "field_path": ".".join(q.field_path),
                         "raw_value": q.raw_value,
-                        "term_id": sem_row.term_id,
-                        "source_col": sem_row.source_col,
-                        "source_term": sem_row.source_term,
-                        "frequency": sem_row.frequency,
-                        "omop_concept_id": sem_row.omop_concept_id,
-                        "omop_concept_code": sem_row.omop_concept_code,
-                        "omop_concept_name": sem_row.omop_concept_name,
-                        "omop_concept_class": sem_row.omop_concept_class,
-                        "omop_standard_concept": sem_row.omop_standard_concept,
-                        "omop_validity": sem_row.omop_validity,
-                        "omop_domain": sem_row.omop_domain,
-                        "omop_vocab": sem_row.omop_vocab,
+                        "source_value": sem_row.source_value,
+                        "concept_id": sem_row.concept_id,
+                        "concept_code": sem_row.concept_code,
+                        "concept_name": sem_row.concept_name,
+                        "concept_class_id": sem_row.concept_class_id,
+                        "standard_concept": sem_row.standard_concept,
+                        "validity": sem_row.validity,
+                        "domain_id": sem_row.domain_id,
+                        "vocabulary_id": sem_row.vocabulary_id,
                     }
                 )
         return rows

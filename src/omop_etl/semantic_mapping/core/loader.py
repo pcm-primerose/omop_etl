@@ -1,39 +1,34 @@
-import csv
 from collections import defaultdict
-from importlib.resources.abc import Traversable
 from pathlib import Path
 from logging import getLogger
 from typing import List
-from importlib.resources import files as pkg_files
 
 from omop_etl.semantic_mapping.core.models import SemanticRow
+from omop_etl.infra.utils.mapping_io import read_mapping_csv
 
-_BASE_SEMANTIC_MAPPED = pkg_files("omop_etl.resources.semantic_mapped")
 log = getLogger(__name__)
 
 
 class LoadSemantics:
-    def __init__(self, path: Path | None = None):
-        self.path = path if path else _resolve_base(_BASE_SEMANTIC_MAPPED)
+    def __init__(self, path: Path):
+        self.path = path
 
     def as_rows(self) -> list[SemanticRow]:
         rows: list[SemanticRow] = []
-        # Path.open accepts newline="", but Traversable.open does not
-        f = self.path.open("r", newline="") if isinstance(self.path, Path) else self.path.open("r")
-        try:
-            for line_no, row in enumerate(csv.DictReader(f), start=2):
-                none_cols = [k for k, v in row.items() if v is None]
-                if none_cols:
-                    log.warning(
-                        "Malformed row in %s line %d: missing columns %s (row: %s)",
-                        self.path,
-                        line_no,
-                        none_cols,
-                        dict(row),
-                    )
-                rows.append(SemanticRow.from_csv_row(row))
-        finally:
-            f.close()
+        f = self.path.open("r", newline="")
+        df = read_mapping_csv(f)
+        for line_no, row in enumerate(df.iter_rows(named=True), start=2):
+            none_cols = [k for k, v in row.items() if v is None]
+            if none_cols:
+                log.warning(
+                    "Malformed row in %s line %d: missing columns %s (row: %s)",
+                    self.path,
+                    line_no,
+                    none_cols,
+                    dict(row),
+                )
+            rows.append(SemanticRow.from_csv_row(row))
+
         return rows
 
     def as_indexed(self) -> dict[str, list[SemanticRow]]:
@@ -48,33 +43,21 @@ class LoadSemantics:
         # e.g. collapse "OxyNorm" and "Oxynorm" both mapping to oxycodone
         raw: dict[str, list[SemanticRow]] = defaultdict(list)
         for row in rows:
-            key = row.source_term.casefold().strip()
+            key = row.source_value.casefold().strip()
             raw[key].append(row)
 
         idx: dict[str, list[SemanticRow]] = {}
         for key, candidates in raw.items():
             seen: dict[str, SemanticRow] = {}
             for row in candidates:
-                if row.omop_concept_id in seen:
+                if row.concept_id in seen:
                     log.warning(
                         "Collapsing duplicate concept_id=%s for source_term='%s', consider updating mapping file.",
-                        row.omop_concept_id,
+                        row.concept_id,
                         key,
                     )
                 else:
-                    seen[row.omop_concept_id] = row
+                    seen[row.concept_id] = row
             idx[key] = list(seen.values())
 
         return idx
-
-
-def _resolve_base(base: Traversable) -> Traversable:
-    candidates = [entry for entry in base.iterdir() if entry.is_file()]
-    if not candidates:
-        raise ValueError(f"No semantic mapping files found in {base.name}")
-    if len(candidates) > 1:
-        log.warning(
-            "Base semantic dir contains several semantic files, current impl picks the first: %s",
-            [c.name for c in candidates],
-        )
-    return candidates[0]

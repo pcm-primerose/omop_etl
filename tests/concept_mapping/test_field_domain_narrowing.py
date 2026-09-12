@@ -31,18 +31,15 @@ REGIMEN_CONCEPT = 2002
 
 def _row(concept_id: int, domain: str) -> SemanticRow:
     return SemanticRow(
-        term_id="t",
-        source_col="TRT",
-        source_term="erivedge",
-        frequency=1,
-        omop_concept_id=str(concept_id),
-        omop_concept_code=str(concept_id),
-        omop_concept_name="x",
-        omop_concept_class="",
-        omop_standard_concept="standard",
-        omop_validity="valid",
-        omop_domain=domain,
-        omop_vocab="rxnorm",
+        source_value="erivedge",
+        concept_id=str(concept_id),
+        concept_code=str(concept_id),
+        concept_name="x",
+        concept_class_id="",
+        standard_concept="standard",
+        validity="valid",
+        domain_id=domain,
+        vocabulary_id="rxnorm",
     )
 
 

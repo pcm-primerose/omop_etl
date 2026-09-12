@@ -17,18 +17,15 @@ from omop_etl.semantic_mapping.core.models import (
 def semantic_data() -> pl.DataFrame:
     df = pl.DataFrame(
         data={
-            "term_id": ["a", "b", "c"],
-            "source_col": ["x", "y", "z"],
-            "source_term": ["something", "AML", "gsv sleeper service"],
-            "frequency": [1, 2, 3],
-            "omop_concept_id": [10, 20, 30],
-            "omop_concept_code": [100, 200, 300],
-            "omop_concept_name": ["something else", "Acute Myeloid Leukemia", "systems vehicle"],
-            "omop_concept_class": ["abc", "cde", "efg"],
-            "omop_standard_concept": ["S", "S", "S"],
-            "omop_validity": ["Valid", "Valid", "Valid"],
-            "omop_domain": ["condition", "CONDITION", "Condition"],
-            "omop_vocab": ["a", "b", "c"],
+            "source_value": ["something", "AML", "gsv sleeper service"],
+            "concept_id": [10, 20, 30],
+            "concept_code": [100, 200, 300],
+            "concept_name": ["something else", "Acute Myeloid Leukemia", "systems vehicle"],
+            "concept_class_id": ["abc", "cde", "efg"],
+            "standard_concept": ["S", "S", "S"],
+            "validity": ["", "", ""],
+            "domain_id": ["condition", "CONDITION", "Condition"],
+            "vocabulary_id": ["a", "b", "c"],
         }
     )
     return df

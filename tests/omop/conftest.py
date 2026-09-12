@@ -1,5 +1,6 @@
 import datetime as dt
 from dataclasses import dataclass
+import polars as pl
 import pytest
 
 from omop_etl.concept_mapping.core.models import MappedConcept
@@ -21,6 +22,7 @@ from omop_etl.semantic_mapping.core.models import (
     Query,
     BatchQueryResult,
 )
+from omop_etl.vocabulary.core.vocabulary import Vocabulary
 
 
 def create_build_context(patient: Patient, person_id: int | None = None) -> BuildContext:
@@ -123,18 +125,15 @@ def concept(
     One OMOP concept a semantic term resolves to.
     """
     return SemanticRow(
-        term_id="test",
-        source_col="test",
-        source_term="test",
-        frequency=1,
-        omop_concept_id=str(concept_id),
-        omop_concept_code=concept_code or str(concept_id),
-        omop_concept_name=name,
-        omop_concept_class=concept_class,
-        omop_standard_concept=standard_concept,
-        omop_validity=validity,
-        omop_domain=domain,
-        omop_vocab=vocab,
+        source_value="test",
+        concept_id=str(concept_id),
+        concept_code=concept_code or str(concept_id),
+        concept_name=name,
+        concept_class_id=concept_class,
+        standard_concept=standard_concept,
+        validity=validity,
+        domain_id=domain,
+        vocabulary_id=vocab,
     )
 
 
@@ -169,7 +168,7 @@ def _structural(concept_id: int, domain_id: str) -> MappedConcept:
 
 
 def _static(concept_id: int, domain_id: str) -> MappedConcept:
-    # the (value_set, local_value) key is carried by the caller
+    # the (value_set, source_value) key is carried by the caller
     return MappedConcept(
         concept_id=concept_id,
         concept_code="",
@@ -181,15 +180,26 @@ def _static(concept_id: int, domain_id: str) -> MappedConcept:
 
 
 @pytest.fixture
+def empty_vocabulary() -> Vocabulary:
+    """No mapped concepts: for tests where DrugEraBuilder's ingredient rollup isn't the subject."""
+    return Vocabulary({})
+
+
+@pytest.fixture
+def empty_concept_ancestor() -> pl.DataFrame:
+    """No ancestor rows: for tests where DrugEraBuilder's ingredient rollup isn't the subject."""
+    return pl.DataFrame(schema={"ancestor_concept_id": pl.Utf8, "descendant_concept_id": pl.Utf8})
+
+
+@pytest.fixture
 def structural_index() -> dict[str, MappedConcept]:
     return {
         "ecrf": _structural(32809, "type concept"),
-        "patient_withdrawn": _structural(4087907, "observation"),
+        "patient_withdrawn": _structural(37470332, "observation"),
         "outpatient_visit": _structural(9202, "visit"),
         "iv": _structural(4171047, "route"),
         "oral": _structural(4132161, "route"),
         "cdm": _structural(705800, "metadata"),
-        "vocab": _structural(1146958, "metadata"),
         "ecog": _structural(36305384, "measurement"),
         # measurement builder: target lesion absolute size
         "lesion_size": _structural(36768664, "measurement"),

@@ -225,12 +225,12 @@ class ConceptLookupService:
         mapped: list[MappedConcept] = []
         for row in qr.results:
             concept = MappedConcept(
-                concept_id=int(row.omop_concept_id),
-                concept_code=row.omop_concept_code,
-                concept_name=row.omop_concept_name,
-                domain_id=row.omop_domain,
-                vocabulary_id=row.omop_vocab,
-                validity=row.omop_validity,
+                concept_id=int(row.concept_id),
+                concept_code=row.concept_code,
+                concept_name=row.concept_name,
+                domain_id=row.domain_id,
+                vocabulary_id=row.vocabulary_id,
+                validity=row.validity,
             )
             if _concept_matches_filter(concept, domains, vocabs, validity):
                 mapped.append(concept)

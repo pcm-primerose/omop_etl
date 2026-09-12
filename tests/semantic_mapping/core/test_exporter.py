@@ -27,18 +27,15 @@ def run_meta() -> RunMetadata:
 def semantic_rows() -> List[SemanticRow]:
     return [
         SemanticRow(
-            term_id="t1",
-            source_col="col1",
-            source_term="aml",
-            frequency=10,
-            omop_concept_id="123",
-            omop_concept_code="C123",
-            omop_concept_name="acute myeloid leukemia",
-            omop_concept_class="disorder",
-            omop_standard_concept="S",
-            omop_validity="valid",
-            omop_domain="condition",
-            omop_vocab="SNOMED",
+            source_value="aml",
+            concept_id="123",
+            concept_code="C123",
+            concept_name="acute myeloid leukemia",
+            concept_class_id="disorder",
+            standard_concept="S",
+            validity="valid",
+            domain_id="condition",
+            vocabulary_id="SNOMED",
         ),
     ]
 

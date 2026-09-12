@@ -13,16 +13,17 @@ from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import BatchQueryResult
 from omop_etl.concept_mapping.service import ConceptLookupService
+from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
+from omop_etl.vocabulary.service import VocabularyResult, VocabularyService
 
 from omop_etl.omop.service import OmopService
 from omop_etl.omop.models.tables import OmopTables
 
 
-def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str) -> HarmonizedData:
+def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str, meta: RunMetadata) -> HarmonizedData:
     base_root.mkdir(parents=True, exist_ok=True)
 
     ecrf_config = make_ecrf_config(trial=trial)
-    meta = RunMetadata.create(trial)
 
     preprocessor = PreprocessService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
     preprocessing_result: PreprocessResult = preprocessor.run(
@@ -55,45 +56,61 @@ def _build_tables(
     meta: RunMetadata,
     outdir: Path,
     *,
-    static_mapping: Path,
-    structural_mapping: Path,
+    mapping_dir: Path,
     with_semantic: bool,
+    vocabulary_result: VocabularyResult,
 ) -> OmopTables:
+    paths = resolve_mapping_paths(mapping_dir)
+
     semantic_batch: BatchQueryResult | None = None
     if with_semantic:
-        result = SemanticService().run(harmonized_data=harmonized, meta=meta, trial=meta.trial)
+        result = SemanticService().run(harmonized_data=harmonized, meta=meta, trial=meta.trial, semantic_path=paths.semantic)
         semantic_batch = result.batch_result
 
     concept_service = ConceptLookupService.from_paths(
-        static_path=static_mapping,
-        structural_path=structural_mapping,
+        static_path=paths.static,
+        structural_path=paths.structural,
         semantic_batch=semantic_batch,
         meta=meta,
         outdir=outdir,
         layout=Layout.TRIAL_TIMESTAMP_RUN,
     )
 
-    omop_service = OmopService(concepts=concept_service)
+    omop_service = OmopService(
+        concepts=concept_service,
+        vocabulary=vocabulary_result.vocabulary,
+        concept_ancestor=vocabulary_result.concept_ancestor,
+        athena_version=vocabulary_result.athena_version,
+    )
     return omop_service.build(harmonized.patients)
 
 
 def cmd_load(args: argparse.Namespace) -> int:
     configure_logger(level=args.log_level)
+    meta = RunMetadata.create(args.trial)
+
+    # The ETL must never run on invalid mappings: this validates the mapping files
+    # against Athena and raises before anything else runs if there's a problem.
+    vocabulary_result = VocabularyService(
+        outdir=args.outdir,
+        athena_dir=args.athena_dir,
+        mapping_files=resolve_mapping_paths(args.mapping_dir).as_list(),
+    ).run(meta)
 
     harmonized = run_pipeline(
         preprocessing_input=args.input,
         base_root=args.outdir,
         trial=args.trial,
+        meta=meta,
     )
 
-    # todo: don't create new run context
     tables = _build_tables(
         harmonized,
-        meta=RunMetadata.create(args.trial),
+        meta=meta,
         outdir=args.outdir,
-        static_mapping=args.static_mapping,
-        structural_mapping=args.structural_mapping,
+        mapping_dir=args.mapping_dir,
         with_semantic=args.with_semantic,
+        vocabulary_result=vocabulary_result,
     )
 
     dsn = args.dsn or args.database_url
@@ -115,8 +132,8 @@ def main(argv: list[str] | None = None) -> int:
     load.add_argument("--input", type=Path, required=True)
     load.add_argument("--outdir", type=Path, required=True)
     load.add_argument("--trial", default="IMPRESS")
-    load.add_argument("--static-mapping", type=Path, required=True)
-    load.add_argument("--structural-mapping", type=Path, required=True)
+    load.add_argument("--athena-dir", type=Path, required=True, help="Dir containing this release's Athena CSVs (CONCEPT.csv, VOCABULARY.csv, ...)")
+    load.add_argument("--mapping-dir", type=Path, required=True, help="Dir containing static.csv/structural.csv/semantic.csv")
 
     load.add_argument("--dsn", default=None)
     load.add_argument("--truncate", action="store_true")

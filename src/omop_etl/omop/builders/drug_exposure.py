@@ -123,10 +123,15 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
         dose_unit: str | None = None
         route_concept_id: int | None = None
         route_source: str | None = cycle.cycle_type
+        # OMOP convention: quantity/days_supply recovers the daily dose. IV doses
+        # are administered once per cycle, Oral days_supply is the same cycle_days already used for quantity,
+        # so quantity/days_supply recovers oral_dose_prescribed_per_day exactly.
+        days_supply: int | None = None
 
         if cycle.cycle_type and cycle.cycle_type == "iv":
             quantity = cycle.iv_dose_prescribed
             dose_unit = cycle.iv_dose_prescribed_unit
+            days_supply = 1
             iv_route = self.concepts.resolve("iv", domains={"Route"})
             route_concept_id = iv_route[0].concept_id if iv_route else None
         elif cycle.cycle_type and cycle.cycle_type == "oral":
@@ -138,6 +143,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
             if per_day is not None and end_date is not None:
                 cycle_days = (end_date - start_date).days + 1
                 quantity = per_day * cycle_days
+                days_supply = cycle_days
             else:
                 quantity = per_day
 
@@ -156,6 +162,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                     drug_exposure_end_date=end_date_or_start,
                     drug_type_concept_id=drug_type_concept_id,
                     quantity=quantity,
+                    days_supply=days_supply,
                     route_source_value=route_source,
                     dose_unit_source_value=dose_unit,
                     drug_source_value=drug_source_value,
@@ -172,6 +179,7 @@ class DrugExposureBuilder(OmopBuilder[DrugExposureRow]):
                 drug_exposure_end_date=end_date_or_start,
                 drug_type_concept_id=drug_type_concept_id,
                 quantity=quantity,
+                days_supply=days_supply,
                 route_source_value=route_source,
                 dose_unit_source_value=dose_unit,
                 drug_source_value=drug_source_value,

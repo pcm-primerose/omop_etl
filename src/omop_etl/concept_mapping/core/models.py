@@ -1,6 +1,8 @@
 from dataclasses import dataclass, astuple, field
 from typing import Literal, Dict, List
 
+from omop_etl.infra.utils.mapping_io import MAPPING_CONCEPT_COLUMNS
+
 
 LookupType = Literal["static", "structural", "semantic"]
 
@@ -8,6 +10,14 @@ LookupType = Literal["static", "structural", "semantic"]
 def _norm(v: str | None) -> str:
     """Lowercase and strip a CSV value, defaulting None to empty string."""
     return (v or "").casefold().strip()
+
+
+def concept_fields_from_csv_row(row: dict[str, str]) -> dict[str, str]:
+    """
+    Read `MAPPING_CONCEPT_COLUMNS` from a mapping-file row, lowercased and stripped.
+    Callers that need `concept_id` as `int` cast it themselves.
+    """
+    return {col: (row[col] or "").casefold().strip() for col in MAPPING_CONCEPT_COLUMNS}
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,11 +33,11 @@ class MappedConcept:
 @dataclass(frozen=True, slots=True)
 class StaticConcept:
     value_set: str
-    local_value: str
+    source_value: str
     concept_id: int
     concept_code: str
     concept_name: str
-    concept_class: str
+    concept_class_id: str
     standard_concept: str
     validity: str
     domain_id: str
@@ -35,17 +45,12 @@ class StaticConcept:
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StaticConcept:
+        fields = concept_fields_from_csv_row(row)
+        fields["concept_id"] = int(fields["concept_id"])  # fixme: Expected type 'str' (matched generic type '_VT'), got 'int' instead
         return cls(
             value_set=_norm(row["value_set"]),
-            local_value=_norm(row["local_value"]),
-            concept_id=int(row["omop_concept_id"]),
-            concept_code=_norm(row["omop_concept_code"]),
-            concept_name=_norm(row["omop_concept_name"]),
-            concept_class=_norm(row["omop_concept_class"]),
-            standard_concept=_norm(row["omop_standard_concept"]),
-            validity=_norm(row["omop_validity"]),
-            domain_id=_norm(row["omop_domain"]),
-            vocabulary_id=_norm(row["omop_vocab"]),
+            source_value=_norm(row["source_value"]),
+            **fields,
         )
 
     def to_mapped(self) -> MappedConcept:
@@ -71,22 +76,17 @@ class StructuralConcept:
     domain_id: str
     vocabulary_id: str
     validity: str
-    concept_class: str
+    concept_class_id: str
     standard_concept: str
     table_name: str | None = None
 
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
+        fields = concept_fields_from_csv_row(row)
+        fields["concept_id"] = int(fields["concept_id"])  # fixme: Expected type 'str' (matched generic type '_VT'), got 'int' instead
         return cls(
             value_set=_norm(row["value_set"]),
-            concept_id=int(row["omop_concept_id"]),
-            concept_code=_norm(row["omop_concept_code"]),
-            concept_name=_norm(row["omop_concept_name"]),
-            concept_class=_norm(row["omop_concept_class"]),
-            standard_concept=_norm(row["omop_standard_concept"]),
-            validity=_norm(row["omop_validity"]),
-            domain_id=_norm(row["omop_domain"]),
-            vocabulary_id=_norm(row["omop_vocab"]),
+            **fields,
         )
 
     def to_mapped(self) -> MappedConcept:
@@ -110,7 +110,7 @@ class MissedLookup:
 
     lookup_type: LookupType
     value_set: str
-    local_value: str
+    source_value: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,18 +136,18 @@ class LookupResult:
         self,
         lookup_type: LookupType,
         value_set: str,
-        local_value: str,
+        source_value: str,
         concept: MappedConcept,
     ) -> None:
-        self.matched[lookup_type].append((value_set, local_value, concept))
+        self.matched[lookup_type].append((value_set, source_value, concept))
 
     def record_miss(
         self,
         lookup_type: LookupType,
         value_set: str,
-        local_value: str,
+        source_value: str,
     ) -> None:
-        self.missed[lookup_type].append(MissedLookup(lookup_type=lookup_type, value_set=value_set, local_value=local_value))
+        self.missed[lookup_type].append(MissedLookup(lookup_type=lookup_type, value_set=value_set, source_value=source_value))
 
     def coverage_by_field(self, lookup_type: LookupType) -> Dict[str, FieldCoverage]:
         """Compute coverage statistics per value_set for a lookup type."""
@@ -164,14 +164,14 @@ class LookupResult:
         result: Dict[str, FieldCoverage] = {}
         for vs, c in counts.items():
             total = c["matched"] + c["missed"]
-            frac = round(c["matched"] / total, 5) if total > 0 else 0.0
+            fraction = round(c["matched"] / total, 5) if total > 0 else 0.0
             result[vs] = FieldCoverage(
                 value_set=vs,
                 lookup_type=lookup_type,
                 matched=c["matched"],
                 missed=c["missed"],
                 total=total,
-                coverage_fraction=frac,
+                coverage_fraction=fraction,
             )
 
         return result

@@ -13,32 +13,26 @@ from omop_etl.semantic_mapping.core.models import (
 def semantic_rows() -> List[SemanticRow]:
     return [
         SemanticRow(
-            term_id="t1",
-            source_col="col1",
-            source_term="aml",
-            frequency=10,
-            omop_concept_id="123",
-            omop_concept_code="C123",
-            omop_concept_name="acute myeloid leukemia",
-            omop_concept_class="disorder",
-            omop_standard_concept="S",
-            omop_validity="valid",
-            omop_domain="condition",
-            omop_vocab="SNOMED",
+            source_value="aml",
+            concept_id="123",
+            concept_code="C123",
+            concept_name="acute myeloid leukemia",
+            concept_class_id="disorder",
+            standard_concept="S",
+            validity="valid",
+            domain_id="condition",
+            vocabulary_id="SNOMED",
         ),
         SemanticRow(
-            term_id="t2",
-            source_col="col1",
-            source_term="aml",
-            frequency=5,
-            omop_concept_id="456",
-            omop_concept_code="C456",
-            omop_concept_name="aml variant",
-            omop_concept_class="disorder",
-            omop_standard_concept="S",
-            omop_validity="valid",
-            omop_domain="condition",
-            omop_vocab="ICD10",
+            source_value="aml",
+            concept_id="456",
+            concept_code="C456",
+            concept_name="aml variant",
+            concept_class_id="disorder",
+            standard_concept="S",
+            validity="valid",
+            domain_id="condition",
+            vocabulary_id="ICD10",
         ),
     ]
 
@@ -111,18 +105,15 @@ class TestBatchQueryResult:
             "query",
             "field_path",
             "raw_value",
-            "term_id",
-            "source_col",
-            "source_term",
-            "frequency",
-            "omop_concept_id",
-            "omop_concept_code",
-            "omop_concept_name",
-            "omop_concept_class",
-            "omop_standard_concept",
-            "omop_validity",
-            "omop_domain",
-            "omop_vocab",
+            "source_value",
+            "concept_id",
+            "concept_code",
+            "concept_name",
+            "concept_class_id",
+            "standard_concept",
+            "validity",
+            "domain_id",
+            "vocabulary_id",
         }
         assert set(df.columns) == expected_columns
 
@@ -158,7 +149,7 @@ class TestBatchQueryResult:
 
         assert "patient_id" in first_row
         assert "query_id" in first_row
-        assert "omop_concept_id" in first_row
+        assert "concept_id" in first_row
 
     def test_to_missing_dict_returns_list(self, batch_result):
         result = batch_result.to_missing_dict()
@@ -210,18 +201,15 @@ class TestCoverageByFieldPath:
             raw_value="Test",
         )
         semantic_row = SemanticRow(
-            term_id="t1",
-            source_col="c",
-            source_term="test",
-            frequency=1,
-            omop_concept_id="1",
-            omop_concept_code="C1",
-            omop_concept_name="test",
-            omop_concept_class="cls",
-            omop_standard_concept="S",
-            omop_validity="valid",
-            omop_domain="condition",
-            omop_vocab="SNOMED",
+            source_value="test",
+            concept_id="1",
+            concept_code="C1",
+            concept_name="test",
+            concept_class_id="cls",
+            standard_concept="S",
+            validity="valid",
+            domain_id="condition",
+            vocabulary_id="SNOMED",
         )
         batch = BatchQueryResult(results=(QueryResult(patient_id="P1", query=query, results=[semantic_row]),))
 
@@ -245,24 +233,20 @@ class TestCoverageByFieldPath:
 class TestSemanticRow:
     def test_from_csv_row(self):
         row = {
-            "term_id": "T1",
-            "source_col": "COL1",
-            "source_term": "AML",
-            "frequency": "10",
-            "omop_concept_id": "123",
-            "omop_concept_code": "C123",
-            "omop_concept_name": "Acute Myeloid Leukemia",
-            "omop_concept_class": "Disorder",
-            "omop_standard_concept": "S",
-            "omop_validity": "Valid",
-            "omop_domain": "Condition",
-            "omop_vocab": "SNOMED",
+            "source_value": "AML",
+            "concept_id": "123",
+            "concept_code": "C123",
+            "concept_name": "Acute Myeloid Leukemia",
+            "concept_class_id": "Disorder",
+            "standard_concept": "S",
+            "validity": "valid",
+            "domain_id": "Condition",
+            "vocabulary_id": "SNOMED",
         }
 
         semantic_row = SemanticRow.from_csv_row(row)
 
         # values should be lowercased and stripped
-        assert semantic_row.term_id == "t1"
-        assert semantic_row.source_term == "aml"
-        assert semantic_row.omop_concept_name == "acute myeloid leukemia"
-        assert semantic_row.frequency == 10
+        assert semantic_row.source_value == "aml"
+        assert semantic_row.concept_name == "acute myeloid leukemia"
+        assert semantic_row.validity == "valid"

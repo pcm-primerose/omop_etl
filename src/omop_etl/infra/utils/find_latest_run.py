@@ -57,7 +57,7 @@ def find_latest_run_output(
         - For harmonized norm: Dict mapping table names to their file paths
     """
     if data_root is None:
-        from omop_etl.config import DATA_ROOT
+        from omop_etl.env_config import DATA_ROOT
 
         data_root = DATA_ROOT
 

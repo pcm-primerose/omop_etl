@@ -1,4 +1,3 @@
-import csv
 from pathlib import Path
 from logging import getLogger
 
@@ -6,6 +5,7 @@ from omop_etl.concept_mapping.core.models import (
     StaticConcept,
     MappedConcept,
 )
+from omop_etl.infra.utils.mapping_io import read_mapping_csv
 
 log = getLogger(__name__)
 
@@ -16,24 +16,24 @@ class StaticMapLoader:
 
     def as_rows(self) -> list[StaticConcept]:
         rows: list[StaticConcept] = []
-        with open(self.path, "r", newline="") as f:
-            for line_no, row in enumerate(csv.DictReader(f), start=2):
-                none_cols = [k for k, v in row.items() if v is None]
-                if none_cols:
-                    log.warning(
-                        "Malformed row in %s line %d: missing columns %s (row: %s)",
-                        self.path,
-                        line_no,
-                        none_cols,
-                        dict(row),
-                    )
-                rows.append(StaticConcept.from_csv_row(row))
+        df = read_mapping_csv(self.path)
+        for line_no, row in enumerate(df.iter_rows(named=True), start=2):
+            none_cols = [k for k, v in row.items() if v is None]
+            if none_cols:
+                log.warning(
+                    "Malformed row in %s line %d: missing columns %s (row: %s)",
+                    self.path,
+                    line_no,
+                    none_cols,
+                    dict(row),
+                )
+            rows.append(StaticConcept.from_csv_row(row))
         return rows
 
     def as_index(self) -> dict[tuple[str, str], MappedConcept]:
         idx: dict[tuple[str, str], MappedConcept] = {}
         for r in self.as_rows():
-            key = (r.value_set.casefold().strip(), str(r.local_value).casefold().strip())
+            key = (r.value_set.casefold().strip(), str(r.source_value).casefold().strip())
             existing = idx.get(key)
             if existing is not None and existing.concept_id != r.concept_id:
                 raise ValueError(

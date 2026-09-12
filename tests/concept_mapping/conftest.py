@@ -1,5 +1,6 @@
 import pytest
 from pathlib import Path
+import polars as pl
 
 from omop_etl.concept_mapping.core.models import (
     StaticConcept,
@@ -23,11 +24,11 @@ def static_concepts() -> list[StaticConcept]:
     return [
         StaticConcept(
             value_set="sex",
-            local_value="M",
+            source_value="M",
             concept_id=8507,
             concept_code="M",
             concept_name="Male",
-            concept_class="Gender",
+            concept_class_id="Gender",
             standard_concept="Standard",
             validity="Valid",
             domain_id="Gender",
@@ -35,11 +36,11 @@ def static_concepts() -> list[StaticConcept]:
         ),
         StaticConcept(
             value_set="sex",
-            local_value="F",
+            source_value="F",
             concept_id=8532,
             concept_code="F",
             concept_name="Female",
-            concept_class="Gender",
+            concept_class_id="Gender",
             standard_concept="Standard",
             validity="Valid",
             domain_id="Gender",
@@ -51,7 +52,7 @@ def static_concepts() -> list[StaticConcept]:
 @pytest.fixture
 def static_index(static_concepts) -> dict[tuple[str, str], MappedConcept]:
     # mirror StaticMapLoader.as_index(): value-keyed, projected to MappedConcept
-    return {(c.value_set.casefold().strip(), c.local_value.casefold().strip()): c.to_mapped() for c in static_concepts}
+    return {(c.value_set.casefold().strip(), c.source_value.casefold().strip()): c.to_mapped() for c in static_concepts}
 
 
 @pytest.fixture
@@ -65,7 +66,7 @@ def structural_concepts() -> list[StructuralConcept]:
             domain_id="Type Concept",
             vocabulary_id="Type Concept",
             validity="Valid",
-            concept_class="Obs Type",
+            concept_class_id="Obs Type",
             standard_concept="Standard",
         ),
     ]
@@ -78,31 +79,49 @@ def structural_index(structural_concepts) -> dict[str, MappedConcept]:
 
 
 @pytest.fixture
-def static_csv_content() -> str:
-    return """\
-value_set,local_value,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
-sex,M,8507,M,Male,Gender,Standard,Valid,Gender,Gender
-sex,F,8532,F,Female,Gender,Standard,Valid,Gender,Gender
-"""
+def static_csv_content() -> pl.DataFrame:
+    return pl.DataFrame(
+        data={
+            "value_set": ["sex", "sex"],
+            "source_value": ["M", "F"],
+            "concept_id": [8507, 8532],
+            "concept_code": ["M", "F"],
+            "concept_name": ["Male", "Female"],
+            "concept_class_id": ["Gender", "Gender"],
+            "standard_concept": ["Standard", "Standard"],
+            "validity": ["", ""],
+            "domain_id": ["Gender", "Gender"],
+            "vocabulary_id": ["Gender", "Gender"],
+        }
+    )
 
 
 @pytest.fixture
 def static_csv_file(tmp_path, static_csv_content) -> Path:
     path = tmp_path / "static_mapping.csv"
-    path.write_text(static_csv_content)
+    static_csv_content.write_csv(path)
     return path
 
 
 @pytest.fixture
-def structural_csv_content() -> str:
-    return """\
-value_set,omop_concept_id,omop_concept_code,omop_concept_name,omop_concept_class,omop_standard_concept,omop_validity,omop_domain,omop_vocab
-ecrf,32817,OMOP4822053,EHR encounter record,Obs Type,Standard,Valid,Type Concept,Type Concept
-"""
+def structural_csv_content() -> pl.DataFrame:
+    return pl.DataFrame(
+        data={
+            "value_set": ["ecrf"],
+            "concept_id": [32817],
+            "concept_code": ["OMOP4822053"],
+            "concept_name": ["EHR encounter record"],
+            "concept_class_id": ["Obs Type"],
+            "standard_concept": ["Standard"],
+            "validity": [""],
+            "domain_id": ["Type Concept"],
+            "vocabulary_id": ["Type Concept"],
+        }
+    )
 
 
 @pytest.fixture
 def structural_csv_file(tmp_path, structural_csv_content) -> Path:
     path = tmp_path / "structural_mapping.csv"
-    path.write_text(structural_csv_content)
+    structural_csv_content.write_csv(path)
     return path
