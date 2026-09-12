@@ -5,7 +5,7 @@
 # and concept_id and the metadata columns must match what is in that Athana version.
 # note that the Atehna CONCEPT file doesn't have validity, but invalid_reason and invalid start to end dates,
 # this is reformatted internally and checked against each concept id.
-value_set,concept_id,concept_code,concept_name,concept_class_id,standard_concept,validity,domain_id,vocabulary_id
+value_set,concept_id,concept_code,concept_name,concept_class_id,concept,validity,domain_id,vocabulary_id
 no,4188540,373067005,No,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 yes,4188539,373066001,Yes,Qualifier Value,Standard,Valid,Meas Value,SNOMED
 adverse_event_outcome,4231813,405533003,Adverse incident outcome,Clinical Finding,Standard,Valid,Observation,SNOMED

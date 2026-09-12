@@ -3,6 +3,10 @@ def validity_from_invalid_reason(invalid_reason: str) -> str:
     return "valid" if invalid_reason.strip() == "" else "invalid"
 
 
+# S=standard, C=classification, nothing=non-standard
+ACCEPTABLE_STANDARD_CONCEPT_VALUES = {"S", "C"}
+
+
 ATHENA_CONCEPT_COLUMNS = (
     "concept_id",
     "concept_name",

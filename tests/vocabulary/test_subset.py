@@ -50,13 +50,14 @@ class TestConceptSubsetReport:
     def test_flags_non_standard_and_invalid_concepts(self, tmp_path):
         write_concept_csv(
             tmp_path,
-            ConceptRow(1, standard_concept=""),  # non-standard
+            ConceptRow(1, standard_concept=""),  # non-standard (no tier at all)
             ConceptRow(2, invalid_reason="D"),  # invalid (deprecated)
             ConceptRow(3),  # clean: standard + valid, never flagged
+            ConceptRow(4, standard_concept="C"),  # Classification tier, not flagged
         )
-        subset = scan_concept_subset(tmp_path, {1, 2, 3})
+        subset = scan_concept_subset(tmp_path, {1, 2, 3, 4})
 
-        report = concept_subset_report(subset, {1, 2, 3})
+        report = concept_subset_report(subset, {1, 2, 3, 4})
 
         flagged = {f.concept_id: f.reason for f in report.flagged_concepts}
         assert flagged == {1: "non-standard (null)", 2: "invalid (D)"}

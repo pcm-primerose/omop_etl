@@ -3,7 +3,7 @@ from logging import getLogger
 from pathlib import Path
 import polars as pl
 
-from omop_etl.vocabulary.core.helpers import ATHENA_CONCEPT_COLUMNS
+from omop_etl.vocabulary.core.helpers import ACCEPTABLE_STANDARD_CONCEPT_VALUES, ATHENA_CONCEPT_COLUMNS
 from omop_etl.infra.utils.constants import NO_MATCHING_CONCEPT
 from omop_etl.infra.utils.mapping_io import read_mapping_csv
 from omop_etl.vocabulary.core.models import ConceptSubsetReport, FlaggedConcept
@@ -60,7 +60,8 @@ def concept_subset_report(subset: pl.DataFrame, concept_ids: set[int]) -> Concep
     flagged_concepts = tuple(
         FlaggedConcept(int(row["concept_id"]), _flag_reason(row["standard_concept"], row["invalid_reason"]))
         for row in subset.iter_rows(named=True)
-        if int(row["concept_id"]) != NO_MATCHING_CONCEPT and (row["standard_concept"] != "S" or (row["invalid_reason"] or "") != "")
+        if int(row["concept_id"]) != NO_MATCHING_CONCEPT
+        and (row["standard_concept"] not in ACCEPTABLE_STANDARD_CONCEPT_VALUES or (row["invalid_reason"] or "") != "")
     )
 
     if missing_concept_ids or flagged_concepts:
@@ -75,7 +76,7 @@ def concept_subset_report(subset: pl.DataFrame, concept_ids: set[int]) -> Concep
 
 def _flag_reason(standard_concept: str | None, invalid_reason: str | None) -> str:
     reasons: list[str] = []
-    if standard_concept != "S":
+    if standard_concept not in ACCEPTABLE_STANDARD_CONCEPT_VALUES:
         reasons.append(f"non-standard ({standard_concept or 'null'})")
     if (invalid_reason or "") != "":
         reasons.append(f"invalid ({invalid_reason})")

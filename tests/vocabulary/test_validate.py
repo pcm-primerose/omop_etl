@@ -37,14 +37,26 @@ class TestValidateMappings:
         assert report.errors[0].kind == "missing"
         assert report.errors[0].concept_id == 999999
 
-    def test_non_standard_concept_is_an_error_even_if_file_already_knows(self, tmp_path):
-        # file correctly records "Classification" and matches Athena exactly,
-        # but it's still an error because we never map to non-standard concepts
+    def test_classification_tier_concept_is_not_an_error(self, tmp_path):
+        # "C" (Classification) tier is valid
         write_concept_csv(tmp_path, ConceptRow(734318, standard_concept="C"))
         write_vocabulary_csv(tmp_path)
         mapping_path = write_static_mapping_csv(
             tmp_path / "static_mapping.csv",
             MappingRow(734318, value_set="response_irecist", standard_concept="Classification"),
+        )
+
+        report = validate_mappings([mapping_path], tmp_path)
+
+        assert report.is_clean
+
+    def test_blank_standard_concept_is_still_an_error(self, tmp_path):
+        # blank/null is the one value with no vocabulary-sanctioned tier at all
+        write_concept_csv(tmp_path, ConceptRow(734318, standard_concept=""))
+        write_vocabulary_csv(tmp_path)
+        mapping_path = write_static_mapping_csv(
+            tmp_path / "static_mapping.csv",
+            MappingRow(734318, value_set="response_irecist", standard_concept="Non-standard"),
         )
 
         report = validate_mappings([mapping_path], tmp_path)

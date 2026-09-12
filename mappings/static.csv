@@ -6,11 +6,11 @@
 # and concept_id and the metadata columns must match what is in that Athana version.
 # note that the Atehna CONCEPT file doesn't have validity, but invalid_reason and invalid start to end dates,
 # this is reformatted internally and checked against each concept id.
-value_set,source_value,concept_id,concept_code,concept_name,concept_class_id,standard_concept,validity,domain_id,vocabulary_id
+value_set,source_value,concept_id,concept_code,concept_name,concept_class_id,concept,validity,domain_id,vocabulary_id
 lost_to_followup,True,44811247,873211000000106,Lost to clinical trial follow-up,Clinical Finding,Standard,Valid,Observation,SNOMED
 cdm_field,condition_occurrence.condition_occurrence_id,1147127,CDM183,condition_occurrence.condition_occurrence_id,Field,Standard,Valid,Metadata,CDM
 cdm_field,drug_exposure.drug_exposure_id,1147094,CDM150,drug_exposure.drug_exposure_id,Field,Standard,Valid,Metadata,CDM
-cdm_field,measurement.measurement_id,1147139,CDM171,measurement.measurement_id,Field,Standard,Valid,Metadata,CDM
+cdm_field,measurement.mesurement_id,1147138,CDM194,measurement.measurement_id,Field,Standard,Valid,Metadata,CDM
 cdm_field,measurement.person_id,1147139,CDM195,measurement.person_id,Field,Standard,Valid,Metadata,CDM
 sex,f,8532,F,FEMALE,Gender,Standard,Valid,Gender,Gender
 sex,m,8507,M,MALE,Gender,Standard,Valid,Gender,Gender

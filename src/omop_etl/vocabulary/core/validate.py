@@ -4,7 +4,12 @@ from pathlib import Path
 import polars as pl
 
 from omop_etl.infra.utils.mapping_io import MAPPING_CONCEPT_COLUMNS, read_mapping_csv
-from omop_etl.vocabulary.core.helpers import ATHENA_CONCEPT_COLUMNS, REQUIRED_ATHENA_FILES, validity_from_invalid_reason
+from omop_etl.vocabulary.core.helpers import (
+    ACCEPTABLE_STANDARD_CONCEPT_VALUES,
+    ATHENA_CONCEPT_COLUMNS,
+    REQUIRED_ATHENA_FILES,
+    validity_from_invalid_reason,
+)
 from omop_etl.vocabulary.core.models import ValidationReport, ValidationIssue
 
 log = getLogger(__name__)
@@ -94,7 +99,7 @@ def validate_mappings(mapping_files: Sequence[Path], athena_dir: Path) -> Valida
                 errors.append(ValidationIssue(path, concept_id, "missing", None, "not found in this Athena release"))
                 continue
 
-            if athena_row["standard_concept"] != "S":
+            if athena_row["standard_concept"] not in ACCEPTABLE_STANDARD_CONCEPT_VALUES:
                 label = athena_row["standard_concept"] or "null"
                 errors.append(ValidationIssue(path, concept_id, "non_standard", None, f"Athena marks this concept non-standard ({label})"))
 
