@@ -58,6 +58,7 @@ class TestTreatmentCycleRows:
         assert row.quantity == 200.0
         assert row.dose_unit_source_value == "mg"
         assert row.drug_type_concept_id == 32809
+        assert row.days_supply == 1  # IV: given once per cycle
 
     def test_oral_cycle_produces_row(self, static_index, structural_index):
         patient = create_patient(PID, "test")
@@ -78,6 +79,27 @@ class TestTreatmentCycleRows:
         assert row.route_concept_id == 4132161
         assert row.quantity == 150.0
         assert row.dose_unit_source_value == "mg"
+        # no end_date, cycle_days can't be computed, days_supply is None
+        assert row.days_supply is None
+
+    def test_oral_cycle_with_end_date_populates_days_supply_matching_cycle_length(self, static_index, structural_index):
+        patient = create_patient(PID, "test")
+        cycle = TreatmentCycleComponent(patient_id=PID)
+        cycle.source_treatment_name = "Dabrafenib"
+        cycle.cycle_type = "oral"
+        cycle.start_date = dt.date(2023, 2, 1)
+        cycle.end_date = dt.date(2023, 2, 14)  # 14-day cycle
+        cycle.oral_dose_prescribed_per_day = 150.0
+        cycle.oral_dose_unit = "mg"
+        patient.treatment_cycles = [cycle]
+
+        row = DrugExposureBuilder(ConceptLookupService(static_index, structural_index)).build(create_build_context(patient, PERSON_ID)).rows[0]
+
+        assert row.days_supply == 14
+        assert row.quantity == 150.0 * 14
+        # days_supply: quantity/days_supply recovers the
+        # original daily dose exactly (used in dose_era)
+        assert row.quantity / row.days_supply == 150.0
 
     def test_end_date_falls_back_to_start_date(self, static_index, structural_index):
         patient = create_patient(PID, "test")

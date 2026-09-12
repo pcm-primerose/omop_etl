@@ -1,17 +1,11 @@
 import polars as pl
 
+from omop_etl.omop.builders.ingredient_rollup import ingredient_exposures
 from omop_etl.omop.builders.intervals import collapse_intervals
 from omop_etl.omop.core.id_generator import row_id
 from omop_etl.omop.models.rows import DrugEraRow, DrugExposureRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
-
-_INGREDIENT_EXPOSURES_SCHEMA = {
-    "person_id": pl.Int64,
-    "ingredient_concept_id": pl.Int64,
-    "start": pl.Date,
-    "end": pl.Date,
-}
 
 
 class DrugEraBuilder:
@@ -24,14 +18,9 @@ class DrugEraBuilder:
       reflects only genuinely uncovered time)
     - then merge sub-exposures separated by up to a 30-day gap into the final era.
 
-    A combination-drug exposure (one drug_concept_id with multiple Ingredient
-    ancestors) expands into one row per ingredient, each ingredient gets its own
-    era, independently, using a plain join (so no assumption of a 1:1 drug to ingredient mapping).
-
-    Rows with drug_concept_id == 0 (unmapped) are excluded.
-    Ancestor filtering is domain_id=="Drug" and concept_class_id=="Ingredient",
-    not restricted to vocabulary_id == "RxNorm", since we have mappings using "RxNorm Extension"
-    for several ingredients and that restriction would drop them.
+    The ingredient rollup itself (the ancestor join + Ingredient-class filtering,
+    including why it's not restricted to vocabulary_id == "RxNorm") is shared with
+    DoseEraBuilder, see `ingredient_rollup.ingredient_exposures`.
     """
 
     OVERLAP_PERSISTENCE_DAYS = 0
@@ -43,12 +32,12 @@ class DrugEraBuilder:
         concept_ancestor: pl.DataFrame,
         vocabulary: Vocabulary,
     ) -> list[DrugEraRow]:
-        ingredient_exposures = self._ingredient_exposures(drug_exposure, concept_ancestor, vocabulary)
-        if ingredient_exposures.is_empty():
+        exposures = ingredient_exposures(drug_exposure, concept_ancestor, vocabulary)
+        if exposures.is_empty():
             return []
 
         sub_exposures = collapse_intervals(
-            ingredient_exposures,
+            exposures,
             group_by=["person_id", "ingredient_concept_id"],
             start_col="start",
             end_col="end",
@@ -82,52 +71,3 @@ class DrugEraBuilder:
             )
             for era in eras.iter_rows(named=True)
         ]
-
-    def _ingredient_exposures(
-        self,
-        drug_exposure: list[DrugExposureRow],
-        concept_ancestor: pl.DataFrame,
-        vocabulary: Vocabulary,
-    ) -> pl.DataFrame:
-        mapped = [row for row in drug_exposure if row.drug_concept_id != 0]
-        if not mapped or concept_ancestor.is_empty():
-            return pl.DataFrame(schema=_INGREDIENT_EXPOSURES_SCHEMA)
-
-        ingredient_ancestor_ids = {
-            ancestor_id
-            for ancestor_id in {int(cid) for cid in concept_ancestor.get_column("ancestor_concept_id")}
-            if self._is_ingredient(vocabulary, ancestor_id)
-        }
-        if not ingredient_ancestor_ids:
-            return pl.DataFrame(schema=_INGREDIENT_EXPOSURES_SCHEMA)
-
-        ancestor_links = (
-            concept_ancestor.with_columns(
-                ancestor_concept_id=pl.col("ancestor_concept_id").cast(pl.Int64),
-                descendant_concept_id=pl.col("descendant_concept_id").cast(pl.Int64),
-            )
-            .filter(pl.col("ancestor_concept_id").is_in(ingredient_ancestor_ids))
-            .select("ancestor_concept_id", "descendant_concept_id")
-            .unique()
-        )
-
-        exposures = pl.DataFrame(
-            {
-                "person_id": [row.person_id for row in mapped],
-                "drug_concept_id": [row.drug_concept_id for row in mapped],
-                "start": [row.drug_exposure_start_date for row in mapped],
-                "end": [row.drug_exposure_end_date for row in mapped],
-            }
-        )
-
-        return exposures.join(ancestor_links, left_on="drug_concept_id", right_on="descendant_concept_id", how="inner").select(
-            "person_id",
-            pl.col("ancestor_concept_id").alias("ingredient_concept_id"),
-            "start",
-            "end",
-        )
-
-    @staticmethod
-    def _is_ingredient(vocabulary: Vocabulary, concept_id: int) -> bool:
-        concept = vocabulary.hydrate(concept_id)
-        return concept is not None and concept.domain_id == "Drug" and concept.concept_class_id == "Ingredient"

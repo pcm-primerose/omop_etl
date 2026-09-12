@@ -362,6 +362,6 @@ class DoseEraRow:
     person_id: int
     drug_concept_id: int
     unit_concept_id: int
-    dose_value: int
+    dose_value: float
     dose_era_start_date: dt.date
     dose_era_end_date: dt.date
