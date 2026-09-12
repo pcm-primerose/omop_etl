@@ -80,6 +80,7 @@ def _build_tables(
         concepts=concept_service,
         vocabulary=vocabulary_result.vocabulary,
         concept_ancestor=vocabulary_result.concept_ancestor,
+        athena_version=vocabulary_result.athena_version,
     )
     return omop_service.build(harmonized.patients)
 

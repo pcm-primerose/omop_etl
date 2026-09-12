@@ -103,6 +103,7 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, m
         concepts=concept_service,
         vocabulary=vocabulary_result.vocabulary,
         concept_ancestor=vocabulary_result.concept_ancestor,
+        athena_version=vocabulary_result.athena_version,
     )
     tables = omop_service.build(harmonized_result.patients)
     # print(f"cohort: {tables.location}")

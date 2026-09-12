@@ -44,7 +44,7 @@ class TestOmopServiceOrchestration:
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([patient])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
 
         assert len(tables.person) == 1
         assert len(tables.observation_period) == 1
@@ -135,7 +135,7 @@ class TestOmopServiceOrchestration:
         visit.event_id = "V00"
         patient.visits = [visit]
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([patient])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
 
         assert len(tables.person) == 1
         assert len(tables.observation_period) == 1
@@ -166,7 +166,7 @@ class TestMultiPatient:
         )
         _with_eot(p2, dt.date(2023, 7, 15))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([p1, p2])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([p1, p2])
 
         assert len(tables.person) == 2
         assert len(tables.observation_period) == 2
@@ -190,7 +190,7 @@ class TestMultiPatient:
         )
         _with_eot(p2, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([p1, p2])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([p1, p2])
 
         person_ids = [r.person_id for r in tables.person]
         assert len(person_ids) == len(set(person_ids))
@@ -206,8 +206,8 @@ class TestMultiPatient:
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        t1 = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([patient])
-        t2 = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([patient])
+        t1 = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
+        t2 = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
 
         assert t1.person[0].person_id == t2.person[0].person_id
 
@@ -231,7 +231,9 @@ class TestSkipBehavior:
         )
         _with_eot(p_no_dob, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([p_ok, p_no_dob])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build(
+            [p_ok, p_no_dob]
+        )
 
         assert len(tables.person) == 1
         assert len(tables.observation_period) == 2
@@ -248,7 +250,9 @@ class TestSkipBehavior:
         _with_eot(p_ok, dt.date(2023, 6, 30))
         p_no_dates = create_patient("p2", "test", sex="f", date_of_birth=dt.date(1985, 8, 10))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([p_ok, p_no_dates])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build(
+            [p_ok, p_no_dates]
+        )
 
         assert len(tables.person) == 2
         assert len(tables.observation_period) == 1
@@ -258,7 +262,7 @@ class TestEmptyInput:
     def test_empty_patients_list(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
         concepts = ConceptLookupService(static_index, structural_index)
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([])
 
         assert len(tables.person) == 0
         assert len(tables.observation_period) == 0
@@ -281,7 +285,7 @@ class TestOmopTablesApi:
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([patient])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
 
         assert len(tables["person"]) == 1
         assert len(tables["observation_period"]) == 1
@@ -290,7 +294,7 @@ class TestOmopTablesApi:
     def test_get_with_default(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
         concepts = ConceptLookupService(static_index, structural_index)
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([])
 
         assert tables.get("condition_occurrence") == []
         assert tables.get("nonexistent", []) == []
@@ -306,7 +310,7 @@ class TestOmopTablesApi:
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor).build([patient])
+        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
 
         assert tables.person[0].person_source_value == "p1"
         assert tables.observation_period[0].observation_period_start_date == dt.date(2023, 1, 1)

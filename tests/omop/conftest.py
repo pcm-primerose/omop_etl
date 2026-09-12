@@ -200,7 +200,6 @@ def structural_index() -> dict[str, MappedConcept]:
         "iv": _structural(4171047, "route"),
         "oral": _structural(4132161, "route"),
         "cdm": _structural(705800, "metadata"),
-        "vocab": _structural(1146958, "metadata"),
         "ecog": _structural(36305384, "measurement"),
         # measurement builder: target lesion absolute size
         "lesion_size": _structural(36768664, "measurement"),

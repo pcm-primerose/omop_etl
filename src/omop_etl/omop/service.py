@@ -38,10 +38,11 @@ class OmopService:
     (like visit_occurrence) are built first.
     """
 
-    def __init__(self, concepts: ConceptLookupService, vocabulary: Vocabulary, concept_ancestor: pl.DataFrame):
+    def __init__(self, concepts: ConceptLookupService, vocabulary: Vocabulary, concept_ancestor: pl.DataFrame, athena_version: str):
         self._concepts = concepts
         self._vocabulary = vocabulary
         self._concept_ancestor = concept_ancestor
+        self._athena_version = athena_version
         # Builder order matters:
         # builders whose publications are consumed downstream must run first.
         # VisitOccurrenceBuilder publishes the date-anchored visit map.
@@ -77,7 +78,7 @@ class OmopService:
                 tables.extend(builder.table_name, list(rows))
 
         # singleton metadata row
-        tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts).build())
+        tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts, self._athena_version).build())
 
         # cross-patient reference: one cohort_definition per distinct arm observed
         tables.extend(
