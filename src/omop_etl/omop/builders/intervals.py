@@ -9,6 +9,7 @@ def collapse_intervals(
     end_col: str,
     persistence_days: int,
     count_col: str | None = None,
+    extra_agg: list[pl.Expr] | None = None,
 ) -> pl.DataFrame:
     """
     Collapse (possibly overlapping) [start, end] intervals per `group_by` key into
@@ -26,8 +27,12 @@ def collapse_intervals(
     already-collapsed output, e.g. drug_era's overlap-merge-then-persistence-merge
     two-phase collapse). Omit to just COUNT(*) the input rows per era.
 
+    `extra_agg`: additional `.agg()` expressions in the collapse
+    (e.g. summing a per-row "days_exposed" column from a prior pass, for
+    drug_era's gap_days). Purely additive, it doesn't affect `count_col`'s behavior.
+
     Returns one row per era: `group_by` columns + `interval_start`, `interval_end`,
-    `occurrence_count`.
+    `occurrence_count`, plus whatever `extra_agg` adds.
     """
     sorted_df = df.sort(group_by + [start_col, end_col])
 
@@ -46,6 +51,7 @@ def collapse_intervals(
             pl.col(start_col).min().alias("interval_start"),
             pl.col(end_col).max().alias("interval_end"),
             occurrence_count.alias("occurrence_count"),
+            *(extra_agg or []),
         )
         .drop("_era_id")
         .sort(group_by + ["interval_start"])

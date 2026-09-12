@@ -31,6 +31,12 @@ class VocabularyExporter:
         subset.write_csv(out_path, separator="\t")
         return out_path
 
+    def write_concept_ancestor_subset(self, subset: pl.DataFrame, meta: RunMetadata) -> Path:
+        """Write a concept_ancestor subset DataFrame to a TSV, same column layout as Athena's own CONCEPT_ANCESTOR file."""
+        out_path = self.vocabulary_output_dir(meta) / "concept_ancestor_subset.tsv"
+        subset.write_csv(out_path, separator="\t")
+        return out_path
+
     def write_validation_report(self, report: ValidationReport, meta: RunMetadata) -> Path:
         """Write a validation report's errors to a CSV, one row per issue."""
         out_path = self.vocabulary_output_dir(meta) / "mapping_validation_errors.csv"

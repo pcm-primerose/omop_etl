@@ -14,7 +14,7 @@ from omop_etl.semantic_mapping.service import SemanticService
 from omop_etl.semantic_mapping.core.models import BatchQueryResult
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
-from omop_etl.vocabulary.service import VocabularyService
+from omop_etl.vocabulary.service import VocabularyResult, VocabularyService
 
 from omop_etl.omop.service import OmopService
 from omop_etl.omop.models.tables import OmopTables
@@ -58,6 +58,7 @@ def _build_tables(
     *,
     mapping_dir: Path,
     with_semantic: bool,
+    vocabulary_result: VocabularyResult,
 ) -> OmopTables:
     paths = resolve_mapping_paths(mapping_dir)
 
@@ -75,7 +76,11 @@ def _build_tables(
         layout=Layout.TRIAL_TIMESTAMP_RUN,
     )
 
-    omop_service = OmopService(concepts=concept_service)
+    omop_service = OmopService(
+        concepts=concept_service,
+        vocabulary=vocabulary_result.vocabulary,
+        concept_ancestor=vocabulary_result.concept_ancestor,
+    )
     return omop_service.build(harmonized.patients)
 
 
@@ -85,7 +90,7 @@ def cmd_load(args: argparse.Namespace) -> int:
 
     # The ETL must never run on invalid mappings: this validates the mapping files
     # against Athena and raises before anything else runs if there's a problem.
-    VocabularyService(
+    vocabulary_result = VocabularyService(
         outdir=args.outdir,
         athena_dir=args.athena_dir,
         mapping_files=resolve_mapping_paths(args.mapping_dir).as_list(),
@@ -104,6 +109,7 @@ def cmd_load(args: argparse.Namespace) -> int:
         outdir=args.outdir,
         mapping_dir=args.mapping_dir,
         with_semantic=args.with_semantic,
+        vocabulary_result=vocabulary_result,
     )
 
     dsn = args.dsn or args.database_url

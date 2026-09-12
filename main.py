@@ -99,7 +99,11 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, m
     )
 
     # build OMOP rows using the concept service
-    omop_service = OmopService(concepts=concept_service)
+    omop_service = OmopService(
+        concepts=concept_service,
+        vocabulary=vocabulary_result.vocabulary,
+        concept_ancestor=vocabulary_result.concept_ancestor,
+    )
     tables = omop_service.build(harmonized_result.patients)
     # print(f"cohort: {tables.location}")
 

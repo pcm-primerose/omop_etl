@@ -26,6 +26,7 @@ class TestVocabulary:
             concept_name="Malignant melanoma",
             domain_id="Condition",
             vocabulary_id="SNOMED",
+            concept_class_id="Clinical Finding",
             validity="valid",
         )
 

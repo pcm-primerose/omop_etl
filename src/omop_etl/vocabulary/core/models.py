@@ -24,6 +24,7 @@ class AthenaConcept:
     concept_name: str
     domain_id: str
     vocabulary_id: str
+    concept_class_id: str
     validity: str
 
 

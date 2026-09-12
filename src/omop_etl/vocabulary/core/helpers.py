@@ -20,6 +20,13 @@ ATHENA_CONCEPT_COLUMNS = (
     "invalid_reason",
 )
 
+CONCEPT_ANCESTOR_COLUMNS = (
+    "ancestor_concept_id",
+    "descendant_concept_id",
+    "min_levels_of_separation",
+    "max_levels_of_separation",
+)
+
 # every file the CDM vocab schema needs, loaded from Athena bundle
 REQUIRED_ATHENA_FILES = (
     "CONCEPT.csv",

@@ -64,6 +64,7 @@ class Vocabulary:
             concept_name=Vocabulary._cell(row, "concept_name"),
             domain_id=Vocabulary._cell(row, "domain_id"),
             vocabulary_id=Vocabulary._cell(row, "vocabulary_id"),
+            concept_class_id=Vocabulary._cell(row, "concept_class_id"),
             validity=validity_from_invalid_reason(invalid_reason),
         )
 

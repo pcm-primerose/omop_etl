@@ -63,6 +63,29 @@ def write_vocabulary_csv(athena_dir: Path, row: VocabularyRow = VocabularyRow())
     return vocabulary_path
 
 
+@dataclass(frozen=True, slots=True)
+class ConceptAncestorRow:
+    ancestor_concept_id: int
+    descendant_concept_id: int
+    min_levels_of_separation: int = 1
+    max_levels_of_separation: int = 1
+
+    def as_row(self) -> dict[str, str]:
+        return {k: str(v) for k, v in asdict(self).items()}
+
+
+_CONCEPT_ANCESTOR_COLUMNS = tuple(f.name for f in fields(ConceptAncestorRow))
+
+
+def write_concept_ancestor_csv(athena_dir: Path, *rows: ConceptAncestorRow) -> Path:
+    """Write Athena's CONCEPT_ANCESTOR.csv into `athena_dir` and return its path."""
+    path = athena_dir / "CONCEPT_ANCESTOR.csv"
+    lines = ["\t".join(_CONCEPT_ANCESTOR_COLUMNS)]
+    lines += ["\t".join(r.as_row()[column] for column in _CONCEPT_ANCESTOR_COLUMNS) for r in rows]
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
 def write_athena_bundle(athena_dir: Path, *, skip: tuple[str, ...] = ()) -> Path:
     """
     Write a minimal, well-formed placeholder for every file in `REQUIRED_ATHENA_FILES`

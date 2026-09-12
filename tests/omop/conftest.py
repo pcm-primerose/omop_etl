@@ -1,5 +1,6 @@
 import datetime as dt
 from dataclasses import dataclass
+import polars as pl
 import pytest
 
 from omop_etl.concept_mapping.core.models import MappedConcept
@@ -21,6 +22,7 @@ from omop_etl.semantic_mapping.core.models import (
     Query,
     BatchQueryResult,
 )
+from omop_etl.vocabulary.core.vocabulary import Vocabulary
 
 
 def create_build_context(patient: Patient, person_id: int | None = None) -> BuildContext:
@@ -175,6 +177,18 @@ def _static(concept_id: int, domain_id: str) -> MappedConcept:
         vocabulary_id="",
         validity="valid",
     )
+
+
+@pytest.fixture
+def empty_vocabulary() -> Vocabulary:
+    """No mapped concepts: for tests where DrugEraBuilder's ingredient rollup isn't the subject."""
+    return Vocabulary({})
+
+
+@pytest.fixture
+def empty_concept_ancestor() -> pl.DataFrame:
+    """No ancestor rows: for tests where DrugEraBuilder's ingredient rollup isn't the subject."""
+    return pl.DataFrame(schema={"ancestor_concept_id": pl.Utf8, "descendant_concept_id": pl.Utf8})
 
 
 @pytest.fixture

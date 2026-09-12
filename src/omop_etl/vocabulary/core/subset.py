@@ -3,7 +3,7 @@ from logging import getLogger
 from pathlib import Path
 import polars as pl
 
-from omop_etl.vocabulary.core.helpers import ACCEPTABLE_STANDARD_CONCEPT_VALUES, ATHENA_CONCEPT_COLUMNS
+from omop_etl.vocabulary.core.helpers import ACCEPTABLE_STANDARD_CONCEPT_VALUES, ATHENA_CONCEPT_COLUMNS, CONCEPT_ANCESTOR_COLUMNS
 from omop_etl.infra.utils.constants import NO_MATCHING_CONCEPT
 from omop_etl.infra.utils.mapping_io import read_mapping_csv
 from omop_etl.vocabulary.core.models import ConceptSubsetReport, FlaggedConcept
@@ -40,6 +40,32 @@ def scan_concept_subset(athena_dir: Path, concept_ids: Iterable[int]) -> pl.Data
         pl.scan_csv(athena_dir / "CONCEPT.csv", separator="\t", infer_schema_length=0, quote_char=None)
         .filter(pl.col("concept_id").cast(pl.Int64).is_in(wanted))
         .select(ATHENA_CONCEPT_COLUMNS)
+        .collect()
+    )
+
+
+def scan_concept_ancestor_subset(athena_dir: Path, descendant_concept_ids: Iterable[int]) -> pl.DataFrame:
+    """
+    Filter Athena's `CONCEPT_ANCESTOR.csv` in `athena_dir` to rows whose
+    `descendant_concept_id` is one of `descendant_concept_ids`, the drug to ingredient
+    rollup `drug_era` needs. All 4 of the file's columns are wanted, no `.select()`
+    needed.
+
+    Doesn't filter to Ingredient-class ancestors, that's OMOP decisions for the
+    era builder to make (via `Vocabulary.hydrate(ancestor_concept_id)`), not this
+    generic Athena-facing layer.
+
+    If `descendant_concept_ids` is empty (meaning no mapped Drug-domain concepts),
+    the file is never scanned since there's nothing to look up.
+    """
+    wanted = list(descendant_concept_ids)
+    if not wanted:
+        return pl.DataFrame(schema={col: pl.Utf8 for col in CONCEPT_ANCESTOR_COLUMNS})
+
+    return (
+        # quote_char=None: Athena can have `"` in fields
+        pl.scan_csv(athena_dir / "CONCEPT_ANCESTOR.csv", separator="\t", infer_schema_length=0, quote_char=None)
+        .filter(pl.col("descendant_concept_id").cast(pl.Int64).is_in(wanted))
         .collect()
     )
 
