@@ -3,7 +3,7 @@ from logging import getLogger
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.core.id_generator import row_id
+from omop_etl.omop.core.id_generator import RowIdGenerator
 from omop_etl.omop.models.rows import CohortDefinitionRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
@@ -24,8 +24,9 @@ class CohortDefinitionBuilder:
     no definition, mirroring CohortBuilder which skips them.
     """
 
-    def __init__(self, concepts: ConceptLookupService):
+    def __init__(self, concepts: ConceptLookupService, row_id_generator: RowIdGenerator):
         self.concepts = concepts
+        self._row_id_generator = row_id_generator
 
     def build(self, patients: Sequence[Patient]) -> list[CohortDefinitionRow]:
         ecrf = self.concepts.resolve("ecrf", domains={OmopDomain.TYPE_CONCEPT})
@@ -48,7 +49,7 @@ class CohortDefinitionBuilder:
             normalized_name = cohort.normalized_name
             if normalized_name is None:
                 continue
-            definition_id = row_id(OmopTables.COHORT_DEFINITION, normalized_name)
+            definition_id = self._row_id_generator.generate(OmopTables.COHORT_DEFINITION, normalized_name)
             if definition_id in rows:
                 continue
             rows[definition_id] = CohortDefinitionRow(

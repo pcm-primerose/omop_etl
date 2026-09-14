@@ -13,26 +13,36 @@ PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestDeathBuilder:
-    def test_table_name(self, static_index, structural_index):
+    def test_table_name(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
-        assert DeathBuilder(concepts).table_name == "death"
+        assert DeathBuilder(concepts, row_id_generator).table_name == "death"
 
-    def test_empty_patient_returns_empty(self, static_index, structural_index):
+    def test_empty_patient_returns_empty(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        result = DeathBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = DeathBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
 
 class TestDeathRows:
-    def test_death_builder_populate_rows(self, static_index, structural_index):
+    def test_death_builder_populate_rows(self, static_index, structural_index, row_id_generator):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.date_of_death = dt.date(1900, 1, 1)
 
-        result = DeathBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = DeathBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         row = result.rows[0]
@@ -41,11 +51,16 @@ class TestDeathRows:
         assert row.death_type_concept_id == 32809
         assert row.death_datetime == dt.datetime(1900, 1, 1)
 
-    def test_missing_date_of_date_returns_no_rows(self, static_index, structural_index):
+    def test_missing_date_of_date_returns_no_rows(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.date_of_death = None
 
-        result = DeathBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = DeathBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())

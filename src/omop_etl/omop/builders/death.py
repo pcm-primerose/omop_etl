@@ -3,7 +3,7 @@ from logging import getLogger
 import datetime as dt
 
 from omop_etl.omop.builders.base import OmopBuilder
-from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.builders.helpers.context import BuildContext
 from omop_etl.omop.core.linkage import BuildResult
 from omop_etl.omop.models.rows import DeathRow
 from omop_etl.omop.models.tables import OmopTables

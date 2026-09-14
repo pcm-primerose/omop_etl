@@ -1,19 +1,21 @@
 import datetime as dt
+from dataclasses import asdict, dataclass
+
 import polars as pl
 
-from omop_etl.omop.builders.intervals import collapse_intervals
+from omop_etl.omop.builders.helpers.intervals import collapse_intervals
 
 
-def _rows(*rows: tuple[str, int, dt.date, dt.date]) -> pl.DataFrame:
-    person_ids, concept_ids, starts, ends = zip(*rows)
-    return pl.DataFrame(
-        {
-            "person_id": list(person_ids),
-            "concept_id": list(concept_ids),
-            "start": list(starts),
-            "end": list(ends),
-        }
-    )
+@dataclass(frozen=True, slots=True)
+class _Row:
+    person_id: str
+    concept_id: int
+    start: dt.date
+    end: dt.date
+
+
+def _rows(*rows: _Row) -> pl.DataFrame:
+    return pl.DataFrame([asdict(row) for row in rows])
 
 
 def _collapse(df: pl.DataFrame, persistence_days: int = 30, count_col: str | None = None) -> pl.DataFrame:
@@ -33,8 +35,8 @@ D = dt.date
 class TestCollapseIntervals:
     def test_isolated_occurrences_each_get_their_own_era(self):
         df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
-            ("p1", 1, D(2023, 6, 1), D(2023, 6, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 6, 1), end=D(2023, 6, 1)),
         )
 
         result = _collapse(df)
@@ -45,8 +47,8 @@ class TestCollapseIntervals:
     def test_gap_of_exactly_persistence_days_merges(self):
         # A ends Jan 1, B starts Jan 31: gap is exactly 30 days
         df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
-            ("p1", 1, D(2023, 1, 31), D(2023, 1, 31)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 31), end=D(2023, 1, 31)),
         )
 
         result = _collapse(df, persistence_days=30)
@@ -59,8 +61,8 @@ class TestCollapseIntervals:
     def test_gap_of_persistence_days_plus_one_does_not_merge(self):
         # A ends Jan 1, B starts Feb 1: gap is 31 days
         df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
-            ("p1", 1, D(2023, 2, 1), D(2023, 2, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 2, 1), end=D(2023, 2, 1)),
         )
 
         result = _collapse(df, persistence_days=30)
@@ -70,8 +72,8 @@ class TestCollapseIntervals:
 
     def test_overlapping_occurrences_merge_into_one_era(self):
         df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 15)),
-            ("p1", 1, D(2023, 1, 10), D(2023, 1, 20)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 15)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 10), end=D(2023, 1, 20)),
         )
 
         result = _collapse(df, persistence_days=30)
@@ -90,9 +92,9 @@ class TestCollapseIntervals:
         # be what C is compared against, merging all three into one era.
         base = D(2023, 1, 1)
         df = _rows(
-            ("p1", 1, base, base + dt.timedelta(days=29)),
-            ("p1", 1, base + dt.timedelta(days=4), base + dt.timedelta(days=5)),
-            ("p1", 1, base + dt.timedelta(days=49), base + dt.timedelta(days=49)),
+            _Row(person_id="p1", concept_id=1, start=base, end=base + dt.timedelta(days=29)),
+            _Row(person_id="p1", concept_id=1, start=base + dt.timedelta(days=4), end=base + dt.timedelta(days=5)),
+            _Row(person_id="p1", concept_id=1, start=base + dt.timedelta(days=49), end=base + dt.timedelta(days=49)),
         )
 
         result = _collapse(df, persistence_days=30)
@@ -103,8 +105,8 @@ class TestCollapseIntervals:
 
     def test_identical_start_and_end_dates_collapse_to_one_occurrence_each(self):
         df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
         )
 
         result = _collapse(df, persistence_days=30)
@@ -114,8 +116,8 @@ class TestCollapseIntervals:
 
     def test_different_concepts_for_the_same_person_are_separate_eras(self):
         df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
-            ("p1", 2, D(2023, 1, 1), D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=2, start=D(2023, 1, 1), end=D(2023, 1, 1)),
         )
 
         result = _collapse(df, persistence_days=30)
@@ -125,8 +127,8 @@ class TestCollapseIntervals:
 
     def test_same_concept_for_different_people_are_separate_eras(self):
         df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
-            ("p2", 1, D(2023, 1, 1), D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
+            _Row(person_id="p2", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
         )
 
         result = _collapse(df, persistence_days=30)
@@ -136,8 +138,8 @@ class TestCollapseIntervals:
 
     def test_unsorted_input_gives_the_same_result_as_sorted_input(self):
         sorted_df = _rows(
-            ("p1", 1, D(2023, 1, 1), D(2023, 1, 1)),
-            ("p1", 1, D(2023, 1, 15), D(2023, 1, 15)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 1), end=D(2023, 1, 1)),
+            _Row(person_id="p1", concept_id=1, start=D(2023, 1, 15), end=D(2023, 1, 15)),
         )
         unsorted_df = sorted_df.reverse()
 

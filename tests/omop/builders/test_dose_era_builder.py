@@ -76,13 +76,23 @@ def _concepts_with_unit_mapping() -> ConceptLookupService:
 
 
 class TestDoseEraBuilder:
-    def test_single_dosed_exposure_produces_one_era(self):
-        vocab = Vocabulary({200: _ingredient(200)})
+    def test_single_dosed_exposure_produces_one_era(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
         ancestor = _ancestor_links((200, 100))
         concepts = _concepts_with_unit_mapping()
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 29), quantity=4350.0, days_supply=29)]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(year=2023, month=1, day=1),
+                end=D(year=2023, month=1, day=29),
+                quantity=4350.0,
+                days_supply=29,
+            )
+        ]
 
-        eras = DoseEraBuilder().build(exposures, ancestor, vocab, concepts)
+        eras = DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts)
 
         assert len(eras) == 1
         era = eras[0]
@@ -93,8 +103,8 @@ class TestDoseEraBuilder:
         assert era.dose_era_start_date == D(2023, 1, 1)
         assert era.dose_era_end_date == D(2023, 1, 29)
 
-    def test_same_dose_across_two_exposures_merges_into_one_era(self):
-        vocab = Vocabulary({200: _ingredient(200)})
+    def test_same_dose_across_two_exposures_merges_into_one_era(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
         ancestor = _ancestor_links((200, 100))
         concepts = _concepts_with_unit_mapping()
         exposures = [
@@ -102,92 +112,175 @@ class TestDoseEraBuilder:
             _exposure(2, 1, 100, D(2023, 1, 15), D(2023, 1, 20), quantity=150.0, days_supply=1),
         ]
 
-        eras = DoseEraBuilder().build(exposures, ancestor, vocab, concepts)
+        eras = DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts)
 
         assert len(eras) == 1
         assert eras[0].dose_value == 150.0
         assert eras[0].dose_era_start_date == D(2023, 1, 1)
         assert eras[0].dose_era_end_date == D(2023, 1, 20)
 
-    def test_different_dose_values_form_separate_eras(self):
+    def test_different_dose_values_form_separate_eras(self, row_id_generator):
         # a patient could have two concurrent/overlapping dosage records at
         # different doses for the same ingredient, tracked as two independent
         # dose_value groups, not merged and not averaged
-        vocab = Vocabulary({200: _ingredient(200)})
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
         ancestor = _ancestor_links((200, 100))
         concepts = _concepts_with_unit_mapping()
         exposures = [
-            _exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 20), quantity=150.0, days_supply=1),
-            _exposure(2, 1, 100, D(2023, 1, 15), D(2023, 1, 20), quantity=300.0, days_supply=1),
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 20),
+                quantity=150.0,
+                days_supply=1,
+            ),
+            _exposure(
+                exposure_id=2,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 15),
+                end=D(2023, 1, 20),
+                quantity=300.0,
+                days_supply=1,
+            ),
         ]
 
-        eras = DoseEraBuilder().build(exposures, ancestor, vocab, concepts)
+        eras = DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts)
 
         assert len(eras) == 2
         assert {era.dose_value for era in eras} == {150.0, 300.0}
 
-    def test_gap_beyond_persistence_window_yields_separate_eras(self):
-        vocab = Vocabulary({200: _ingredient(200)})
+    def test_gap_beyond_persistence_window_yields_separate_eras(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
         ancestor = _ancestor_links((200, 100))
         concepts = _concepts_with_unit_mapping()
         exposures = [
-            _exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 1), quantity=150.0, days_supply=1),
-            _exposure(2, 1, 100, D(2023, 3, 1), D(2023, 3, 1), quantity=150.0, days_supply=1),
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 1),
+                quantity=150.0,
+                days_supply=1,
+            ),
+            _exposure(
+                exposure_id=2,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 3, 1),
+                end=D(2023, 3, 1),
+                quantity=150.0,
+                days_supply=1,
+            ),
         ]
 
-        eras = DoseEraBuilder().build(exposures, ancestor, vocab, concepts)
+        eras = DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts)
 
         assert len(eras) == 2
 
-    def test_combination_drug_derives_the_same_dose_for_each_ingredient(self):
+    def test_combination_drug_derives_the_same_dose_for_each_ingredient(self, row_id_generator):
         # one exposure record, two ingredients, both get their own era, both
         # sourced from the SAME underlying quantity/days_supply/unit
-        vocab = Vocabulary({200: _ingredient(200, "A"), 201: _ingredient(201, "B")})
+        vocab = Vocabulary(
+            concepts={
+                200: _ingredient(concept_id=200, name="A"),
+                201: _ingredient(concept_id=201, name="B"),
+            }
+        )
         ancestor = _ancestor_links((200, 100), (201, 100))
         concepts = _concepts_with_unit_mapping()
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10), quantity=150.0, days_supply=1)]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+                quantity=150.0,
+                days_supply=1,
+            ),
+        ]
 
-        eras = DoseEraBuilder().build(exposures, ancestor, vocab, concepts)
+        eras = DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts)
 
         assert len(eras) == 2
         assert {era.drug_concept_id for era in eras} == {200, 201}
         assert all(era.dose_value == 150.0 for era in eras)
 
-    def test_exposure_without_derivable_dose_is_excluded(self):
-        vocab = Vocabulary({200: _ingredient(200)})
-        ancestor = _ancestor_links((200, 100))
-        concepts = _concepts_with_unit_mapping()
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10), quantity=None, days_supply=None)]
-
-        assert DoseEraBuilder().build(exposures, ancestor, vocab, concepts) == []
-
-    def test_only_dose_eligible_exposures_contribute(self):
-        vocab = Vocabulary({200: _ingredient(200)})
+    def test_exposure_without_derivable_dose_is_excluded(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
         ancestor = _ancestor_links((200, 100))
         concepts = _concepts_with_unit_mapping()
         exposures = [
-            _exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10), quantity=150.0, days_supply=1),
-            _exposure(2, 1, 100, D(2023, 6, 1), D(2023, 6, 10), quantity=None, days_supply=None),
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+                quantity=None,
+                days_supply=None,
+            ),
         ]
 
-        eras = DoseEraBuilder().build(exposures, ancestor, vocab, concepts)
+        assert DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts) == []
+
+    def test_only_dose_eligible_exposures_contribute(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
+        ancestor = _ancestor_links((200, 100))
+        concepts = _concepts_with_unit_mapping()
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+                quantity=150.0,
+                days_supply=1,
+            ),
+            _exposure(
+                exposure_id=2,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 6, 1),
+                end=D(2023, 6, 10),
+                quantity=None,
+                days_supply=None,
+            ),
+        ]
+
+        eras = DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts)
 
         assert len(eras) == 1
         assert eras[0].dose_era_start_date == D(2023, 1, 1)
 
-    def test_no_drug_exposure_rows_yields_no_eras(self):
-        vocab = Vocabulary({200: _ingredient(200)})
+    def test_no_drug_exposure_rows_yields_no_eras(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
         ancestor = _ancestor_links((200, 100))
         concepts = _concepts_with_unit_mapping()
 
-        assert DoseEraBuilder().build([], ancestor, vocab, concepts) == []
+        assert DoseEraBuilder(row_id_generator).build([], ancestor, vocab, concepts) == []
 
-    def test_dose_era_id_is_deterministic_and_matches_row_id_convention(self):
-        vocab = Vocabulary({200: _ingredient(200)})
+    def test_dose_era_id_is_deterministic_and_matches_row_id_convention(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _ingredient(concept_id=200)})
         ancestor = _ancestor_links((200, 100))
         concepts = _concepts_with_unit_mapping()
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 29), quantity=4350.0, days_supply=29)]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 29),
+                quantity=4350.0,
+                days_supply=29,
+            ),
+        ]
 
-        era = DoseEraBuilder().build(exposures, ancestor, vocab, concepts)[0]
+        era = DoseEraBuilder(row_id_generator).build(exposures, ancestor, vocab, concepts)[0]
 
         assert era.dose_era_id == row_id(OmopTables.DOSE_ERA, 1, 200, MILLIGRAM_CONCEPT_ID, 150.0, D(2023, 1, 1))

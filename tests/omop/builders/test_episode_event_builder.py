@@ -66,29 +66,49 @@ def cycle_only_structural(structural_index):
 
 
 class TestEpisodeEventBuilder:
-    def test_table_name(self, static_index, structural_index):
+    def test_table_name(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
-        assert EpisodeEventBuilder(concepts).table_name == "episode_event"
+        assert EpisodeEventBuilder(concepts, row_id_generator).table_name == "episode_event"
 
 
 class TestTreatmentCycleDrugLinks:
-    def test_combination_cycle_drugs_link_to_one_cycle_episode(self, static_index, cycle_only_structural):
+    def test_combination_cycle_drugs_link_to_one_cycle_episode(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         """
         Two drug components in one cycle (combination): both drug_exposure rows
         link to the single cycle episode for (treatment_number, cycle_number).
         """
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
-        c1 = _component(1, 1, dt.date(2023, 1, 1), ingredient="Pertuzumab")
-        c2 = _component(1, 1, dt.date(2023, 1, 1), ingredient="Trastuzumab")
+        c1 = _component(
+            treatment_number=1,
+            cycle_number=1,
+            start=dt.date(2023, 1, 1),
+            ingredient="Pertuzumab",
+        )
+        c2 = _component(
+            treatment_number=1,
+            cycle_number=1,
+            start=dt.date(2023, 1, 1),
+            ingredient="Trastuzumab",
+        )
         patient.treatment_cycles = [c1, c2]
         ctx = create_build_context(patient, PERSON_ID)
 
         # populate context with published rows
-        drug_rows = DrugExposureBuilder(concepts).build_and_populate(ctx)
-        episode_rows = EpisodeBuilder(concepts).build_and_populate(ctx)
+        drug_rows = DrugExposureBuilder(concepts, row_id_generator).build_and_populate(ctx)
+        episode_rows = EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeEventBuilder(concepts).build(ctx)
+        result = EpisodeEventBuilder(concepts, row_id_generator).build(ctx)
 
         assert len(episode_rows) == 1  # just the cycle episode (regimen out of scope)
         assert len(result.rows) == 2
@@ -96,17 +116,33 @@ class TestTreatmentCycleDrugLinks:
         assert {r.event_id for r in result.rows} == {d.drug_exposure_id for d in drug_rows}
         assert all(r.episode_event_field_concept_id == _cdm_field(static_index, "drug_exposure.drug_exposure_id") for r in result.rows)
 
-    def test_separate_cycles_link_to_separate_episodes(self, static_index, cycle_only_structural):
+    def test_separate_cycles_link_to_separate_episodes(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         """Two cycles (cycle 1 and cycle 2): each drug links to its own cycle episode."""
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1)), _cycle(1, 2, dt.date(2023, 2, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+            _cycle(
+                treatment_number=1,
+                cycle_number=2,
+                start=dt.date(2023, 2, 1),
+            ),
+        ]
         ctx = create_build_context(patient, PERSON_ID)
 
-        drug_rows = DrugExposureBuilder(concepts).build_and_populate(ctx)
-        EpisodeBuilder(concepts).build_and_populate(ctx)
+        drug_rows = DrugExposureBuilder(concepts, row_id_generator).build_and_populate(ctx)
+        EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeEventBuilder(concepts).build(ctx)
+        result = EpisodeEventBuilder(concepts, row_id_generator).build(ctx)
 
         assert len(result.rows) == 2
         assert {r.event_id for r in result.rows} == {d.drug_exposure_id for d in drug_rows}
@@ -115,35 +151,62 @@ class TestTreatmentCycleDrugLinks:
         episode_by_event = {r.event_id: r.episode_id for r in result.rows}
         assert len(set(episode_by_event.values())) == 2
 
-    def test_no_drug_exposure_no_events(self, static_index, cycle_only_structural):
+    def test_no_drug_exposure_no_events(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+        ]
         ctx = create_build_context(patient, PERSON_ID)
 
         # cycle episode published, but DrugExposureBuilder never run so no drug rows
-        EpisodeBuilder(concepts).build_and_populate(ctx)
+        EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeEventBuilder(concepts).build(ctx)
+        result = EpisodeEventBuilder(concepts, row_id_generator).build(ctx)
 
         assert result.rows == ()
 
-    def test_no_episode_no_events(self, static_index, cycle_only_structural):
+    def test_no_episode_no_events(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+        ]
         ctx = create_build_context(patient, PERSON_ID)
 
         # drug published, but no episode published (EpisodeBuilder not run)
-        DrugExposureBuilder(concepts).build_and_populate(ctx)
+        DrugExposureBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeEventBuilder(concepts).build(ctx)
+        result = EpisodeEventBuilder(concepts, row_id_generator).build(ctx)
 
         assert result.rows == ()
 
 
 class TestDiseaseConditionLinks:
-    def test_links_disease_episode_to_condition(self, static_index, structural_index):
+    def test_links_disease_episode_to_condition(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """The Disease Episode links to the primary-cancer condition_occurrence row."""
         semantic = semantic_index(
             mapping(
@@ -161,21 +224,26 @@ class TestDiseaseConditionLinks:
         ctx = create_build_context(patient, PERSON_ID)
 
         # ConditionOccurrenceBuilder publishes the cancer condition, EpisodeBuilder the Disease Episode
-        condition_rows = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
-        episode_rows = EpisodeBuilder(concepts).build_and_populate(ctx)
+        condition_rows = ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
+        episode_rows = EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeEventBuilder(concepts).build(ctx)
+        result = EpisodeEventBuilder(concepts, row_id_generator).build(ctx)
 
         assert len(episode_rows) == 1  # just the Disease Episode (no cycles, no assessments)
         assert len(result.rows) == 1
         ev = result.rows[0]
         assert ev.episode_id == episode_rows[0].episode_id
         assert ev.event_id == condition_rows[0].condition_occurrence_id
-        assert ev.episode_event_field_concept_id == _cdm_field(static_index, "condition_occurrence.condition_occurrence_id")
+        assert ev.episode_event_field_concept_id == _cdm_field(static_index, target_pk="condition_occurrence.condition_occurrence_id")
 
 
 class TestDiseaseDynamicMeasurementLinks:
-    def test_each_run_links_to_its_response_measurement(self, static_index, structural_index):
+    def test_each_run_links_to_its_response_measurement(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """
         Two single-assessment runs (SD then PD): each dynamic episode links to its
         assessment's response measurement row.
@@ -189,17 +257,22 @@ class TestDiseaseDynamicMeasurementLinks:
         ctx = create_build_context(patient, PERSON_ID)
 
         # MeasurementBuilder publishes the response rows, EpisodeBuilder the dynamic episodes
-        MeasurementBuilder(concepts).build_and_populate(ctx)
-        episode_rows = EpisodeBuilder(concepts).build_and_populate(ctx)
+        MeasurementBuilder(concepts, row_id_generator).build_and_populate(ctx)
+        episode_rows = EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeEventBuilder(concepts).build(ctx)
+        result = EpisodeEventBuilder(concepts, row_id_generator).build(ctx)
 
         assert len(result.rows) == 2
         assert all(r.episode_event_field_concept_id == _cdm_field(static_index, "measurement.measurement_id") for r in result.rows)
         # all upstream episode rows are dynamic, so the events point at exactly them
         assert {r.episode_id for r in result.rows} == {r.episode_id for r in episode_rows}
 
-    def test_run_links_to_all_its_assessments_measurements(self, static_index, structural_index):
+    def test_run_links_to_all_its_assessments_measurements(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """
         A run of two same-status (SD) assessments collapses to one dynamic episode,
         both assessments' measurement rows link to that single episode.
@@ -212,10 +285,10 @@ class TestDiseaseDynamicMeasurementLinks:
         ]
         ctx = create_build_context(patient, PERSON_ID)
 
-        measurement_rows = MeasurementBuilder(concepts).build_and_populate(ctx)
-        episode_rows = EpisodeBuilder(concepts).build_and_populate(ctx)
+        measurement_rows = MeasurementBuilder(concepts, row_id_generator).build_and_populate(ctx)
+        episode_rows = EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeEventBuilder(concepts).build(ctx)
+        result = EpisodeEventBuilder(concepts, row_id_generator).build(ctx)
 
         assert len(episode_rows) == 1  # two SD assessments are one run: one episode
         assert len(result.rows) == 2

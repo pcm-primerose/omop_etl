@@ -7,7 +7,7 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.models.rows import VisitOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.omop.builders.base import OmopBuilder
-from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.builders.helpers.context import BuildContext
 from omop_etl.omop.core.linkage import (
     BuildResult,
     OmopRowReference,

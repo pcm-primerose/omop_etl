@@ -1,8 +1,8 @@
 import polars as pl
 
-from omop_etl.omop.builders.ingredient_rollup import ingredient_exposures
-from omop_etl.omop.builders.intervals import collapse_intervals
-from omop_etl.omop.core.id_generator import row_id
+from omop_etl.omop.builders.helpers.ingredient_rollup import ingredient_exposures
+from omop_etl.omop.builders.helpers.intervals import collapse_intervals
+from omop_etl.omop.core.id_generator import RowIdGenerator
 from omop_etl.omop.models.rows import DrugEraRow, DrugExposureRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
@@ -25,6 +25,9 @@ class DrugEraBuilder:
 
     OVERLAP_PERSISTENCE_DAYS = 0
     ERA_PERSISTENCE_DAYS = 30
+
+    def __init__(self, row_id_generator: RowIdGenerator):
+        self._row_id_generator = row_id_generator
 
     def build(
         self,
@@ -56,7 +59,7 @@ class DrugEraBuilder:
 
         return [
             DrugEraRow(
-                drug_era_id=row_id(
+                drug_era_id=self._row_id_generator.generate(
                     OmopTables.DRUG_ERA,
                     era["person_id"],
                     era["ingredient_concept_id"],

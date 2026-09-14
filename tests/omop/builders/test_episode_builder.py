@@ -101,29 +101,56 @@ def cycle_only_structural(structural_index):
 
 
 class TestEpisodeBuilder:
-    def test_table_name(self, static_index, structural_index):
+    def test_table_name(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
-        assert EpisodeBuilder(concepts).table_name == "episode"
+        assert EpisodeBuilder(concepts, row_id_generator).table_name == "episode"
 
-    def test_empty_patient_returns_empty(self, static_index, structural_index):
+    def test_empty_patient_returns_empty(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
 
 class TestTreatmentRegimenEpisodes:
-    def test_one_line_spans_its_cycles(self, static_index, regimen_only_structural):
+    def test_one_line_spans_its_cycles(
+        self,
+        static_index,
+        regimen_only_structural,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, regimen_only_structural)
         patient = create_patient(PID, TRIAL)
         patient.treatment_cycles = [
-            _cycle(1, 1, dt.date(2023, 1, 1), dt.date(2023, 1, 20), name="Erivedge"),
-            _cycle(1, 2, dt.date(2023, 2, 1), dt.date(2023, 2, 20), name="Erivedge"),
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+                end=dt.date(2023, 1, 20),
+                name="Erivedge",
+            ),
+            _cycle(
+                treatment_number=1,
+                cycle_number=2,
+                start=dt.date(2023, 2, 1),
+                end=dt.date(2023, 2, 20),
+                name="Erivedge",
+            ),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         ep = result.rows[0]
@@ -138,84 +165,160 @@ class TestTreatmentRegimenEpisodes:
         assert ep.episode_end_datetime == dt.datetime(2023, 2, 20)
         assert ep.episode_source_value == "Erivedge"
 
-    def test_end_date_falls_back_to_cycle_start(self, static_index, regimen_only_structural):
+    def test_end_date_falls_back_to_cycle_start(
+        self,
+        static_index,
+        regimen_only_structural,
+        row_id_generator,
+    ):
         # a cycle with no end_date contributes its own start to the line span
         concepts = ConceptLookupService(static_index, regimen_only_structural)
         patient = create_patient(PID, TRIAL)
         patient.treatment_cycles = [
-            _cycle(1, 1, dt.date(2023, 1, 1), dt.date(2023, 1, 20)),
-            _cycle(1, 2, dt.date(2023, 3, 1), end=None),
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+                end=dt.date(2023, 1, 20),
+            ),
+            _cycle(
+                treatment_number=1,
+                cycle_number=2,
+                start=dt.date(2023, 3, 1),
+                end=None,
+            ),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result.rows[0].episode_end_date == dt.date(2023, 3, 1)
 
-    def test_one_episode_per_line(self, static_index, regimen_only_structural):
+    def test_one_episode_per_line(
+        self,
+        static_index,
+        regimen_only_structural,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, regimen_only_structural)
         patient = create_patient(PID, TRIAL)
         patient.treatment_cycles = [
-            _cycle(1, 1, dt.date(2023, 1, 1)),
-            _cycle(2, 1, dt.date(2023, 6, 1)),
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+            _cycle(
+                treatment_number=2,
+                cycle_number=1,
+                start=dt.date(2023, 6, 1),
+            ),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert [r.episode_number for r in result.rows] == [1, 2]  # sorted by line
         assert len({r.episode_id for r in result.rows}) == 2
 
-    def test_combination_line_does_not_raise(self, static_index, regimen_only_structural):
+    def test_combination_line_does_not_raise(
+        self,
+        static_index,
+        regimen_only_structural,
+        row_id_generator,
+    ):
         # a line whose cycles carry distinct drug names (e.g. Piqray, Fulvestrant)
         # must not raise; the regimen logs and keeps the most common drug name
         concepts = ConceptLookupService(static_index, regimen_only_structural)
         patient = create_patient(PID, TRIAL)
         patient.treatment_cycles = [
-            _cycle(1, 1, dt.date(2023, 1, 1), name="Piqray"),
-            _cycle(1, 2, dt.date(2023, 1, 1), name="Fulvestrant"),
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+                name="Piqray",
+            ),
+            _cycle(
+                treatment_number=1,
+                cycle_number=2,
+                start=dt.date(2023, 1, 1),
+                name="Fulvestrant",
+            ),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].episode_source_value in {"Piqray", "Fulvestrant"}
         assert result.rows[0].episode_object_concept_id == 0
 
-    def test_no_cycle_concept_emits_regimens_only(self, static_index, regimen_only_structural):
+    def test_no_cycle_concept_emits_regimens_only(
+        self,
+        static_index,
+        regimen_only_structural,
+        row_id_generator,
+    ):
         # the degraded path: with no treatment_cycle concept the build still emits
         # the line's regimen (the regimen_only_structural fixture is this condition)
         concepts = ConceptLookupService(static_index, regimen_only_structural)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+        ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].episode_concept_id == regimen_only_structural["treatment_regimen"].concept_id
 
-    def test_regimens_are_not_published(self, static_index, structural_index):
+    def test_regimens_are_not_published(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # regimens are no longer published (nothing resolves them); only cycles are.
         # the cycle->regimen link is episode_parent_id, set in-row.
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+        ]
         ctx = create_build_context(patient, PERSON_ID)
 
-        EpisodeBuilder(concepts).build_and_populate(ctx)
+        EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         regimen_ref = ctx.resolve_rows(OmopTables.EPISODE, SourceReference(PID, Patient.Collections.TREATMENT_CYCLES, (1,)))
         assert regimen_ref == ()
 
-    def test_parents_to_disease_episode(self, static_index, regimen_only_structural):
+    def test_parents_to_disease_episode(
+        self,
+        static_index,
+        regimen_only_structural,
+        row_id_generator,
+    ):
         # the line's regimen hangs off the patient's Disease Episode (the root)
         semantic = semantic_index(_tumor_condition_mapping(4112853))
         concepts = ConceptLookupService(static_index, regimen_only_structural, semantic)
         patient = create_patient(PID, TRIAL)
         patient.tumor_type = _tumor(date=dt.date(2023, 1, 10))
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 2, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 2, 1),
+            ),
+        ]
         ctx = create_build_context(patient, PERSON_ID)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeBuilder(concepts).build(ctx)
+        result = EpisodeBuilder(concepts, row_id_generator).build(ctx)
 
         disease = next(r for r in result.rows if r.episode_parent_id is None)
         regimen = next(r for r in result.rows if r.episode_parent_id is not None)
@@ -223,18 +326,35 @@ class TestTreatmentRegimenEpisodes:
 
 
 class TestTreatmentCycleEpisodes:
-    def test_one_episode_per_cycle_number(self, static_index, cycle_only_structural):
+    def test_one_episode_per_cycle_number(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
         patient.treatment_cycles = [
-            _cycle(1, 1, dt.date(2023, 1, 1), dt.date(2023, 1, 20)),
-            _cycle(1, 2, dt.date(2023, 2, 1), dt.date(2023, 2, 20)),
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+                end=dt.date(2023, 1, 20),
+            ),
+            _cycle(
+                treatment_number=1,
+                cycle_number=2,
+                start=dt.date(2023, 2, 1),
+                end=dt.date(2023, 2, 20),
+            ),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
-        assert [c.episode_number for c in result.rows] == [1, 2]  # sorted by cycle number
+        # sorted by cycle number
+        assert [c.episode_number for c in result.rows] == [1, 2]
         assert len({c.episode_id for c in result.rows}) == 2
+
         # each cycle spans its own component's dates, not the whole line
         first = result.rows[0]
         assert first.episode_type_concept_id == cycle_only_structural["ecrf"].concept_id
@@ -242,7 +362,12 @@ class TestTreatmentCycleEpisodes:
         assert first.episode_end_date == dt.date(2023, 1, 20)
         assert first.episode_start_datetime == dt.datetime(2023, 1, 1)
 
-    def test_combination_cycle_collapses_to_one_episode(self, static_index, cycle_only_structural):
+    def test_combination_cycle_collapses_to_one_episode(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
         c1 = TreatmentCycleComponent(patient_id=PID)
@@ -261,7 +386,7 @@ class TestTreatmentCycleEpisodes:
         c2.end_date = dt.date(2023, 1, 20)
         patient.treatment_cycles = [c1, c2]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].episode_number == 1
@@ -269,26 +394,48 @@ class TestTreatmentCycleEpisodes:
         assert result.rows[0].episode_start_date == dt.date(2023, 1, 1)
         assert result.rows[0].episode_end_date == dt.date(2023, 1, 20)
 
-    def test_orphaned_without_regimen_concept(self, static_index, cycle_only_structural):
+    def test_orphaned_without_regimen_concept(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         # orphaned: no regimen parent (None) and no inherited object concept (0) but still emits
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            )
+        ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].episode_parent_id is None
         assert result.rows[0].episode_object_concept_id == 0
 
-    def test_publishes_cycle_episode_ref(self, static_index, cycle_only_structural):
+    def test_publishes_cycle_episode_ref(
+        self,
+        static_index,
+        cycle_only_structural,
+        row_id_generator,
+    ):
         # cycles publish under their (treatment_number, cycle_number) source key
         concepts = ConceptLookupService(static_index, cycle_only_structural)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+        ]
         ctx = create_build_context(patient, PERSON_ID)
 
-        rows = EpisodeBuilder(concepts).build_and_populate(ctx)
+        rows = EpisodeBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         refs = ctx.resolve_rows(
             OmopTables.EPISODE,
@@ -297,7 +444,12 @@ class TestTreatmentCycleEpisodes:
         assert len(refs) == 1
         assert refs[0].row_id == rows[0].episode_id
 
-    def test_inherits_regimen_parent_and_object(self, static_index, structural_index):
+    def test_inherits_regimen_parent_and_object(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # full index: cycle parent_id is the line's regimen episode_id and the object
         # concept is inherited from the regimen (a real REGIMEN semantic match, non-zero)
         semantic = semantic_index(
@@ -310,11 +462,21 @@ class TestTreatmentCycleEpisodes:
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
         patient.treatment_cycles = [
-            _cycle(1, 1, dt.date(2023, 1, 1), name="Trametinib"),
-            _cycle(1, 2, dt.date(2023, 2, 1), name="Trametinib"),
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+                name="Trametinib",
+            ),
+            _cycle(
+                treatment_number=1,
+                cycle_number=2,
+                start=dt.date(2023, 2, 1),
+                name="Trametinib",
+            ),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         regimen = next(r for r in result.rows if r.episode_parent_id is None)
         cycles = [r for r in result.rows if r.episode_parent_id is not None]
@@ -323,19 +485,35 @@ class TestTreatmentCycleEpisodes:
         assert all(c.episode_parent_id == regimen.episode_id for c in cycles)
         assert all(c.episode_object_concept_id == 35803140 for c in cycles)
 
-    def test_distinct_regimen_and_cycle_ids(self, static_index, structural_index):
+    def test_distinct_regimen_and_cycle_ids(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # full index: regimen and cycle of the same line hash to distinct episode_ids
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
-        patient.treatment_cycles = [_cycle(1, 1, dt.date(2023, 1, 1))]
+        patient.treatment_cycles = [
+            _cycle(
+                treatment_number=1,
+                cycle_number=1,
+                start=dt.date(2023, 1, 1),
+            ),
+        ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len({r.episode_id for r in result.rows}) == len(result.rows)
 
 
 class TestDiseaseEpisodes:
-    def test_disease_episode_from_published_condition(self, static_index, structural_index):
+    def test_disease_episode_from_published_condition(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # object concept and start date pusblished from ConditionOccurrenceBuilder
         # end date is the patient's death
         semantic = semantic_index(_tumor_condition_mapping(4112853))
@@ -343,9 +521,9 @@ class TestDiseaseEpisodes:
         patient = create_patient(PID, TRIAL, date_of_death=dt.date(2024, 5, 1))
         patient.tumor_type = _tumor(date=dt.date(2023, 1, 10))
         ctx = create_build_context(patient, PERSON_ID)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeBuilder(concepts).build(ctx)
+        result = EpisodeBuilder(concepts, row_id_generator).build(ctx)
 
         assert len(result.rows) == 1
         ep = result.rows[0]
@@ -358,40 +536,60 @@ class TestDiseaseEpisodes:
         assert ep.episode_type_concept_id == structural_index["ecrf"].concept_id
         assert ep.episode_source_value == "Melanoma"
 
-    def test_end_date_null_when_alive(self, static_index, structural_index):
+    def test_end_date_null_when_alive(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(_tumor_condition_mapping(4112853))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)  # no date_of_death
         patient.tumor_type = _tumor(date=dt.date(2023, 1, 10))
         ctx = create_build_context(patient, PERSON_ID)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeBuilder(concepts).build(ctx)
+        result = EpisodeBuilder(concepts, row_id_generator).build(ctx)
 
         assert result.rows[0].episode_end_date is None
 
-    def test_no_disease_episode_without_tumor(self, static_index, structural_index):
+    def test_no_disease_episode_without_tumor(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result.rows == ()
 
-    def test_no_disease_episode_without_published_condition(self, static_index, structural_index):
+    def test_no_disease_episode_without_published_condition(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.tumor_type = _tumor(date=dt.date(2023, 1, 10))
         ctx = create_build_context(patient, PERSON_ID)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeBuilder(concepts).build(ctx)
+        result = EpisodeBuilder(concepts, row_id_generator).build(ctx)
 
         assert result.rows == ()
 
 
 class TestDiseaseDynamicEpisodes:
-    def test_run_length_encodes_responses(self, static_index, structural_index):
+    def test_run_length_encodes_responses(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # consecutive same-status assessments collapse into one episode each
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
@@ -402,24 +600,32 @@ class TestDiseaseDynamicEpisodes:
             _assessment(dt.date(2023, 4, 1), recist="Stable Disease (SD)"),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert [r.episode_concept_id for r in result.rows] == [
-            _dynamic_episode_concept(static_index, "response_recist", "Complete Response (CR)"),
-            _dynamic_episode_concept(static_index, "response_recist", "Partial Response (PR)"),
-            _dynamic_episode_concept(static_index, "response_recist", "Stable Disease (SD)"),
+            _dynamic_episode_concept(static_index, value_set="response_recist", response="Complete Response (CR)"),
+            _dynamic_episode_concept(static_index, value_set="response_recist", response="Partial Response (PR)"),
+            _dynamic_episode_concept(static_index, value_set="response_recist", response="Stable Disease (SD)"),
         ]
+
         # CR run spans its two assessments, ends the day before PR starts
         assert result.rows[0].episode_start_date == dt.date(2023, 1, 1)
         assert result.rows[0].episode_end_date == dt.date(2023, 2, 28)
+
         # PR run ends the day before SD starts
         assert result.rows[1].episode_start_date == dt.date(2023, 3, 1)
         assert result.rows[1].episode_end_date == dt.date(2023, 3, 31)
+
         # last run is open-ended
         assert result.rows[2].episode_start_date == dt.date(2023, 4, 1)
         assert result.rows[2].episode_end_date is None
 
-    def test_not_evaluable_drops_and_merges_neighbours(self, static_index, structural_index):
+    def test_not_evaluable_drops_and_merges_neighbours(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [
@@ -428,58 +634,90 @@ class TestDiseaseDynamicEpisodes:
             _assessment(dt.date(2023, 3, 1), recist="Complete Response (CR)"),
         ]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
-        assert result.rows[0].episode_concept_id == _dynamic_episode_concept(static_index, "response_recist", "Complete Response (CR)")
+        assert result.rows[0].episode_concept_id == _dynamic_episode_concept(
+            static_index,
+            value_set="response_recist",
+            response="Complete Response (CR)",
+        )
         assert result.rows[0].episode_start_date == dt.date(2023, 1, 1)
         assert result.rows[0].episode_end_date is None
 
-    def test_no_dynamic_without_evaluable_response(self, static_index, structural_index):
+    def test_no_dynamic_without_evaluable_response(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [_assessment(dt.date(2023, 1, 1), recist="Not evaluable")]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result.rows == ()
 
-    def test_irecist_response_maps_through(self, static_index, structural_index):
+    def test_irecist_response_maps_through(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [_assessment(dt.date(2023, 1, 1), irecist="iComplete Response (CR)")]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
-        assert result.rows[0].episode_concept_id == _dynamic_episode_concept(static_index, "response_irecist", "iComplete Response (CR)")
+        assert result.rows[0].episode_concept_id == _dynamic_episode_concept(
+            static_index,
+            value_set="response_irecist",
+            response="iComplete Response (CR)",
+        )
 
-    def test_parents_to_disease_episode(self, static_index, structural_index):
+    def test_parents_to_disease_episode(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(_tumor_condition_mapping(4112853))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
         patient.tumor_type = _tumor(date=dt.date(2023, 1, 10))
         patient.tumor_assessments = [_assessment(dt.date(2023, 2, 1), recist="Stable Disease (SD)")]
         ctx = create_build_context(patient, PERSON_ID)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
-        result = EpisodeBuilder(concepts).build(ctx)
+        result = EpisodeBuilder(concepts, row_id_generator).build(ctx)
 
         disease = next(r for r in result.rows if r.episode_parent_id is None)
         dynamic = next(r for r in result.rows if r.episode_parent_id is not None)
-        assert dynamic.episode_concept_id == _dynamic_episode_concept(static_index, "response_recist", "Stable Disease (SD)")
+        assert dynamic.episode_concept_id == _dynamic_episode_concept(
+            static_index,
+            value_set="response_recist",
+            response="Stable Disease (SD)",
+        )
         assert dynamic.episode_parent_id == disease.episode_id
         # Disease Episode's object concepts is a Condition-domain concept,
         # the dynamic status is a status of that same disease, so it reuses it
         assert dynamic.episode_object_concept_id == disease.episode_object_concept_id == 4112853
 
-    def test_dynamic_episode_object_concept_defaults_to_zero_without_a_disease_episode(self, static_index, structural_index):
+    def test_dynamic_episode_object_concept_defaults_to_zero_without_a_disease_episode(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # no tumor_type set, no Disease Episode: nothing to inherit from
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         patient.tumor_assessments = [_assessment(dt.date(2023, 1, 1), recist="Stable Disease (SD)")]
 
-        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = EpisodeBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].episode_object_concept_id == 0

@@ -12,7 +12,7 @@ from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessmen
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.core.models import MappedConcept
 from omop_etl.omop.builders.base import OmopBuilder
-from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.builders.helpers.context import BuildContext
 from omop_etl.omop.core.linkage import (
     BuildResult,
     LinkTarget,

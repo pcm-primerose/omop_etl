@@ -1,7 +1,7 @@
 import datetime as dt
 import polars as pl
 
-from omop_etl.omop.builders.ingredient_rollup import ingredient_exposures
+from omop_etl.omop.builders.helpers.ingredient_rollup import ingredient_exposures
 from omop_etl.omop.models.rows import DrugExposureRow
 from omop_etl.vocabulary.core.models import AthenaConcept
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
@@ -47,9 +47,17 @@ def _ancestor_links(*pairs: tuple[int, int]) -> pl.DataFrame:
 
 class TestIngredientExposures:
     def test_single_ingredient_drug_maps_to_one_row(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
         result = ingredient_exposures(exposures, ancestor, vocab)
 
@@ -64,12 +72,30 @@ class TestIngredientExposures:
     def test_combination_drug_expands_to_one_row_per_ingredient(self):
         vocab = Vocabulary(
             {
-                200: _concept(200, "Drug", "Ingredient", "IngredientA"),
-                201: _concept(201, "Drug", "Ingredient", "IngredientB"),
+                200: _concept(
+                    concept_id=200,
+                    domain_id="Drug",
+                    concept_class_id="Ingredient",
+                    name="IngredientA",
+                ),
+                201: _concept(
+                    concept_id=201,
+                    domain_id="Drug",
+                    concept_class_id="Ingredient",
+                    name="IngredientB",
+                ),
             }
         )
         ancestor = _ancestor_links((200, 100), (201, 100))
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
         result = ingredient_exposures(exposures, ancestor, vocab)
 
@@ -79,37 +105,69 @@ class TestIngredientExposures:
         assert set(result.get_column("drug_exposure_id").to_list()) == {1}
 
     def test_non_ingredient_ancestor_is_excluded(self):
-        vocab = Vocabulary({300: _concept(300, "Drug", "Brand Name")})
+        vocab = Vocabulary(concepts={300: _concept(concept_id=300, domain_id="Drug", concept_class_id="Brand Name")})
         ancestor = _ancestor_links((300, 100))
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
         assert ingredient_exposures(exposures, ancestor, vocab).is_empty()
 
     def test_non_drug_domain_ancestor_is_excluded(self):
         # Ingredient-class but wrong domain, shouldn't happen in real Athena data,
         # but the filter checks both, not just concept_class_id
-        vocab = Vocabulary({300: _concept(300, "Condition", "Ingredient")})
+        vocab = Vocabulary(concepts={300: _concept(concept_id=300, domain_id="Condition", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((300, 100))
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
         assert ingredient_exposures(exposures, ancestor, vocab).is_empty()
 
     def test_unmapped_drug_concept_id_zero_is_excluded(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
-        exposures = [_exposure(1, 1, 0, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=0,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
         assert ingredient_exposures(exposures, ancestor, vocab).is_empty()
 
     def test_no_exposures_returns_empty(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
 
         assert ingredient_exposures([], ancestor, vocab).is_empty()
 
     def test_empty_concept_ancestor_returns_empty(self):
         vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
-        exposures = [_exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
         assert ingredient_exposures(exposures, _ancestor_links(), vocab).is_empty()
 
@@ -117,8 +175,20 @@ class TestIngredientExposures:
         vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
         ancestor = _ancestor_links((200, 100))
         exposures = [
-            _exposure(1, 1, 100, D(2023, 1, 1), D(2023, 1, 10)),
-            _exposure(2, 1, 100, D(2023, 2, 1), D(2023, 2, 10)),
+            _exposure(
+                exposure_id=1,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+            _exposure(
+                exposure_id=2,
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 2, 1),
+                end=D(2023, 2, 10),
+            ),
         ]
 
         result = ingredient_exposures(exposures, ancestor, vocab)

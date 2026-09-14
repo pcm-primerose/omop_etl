@@ -65,16 +65,6 @@ class BuildContext:
         """
         return self.published_rows.get((target_table, source_ref), ())
 
-    def cross_product_refs(
-        self,
-        left_table: str,
-        left_ref: SourceReference,
-        right_table: str,
-        right_ref: SourceReference,
-    ) -> tuple[tuple[OmopRowReference, OmopRowReference], ...]:
-        """N*M expansion for cross-product linkage."""
-        return tuple((left, right) for left in self.resolve_rows(left_table, left_ref) for right in self.resolve_rows(right_table, right_ref))
-
     def resolve_visit_id(self, date: dt.date) -> int | None:
         """
         Resolve a visit_occurrence_id by date against the patient's published

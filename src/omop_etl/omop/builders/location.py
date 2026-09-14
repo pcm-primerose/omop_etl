@@ -3,7 +3,7 @@ from logging import getLogger
 
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.core.id_generator import row_id
+from omop_etl.omop.core.id_generator import RowIdGenerator
 from omop_etl.omop.models.rows import LocationRow
 from omop_etl.omop.models.tables import OmopTables
 
@@ -25,8 +25,9 @@ class LocationBuilder:
     patients get `location_id = None`).
     """
 
-    def __init__(self, concepts: ConceptLookupService):
+    def __init__(self, concepts: ConceptLookupService, row_id_generator: RowIdGenerator):
         self.concepts = concepts
+        self._row_id_generator = row_id_generator
 
     def build(self, patients: Sequence[Patient]) -> list[LocationRow]:
         rows: dict[int, LocationRow] = {}
@@ -35,7 +36,7 @@ class LocationBuilder:
             if not country:
                 continue
             concept = country[0]
-            location_id = row_id(OmopTables.LOCATION, concept.concept_id)
+            location_id = self._row_id_generator.generate(OmopTables.LOCATION, concept.concept_id)
             if location_id in rows:
                 continue
             rows[location_id] = LocationRow(

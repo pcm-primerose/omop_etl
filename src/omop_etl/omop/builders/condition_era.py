@@ -1,8 +1,8 @@
 import datetime as dt
 import polars as pl
 
-from omop_etl.omop.builders.intervals import collapse_intervals
-from omop_etl.omop.core.id_generator import row_id
+from omop_etl.omop.builders.helpers.intervals import collapse_intervals
+from omop_etl.omop.core.id_generator import RowIdGenerator
 from omop_etl.omop.models.rows import ConditionEraRow, ConditionOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
 
@@ -21,6 +21,9 @@ class ConditionEraBuilder:
     """
 
     PERSISTENCE_DAYS = 30
+
+    def __init__(self, row_id_generator: RowIdGenerator):
+        self._row_id_generator = row_id_generator
 
     def build(self, condition_occurrence: list[ConditionOccurrenceRow]) -> list[ConditionEraRow]:
         mapped = [row for row in condition_occurrence if row.condition_concept_id != 0]
@@ -46,7 +49,7 @@ class ConditionEraBuilder:
 
         return [
             ConditionEraRow(
-                condition_era_id=row_id(
+                condition_era_id=self._row_id_generator.generate(
                     OmopTables.CONDITION_ERA,
                     era["person_id"],
                     era["condition_concept_id"],

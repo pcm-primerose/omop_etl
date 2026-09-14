@@ -10,7 +10,7 @@ class TestCdmSourceBuilder:
 
         assert row.cdm_source_name == "PRIME-ROSE OMOP ETL"
         assert row.cdm_holder == "PRIME-ROSE"
-        assert row.cdm_version == "v5.4"
+        assert row.cdm_version == "v5.5"
         assert row.cdm_version_concept_id == 705800
         assert row.vocabulary_version == "v5.0 01-JAN-26"
         assert row.source_release_date == dt.date.today()

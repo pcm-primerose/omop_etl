@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import ClassVar, Generic, TypeVar
 
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.omop.builders.context import BuildContext
-from omop_etl.omop.core.id_generator import row_id
+from omop_etl.omop.builders.helpers.context import BuildContext
+from omop_etl.omop.core.id_generator import RowIdGenerator
 from omop_etl.omop.core.linkage import (
     BuildResult,
     SourceReference,
@@ -28,8 +28,9 @@ class OmopBuilder(ABC, Generic[T]):
     table_name: ClassVar[str]
     id_namespace: ClassVar[str | None] = None
 
-    def __init__(self, concepts: ConceptLookupService):
+    def __init__(self, concepts: ConceptLookupService, row_id_generator: RowIdGenerator):
         self.concepts = concepts
+        self._row_id_generator = row_id_generator
 
     @abstractmethod
     def build(self, ctx: BuildContext) -> BuildResult[T]:
@@ -49,12 +50,12 @@ class OmopBuilder(ABC, Generic[T]):
 
     def generate_row_id(self, patient_id: str, *key_parts) -> int:
         """
-        Deterministic 63-bit row ID from `(namespace, patient_id, *key_parts)`.
+        Deterministic 53-bit row ID from `(namespace, patient_id, *key_parts)`.
         Namespace defaults to `table_name`. `patient_id` is required positional
         to prevent cross-patient PK collisions, passed as the leading id part.
         """
         namespace = self.id_namespace or self.table_name
-        return row_id(namespace, patient_id, *key_parts)
+        return self._row_id_generator.generate(namespace, patient_id, *key_parts)
 
     def _resolve_link_targets(
         self,

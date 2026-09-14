@@ -27,52 +27,77 @@ def _trial_country(*entries: tuple[str, int, str]) -> dict:
 
 
 class TestLocationBuilder:
-    def test_one_location_per_distinct_country(self, static_index, structural_index):
+    def test_one_location_per_distinct_country(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         static = {**static_index, **_trial_country(("IMPRESS", NORWAY, "Norway"), ("DRUP", NETHERLANDS, "Netherlands"))}
         concepts = ConceptLookupService(static, structural_index)
         p1 = create_patient("p1", "IMPRESS")
-        p2 = create_patient("p2", "IMPRESS")  # same country as p1 -> deduped
+        p2 = create_patient("p2", "IMPRESS")  # same country as p1: deduped
         p3 = create_patient("p3", "DRUP")
 
-        locations = LocationBuilder(concepts).build([p1, p2, p3])
+        locations = LocationBuilder(concepts, row_id_generator).build([p1, p2, p3])
 
         assert len(locations) == 2
         assert {loc.country_concept_id for loc in locations} == {NORWAY, NETHERLANDS}
         assert {loc.country_source_value for loc in locations} == {"Norway", "Netherlands"}
 
-    def test_country_fields_and_id(self, static_index, structural_index):
+    def test_country_fields_and_id(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         static = {**static_index, **_trial_country(("IMPRESS", NORWAY, "Norway"))}
         concepts = ConceptLookupService(static, structural_index)
         patient = create_patient(PID, "IMPRESS")
 
-        loc = LocationBuilder(concepts).build([patient])[0]
+        loc = LocationBuilder(concepts, row_id_generator).build([patient])[0]
 
         assert loc.location_id == row_id(OmopTables.LOCATION, NORWAY)
         assert loc.country_concept_id == NORWAY
         assert loc.country_source_value == "Norway"
 
-    def test_unmapped_trial_yields_no_location(self, static_index, structural_index):
+    def test_unmapped_trial_yields_no_location(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)  # no trial_country mapping
         patient = create_patient(PID, "IMPRESS")
 
-        assert LocationBuilder(concepts).build([patient]) == []
+        assert LocationBuilder(concepts, row_id_generator).build([patient]) == []
 
 
 class TestPersonLocation:
-    def test_person_location_id_joins_location(self, static_index, structural_index):
+    def test_person_location_id_joins_location(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         static = {**static_index, **_trial_country(("IMPRESS", NORWAY, "Norway"))}
         concepts = ConceptLookupService(static, structural_index)
         patient = create_patient(PID, "IMPRESS", date_of_birth=dt.date(1980, 1, 1), sex="m")
 
-        person_row = PersonBuilder(concepts).build(create_build_context(patient, PERSON_ID)).rows[0]
-        location = LocationBuilder(concepts).build([patient])[0]
+        person_row = PersonBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID)).rows[0]
+        location = LocationBuilder(concepts, row_id_generator).build([patient])[0]
 
         assert person_row.location_id == location.location_id == row_id(OmopTables.LOCATION, NORWAY)
 
-    def test_person_location_none_when_trial_unmapped(self, static_index, structural_index):
+    def test_person_location_none_when_trial_unmapped(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)  # no trial_country mapping
         patient = create_patient(PID, "IMPRESS", date_of_birth=dt.date(1980, 1, 1))
 
-        person_row = PersonBuilder(concepts).build(create_build_context(patient, PERSON_ID)).rows[0]
+        person_row = PersonBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID)).rows[0]
 
         assert person_row.location_id is None

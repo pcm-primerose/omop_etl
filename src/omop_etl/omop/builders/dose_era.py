@@ -3,9 +3,9 @@ from dataclasses import dataclass
 import polars as pl
 
 from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.omop.builders.ingredient_rollup import ingredient_exposures
-from omop_etl.omop.builders.intervals import collapse_intervals
-from omop_etl.omop.core.id_generator import row_id
+from omop_etl.omop.builders.helpers.ingredient_rollup import ingredient_exposures
+from omop_etl.omop.builders.helpers.intervals import collapse_intervals
+from omop_etl.omop.core.id_generator import RowIdGenerator
 from omop_etl.omop.models.rows import DoseEraRow, DrugExposureRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
@@ -65,6 +65,9 @@ class DoseEraBuilder:
 
     PERSISTENCE_DAYS = 30
 
+    def __init__(self, row_id_generator: RowIdGenerator):
+        self._row_id_generator = row_id_generator
+
     def build(
         self,
         drug_exposure: list[DrugExposureRow],
@@ -91,7 +94,7 @@ class DoseEraBuilder:
 
         return [
             DoseEraRow(
-                dose_era_id=row_id(
+                dose_era_id=self._row_id_generator.generate(
                     OmopTables.DOSE_ERA,
                     era["person_id"],
                     era["ingredient_concept_id"],

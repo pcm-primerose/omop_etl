@@ -23,21 +23,36 @@ PERSON_ID = sha256_bigint("person", PID)
 
 
 class TestConditionOccurrenceBuilder:
-    def test_table_name(self, static_index, structural_index):
+    def test_table_name(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
-        assert ConditionOccurrenceBuilder(concepts).table_name == "condition_occurrence"
+        assert ConditionOccurrenceBuilder(concepts, row_id_generator).table_name == "condition_occurrence"
 
-    def test_empty_patient_returns_empty(self, static_index, structural_index):
+    def test_empty_patient_returns_empty(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
 
 class TestTumorTypeRows:
-    def test_all_fields_with_icd10(self, static_index, structural_index):
+    def test_all_fields_with_icd10(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(
             mapping(
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
@@ -52,7 +67,7 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         row = result.rows[0]
@@ -63,7 +78,12 @@ class TestTumorTypeRows:
         assert row.condition_source_value == "C50.9"
         assert row.condition_end_date is None
 
-    def test_falls_back_to_main_tumor_type(self, static_index, structural_index):
+    def test_falls_back_to_main_tumor_type(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """When icd10_code is None, uses main_tumor_type for lookup."""
         semantic = semantic_index(
             mapping(
@@ -79,13 +99,18 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].condition_concept_id == 4001
         assert result.rows[0].condition_source_value == "Breast cancer"
 
-    def test_icd10_preferred_over_main_tumor_type(self, static_index, structural_index):
+    def test_icd10_preferred_over_main_tumor_type(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """When both exist, icd10_code is used"""
         semantic = semantic_index(
             mapping(
@@ -107,24 +132,34 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].condition_concept_id == 4000
         assert result.rows[0].condition_source_value == "C50.9"
 
-    def test_no_icd10_or_main_type_skips(self, static_index, structural_index):
+    def test_no_icd10_or_main_type_skips(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         tumor = TumorType(patient_id=PID)
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
-    def test_no_semantic_match_skips(self, static_index, structural_index):
+    def test_no_semantic_match_skips(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """CDM policy: no row emitted for unmapped condition."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
@@ -133,11 +168,16 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
-    def test_falls_back_to_main_when_icd10_unmapped(self, static_index, structural_index):
+    def test_falls_back_to_main_when_icd10_unmapped(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """icd10_code present but with no Condition mapping falls back to main_tumor_type."""
         semantic = semantic_index(
             mapping(
@@ -154,13 +194,18 @@ class TestTumorTypeRows:
         tumor.date = dt.date(2022, 6, 1)
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].condition_concept_id == 4001
         assert result.rows[0].condition_source_value == "Breast cancer"  # the field that actually mapped
 
-    def test_date_falls_back_to_treatment_start(self, static_index, structural_index):
+    def test_date_falls_back_to_treatment_start(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """When tumor.date is None, uses patient.treatment_start_date."""
         semantic = semantic_index(
             mapping(
@@ -175,12 +220,17 @@ class TestTumorTypeRows:
         tumor.icd10_code = "C50.9"
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].condition_start_date == dt.date(2023, 1, 1)
 
-    def test_no_usable_date_skips(self, static_index, structural_index):
+    def test_no_usable_date_skips(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """When both tumor.date and treatment_start_date are None, skip."""
         semantic = semantic_index(
             mapping(
@@ -195,13 +245,18 @@ class TestTumorTypeRows:
         tumor.icd10_code = "C50.9"
         patient.tumor_type = tumor
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
 
 class TestMedicalHistoryRows:
-    def test_all_fields(self, static_index, structural_index):
+    def test_all_fields(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(
             mapping(
                 (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
@@ -218,7 +273,7 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         row = result.rows[0]
@@ -227,7 +282,12 @@ class TestMedicalHistoryRows:
         assert row.condition_end_date == dt.date(2022, 6, 1)
         assert row.condition_source_value == "Hypertension"
 
-    def test_missing_start_date_skips(self, static_index, structural_index):
+    def test_missing_start_date_skips(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         mh = MedicalHistory(patient_id=PID)
@@ -235,11 +295,16 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
-    def test_no_match_skips(self, static_index, structural_index):
+    def test_no_match_skips(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         mh = MedicalHistory(patient_id=PID)
@@ -248,11 +313,16 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
-    def test_ongoing_condition_has_no_end_date(self, static_index, structural_index):
+    def test_ongoing_condition_has_no_end_date(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(
             mapping(
                 (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
@@ -268,14 +338,19 @@ class TestMedicalHistoryRows:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].condition_end_date is None
 
 
 class TestAdverseEventRows:
-    def test_all_fields(self, static_index, structural_index):
+    def test_all_fields(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(
             mapping(
                 (Patient.Collections.ADVERSE_EVENTS, AdverseEvent.Fields.TERM),
@@ -291,7 +366,7 @@ class TestAdverseEventRows:
         ae.end_date = dt.date(2023, 3, 10)
         patient.adverse_events = [ae]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         row = result.rows[0]
@@ -300,18 +375,28 @@ class TestAdverseEventRows:
         assert row.condition_end_date == dt.date(2023, 3, 10)
         assert row.condition_source_value == "Fever"
 
-    def test_missing_start_date_skips(self, static_index, structural_index):
+    def test_missing_start_date_skips(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
         ae.term = "Fever"
         patient.adverse_events = [ae]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
-    def test_no_match_skips(self, static_index, structural_index):
+    def test_no_match_skips(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         ae = AdverseEvent(patient_id=PID)
@@ -319,11 +404,16 @@ class TestAdverseEventRows:
         ae.start_date = dt.date(2023, 3, 1)
         patient.adverse_events = [ae]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result == BuildResult(rows=(), publications=())
 
-    def test_long_term_is_truncated_to_50_chars(self, static_index, structural_index):
+    def test_long_term_is_truncated_to_50_chars(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         long_term = "A" * 60
         semantic = semantic_index(
             mapping(
@@ -339,7 +429,7 @@ class TestAdverseEventRows:
         ae.start_date = dt.date(2023, 3, 1)
         patient.adverse_events = [ae]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 1
         assert result.rows[0].condition_source_value is not None
@@ -347,7 +437,12 @@ class TestAdverseEventRows:
 
 
 class TestCombinedSources:
-    def test_all_sources_combined(self, static_index, structural_index):
+    def test_all_sources_combined(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(
             mapping(
                 (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
@@ -384,13 +479,18 @@ class TestCombinedSources:
         ae.start_date = dt.date(2023, 3, 1)
         patient.adverse_events = [ae]
 
-        result = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert len(result.rows) == 3
         ids = [r.condition_occurrence_id for r in result.rows]
         assert len(ids) == len(set(ids)), "All condition_occurrence_ids must be unique"
 
-    def test_row_ids_are_deterministic(self, static_index, structural_index):
+    def test_row_ids_are_deterministic(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(
             mapping(
                 (Patient.Collections.MEDICAL_HISTORIES, MedicalHistory.Fields.TERM),
@@ -406,8 +506,8 @@ class TestCombinedSources:
         mh.sequence_id = 1
         patient.medical_histories = [mh]
 
-        result_a = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
-        result_b = ConditionOccurrenceBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+        result_a = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
+        result_b = ConditionOccurrenceBuilder(concepts, row_id_generator).build(create_build_context(patient, PERSON_ID))
 
         assert result_a.rows[0].condition_occurrence_id == result_b.rows[0].condition_occurrence_id
 
@@ -432,7 +532,12 @@ class TestAdverseEventFKLinkage:
     def _ae_source_ref(ae: AdverseEvent) -> SourceReference:
         return SourceReference(PID, Patient.Collections.ADVERSE_EVENTS, ae.natural_key())
 
-    def test_publishes_link_for_ae(self, static_index, structural_index):
+    def test_publishes_link_for_ae(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(self._ae_mapping("Fever", 437663))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -443,14 +548,19 @@ class TestAdverseEventFKLinkage:
         patient.adverse_events = [ae]
         ctx = create_build_context(patient, PERSON_ID)
 
-        result = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         assert len(result) == 1
         refs = ctx.resolve_rows(OmopTables.CONDITION_OCCURRENCE, self._ae_source_ref(patient.adverse_events[0]))
         assert len(refs) == 1
         assert refs[0].row_id == result[0].condition_occurrence_id
 
-    def test_no_link_when_no_semantic_match(self, static_index, structural_index):
+    def test_no_link_when_no_semantic_match(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """AE with no semantic match emits no row and no publication."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
@@ -461,12 +571,17 @@ class TestAdverseEventFKLinkage:
         patient.adverse_events = [ae]
         ctx = create_build_context(patient, PERSON_ID)
 
-        result = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         assert list(result) == []
         assert ctx.resolve_rows(OmopTables.CONDITION_OCCURRENCE, self._ae_source_ref(patient.adverse_events[0])) == ()
 
-    def test_multi_ae_each_published_independently(self, static_index, structural_index):
+    def test_multi_ae_each_published_independently(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """Multiple AEs each publish under their own SourceReference (per-NK keying)."""
         semantic = semantic_index(
             self._ae_mapping("Fever", 437663),
@@ -488,7 +603,7 @@ class TestAdverseEventFKLinkage:
         patient.adverse_events = [ae1, ae2]
         ctx = create_build_context(patient, PERSON_ID)
 
-        result = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         assert len(result) == 2
         emitted_ids = {r.condition_occurrence_id for r in result}
@@ -497,7 +612,12 @@ class TestAdverseEventFKLinkage:
             assert len(refs) == 1
             assert refs[0].row_id in emitted_ids
 
-    def test_multi_concept_ae_publishes_all_rows(self, static_index, structural_index):
+    def test_multi_concept_ae_publishes_all_rows(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """One AE term mapping to multiple condition concepts: all rows published
         under the same AE SourceReference for 1:N downstream expansion."""
         semantic = semantic_index(
@@ -512,14 +632,19 @@ class TestAdverseEventFKLinkage:
         patient.adverse_events = [ae]
         ctx = create_build_context(patient, PERSON_ID)
 
-        result = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         assert len(result) == 2
         refs = ctx.resolve_rows(OmopTables.CONDITION_OCCURRENCE, self._ae_source_ref(patient.adverse_events[0]))
         assert len(refs) == 2
         assert {r.row_id for r in refs} == {r.condition_occurrence_id for r in result}
 
-    def test_fk_publication_deterministic(self, static_index, structural_index):
+    def test_fk_publication_deterministic(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """Two independent builds of the same patient produce identical published_rows state."""
         semantic = semantic_index(self._ae_mapping("Fever", 437663))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
@@ -532,8 +657,8 @@ class TestAdverseEventFKLinkage:
 
         ctx_a = create_build_context(patient, PERSON_ID)
         ctx_b = create_build_context(patient, PERSON_ID)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx_a)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx_b)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx_a)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx_b)
 
         assert ctx_a.published_rows == ctx_b.published_rows
         assert ctx_a.published_rows != {}
@@ -559,7 +684,12 @@ class TestPrimaryCancerFKPublication:
     def _tumor_source_ref(tumor: TumorType) -> SourceReference:
         return SourceReference(PID, Patient.Singletons.TUMOR_TYPE, tumor.natural_key())
 
-    def test_publishes_primary_cancer_id_from_tumor_type(self, static_index, structural_index):
+    def test_publishes_primary_cancer_id_from_tumor_type(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         semantic = semantic_index(self._tumor_mapping(4000))
         concepts = ConceptLookupService(static_index, structural_index, semantic)
         patient = create_patient(PID, TRIAL)
@@ -569,23 +699,33 @@ class TestPrimaryCancerFKPublication:
         patient.tumor_type = tumor
         ctx = create_build_context(patient, PERSON_ID)
 
-        result = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        result = ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         tumor_row = next(r for r in result if r.condition_concept_id == 4000)
         refs = ctx.resolve_rows(OmopTables.CONDITION_OCCURRENCE, self._tumor_source_ref(tumor))
         assert len(refs) == 1
         assert refs[0].row_id == tumor_row.condition_occurrence_id
 
-    def test_no_primary_cancer_id_when_tumor_type_absent(self, static_index, structural_index):
+    def test_no_primary_cancer_id_when_tumor_type_absent(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
         ctx = create_build_context(patient, PERSON_ID)
 
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         assert ctx.published_rows == {}
 
-    def test_no_primary_cancer_id_when_tumor_unmapped(self, static_index, structural_index):
+    def test_no_primary_cancer_id_when_tumor_unmapped(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """Tumor type present but no semantic match: no row and no publication."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
@@ -595,11 +735,16 @@ class TestPrimaryCancerFKPublication:
         patient.tumor_type = tumor
         ctx = create_build_context(patient, PERSON_ID)
 
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx)
 
         assert ctx.resolve_rows(OmopTables.CONDITION_OCCURRENCE, self._tumor_source_ref(tumor)) == ()
 
-    def test_multi_concept_tumor_publishes_all_rows(self, static_index, structural_index):
+    def test_multi_concept_tumor_publishes_all_rows(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         """Two semantic matches for the tumor: both rows published under the tumor SourceReference."""
         semantic = semantic_index(
             self._tumor_mapping(4000, 4001),
@@ -613,8 +758,8 @@ class TestPrimaryCancerFKPublication:
         ctx_a = create_build_context(patient, PERSON_ID)
         ctx_b = create_build_context(patient, PERSON_ID)
 
-        result_a = ConditionOccurrenceBuilder(concepts).build_and_populate(ctx_a)
-        ConditionOccurrenceBuilder(concepts).build_and_populate(ctx_b)
+        result_a = ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx_a)
+        ConditionOccurrenceBuilder(concepts, row_id_generator).build_and_populate(ctx_b)
 
         assert len(result_a) == 2
         refs_a = ctx_a.resolve_rows(OmopTables.CONDITION_OCCURRENCE, self._tumor_source_ref(tumor))

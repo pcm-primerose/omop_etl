@@ -48,15 +48,25 @@ def _ancestor_links(*pairs: tuple[int, int]) -> pl.DataFrame:
 
 
 class TestDrugEraBuilder:
-    def test_single_ingredient_drug_collapses_into_one_era(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+    def test_single_ingredient_drug_collapses_into_one_era(self, row_id_generator):
+        vocab = Vocabulary({200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
         exposures = [
-            _exposure(1, 100, D(2023, 1, 1), D(2023, 1, 10)),
-            _exposure(1, 100, D(2023, 1, 15), D(2023, 1, 20)),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 15),
+                end=D(2023, 1, 20),
+            ),
         ]
 
-        eras = DrugEraBuilder().build(exposures, ancestor, vocab)
+        eras = DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab)
 
         assert len(eras) == 1
         era = eras[0]
@@ -66,92 +76,157 @@ class TestDrugEraBuilder:
         assert era.drug_era_end_date == D(2023, 1, 20)
         assert era.drug_exposure_count == 2
 
-    def test_gap_days_reflects_genuinely_uncovered_time(self):
+    def test_gap_days_reflects_genuinely_uncovered_time(self, row_id_generator):
         # A: Jan1-Jan10 (9 exposed days), gap, B: Jan20-Jan25 (5 exposed days)
-        # era span Jan1-Jan25 = 24 days; gap_days = 24 - (9+5) = 10
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+        # era span Jan1-Jan25 = 24 days, gap_days = 24 - (9+5) = 10
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
         exposures = [
-            _exposure(1, 100, D(2023, 1, 1), D(2023, 1, 10)),
-            _exposure(1, 100, D(2023, 1, 20), D(2023, 1, 25)),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 20),
+                end=D(2023, 1, 25),
+            ),
         ]
 
-        era = DrugEraBuilder().build(exposures, ancestor, vocab)[0]
+        era = DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab)[0]
 
         assert era.drug_exposure_count == 2
         assert era.gap_days == 10
 
-    def test_overlapping_exposures_have_zero_gap_days(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+    def test_overlapping_exposures_have_zero_gap_days(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
         exposures = [
-            _exposure(1, 100, D(2023, 1, 1), D(2023, 1, 15)),
-            _exposure(1, 100, D(2023, 1, 10), D(2023, 1, 20)),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 15),
+            ),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 10),
+                end=D(2023, 1, 20),
+            ),
         ]
 
-        era = DrugEraBuilder().build(exposures, ancestor, vocab)[0]
+        era = DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab)[0]
 
         assert era.gap_days == 0
 
-    def test_gap_beyond_persistence_window_yields_separate_eras(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+    def test_gap_beyond_persistence_window_yields_separate_eras(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
         exposures = [
-            _exposure(1, 100, D(2023, 1, 1), D(2023, 1, 1)),
-            _exposure(1, 100, D(2023, 3, 1), D(2023, 3, 1)),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 1),
+            ),
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 3, 1),
+                end=D(2023, 3, 1),
+            ),
         ]
 
-        eras = DrugEraBuilder().build(exposures, ancestor, vocab)
+        eras = DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab)
 
         assert len(eras) == 2
 
-    def test_combination_drug_expands_to_one_era_per_ingredient(self):
+    def test_combination_drug_expands_to_one_era_per_ingredient(self, row_id_generator):
         vocab = Vocabulary(
             {
-                200: _concept(200, "Drug", "Ingredient", "IngredientA"),
-                201: _concept(201, "Drug", "Ingredient", "IngredientB"),
+                200: _concept(concept_id=201, domain_id="Drug", concept_class_id="Ingredient", name="IngredientA"),
+                201: _concept(concept_id=201, domain_id="Drug", concept_class_id="Ingredient", name="IngredientB"),
             }
         )
         ancestor = _ancestor_links((200, 100), (201, 100))
-        exposures = [_exposure(1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
-        eras = DrugEraBuilder().build(exposures, ancestor, vocab)
+        eras = DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab)
 
         assert {era.drug_concept_id for era in eras} == {200, 201}
         assert len(eras) == 2
 
-    def test_non_ingredient_ancestor_is_not_used(self):
-        # 300 is an ancestor of 100 but isn't Ingredient-class -- should be ignored
-        vocab = Vocabulary({300: _concept(300, "Drug", "Brand Name")})
+    def test_non_ingredient_ancestor_is_not_used(self, row_id_generator):
+        # 300 is an ancestor of 100 but isn't Ingredient-class: should be ignored
+        vocab = Vocabulary(concepts={300: _concept(concept_id=300, domain_id="Drug", concept_class_id="Brand Name")})
         ancestor = _ancestor_links((300, 100))
-        exposures = [_exposure(1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
-        assert DrugEraBuilder().build(exposures, ancestor, vocab) == []
+        assert DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab) == []
 
-    def test_unmapped_drug_concept_id_zero_is_excluded(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+    def test_unmapped_drug_concept_id_zero_is_excluded(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
-        exposures = [_exposure(1, 0, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                person_id=1,
+                concept_id=0,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
-        assert DrugEraBuilder().build(exposures, ancestor, vocab) == []
+        assert DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab) == []
 
-    def test_no_drug_exposure_rows_yields_no_eras(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+    def test_no_drug_exposure_rows_yields_no_eras(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
 
-        assert DrugEraBuilder().build([], ancestor, vocab) == []
+        assert DrugEraBuilder(row_id_generator).build([], ancestor, vocab) == []
 
-    def test_empty_concept_ancestor_yields_no_eras(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
-        exposures = [_exposure(1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+    def test_empty_concept_ancestor_yields_no_eras(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
+        exposures = [
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
-        assert DrugEraBuilder().build(exposures, _ancestor_links(), vocab) == []
+        assert DrugEraBuilder(row_id_generator).build(exposures, _ancestor_links(), vocab) == []
 
-    def test_era_id_is_deterministic_and_matches_row_id_convention(self):
-        vocab = Vocabulary({200: _concept(200, "Drug", "Ingredient")})
+    def test_era_id_is_deterministic_and_matches_row_id_convention(self, row_id_generator):
+        vocab = Vocabulary(concepts={200: _concept(concept_id=200, domain_id="Drug", concept_class_id="Ingredient")})
         ancestor = _ancestor_links((200, 100))
-        exposures = [_exposure(1, 100, D(2023, 1, 1), D(2023, 1, 10))]
+        exposures = [
+            _exposure(
+                person_id=1,
+                concept_id=100,
+                start=D(2023, 1, 1),
+                end=D(2023, 1, 10),
+            ),
+        ]
 
-        era = DrugEraBuilder().build(exposures, ancestor, vocab)[0]
+        era = DrugEraBuilder(row_id_generator).build(exposures, ancestor, vocab)[0]
 
         assert era.drug_era_id == row_id(OmopTables.DRUG_ERA, 1, 200, D(2023, 1, 1))
