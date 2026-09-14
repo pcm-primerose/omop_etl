@@ -7,7 +7,7 @@ from typing import Annotated
 @pd_dataclass(frozen=True, slots=True)
 class PersonRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#person
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#person
     """
 
     person_id: int
@@ -15,10 +15,10 @@ class PersonRow:
     year_of_birth: int
     race_concept_id: int
     ethnicity_concept_id: int
-    person_source_value: str
-    gender_source_concept_id: int
-    race_source_concept_id: int
-    ethnicity_source_concept_id: int
+    person_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    ethnicity_source_concept_id: int | None = None
+    race_source_concept_id: int | None = None
+    gender_source_concept_id: int | None = None
     gender_source_value: str | None = None
     day_of_birth: int | None = None
     month_of_birth: int | None = None
@@ -33,7 +33,7 @@ class PersonRow:
 @pd_dataclass(frozen=True, slots=True)
 class ObservationPeriodRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#observation_period
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#observation_period
     """
 
     observation_period_id: int
@@ -47,26 +47,27 @@ class ObservationPeriodRow:
 class CdmSourceRow:
     """
     OMOP CdmSource table row.
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#cdm_source
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#cdm_source
     """
 
-    source_release_date: dt.date
-    cdm_release_date: dt.date
-    cdm_version_concept_id: int
     cdm_source_name: Annotated[str, pd_field(max_length=255)]
     cdm_source_abbreviation: Annotated[str, pd_field(max_length=25)]
     cdm_holder: Annotated[str, pd_field(max_length=255)]
+    source_release_date: dt.date
+    cdm_release_date: dt.date
+    cdm_version_concept_id: int
     vocabulary_version: Annotated[str, pd_field(max_length=20)]
-    source_description: Annotated[str | None, pd_field(max_length=2147483647)] = None
+    source_description: Annotated[str | None, pd_field(max_length=10000)] = None
     source_documentation_reference: Annotated[str | None, pd_field(max_length=255)] = None
     cdm_etl_reference: Annotated[str | None, pd_field(max_length=255)] = None
     cdm_version: Annotated[str | None, pd_field(max_length=10)] = None
+    cdm_release_identifier: Annotated[str | None, pd_field(max_length=255)] = None
 
 
 @pd_dataclass(frozen=True, slots=True)
 class VisitOccurrenceRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#visit_occurrence
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#visit_occurrence
     """
 
     visit_occurrence_id: int
@@ -79,19 +80,19 @@ class VisitOccurrenceRow:
     visit_end_datetime: dt.datetime | None = None
     provider_id: int | None = None
     care_site_id: int | None = None
-    visit_source_value: str | None = None
+    visit_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     visit_source_concept_id: int | None = None
     admitted_from_concept_id: int | None = None
-    admitted_from_source_value: str | None = None
+    admitted_from_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     discharged_to_concept_id: int | None = None
-    discharged_to_source_value: str | None = None
+    discharged_to_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     preceding_visit_occurrence_id: int | None = None
 
 
 @pd_dataclass(frozen=True, slots=True)
 class ConditionOccurrenceRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#condition_occurrence
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#condition_occurrence
     """
 
     condition_occurrence_id: int
@@ -115,7 +116,7 @@ class ConditionOccurrenceRow:
 @pd_dataclass(frozen=True, slots=True)
 class DrugExposureRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#drug_exposure
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#drug_exposure
     """
 
     drug_exposure_id: int
@@ -146,7 +147,7 @@ class DrugExposureRow:
 @pd_dataclass(frozen=True, slots=True)
 class ProcedureOccurrenceRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#procedure_occurrence
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#procedure_occurrence
     """
 
     procedure_occurrence_id: int
@@ -170,7 +171,7 @@ class ProcedureOccurrenceRow:
 @pd_dataclass(frozen=True, slots=True)
 class MeasurementRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#measurement
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#measurement
     """
 
     measurement_id: int
@@ -201,7 +202,7 @@ class MeasurementRow:
 @pd_dataclass(frozen=True, slots=True)
 class ObservationRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#observation
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#observation
     """
 
     observation_id: int
@@ -213,6 +214,7 @@ class ObservationRow:
     value_as_number: float | None = None
     value_as_string: Annotated[str | None, pd_field(max_length=60)] = None
     value_as_concept_id: int | None = None
+    value_as_date: dt.date | None = None
     qualifier_concept_id: int | None = None
     unit_concept_id: int | None = None
     provider_id: int | None = None
@@ -221,8 +223,10 @@ class ObservationRow:
     observation_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     observation_source_concept_id: int | None = None
     unit_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    unit_source_concept_id: int | None = None
     qualifier_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     value_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    value_as_source_concept_id: int | None = None
     observation_event_id: int | None = None
     obs_event_field_concept_id: int | None = None
 
@@ -230,7 +234,7 @@ class ObservationRow:
 @pd_dataclass(frozen=True, slots=True)
 class DeathRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#death
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#death
     """
 
     person_id: int
@@ -245,20 +249,20 @@ class DeathRow:
 @pd_dataclass(frozen=True, slots=True)
 class EpisodeRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#episode
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#episode
     """
 
     episode_id: int
     person_id: int
     episode_concept_id: int
     episode_start_date: dt.date
+    episode_object_concept_id: int
+    episode_type_concept_id: int
     episode_start_datetime: dt.datetime | None = None
     episode_end_date: dt.date | None = None
     episode_end_datetime: dt.datetime | None = None
     episode_parent_id: int | None = None
     episode_number: int | None = None
-    episode_object_concept_id: int | None = None
-    episode_type_concept_id: int | None = None
     episode_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     episode_source_concept_id: int | None = None
 
@@ -266,7 +270,7 @@ class EpisodeRow:
 @pd_dataclass(frozen=True, slots=True)
 class EpisodeEventRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#episode_event
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#episode_event
     """
 
     episode_id: int
@@ -278,7 +282,7 @@ class EpisodeEventRow:
 class CohortRow:
     """
     OMOP RESULTS-schema cohort table row: one trial-arm membership per patient.
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#cohort
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#cohort
     """
 
     cohort_definition_id: int
@@ -291,7 +295,7 @@ class CohortRow:
 class CohortDefinitionRow:
     """
     OMOP RESULTS-schema cohort_definition table row: one per distinct trial arm.
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#cohort_definition
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#cohort_definition
     """
 
     cohort_definition_id: int
@@ -306,7 +310,7 @@ class CohortDefinitionRow:
 @pd_dataclass(frozen=True, slots=True)
 class LocationRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#location
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#location
     """
 
     location_id: int
@@ -326,7 +330,7 @@ class LocationRow:
 @pd_dataclass(frozen=True, slots=True)
 class ConditionEraRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#condition_era
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#condition_era
     """
 
     condition_era_id: int
@@ -340,7 +344,7 @@ class ConditionEraRow:
 @pd_dataclass(frozen=True, slots=True)
 class DrugEraRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#drug_era
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#drug_era
     """
 
     drug_era_id: int
@@ -355,7 +359,7 @@ class DrugEraRow:
 @pd_dataclass(frozen=True, slots=True)
 class DoseEraRow:
     """
-    https://ohdsi.github.io/CommonDataModel/cdm54.html#dose_era
+    https://ohdsi.github.io/CommonDataModel/cdm55.html#dose_era
     """
 
     dose_era_id: int

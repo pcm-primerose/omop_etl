@@ -1,8 +1,10 @@
 from collections.abc import Sequence
+from pathlib import Path
 
 import polars as pl
 
 from omop_etl.harmonization.models.patient import Patient
+from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.omop.builders.base import OmopBuilder
 from omop_etl.omop.builders.context import BuildContext
@@ -25,6 +27,7 @@ from omop_etl.omop.builders.condition_era import ConditionEraBuilder
 from omop_etl.omop.builders.drug_era import DrugEraBuilder
 from omop_etl.omop.builders.dose_era import DoseEraBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
+from omop_etl.omop.core.io import OmopTableExporter
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
 
@@ -38,16 +41,19 @@ class OmopService:
     (like visit_occurrence) are built first.
     """
 
-    def __init__(self, concepts: ConceptLookupService, vocabulary: Vocabulary, concept_ancestor: pl.DataFrame, athena_version: str):
+    def __init__(
+        self,
+        concepts: ConceptLookupService,
+        vocabulary: Vocabulary,
+        concept_ancestor: pl.DataFrame,
+        athena_version: str,
+        outdir: Path | None = None,
+    ):
         self._concepts = concepts
         self._vocabulary = vocabulary
         self._concept_ancestor = concept_ancestor
         self._athena_version = athena_version
-        # Builder order matters:
-        # builders whose publications are consumed downstream must run first.
-        # VisitOccurrenceBuilder publishes the date-anchored visit map.
-        # ConditionOccurrenceBuilder publishes AE and primary-cancer rows,
-        # consumed by MeasurementBuilder and ObservationBuilder.
+        self._outdir = outdir
         self._builders: list[OmopBuilder] = [
             VisitOccurrenceBuilder(concepts),
             PersonBuilder(concepts),
@@ -63,9 +69,11 @@ class OmopService:
             CohortBuilder(concepts),
         ]
 
-    def build(self, patients: Sequence[Patient]) -> OmopTables:
+    def build(self, patients: Sequence[Patient], meta: RunMetadata | None = None) -> OmopTables:
         """
-        Build all OMOP tables from patient data.
+        Build all OMOP tables from patient data. Writes each populated table to
+        a CSV under `outdir` when both it and `meta` are provided,
+        omit either to skip the write (e.g. in tests that assert on in-memort tables).
         """
         tables = OmopTables()
 
@@ -105,5 +113,8 @@ class OmopService:
             OmopTables.DOSE_ERA,
             DoseEraBuilder().build(tables.drug_exposure, self._concept_ancestor, self._vocabulary, self._concepts),
         )
+
+        if self._outdir is not None and meta is not None:
+            OmopTableExporter(self._outdir).write(tables, meta)
 
         return tables

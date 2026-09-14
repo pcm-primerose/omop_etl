@@ -81,8 +81,9 @@ def _build_tables(
         vocabulary=vocabulary_result.vocabulary,
         concept_ancestor=vocabulary_result.concept_ancestor,
         athena_version=vocabulary_result.athena_version,
+        outdir=outdir,
     )
-    return omop_service.build(harmonized.patients)
+    return omop_service.build(harmonized.patients, meta=meta)
 
 
 def cmd_load(args: argparse.Namespace) -> int:

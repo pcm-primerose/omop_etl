@@ -104,8 +104,9 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, m
         vocabulary=vocabulary_result.vocabulary,
         concept_ancestor=vocabulary_result.concept_ancestor,
         athena_version=vocabulary_result.athena_version,
+        outdir=base_root,
     )
-    tables = omop_service.build(harmonized_result.patients)
+    tables = omop_service.build(harmonized_result.patients, meta=_meta)
     # print(f"cohort: {tables.location}")
 
     # export concept lookup tracking (missed lookups, coverage stats)

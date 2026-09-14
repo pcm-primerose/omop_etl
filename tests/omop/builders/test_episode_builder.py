@@ -469,3 +469,17 @@ class TestDiseaseDynamicEpisodes:
         dynamic = next(r for r in result.rows if r.episode_parent_id is not None)
         assert dynamic.episode_concept_id == _dynamic_episode_concept(static_index, "response_recist", "Stable Disease (SD)")
         assert dynamic.episode_parent_id == disease.episode_id
+        # Disease Episode's object concepts is a Condition-domain concept,
+        # the dynamic status is a status of that same disease, so it reuses it
+        assert dynamic.episode_object_concept_id == disease.episode_object_concept_id == 4112853
+
+    def test_dynamic_episode_object_concept_defaults_to_zero_without_a_disease_episode(self, static_index, structural_index):
+        # no tumor_type set, no Disease Episode: nothing to inherit from
+        concepts = ConceptLookupService(static_index, structural_index)
+        patient = create_patient(PID, TRIAL)
+        patient.tumor_assessments = [_assessment(dt.date(2023, 1, 1), recist="Stable Disease (SD)")]
+
+        result = EpisodeBuilder(concepts).build(create_build_context(patient, PERSON_ID))
+
+        assert len(result.rows) == 1
+        assert result.rows[0].episode_object_concept_id == 0
