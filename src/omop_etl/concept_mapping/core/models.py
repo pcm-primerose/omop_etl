@@ -46,10 +46,11 @@ class StaticConcept:
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StaticConcept:
         fields = concept_fields_from_csv_row(row)
-        fields["concept_id"] = int(fields["concept_id"])  # fixme: Expected type 'str' (matched generic type '_VT'), got 'int' instead
+        concept_id = int(fields.pop("concept_id"))
         return cls(
             value_set=_norm(row["value_set"]),
             source_value=_norm(row["source_value"]),
+            concept_id=concept_id,
             **fields,
         )
 
@@ -83,9 +84,10 @@ class StructuralConcept:
     @classmethod
     def from_csv_row(cls, row: dict[str, str]) -> StructuralConcept:
         fields = concept_fields_from_csv_row(row)
-        fields["concept_id"] = int(fields["concept_id"])  # fixme: Expected type 'str' (matched generic type '_VT'), got 'int' instead
+        concept_id = int(fields.pop("concept_id"))
         return cls(
             value_set=_norm(row["value_set"]),
+            concept_id=concept_id,
             **fields,
         )
 
