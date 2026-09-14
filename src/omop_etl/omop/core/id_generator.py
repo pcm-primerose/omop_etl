@@ -115,11 +115,13 @@ class RowIdGenerator:
         previous = self._seen.get(key)
         if previous is None:
             self._seen[key] = result.digest
-        elif previous != result.digest:
+            return result.row_id
+
+        if previous != result.digest:
             raise RowIdTruncationCollision(
                 namespace=namespace,
                 row_id=result.row_id,
-                first_digest=previous,  # fixme (ide warning): Expected type 'bytes', got 'bytes | None' instead
+                first_digest=previous,
                 second_digest=result.digest,
             )
         return result.row_id

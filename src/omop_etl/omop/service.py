@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 from pathlib import Path
-
 import polars as pl
 
 from omop_etl.harmonization.models.patient import Patient
