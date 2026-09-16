@@ -7,6 +7,7 @@ from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.omop.core.linkage import (
     OmopRowReference,
+    PolymorphicTarget,
     SourceReference,
 )
 
@@ -26,6 +27,7 @@ class BuildContext:
     patient: Patient
     person_id: int
     published_rows: dict[tuple[str, SourceReference], tuple[OmopRowReference, ...]] = field(default_factory=dict)
+    polymorphic_targets: list[PolymorphicTarget] = field(default_factory=list, repr=False)
     _warned_unmatched_visit_dates: set[dt.date] = field(default_factory=set, repr=False)
 
     def publish_rows(
@@ -64,6 +66,21 @@ class BuildContext:
         `target_table`, or () if none.
         """
         return self.published_rows.get((target_table, source_ref), ())
+
+    def record_polymorphic_target(
+        self,
+        *,
+        table: str,
+        row_key: tuple[object, ...],
+        field: str,
+        target_table: str,
+    ) -> None:
+        """
+        Record which table a row's polymorphic event-link field targets, so
+        the pre-load gate can validate it as an FK. Called by builders at the
+        same site they set the polymorphic field from a `LinkTarget`.
+        """
+        self.polymorphic_targets.append(PolymorphicTarget(table=table, row_key=row_key, field=field, target_table=target_table))
 
     def resolve_visit_id(self, date: dt.date) -> int | None:
         """

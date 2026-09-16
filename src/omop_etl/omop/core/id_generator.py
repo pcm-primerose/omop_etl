@@ -38,13 +38,30 @@ class RowIdTruncationCollision(RuntimeError):
     that produced the input, or a dedupe issue not caught by hydration (see `BaseHarmonizer`).
     """
 
-    def __init__(self, *, namespace: str, row_id: int, first_digest: bytes, second_digest: bytes):
+    def __init__(
+        self,
+        *,
+        namespace: str,
+        _row_id: int,
+        first_parts: tuple[object, ...],
+        second_parts: tuple[object, ...],
+        first_digest: bytes,
+        second_digest: bytes,
+    ):
         self.namespace = namespace
-        self.row_id = row_id
+        self.row_id = _row_id
+        self.first_parts = first_parts
+        self.second_parts = second_parts
         self.first_digest = first_digest
         self.second_digest = second_digest
         super().__init__(
-            f"Truncation collision in namespace {namespace!r} at row_id={row_id}: first_digest={first_digest.hex()}, second_digest={second_digest.hex()}"
+            f"Truncation collision in namespace {namespace!r} at row_id={_row_id}:\n"
+            f"  first  parts={first_parts!r} digest={first_digest.hex()}\n"
+            f"  second parts={second_parts!r} digest={second_digest.hex()}\n"
+            "These are two different records, confirm the two digests differ: if so, bump "
+            "ROW_ID_SCHEME_VERSION and rebuild the whole CDM. If they're not different, this is a bug in the "
+            "NK definition of the domain model that produced the input, or a dedupe issue "
+            "not caught by hydration (see BaseHarmonizer)."
         )
 
 
@@ -107,21 +124,24 @@ class RowIdGenerator:
     """
 
     def __init__(self) -> None:
-        self._seen: dict[tuple[str, int], bytes] = {}
+        self._seen: dict[tuple[str, int], tuple[bytes, tuple[RowIdPart, ...]]] = {}
 
     def generate(self, namespace: str, *parts: RowIdPart) -> int:
         result = _compute_row_id_hash(namespace, _canonicalize(parts))
         key = (namespace, result.row_id)
         previous = self._seen.get(key)
         if previous is None:
-            self._seen[key] = result.digest
+            self._seen[key] = (result.digest, parts)
             return result.row_id
 
-        if previous != result.digest:
+        previous_digest, previous_parts = previous
+        if previous_digest != result.digest:
             raise RowIdTruncationCollision(
                 namespace=namespace,
-                row_id=result.row_id,
-                first_digest=previous,
+                _row_id=result.row_id,
+                first_parts=previous_parts,
+                second_parts=parts,
+                first_digest=previous_digest,
                 second_digest=result.digest,
             )
         return result.row_id

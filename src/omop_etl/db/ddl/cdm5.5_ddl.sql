@@ -1,5 +1,5 @@
 -- Modified from the stock OHDSI CDM 5.5 PostgreSQL DDL
--- Changes from stock:
+-- Changes from default:
 --   1. `@cdmDatabaseSchema` to `public`
 --   2. Every non-`concept_id` `*_id` column (from RowIdGenerator-minted
 --      surrogate/person ids, and every FK pointing at one) widened from the

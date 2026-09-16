@@ -63,11 +63,41 @@ class LinkTarget:
     Resolved target for OMOP event-link columns.
 
     Represents a real published OMOP row that can be referenced by a consumer
-    row's event-link fields.
+    row's event-link fields. `target_table` is the OmopTables constant `event_id`
+    actually points at. This is needed by the pre-load gate to validate a polymorphic event-link FK,
+    target tables that vary per row and thus can't be derived from field name only.
     """
 
     event_id: int
     field_concept_id: int
+    target_table: str
+
+
+@dataclass(frozen=True, slots=True)
+class PolymorphicTarget:
+    """
+    Stores which table a polymorphic event-link value targets.
+    Keyed by the rows identity (`row_key` from `polymorphic_row_key`) since the row id generator
+    only guarantees uniqueness withtin one namespace, but polymorphic keys could collide
+    since they target different namespaces.
+    """
+
+    table: str
+    row_key: tuple[object, ...]
+    field: str
+    target_table: str
+
+
+def polymorphic_row_key(table: str, row: object) -> tuple[object, ...]:
+    """
+    The NK identity of a row that can have a polymorphic event-link field,
+    it's own PK or the full NK tuple when it doesn't exist (episode_event).
+    This is called by the recording builder and the pre-load constraint checks
+    so they don't compute mismatched keys.
+    """
+    if table == OmopTables.EPISODE_EVENT:
+        return getattr(row, "episode_id"), getattr(row, "event_id"), getattr(row, "episode_event_field_concept_id")
+    return (getattr(row, f"{table}_id"),)
 
 
 @dataclass(frozen=True, slots=True)

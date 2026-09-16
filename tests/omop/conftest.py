@@ -22,6 +22,7 @@ from omop_etl.semantic_mapping.core.models import (
     Query,
     BatchQueryResult,
 )
+from omop_etl.vocabulary.core.models import AthenaConcept
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
 
 
@@ -188,6 +189,32 @@ def _static(concept_id: int, domain_id: str) -> MappedConcept:
 def empty_vocabulary() -> Vocabulary:
     """No mapped concepts: for tests where DrugEraBuilder's ingredient rollup isn't the subject."""
     return Vocabulary({})
+
+
+class _PermissiveVocabulary(Vocabulary):
+    """
+    Hydrates any concept_id, used by OmopService tests where PK/FK validation runs
+    but vocab-integrity is out of the test scope.
+    """
+
+    def __init__(self) -> None:
+        super().__init__({})
+
+    def hydrate(self, concept_id: int) -> AthenaConcept:
+        return AthenaConcept(
+            concept_id=concept_id,
+            concept_code="",
+            concept_name="",
+            domain_id="",
+            vocabulary_id="",
+            concept_class_id="",
+            validity="valid",
+        )
+
+
+@pytest.fixture
+def permissive_vocabulary() -> Vocabulary:
+    return _PermissiveVocabulary()
 
 
 @pytest.fixture

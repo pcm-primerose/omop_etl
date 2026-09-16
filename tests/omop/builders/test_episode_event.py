@@ -12,6 +12,8 @@ from omop_etl.omop.builders.episode import EpisodeBuilder
 from omop_etl.omop.builders.episode_event import EpisodeEventBuilder
 from omop_etl.omop.builders.measurement import MeasurementBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
+from omop_etl.omop.core.linkage import PolymorphicTarget, polymorphic_row_key
+from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
     create_patient,
     create_build_context,
@@ -115,6 +117,8 @@ class TestTreatmentCycleDrugLinks:
         assert all(r.episode_id == episode_rows[0].episode_id for r in result.rows)
         assert {r.event_id for r in result.rows} == {d.drug_exposure_id for d in drug_rows}
         assert all(r.episode_event_field_concept_id == _cdm_field(static_index, "drug_exposure.drug_exposure_id") for r in result.rows)
+        assert {t.row_key for t in ctx.polymorphic_targets} == {polymorphic_row_key(OmopTables.EPISODE_EVENT, r) for r in result.rows}
+        assert all(t.target_table == OmopTables.DRUG_EXPOSURE for t in ctx.polymorphic_targets)
 
     def test_separate_cycles_link_to_separate_episodes(
         self,
@@ -235,6 +239,14 @@ class TestDiseaseConditionLinks:
         assert ev.episode_id == episode_rows[0].episode_id
         assert ev.event_id == condition_rows[0].condition_occurrence_id
         assert ev.episode_event_field_concept_id == _cdm_field(static_index, target_pk="condition_occurrence.condition_occurrence_id")
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.EPISODE_EVENT,
+                row_key=polymorphic_row_key(OmopTables.EPISODE_EVENT, ev),
+                field="event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
 
 class TestDiseaseDynamicMeasurementLinks:
@@ -266,6 +278,8 @@ class TestDiseaseDynamicMeasurementLinks:
         assert all(r.episode_event_field_concept_id == _cdm_field(static_index, "measurement.measurement_id") for r in result.rows)
         # all upstream episode rows are dynamic, so the events point at exactly them
         assert {r.episode_id for r in result.rows} == {r.episode_id for r in episode_rows}
+        assert {t.row_key for t in ctx.polymorphic_targets} == {polymorphic_row_key(OmopTables.EPISODE_EVENT, r) for r in result.rows}
+        assert all(t.target_table == OmopTables.MEASUREMENT for t in ctx.polymorphic_targets)
 
     def test_run_links_to_all_its_assessments_measurements(
         self,

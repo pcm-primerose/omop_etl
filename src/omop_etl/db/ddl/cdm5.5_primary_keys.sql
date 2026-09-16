@@ -1,6 +1,6 @@
 -- Modified from the stock OHDSI CDM 5.5 PostgreSQL DDL
 -- (OHDSI/CommonDataModel, inst/ddl/5.5/postgresql/).
--- Only change from stock: `@cdmDatabaseSchema` to `public`.
+-- Only change from default: `@cdmDatabaseSchema` to `public`.
 --postgresql CDM Primary Key Constraints for OMOP Common Data Model 5.5
 ALTER TABLE public.person  ADD CONSTRAINT xpk_person PRIMARY KEY (person_id);
 ALTER TABLE public.observation_period  ADD CONSTRAINT xpk_observation_period PRIMARY KEY (observation_period_id);

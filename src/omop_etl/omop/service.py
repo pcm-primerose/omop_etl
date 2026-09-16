@@ -27,6 +27,8 @@ from omop_etl.omop.builders.drug_era import DrugEraBuilder
 from omop_etl.omop.builders.dose_era import DoseEraBuilder
 from omop_etl.omop.core.id_generator import RowIdGenerator
 from omop_etl.omop.core.io import OmopTableExporter
+from omop_etl.omop.core.linkage import PolymorphicTarget
+from omop_etl.omop.core.pre_load_gate import validate_integrity
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
 
@@ -46,7 +48,7 @@ class OmopService:
         vocabulary: Vocabulary,
         concept_ancestor: pl.DataFrame,
         athena_version: str,
-        outdir: Path | None = None,
+        outdir: Path,
     ):
         self._concepts = concepts
         self._vocabulary = vocabulary
@@ -69,21 +71,28 @@ class OmopService:
             CohortBuilder(concepts, self._row_id_generator),
         ]
 
-    def build(self, patients: Sequence[Patient], meta: RunMetadata | None = None) -> OmopTables:
+    def build(self, patients: Sequence[Patient], meta: RunMetadata) -> OmopTables:
         """
-        Build all OMOP tables from patient data. Writes each populated table to
-        a CSV under `outdir` when both it and `meta` are provided,
-        omit either to skip the write (e.g. in tests that assert on in-memort tables).
+        Build all OMOP tables from patient data. Validates PK/FK/concept
+        integrity, then writes each populated table to a CSV under `outdir`.
         """
         tables = OmopTables()
+        polymorphic_targets: list[PolymorphicTarget] = []
 
         for patient in patients:
+            # skips all patients without birth date
+            if patient.date_of_birth is None:
+                continue
+
             person_id = self._row_id_generator.generate("person", patient.patient_id)
+
             ctx = BuildContext(patient=patient, person_id=person_id)
 
             for builder in self._builders:
                 rows = builder.build_and_populate(ctx)
                 tables.extend(builder.table_name, list(rows))
+
+            polymorphic_targets.extend(ctx.polymorphic_targets)
 
         # singleton metadata row
         tables.add(OmopTables.CDM_SOURCE, CdmSourceBuilder(self._concepts, self._athena_version).build())
@@ -114,7 +123,8 @@ class OmopService:
             DoseEraBuilder(self._row_id_generator).build(tables.drug_exposure, self._concept_ancestor, self._vocabulary, self._concepts),
         )
 
-        if self._outdir is not None and meta is not None:
-            OmopTableExporter(self._outdir).write(tables, meta)
+        # validate PK/FK integrity & write output
+        validate_integrity(tables=tables, vocabulary=self._vocabulary, polymorphic_targets=polymorphic_targets)
+        OmopTableExporter(self._outdir).write(tables, meta)
 
         return tables

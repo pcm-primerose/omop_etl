@@ -19,12 +19,12 @@ class PersonRow:
     ethnicity_source_concept_id: int | None = None
     race_source_concept_id: int | None = None
     gender_source_concept_id: int | None = None
-    gender_source_value: str | None = None
+    gender_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     day_of_birth: int | None = None
     month_of_birth: int | None = None
     birth_datetime: dt.datetime | None = None
-    race_source_value: str | None = None
-    ethnicity_source_value: str | None = None
+    race_source_value: Annotated[str | None, pd_field(max_length=50)] = None
+    ethnicity_source_value: Annotated[str | None, pd_field(max_length=50)] = None
     provider_id: int | None = None
     location_id: int | None = None
     care_site_id: int | None = None

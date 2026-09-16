@@ -2,7 +2,7 @@ import pytest
 
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.helpers.context import BuildContext
-from omop_etl.omop.core.linkage import OmopRowReference, SourceReference
+from omop_etl.omop.core.linkage import OmopRowReference, PolymorphicTarget, SourceReference
 from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import create_build_context, create_patient
 
@@ -44,3 +44,33 @@ class TestPublishRows:
 
         with pytest.raises(ValueError, match="Published row table mismatch"):
             _ctx().publish_rows(OmopTables.CONDITION_OCCURRENCE, _ref(), [mismatched_row])
+
+
+class TestRecordPolymorphicTarget:
+    def test_appends_a_polymorphic_target(self):
+        ctx = _ctx()
+
+        ctx.record_polymorphic_target(
+            table=OmopTables.MEASUREMENT,
+            row_key=(42,),
+            field="measurement_event_id",
+            target_table=OmopTables.CONDITION_OCCURRENCE,
+        )
+
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.MEASUREMENT,
+                row_key=(42,),
+                field="measurement_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
+
+    def test_accumulates_multiple_targets_in_order(self):
+        ctx = _ctx()
+
+        ctx.record_polymorphic_target(table=OmopTables.MEASUREMENT, row_key=(1,), field="measurement_event_id", target_table=OmopTables.CONDITION_OCCURRENCE)
+        ctx.record_polymorphic_target(table=OmopTables.MEASUREMENT, row_key=(2,), field="measurement_event_id", target_table=OmopTables.DRUG_EXPOSURE)
+
+        assert [t.row_key for t in ctx.polymorphic_targets] == [(1,), (2,)]
+        assert [t.target_table for t in ctx.polymorphic_targets] == [OmopTables.CONDITION_OCCURRENCE, OmopTables.DRUG_EXPOSURE]

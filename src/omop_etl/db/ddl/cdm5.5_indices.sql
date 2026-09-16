@@ -1,6 +1,6 @@
 -- Modified from the stock OHDSI CDM 5.5 PostgreSQL DDL
 -- (OHDSI/CommonDataModel, inst/ddl/5.5/postgresql/).
--- Only change from stock: `@cdmDatabaseSchema` to `public`.
+-- Only change from default: `@cdmDatabaseSchema` to `public`.
 /*postgresql OMOP CDM Indices
   There are no unique indices created because it is assumed that the primary key constraints have been run prior to
   implementing indices.

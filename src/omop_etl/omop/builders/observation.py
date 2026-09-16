@@ -13,6 +13,7 @@ from omop_etl.omop.core.linkage import (
     BuildResult,
     LinkTarget,
     SourceReference,
+    polymorphic_row_key,
 )
 from omop_etl.omop.models.rows import ObservationRow
 from omop_etl.omop.models.tables import OmopTables
@@ -414,10 +415,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         def row(
             event_id: int | None,
             field_concept_id: int | None,
+            target_table: str | None = None,
             *,
             _date: dt.date = date,
         ) -> ObservationRow:
-            return ObservationRow(
+            observation_row = ObservationRow(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
@@ -436,11 +438,19 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 observation_event_id=event_id,
                 obs_event_field_concept_id=field_concept_id,
             )
+            if target_table is not None:
+                ctx.record_polymorphic_target(
+                    table=OmopTables.OBSERVATION,
+                    row_key=polymorphic_row_key(OmopTables.OBSERVATION, observation_row),
+                    field="observation_event_id",
+                    target_table=target_table,
+                )
+            return observation_row
 
         targets = self._ae_link_targets(patient, ae, ctx)
         if not targets:
             return [row(event_id=None, field_concept_id=None)]
-        return [row(t.event_id, t.field_concept_id) for t in targets]
+        return [row(t.event_id, t.field_concept_id, t.target_table) for t in targets]
 
     def _build_ae_was_serious(
         self,
@@ -470,11 +480,12 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         def row(
             event_id: int | None,
             field_concept_id: int | None,
+            target_table: str | None = None,
             *,
             _date: dt.date = date,
             _was_serious: bool = was_serious,
         ) -> ObservationRow:
-            return self._bool_observation(
+            observation_row = self._bool_observation(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
@@ -490,11 +501,19 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 observation_event_id=event_id,
                 obs_event_field_concept_id=field_concept_id,
             )
+            if target_table is not None:
+                ctx.record_polymorphic_target(
+                    table=OmopTables.OBSERVATION,
+                    row_key=polymorphic_row_key(OmopTables.OBSERVATION, observation_row),
+                    field="observation_event_id",
+                    target_table=target_table,
+                )
+            return observation_row
 
         targets = self._ae_link_targets(patient, ae, ctx)
         if not targets:
             return [row(event_id=None, field_concept_id=None)]
-        return [row(t.event_id, t.field_concept_id) for t in targets]
+        return [row(t.event_id, t.field_concept_id, t.target_table) for t in targets]
 
     def _build_ae_turned_serious(
         self,
@@ -519,10 +538,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         def row(
             event_id: int | None,
             field_concept_id: int | None,
+            target_table: str | None = None,
             *,
             _date: dt.date = date,
         ) -> ObservationRow:
-            return ObservationRow(
+            observation_row = ObservationRow(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
@@ -541,11 +561,19 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 observation_event_id=event_id,
                 obs_event_field_concept_id=field_concept_id,
             )
+            if target_table is not None:
+                ctx.record_polymorphic_target(
+                    table=OmopTables.OBSERVATION,
+                    row_key=polymorphic_row_key(OmopTables.OBSERVATION, observation_row),
+                    field="observation_event_id",
+                    target_table=target_table,
+                )
+            return observation_row
 
         targets = self._ae_link_targets(patient, ae, ctx)
         if not targets:
             return [row(event_id=None, field_concept_id=None)]
-        return [row(t.event_id, t.field_concept_id) for t in targets]
+        return [row(t.event_id, t.field_concept_id, t.target_table) for t in targets]
 
     def _build_ae_severity(
         self,
@@ -581,10 +609,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
         def row(
             event_id: int | None,
             field_concept_id: int | None,
+            target_table: str | None = None,
             *,
             _date: dt.date = date,
         ) -> ObservationRow:
-            return ObservationRow(
+            observation_row = ObservationRow(
                 observation_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Collections.ADVERSE_EVENTS,
@@ -603,11 +632,19 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 observation_event_id=event_id,
                 obs_event_field_concept_id=field_concept_id,
             )
+            if target_table is not None:
+                ctx.record_polymorphic_target(
+                    table=OmopTables.OBSERVATION,
+                    row_key=polymorphic_row_key(OmopTables.OBSERVATION, observation_row),
+                    field="observation_event_id",
+                    target_table=target_table,
+                )
+            return observation_row
 
         targets = self._ae_link_targets(patient, ae, ctx)
         if not targets:
             return [row(event_id=None, field_concept_id=None)]
-        return [row(t.event_id, t.field_concept_id) for t in targets]
+        return [row(t.event_id, t.field_concept_id, t.target_table) for t in targets]
 
     def _build_ae_relatedness(
         self,
@@ -657,10 +694,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             def row(
                 event_id: int | None,
                 field_concept_id: int | None,
+                target_table: str | None = None,
                 *,
                 _date: dt.date = date,
             ) -> ObservationRow:
-                return ObservationRow(
+                observation_row = ObservationRow(
                     observation_id=self.generate_row_id(
                         patient.patient_id,
                         Patient.Collections.ADVERSE_EVENTS,
@@ -680,11 +718,19 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     observation_event_id=event_id,
                     obs_event_field_concept_id=field_concept_id,
                 )
+                if target_table is not None:
+                    ctx.record_polymorphic_target(
+                        table=OmopTables.OBSERVATION,
+                        row_key=polymorphic_row_key(OmopTables.OBSERVATION, observation_row),
+                        field="observation_event_id",
+                        target_table=target_table,
+                    )
+                return observation_row
 
             if not targets:
                 rows.append(row(event_id=None, field_concept_id=None))
             else:
-                rows.extend(row(t.event_id, t.field_concept_id) for t in targets)
+                rows.extend(row(t.event_id, t.field_concept_id, t.target_table) for t in targets)
         return rows
 
     def _build_ae_expected(
@@ -730,10 +776,11 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             def row(
                 event_id: int | None,
                 field_concept_id: int | None,
+                target_table: str | None = None,
                 *,
                 _date: dt.date = date,
             ) -> ObservationRow:
-                return ObservationRow(
+                observation_row = ObservationRow(
                     observation_id=self.generate_row_id(
                         patient.patient_id,
                         Patient.Collections.ADVERSE_EVENTS,
@@ -753,11 +800,19 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     observation_event_id=event_id,
                     obs_event_field_concept_id=field_concept_id,
                 )
+                if target_table is not None:
+                    ctx.record_polymorphic_target(
+                        table=OmopTables.OBSERVATION,
+                        row_key=polymorphic_row_key(OmopTables.OBSERVATION, observation_row),
+                        field="observation_event_id",
+                        target_table=target_table,
+                    )
+                return observation_row
 
             if not targets:
                 rows.append(row(event_id=None, field_concept_id=None))
             else:
-                rows.extend(row(t.event_id, t.field_concept_id) for t in targets)
+                rows.extend(row(t.event_id, t.field_concept_id, t.target_table) for t in targets)
         return rows
 
     _CYCLE_METADATA_FIELDS: ClassVar[tuple[tuple[str, Any], ...]] = (
@@ -832,6 +887,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
             def row(
                 event_id: int,
                 field_concept_id: int,
+                target_table: str,
                 *,
                 _date: dt.date = date,
                 _field: str = field_name,
@@ -840,7 +896,7 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                 _vac: int | None = value_as_concept_id,
                 _vsv: str = value_source_value,
             ) -> ObservationRow:
-                return ObservationRow(
+                observation_row = ObservationRow(
                     observation_id=self.generate_row_id(
                         patient.patient_id,
                         Patient.Collections.TREATMENT_CYCLES,
@@ -861,6 +917,13 @@ class ObservationBuilder(OmopBuilder[ObservationRow]):
                     observation_event_id=event_id,
                     obs_event_field_concept_id=field_concept_id,
                 )
+                ctx.record_polymorphic_target(
+                    table=OmopTables.OBSERVATION,
+                    row_key=polymorphic_row_key(OmopTables.OBSERVATION, observation_row),
+                    field="observation_event_id",
+                    target_table=target_table,
+                )
+                return observation_row
 
-            rows.extend(row(t.event_id, t.field_concept_id) for t in targets)
+            rows.extend(row(t.event_id, t.field_concept_id, t.target_table) for t in targets)
         return rows

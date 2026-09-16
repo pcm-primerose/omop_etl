@@ -11,7 +11,8 @@ from omop_etl.harmonization.models.domain.treatment_cycle_component import Treat
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.observation import ObservationBuilder
 from omop_etl.omop.core.id_generator import sha256_bigint
-from omop_etl.omop.core.linkage import BuildResult
+from omop_etl.omop.core.linkage import BuildResult, PolymorphicTarget
+from omop_etl.omop.models.tables import OmopTables
 from tests.omop.conftest import (
     _static,
     _structural,
@@ -668,6 +669,14 @@ class TestAdverseEventOutcome:
         assert row.value_source_value == "Recovering/resolving"
         assert row.observation_event_id == 999
         assert row.obs_event_field_concept_id == CDM_FIELD_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.OBSERVATION,
+                row_key=(row.observation_id,),
+                field="observation_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_topic_structural_missing_falls_back_to_zero(
         self,
@@ -791,6 +800,14 @@ class TestAdverseEventWasSerious:
         assert row.value_source_value == "true"
         assert row.observation_event_id == 123456789
         assert row.obs_event_field_concept_id == CDM_FIELD_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.OBSERVATION,
+                row_key=(row.observation_id,),
+                field="observation_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_was_serious_false_emits_row_with_no_value(
         self,
@@ -920,6 +937,14 @@ class TestAdverseEventTurnedSerious:
         assert row.value_source_value == "2023-05-05"
         assert row.observation_event_id == 555
         assert row.obs_event_field_concept_id == CDM_FIELD_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.OBSERVATION,
+                row_key=(row.observation_id,),
+                field="observation_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_skipped_when_turned_serious_date_unset(
         self,
@@ -1017,6 +1042,14 @@ class TestAdverseEventSeverity:
         assert row.value_source_value == "3"
         assert row.observation_event_id == 777
         assert row.obs_event_field_concept_id == CDM_FIELD_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.OBSERVATION,
+                row_key=(row.observation_id,),
+                field="observation_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_skipped_when_grade_is_none(
         self,
@@ -1108,6 +1141,8 @@ class TestAdverseEventRelatedness:
         assert by_field["related_to_treatment_2"].value_as_concept_id == NOT_RELATED_CID
         assert by_field["related_to_treatment_2"].value_source_value == "not_related"
         assert by_field["related_to_treatment_2"].qualifier_source_value == "Cobimetinib"
+        assert {t.row_key for t in ctx.polymorphic_targets} == {(r.observation_id,) for r in rel_result}
+        assert all(t.target_table == OmopTables.CONDITION_OCCURRENCE for t in ctx.polymorphic_targets)
 
     def test_unknown_status_maps_to_unknown_concept(
         self,
@@ -1244,6 +1279,14 @@ class TestAdverseEventExpectedness:
         assert row.qualifier_source_value == "Vemurafenib"
         assert row.observation_event_id == 555
         assert row.obs_event_field_concept_id == CDM_FIELD_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.OBSERVATION,
+                row_key=(row.observation_id,),
+                field="observation_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_false_maps_to_not_expected_concept(
         self,
@@ -1462,6 +1505,15 @@ class TestTreatmentCycleMetadata:
         assert row.observation_date == dt.date(2023, 2, 1)
         assert row.observation_event_id == self.DRUG_ROW_ID
         assert row.obs_event_field_concept_id == self.DRUG_FIELD_CID
+        assert (
+            PolymorphicTarget(
+                table=OmopTables.OBSERVATION,
+                row_key=(row.observation_id,),
+                field="observation_event_id",
+                target_table=OmopTables.DRUG_EXPOSURE,
+            )
+            in ctx.polymorphic_targets
+        )
 
     def test_bool_field_maps_to_yes_no(
         self,

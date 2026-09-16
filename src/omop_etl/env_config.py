@@ -62,7 +62,7 @@ MAPPING_DIR = _resolve_mapping_dir()
 # debug for dev, info for prod
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-# synthetic dataset registry: short name -> path
+# synthetic dataset registry
 SYNTHETIC_DATASETS: dict[str, Path] = {
     "impress_150": SYNTHETIC_DATA / "impress_150",
     "impress_1k": SYNTHETIC_DATA / "impress_1k",

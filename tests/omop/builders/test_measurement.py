@@ -17,6 +17,7 @@ from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.omop.core.linkage import (
     BuildResult,
     OmopRowReference,
+    PolymorphicTarget,
     SourceReference,
 )
 from omop_etl.omop.models.tables import OmopTables
@@ -1696,6 +1697,14 @@ class TestPrimaryCancerFKConsumption:
         assert row.measurement_event_id == 12345
         assert row.meas_event_field_concept_id == self.CDM_FIELD_CID
         assert row.unit_concept_id == self.UNIT_MM_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.MEASUREMENT,
+                row_key=(row.measurement_id,),
+                field="measurement_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_baseline_lesion_size_no_fk_when_primary_cancer_not_published(
         self,
@@ -1715,6 +1724,7 @@ class TestPrimaryCancerFKConsumption:
         assert result.rows[0].meas_event_field_concept_id is None
         # unit_concept_id is independent of FK linkage: still populated
         assert result.rows[0].unit_concept_id == self.UNIT_MM_CID
+        assert ctx.polymorphic_targets == []
 
     def test_baseline_lesion_size_unit_missing_falls_back_to_none(
         self,
@@ -1771,6 +1781,14 @@ class TestPrimaryCancerFKConsumption:
         assert size_result[0].measurement_event_id == 67890
         assert size_result[0].meas_event_field_concept_id == self.CDM_FIELD_CID
         assert size_result[0].unit_concept_id == self.UNIT_MM_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.MEASUREMENT,
+                row_key=(size_result[0].measurement_id,),
+                field="measurement_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_biomarker_links_to_primary_cancer(
         self,
@@ -1799,6 +1817,14 @@ class TestPrimaryCancerFKConsumption:
         assert len(result.rows) == 1
         assert result.rows[0].measurement_event_id == 77777
         assert result.rows[0].meas_event_field_concept_id == self.CDM_FIELD_CID
+        assert ctx.polymorphic_targets == [
+            PolymorphicTarget(
+                table=OmopTables.MEASUREMENT,
+                row_key=(result.rows[0].measurement_id,),
+                field="measurement_event_id",
+                target_table=OmopTables.CONDITION_OCCURRENCE,
+            )
+        ]
 
     def test_biomarker_no_fk_when_primary_cancer_not_published(
         self,
@@ -1825,6 +1851,7 @@ class TestPrimaryCancerFKConsumption:
         assert len(result.rows) == 1
         assert result.rows[0].measurement_event_id is None
         assert result.rows[0].meas_event_field_concept_id is None
+        assert ctx.polymorphic_targets == []
 
     def test_non_cancer_modifier_result_have_no_fk(
         self,

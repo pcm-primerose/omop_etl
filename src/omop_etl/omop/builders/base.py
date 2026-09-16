@@ -97,6 +97,7 @@ class OmopBuilder(ABC, Generic[T]):
             LinkTarget(
                 event_id=row.row_id,
                 field_concept_id=field_concept.concept_id,
+                target_table=target_table,
             )
             for row in rows
         )
