@@ -1,0 +1,26 @@
+
+ALTER TABLE public.concept  ADD CONSTRAINT fpk_concept_domain_id FOREIGN KEY (domain_id) REFERENCES public.DOMAIN (DOMAIN_ID);
+ALTER TABLE public.concept  ADD CONSTRAINT fpk_concept_vocabulary_id FOREIGN KEY (vocabulary_id) REFERENCES public.VOCABULARY (VOCABULARY_ID);
+ALTER TABLE public.concept  ADD CONSTRAINT fpk_concept_concept_class_id FOREIGN KEY (concept_class_id) REFERENCES public.CONCEPT_CLASS (CONCEPT_CLASS_ID);
+ALTER TABLE public.vocabulary  ADD CONSTRAINT fpk_vocabulary_vocabulary_concept_id FOREIGN KEY (vocabulary_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.domain  ADD CONSTRAINT fpk_domain_domain_concept_id FOREIGN KEY (domain_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_class  ADD CONSTRAINT fpk_concept_class_concept_class_concept_id FOREIGN KEY (concept_class_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_relationship  ADD CONSTRAINT fpk_concept_relationship_concept_id_1 FOREIGN KEY (concept_id_1) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_relationship  ADD CONSTRAINT fpk_concept_relationship_concept_id_2 FOREIGN KEY (concept_id_2) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_relationship  ADD CONSTRAINT fpk_concept_relationship_relationship_id FOREIGN KEY (relationship_id) REFERENCES public.RELATIONSHIP (RELATIONSHIP_ID);
+ALTER TABLE public.relationship  ADD CONSTRAINT fpk_relationship_relationship_concept_id FOREIGN KEY (relationship_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_synonym  ADD CONSTRAINT fpk_concept_synonym_concept_id FOREIGN KEY (concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_synonym  ADD CONSTRAINT fpk_concept_synonym_language_concept_id FOREIGN KEY (language_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_ancestor  ADD CONSTRAINT fpk_concept_ancestor_ancestor_concept_id FOREIGN KEY (ancestor_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_ancestor  ADD CONSTRAINT fpk_concept_ancestor_descendant_concept_id FOREIGN KEY (descendant_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.drug_strength  ADD CONSTRAINT fpk_drug_strength_drug_concept_id FOREIGN KEY (drug_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.drug_strength  ADD CONSTRAINT fpk_drug_strength_ingredient_concept_id FOREIGN KEY (ingredient_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.drug_strength  ADD CONSTRAINT fpk_drug_strength_amount_unit_concept_id FOREIGN KEY (amount_unit_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.drug_strength  ADD CONSTRAINT fpk_drug_strength_numerator_unit_concept_id FOREIGN KEY (numerator_unit_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.drug_strength  ADD CONSTRAINT fpk_drug_strength_denominator_unit_concept_id FOREIGN KEY (denominator_unit_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.pack_content  ADD CONSTRAINT fpk_pack_content_pack_concept_id FOREIGN KEY (pack_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.pack_content  ADD CONSTRAINT fpk_pack_content_drug_concept_id FOREIGN KEY (drug_concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_metadata  ADD CONSTRAINT fpk_concept_metadata_concept_id FOREIGN KEY (concept_id) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_relationship_metadata  ADD CONSTRAINT fpk_concept_relationship_metadata_concept_id_1 FOREIGN KEY (concept_id_1) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_relationship_metadata  ADD CONSTRAINT fpk_concept_relationship_metadata_concept_id_2 FOREIGN KEY (concept_id_2) REFERENCES public.CONCEPT (CONCEPT_ID);
+ALTER TABLE public.concept_relationship_metadata  ADD CONSTRAINT fpk_concept_relationship_metadata_relationship_id FOREIGN KEY (relationship_id) REFERENCES public.RELATIONSHIP (RELATIONSHIP_ID);

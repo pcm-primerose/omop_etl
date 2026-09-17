@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 from dotenv import load_dotenv
 
-from omop_etl.db.postgres import PostgresOmopWriter
+from omop_etl.db.service import DbLoadService
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.io.types import Layout
@@ -17,6 +17,7 @@ from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
 from omop_etl.vocabulary.service import VocabularyResult, VocabularyService
 
 from omop_etl.omop.service import OmopService
+from omop_etl.omop.core.io import OmopTableExporter
 from omop_etl.omop.models.tables import OmopTables
 
 
@@ -105,7 +106,7 @@ def cmd_load(args: argparse.Namespace) -> int:
         meta=meta,
     )
 
-    tables = _build_tables(
+    _build_tables(
         harmonized,
         meta=meta,
         outdir=args.outdir,
@@ -118,8 +119,12 @@ def cmd_load(args: argparse.Namespace) -> int:
     if not dsn:
         raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
 
-    writer = PostgresOmopWriter(dsn=dsn, truncate_first=args.truncate)
-    writer.write(tables)
+    omop_dir = OmopTableExporter(args.outdir).output_dir(meta)
+    DbLoadService(dsn=dsn).load(
+        omop_dir=omop_dir,
+        athena_dir=args.athena_dir,
+        athena_version=vocabulary_result.athena_version,
+    )
     return 0
 
 
@@ -137,7 +142,6 @@ def main(argv: list[str] | None = None) -> int:
     load.add_argument("--mapping-dir", type=Path, required=True, help="Dir containing static.csv/structural.csv/semantic.csv")
 
     load.add_argument("--dsn", default=None)
-    load.add_argument("--truncate", action="store_true")
     load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping")
     load.add_argument("--log-level", default="INFO")
     load.set_defaults(func=cmd_load)
