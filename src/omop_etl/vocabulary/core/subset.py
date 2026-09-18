@@ -3,7 +3,7 @@ from logging import getLogger
 from pathlib import Path
 import polars as pl
 
-from omop_etl.vocabulary.core.helpers import ACCEPTABLE_STANDARD_CONCEPT_VALUES, ATHENA_CONCEPT_COLUMNS, CONCEPT_ANCESTOR_COLUMNS
+from omop_etl.vocabulary.core.helpers import ACCEPTABLE_STANDARD_CONCEPT_VALUES, ATHENA_CONCEPT_COLUMNS, CONCEPT_ANCESTOR_COLUMNS, scan_athena_table
 from omop_etl.infra.utils.constants import NO_MATCHING_CONCEPT
 from omop_etl.infra.utils.mapping_io import read_mapping_csv
 from omop_etl.vocabulary.core.models import ConceptSubsetReport, FlaggedConcept
@@ -35,13 +35,7 @@ def scan_concept_subset(athena_dir: Path, concept_ids: Iterable[int]) -> pl.Data
     subset file written by `VocabularyExporter.write_concept_subset`.
     """
     wanted = list(concept_ids)
-    return (
-        # quote_char=None: Athena can have `"` in fields
-        pl.scan_csv(athena_dir / "CONCEPT.csv", separator="\t", infer_schema_length=0, quote_char=None)
-        .filter(pl.col("concept_id").cast(pl.Int64).is_in(wanted))
-        .select(ATHENA_CONCEPT_COLUMNS)
-        .collect()
-    )
+    return scan_athena_table(athena_dir, "CONCEPT").filter(pl.col("concept_id").cast(pl.Int64).is_in(wanted)).select(ATHENA_CONCEPT_COLUMNS).collect()
 
 
 def scan_concept_ancestor_subset(athena_dir: Path, descendant_concept_ids: Iterable[int]) -> pl.DataFrame:
@@ -62,12 +56,7 @@ def scan_concept_ancestor_subset(athena_dir: Path, descendant_concept_ids: Itera
     if not wanted:
         return pl.DataFrame(schema={col: pl.Utf8 for col in CONCEPT_ANCESTOR_COLUMNS})
 
-    return (
-        # quote_char=None: Athena can have `"` in fields
-        pl.scan_csv(athena_dir / "CONCEPT_ANCESTOR.csv", separator="\t", infer_schema_length=0, quote_char=None)
-        .filter(pl.col("descendant_concept_id").cast(pl.Int64).is_in(wanted))
-        .collect()
-    )
+    return scan_athena_table(athena_dir, "CONCEPT_ANCESTOR").filter(pl.col("descendant_concept_id").cast(pl.Int64).is_in(wanted)).collect()
 
 
 def concept_subset_report(subset: pl.DataFrame, concept_ids: set[int]) -> ConceptSubsetReport:

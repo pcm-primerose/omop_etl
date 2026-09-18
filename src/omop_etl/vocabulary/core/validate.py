@@ -8,6 +8,7 @@ from omop_etl.vocabulary.core.helpers import (
     ACCEPTABLE_STANDARD_CONCEPT_VALUES,
     ATHENA_CONCEPT_COLUMNS,
     REQUIRED_ATHENA_FILES,
+    scan_athena_table,
     validity_from_invalid_reason,
 )
 from omop_etl.vocabulary.core.models import ValidationReport, ValidationIssue
@@ -40,8 +41,16 @@ def validate_athena_bundle(athena_dir: Path) -> tuple[str, ...]:
     This does not check content correctness, just existence,
     but CONCEPT.csv is still checked on row-level from `validate_mappings`.
     Any other malformed row from files not read by the ETL would surface at callsites (load step, ERA tables, etc).
+
+    Accepts either the raw "<stem>.csv" or a "<stem>.parquet" produced by
+    `scripts/athena_to_parquet.py`.
     """
-    return tuple(f"{filename}: missing from {athena_dir}" for filename in REQUIRED_ATHENA_FILES if not (athena_dir / filename).exists())
+    missing = []
+    for filename in REQUIRED_ATHENA_FILES:
+        stem = filename.removesuffix(".csv")
+        if not (athena_dir / filename).exists() and not (athena_dir / f"{stem}.parquet").exists():
+            missing.append(f"{filename}: missing from {athena_dir} (as .csv or .parquet)")
+    return tuple(missing)
 
 
 def validate_mappings(mapping_files: Sequence[Path], athena_dir: Path) -> ValidationReport:
@@ -54,7 +63,6 @@ def validate_mappings(mapping_files: Sequence[Path], athena_dir: Path) -> Valida
     - any recorded column (`MAPPING_CONCEPT_COLUMNS`, other than the `concept_id` join key itself)
       disagreeing with what Athena currently states.
     """
-    athena_concept_source = athena_dir / "CONCEPT.csv"
     errors: list[ValidationIssue] = []
     file_rows: dict[Path, list[dict[str, str]]] = {}
     concept_ids: set[int] = set()
@@ -85,7 +93,7 @@ def validate_mappings(mapping_files: Sequence[Path], athena_dir: Path) -> Valida
 
     errors.extend(_duplicate_key_issues(file_rows))
 
-    athena_by_id = _hydrate_from_athena(athena_concept_source, concept_ids)
+    athena_by_id = _hydrate_from_athena(athena_dir, concept_ids)
 
     for path, rows in file_rows.items():
         for row in rows:
@@ -123,7 +131,7 @@ def validate_mappings(mapping_files: Sequence[Path], athena_dir: Path) -> Valida
                 if not _matches(recorded, actual):
                     errors.append(ValidationIssue(path, concept_id, "drift", column, f"file says {recorded!r}, Athena says {actual!r}"))
 
-    return ValidationReport(errors=tuple(errors), athena_version=_athena_version(athena_concept_source))
+    return ValidationReport(errors=tuple(errors), athena_version=_athena_version(athena_dir))
 
 
 def _duplicate_key_issues(file_rows: dict[Path, list[dict[str, str]]]) -> list[ValidationIssue]:
@@ -154,41 +162,30 @@ def _duplicate_key_issues(file_rows: dict[Path, list[dict[str, str]]]) -> list[V
     return issues
 
 
-def _hydrate_from_athena(athena_concept_source: Path, concept_ids: set[int]) -> dict[int, dict[str, str | None]]:
+def _hydrate_from_athena(athena_dir: Path, concept_ids: set[int]) -> dict[int, dict[str, str | None]]:
     wanted = list(concept_ids)
-    athena = (
-        # quote_char=None: Athena is tab-separated, not RFC-quoted CSV
-        pl.scan_csv(athena_concept_source, separator="\t", infer_schema_length=0, quote_char=None)
-        .filter(pl.col("concept_id").cast(pl.Int64).is_in(wanted))
-        .select(ATHENA_CONCEPT_COLUMNS)
-        .collect()
-    )
+    athena = scan_athena_table(athena_dir, "CONCEPT").filter(pl.col("concept_id").cast(pl.Int64).is_in(wanted)).select(ATHENA_CONCEPT_COLUMNS).collect()
     return {int(row["concept_id"]): row for row in athena.iter_rows(named=True)}
 
 
-def _athena_version(athena_concept_source: Path) -> str:
+def _athena_version(athena_dir: Path) -> str:
     """
-    The Athena release version (with date) from VOCABULARY.csv in the Athena dir.
-    The OHDSI convention is to store this version in the row where
-    `vocabulary_id=None` row, the column `vocabulary_version` should then contain
-    the overall Athena version (in the format: "v5.0 29-AUG-26").
+    The Athena release version (with date) from VOCABULARY.csv/.parquet in
+    the Athena dir. The OHDSI convention is to store this version in the row
+    where `vocabulary_id=None` row, the column `vocabulary_version` should
+    then contain the overall Athena version (in the format: "v5.0 29-AUG-26").
     """
-    vocabulary_path = athena_concept_source.parent / "VOCABULARY.csv"
-
     versions = (
-        pl.read_csv(
-            vocabulary_path,
-            separator="\t",
-            columns=["vocabulary_id", "vocabulary_version"],
-            infer_schema_length=0,
-        )
+        scan_athena_table(athena_dir, "VOCABULARY")
+        .select(["vocabulary_id", "vocabulary_version"])
         .filter(pl.col("vocabulary_id") == "None")
+        .collect()
         .get_column("vocabulary_version")
         .drop_nulls()
     )
 
     if versions.is_empty():
-        log.warning("No Athena version found in %s, setting version to 'unknown'", vocabulary_path)
+        log.warning("No Athena version found in %s, setting version to 'unknown'", athena_dir)
         return _UNKNOWN_ATHENA_VERSION
 
     unique = versions.unique()
@@ -197,13 +194,13 @@ def _athena_version(athena_concept_source: Path) -> str:
         log.warning(
             "Found %d Athena version rows in %s",
             versions.len(),
-            vocabulary_path,
+            athena_dir,
         )
 
     if unique.len() > 1:
         log.warning(
             "Conflicting Athena versions in %s: %s",
-            vocabulary_path,
+            athena_dir,
             unique.to_list(),
         )
         return _UNKNOWN_ATHENA_VERSION

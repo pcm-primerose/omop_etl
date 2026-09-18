@@ -1,3 +1,19 @@
+from pathlib import Path
+import polars as pl
+
+
+def scan_athena_table(athena_dir: Path, stem: str) -> pl.LazyFrame:
+    """
+    Lazily open one Athena bundle table (e.g. stem="CONCEPT"), preferring a
+    "<stem>.parquet" file over the raw "<stem>.csv" when both are present.
+    """
+    parquet_path = athena_dir / f"{stem}.parquet"
+    if parquet_path.exists():
+        return pl.scan_parquet(parquet_path)
+    # quote_char=None: Athena is tab-separated, not RFC-quoted CSV
+    return pl.scan_csv(athena_dir / f"{stem}.csv", separator="\t", infer_schema_length=0, quote_char=None)
+
+
 def validity_from_invalid_reason(invalid_reason: str) -> str:
     """OMOP convention: blank `invalid_reason` = valid, `D`/`U` (or anything else) = invalid."""
     return "valid" if invalid_reason.strip() == "" else "invalid"
