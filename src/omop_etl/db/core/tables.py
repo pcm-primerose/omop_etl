@@ -1,7 +1,7 @@
 # Table-name registries for the DB loader, derived from cdm5.5_ddl.sql.
 
 # Athena-bundle tables: one CSV per table in athena_dir (e.g. CONCEPT.csv to concept)
-VOCAB_TABLES = frozenset(
+VOCAB_TABLES: frozenset[str] = frozenset(
     {
         "concept",
         "vocabulary",

@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import cast
+import polars as pl
 import psycopg
+from psycopg.sql import Composed
 
 from omop_etl.db.core.copy import copy_dir
 
@@ -89,7 +91,7 @@ def test_copy_dir_names_the_table_and_format_in_the_copy_statement(tmp_path: Pat
 
     copy_dir(cast(psycopg.Connection, cast(object, conn)), tmp_path, frozenset({"person"}), fmt="csv")
 
-    statement = conn._cursor.copy_calls[0].as_string(None)
+    statement = cast(Composed, conn._cursor.copy_calls[0]).as_string(None)
     assert statement == 'COPY "public"."person" ("person_id", "gender_concept_id") FROM STDIN WITH (FORMAT csv, HEADER, NULL \'\')'
 
 
@@ -101,5 +103,51 @@ def test_copy_dir_uses_the_files_own_header_order_not_the_tables(tmp_path: Path)
 
     copy_dir(cast(psycopg.Connection, cast(object, conn)), tmp_path, frozenset({"person"}), fmt="csv")
 
-    statement = conn._cursor.copy_calls[0].as_string(None)
+    statement = cast(Composed, conn._cursor.copy_calls[0]).as_string(None)
     assert statement == 'COPY "public"."person" ("gender_concept_id", "person_id") FROM STDIN WITH (FORMAT csv, HEADER, NULL \'\')'
+
+
+def test_copy_dir_prefers_parquet_over_csv_for_the_same_table(tmp_path: Path):
+    pl.DataFrame({"concept_id": ["1"], "concept_name": ["x"]}).write_parquet(tmp_path / "CONCEPT.parquet")
+    (tmp_path / "CONCEPT.csv").write_text("concept_id\tconcept_name\n2\ty\n")
+    conn = _FakeConnection()
+
+    copy_dir(cast(psycopg.Connection, cast(object, conn)), tmp_path, frozenset({"concept"}), fmt="text")
+
+    assert len(conn._cursor.copy_calls) == 1
+    # the parquet row (concept_id=1), not the csv row (concept_id=2)
+    assert b"1,x" in conn._cursor.copies[0].written
+    assert b"2" not in conn._cursor.copies[0].written
+
+
+def test_copy_dir_parquet_path_always_uses_format_csv_regardless_of_fmt(tmp_path: Path):
+    # fmt="text" is what the vocab COPY call passes for its CSV fallback,
+    # but a parquet source is always transcoded to CSV in memory, so the
+    # actual COPY statement must say FORMAT csv either way.
+    pl.DataFrame({"concept_id": ["1"]}).write_parquet(tmp_path / "CONCEPT.parquet")
+    conn = _FakeConnection()
+
+    copy_dir(cast(psycopg.Connection, cast(object, conn)), tmp_path, frozenset({"concept"}), fmt="text")
+
+    statement = cast(Composed, conn._cursor.copy_calls[0]).as_string(None)
+    assert statement == 'COPY "public"."concept" ("concept_id") FROM STDIN WITH (FORMAT csv, HEADER, NULL \'\')'
+
+
+def test_copy_dir_parquet_path_writes_every_row_with_one_header(tmp_path: Path):
+    pl.DataFrame({"a": ["1", "2", "3"], "b": ["x", "y", "z"]}).write_parquet(tmp_path / "T.parquet")
+    conn = _FakeConnection()
+
+    copy_dir(cast(psycopg.Connection, cast(object, conn)), tmp_path, frozenset({"t"}), fmt="csv")
+
+    written = conn._cursor.copies[0].written.decode()
+    assert written == "a,b\n1,x\n2,y\n3,z\n"
+
+
+def test_copy_dir_parquet_null_becomes_empty_field(tmp_path: Path):
+    pl.DataFrame({"a": ["1", None]}).write_parquet(tmp_path / "T.parquet")
+    conn = _FakeConnection()
+
+    copy_dir(cast(psycopg.Connection, cast(object, conn)), tmp_path, frozenset({"t"}), fmt="csv")
+
+    written = conn._cursor.copies[0].written.decode()
+    assert written == "a\n1\n\n"

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import cast
 
 import psycopg
+from psycopg.sql import Composed
 
 from omop_etl.db.core.sql import apply_sql_file, drop_tables
 
@@ -41,7 +42,7 @@ def test_drop_tables_names_every_table_and_cascades():
 
     drop_tables(cast(psycopg.Connection, cast(object, conn)), frozenset({"person", "measurement"}))
 
-    statement = conn.executed[0].as_string(None)
+    statement = cast(Composed, conn.executed[0]).as_string(None)
     assert statement == 'DROP TABLE IF EXISTS "public"."measurement", "public"."person" CASCADE'
 
 
