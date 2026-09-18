@@ -33,11 +33,11 @@ SYNTHETIC_DATA = DATA_ROOT / "synthetic"
 def _resolve_athena_dir() -> Path:
     """
     ATHENA_DIR from env, resolved relative to PROJECT_ROOT if the env value is a
-    relative path. Absolute paths are used as-is. Falls back to DATA_ROOT / "athena_vocab".
+    relative path. Absolute paths are used as-is. Falls back to DATA_ROOT / "athena".
     """
     env_val = os.getenv("ATHENA_DIR")
     if env_val is None:
-        return DATA_ROOT / "athena_vocab"
+        return DATA_ROOT / "athena"
     p = Path(env_val)
     return p if p.is_absolute() else PROJECT_ROOT / p
 

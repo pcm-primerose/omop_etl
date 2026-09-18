@@ -15,8 +15,8 @@ from _dist_common import IMAGES_DIR, ROOT, RUN_OUT_DIR, print_dist_contents
 
 RUN_DIR = ROOT / "scripts" / "run"
 RUN_SCRIPTS = (
-    "run_podman.sh",
-    "run_apptainer.sh",
+    "podman_run.sh",
+    "apptainer_run.sh",
     "setup_podman_persistence.sh",
 )
 
@@ -35,6 +35,8 @@ def main() -> None:
     _run_build_script("build_db.py", "sif")
 
     print("==> copying run scripts")
+    shutil.rmtree(RUN_OUT_DIR)
+    RUN_OUT_DIR.mkdir()
     for name in RUN_SCRIPTS:
         shutil.copy2(RUN_DIR / name, RUN_OUT_DIR / name)
         (RUN_OUT_DIR / name).chmod(0o755)
@@ -42,7 +44,7 @@ def main() -> None:
     print("==> done")
     print_dist_contents(IMAGES_DIR)
     print_dist_contents(RUN_OUT_DIR)
-    print("\nNOTE: dist/ has no athena_vocab/ or mappings/ yet: run sync_dist_data.py to add them.")
+    print("\nNOTE: dist/ has no athena/ or mappings/ yet: run sync_dist_data.py to add them.")
 
 
 if __name__ == "__main__":

@@ -3,13 +3,15 @@
 # Single podman entry-point: starts the OMOP DB (if not already running)
 # and runs the ETL against it.
 #
-#   scripts/run/run_podman.sh --input REL_PATH [--trial NAME]
+#   scripts/run/podman_run.sh --input REL_PATH [--trial NAME]
 #
 # REL_PATH is relative to DATA_ROOT e.g. if some eCRF data is
-# in /data/durable/some_path, pass --input some_path. 
+# in /data/durable/some_path, pass --input some_path.
 #
 # DATA_ROOT is bind-mounted once and everything under it (athena,
-# mappings, output, input) are subpaths inside the container.
+# mappings, output, input) are subpaths inside the container. 
+# athena/, mappings/ and run/ below match dist/'s dirnames so
+# the whole dist/ dir unzips straight into DATA_ROOT/omop/ with no renaming.
 
 set -euo pipefail
 
@@ -28,12 +30,13 @@ POSTGRES_DB="omop"
 POSTGRES_USER="omop"
 POSTGRES_PASSWORD="omop"
 
-INPUT_SUBDIR="" TRIAL="IMPRESS"
+INPUT_SUBDIR="" TRIAL="IMPRESS" TARGET_BIOMARKER=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --input) INPUT_SUBDIR="$2"; shift 2 ;;
         --trial) TRIAL="$2"; shift 2 ;;
+        --target-biomarker) TARGET_BIOMARKER="$2"; shift 2 ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
     esac
 done
@@ -71,6 +74,17 @@ done
 
 DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DB_NAME}:5432/${POSTGRES_DB}"
 
+etl_args=(
+    load
+    --input "/data/${INPUT_SUBDIR}"
+    --outdir "/data/${OUTPUT_SUBDIR}"
+    --athena-dir "/data/${ATHENA_SUBDIR}"
+    --mapping-dir "/data/${MAPPINGS_SUBDIR}"
+    --trial "${TRIAL}"
+    --log-level INFO
+)
+[[ -n "${TARGET_BIOMARKER}" ]] && etl_args+=(--target-biomarker "${TARGET_BIOMARKER}")
+
 echo "==> running ETL"
 podman run --rm \
     --network "${NET}" \
@@ -78,10 +92,4 @@ podman run --rm \
     -e PYTHONUNBUFFERED=1 \
     -e DATABASE_URL="${DATABASE_URL}" \
     "${ETL_IMAGE}" \
-    etl load \
-        --input "/data/${INPUT_SUBDIR}" \
-        --outdir "/data/${OUTPUT_SUBDIR}" \
-        --athena-dir "/data/${ATHENA_SUBDIR}" \
-        --mapping-dir "/data/${MAPPINGS_SUBDIR}" \
-        --trial "${TRIAL}" \
-        --log-level INFO
+    "${etl_args[@]}"

@@ -1,8 +1,10 @@
 import argparse
+from logging import getLogger
 from pathlib import Path
 from dotenv import load_dotenv
 
 from omop_etl.db.service import DbLoadService
+from omop_etl.harmonization.core.cohort_lookups import load_cohort_lookups
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.io.types import Layout
@@ -19,6 +21,19 @@ from omop_etl.vocabulary.service import VocabularyResult, VocabularyService
 from omop_etl.omop.service import OmopService
 from omop_etl.omop.core.io import OmopTableExporter
 from omop_etl.omop.models.tables import OmopTables
+
+log = getLogger(__name__)
+
+
+def _resolve_target_biomarker(value: str | None) -> str | None:
+    """Casefold and validate against the harmonized biomarker vocabulary, failing on a typo."""
+    if value is None:
+        return None
+    wanted = value.casefold()
+    known = {v.casefold() for v in load_cohort_lookups().biomarker.values()}
+    if wanted not in known:
+        raise SystemExit(f"Unknown --target-biomarker {value!r}; not a harmonized biomarker value.")
+    return wanted
 
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str, meta: RunMetadata) -> HarmonizedData:
@@ -90,6 +105,7 @@ def _build_tables(
 def cmd_load(args: argparse.Namespace) -> int:
     configure_logger(level=args.log_level)
     meta = RunMetadata.create(args.trial)
+    wanted_biomarker = _resolve_target_biomarker(args.target_biomarker)
 
     # The ETL must never run on invalid mappings: this validates the mapping files
     # against Athena and raises before anything else runs if there's a problem.
@@ -105,6 +121,14 @@ def cmd_load(args: argparse.Namespace) -> int:
         trial=args.trial,
         meta=meta,
     )
+
+    if wanted_biomarker is not None:
+        harmonized = harmonized.filter(
+            lambda p: p.cohort is not None and p.cohort.target_biomarker is not None and p.cohort.target_biomarker.casefold() == wanted_biomarker
+        )
+        if not harmonized.patients:
+            raise SystemExit(f"No patients matched --target-biomarker {args.target_biomarker!r}, stopping before OMOP build.")
+        log.info(f"--target-biomarker {args.target_biomarker!r} matched {len(harmonized.patients)} patients")
 
     _build_tables(
         harmonized,
@@ -140,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     load.add_argument("--trial", default="IMPRESS")
     load.add_argument("--athena-dir", type=Path, required=True, help="Dir containing this release's Athena CSVs (CONCEPT.csv, VOCABULARY.csv, ...)")
     load.add_argument("--mapping-dir", type=Path, required=True, help="Dir containing static.csv/structural.csv/semantic.csv")
+    load.add_argument("--target-biomarker", default=None, help="Only load patients whose Cohort.target_biomarker matches this (case-insensitive)")
 
     load.add_argument("--dsn", default=None)
     load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping")
