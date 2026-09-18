@@ -1,0 +1,18 @@
+# etl.Dockerfile only needs src/, pyproject.toml, uv.lock and README.md
+.git
+.data
+dist
+.dist-cache
+.idea
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+tests
+docs
+scripts
+mappings
+todo.todo
+*.md
+!README.md

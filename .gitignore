@@ -19,3 +19,5 @@ perf_profile.json
 .complexipy_cache/
 /docs
 .coverage
+/dist
+.dist-cache

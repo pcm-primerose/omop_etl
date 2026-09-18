@@ -1,6 +1,6 @@
 import polars as pl
 
-from src.omop_etl.preprocessing.core.models import (
+from omop_etl.preprocessing.core.models import (
     EcrfConfig,
     PreprocessingRunOptions,
 )
