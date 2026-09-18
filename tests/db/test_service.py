@@ -1,6 +1,8 @@
 from pathlib import Path
+from typing import cast
 import psycopg
 import pytest
+from psycopg.sql import Composed
 
 import omop_etl.db.service as service
 from omop_etl.db.core.tables import ALL_TABLES, VOCAB_TABLES
@@ -158,7 +160,26 @@ def test_reuse_vocab_only_copies_clinical_data(monkeypatch: pytest.MonkeyPatch, 
 def test_load_analyzes_after_everything_else(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     _, load_conn = _run_load(monkeypatch, tmp_path, existing_version="v5.0")
 
-    assert load_conn.executed == ["ANALYZE"]
+    assert load_conn.executed[-1] == "ANALYZE"
+
+
+def test_load_tunes_the_session_before_anything_else(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    _, load_conn = _run_load(monkeypatch, tmp_path, existing_version="v5.0")
+
+    assert len(load_conn.executed) == 4  # 3 tuning statements + ANALYZE
+
+
+def test_tune_for_bulk_load_sets_expected_session_parameters():
+    conn = _FakeLoadConn()
+
+    DbLoadService._tune_for_bulk_load(cast(psycopg.Connection, cast(object, conn)))
+
+    statements = [s.as_string(None) if isinstance(s, Composed) else s for s in conn.executed]
+    assert statements == [
+        f"SET maintenance_work_mem = '{service.MAINTENANCE_WORK_MEM}'",
+        f"SET max_parallel_maintenance_workers = {service.MAX_PARALLEL_MAINTENANCE_WORKERS}",
+        "SET synchronous_commit = off",
+    ]
 
 
 def test_existing_vocabulary_version_is_none_when_cdm_source_is_missing(monkeypatch: pytest.MonkeyPatch):
