@@ -20,12 +20,12 @@ TAR = IMAGES_DIR / f"{IMAGE}-amd64-{TAG}.tar"
 SIF = IMAGES_DIR / f"{IMAGE}-amd64-{TAG}.sif"
 
 
-def build_arm64() -> None:
-    docker_build_and_save("linux/arm64", f"{IMAGE}:arm64-{TAG}", DOCKERFILE, ROOT, ARM_TAR)
+def build_arm64(*, no_cache: bool = False) -> None:
+    docker_build_and_save("linux/arm64", f"{IMAGE}:arm64-{TAG}", DOCKERFILE, ROOT, ARM_TAR, no_cache=no_cache)
 
 
-def build_amd64() -> None:
-    docker_build_and_save("linux/amd64", f"{IMAGE}:amd64-{TAG}", DOCKERFILE, ROOT, TAR)
+def build_amd64(*, no_cache: bool = False) -> None:
+    docker_build_and_save("linux/amd64", f"{IMAGE}:amd64-{TAG}", DOCKERFILE, ROOT, TAR, no_cache=no_cache)
 
 
 def build_sif() -> None:
@@ -37,12 +37,13 @@ def build_sif() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["arm64", "amd64", "sif", "all"], nargs="?", default="amd64")
+    parser.add_argument("--no-cache", "-nc", action="store_true", help="force a full rebuild, ignoring docker's layer cache")
     args = parser.parse_args()
 
     if args.mode in ("arm64", "all"):
-        build_arm64()
+        build_arm64(no_cache=args.no_cache)
     if args.mode in ("amd64", "all"):
-        build_amd64()
+        build_amd64(no_cache=args.no_cache)
     if args.mode in ("sif", "all"):
         build_sif()
 

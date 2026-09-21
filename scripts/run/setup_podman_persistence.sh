@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # One-time VM setup so the OMOP DB container survives a reboot without
-# anyone needing to be logged in first. This needs to be re-run for a
-# ny account using the DB container
+# anyone needing to be logged in first. This needs to be re-run for any
+# account using the DB container
 #
 #   scripts/run/setup_podman_persistence.sh
 #
@@ -13,9 +13,8 @@
 #   session for this user ends, and nothing runs again at boot at all
 #   (`loginctl show-user $USER --property=Linger` was `Linger=no`).
 # - `podman-restart.service` is what revives any container with a
-#   --restart policy (run_db_podman.sh already sets --restart=always) once
+#   --restart policy (podman_run.sh already sets --restart=always) once
 #   that session comes up (also disabled on the VM).
-
 set -euo pipefail
 
 echo "==> enabling lingering for $(whoami)"
@@ -28,4 +27,4 @@ echo "==> verifying"
 loginctl show-user "$(whoami)" --property=Linger
 systemctl --user is-enabled podman-restart.service
 
-echo "==> done: the DB container will survive a VM reboot with nobody logged in"
+echo "==> done"

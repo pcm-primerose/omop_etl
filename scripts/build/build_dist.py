@@ -21,17 +21,21 @@ RUN_SCRIPTS = (
 )
 
 
-def _run_build_script(name: str, mode: str) -> None:
-    subprocess.run(["uv", "run", "python", str(Path(__file__).parent / name), mode], check=True, cwd=ROOT)
+def _run_build_script(name: str, mode: str, *, no_cache: bool = False) -> None:
+    cmd = ["uv", "run", "python", str(Path(__file__).parent / name), mode]
+    if no_cache:
+        cmd.append("--no-cache")
+    subprocess.run(cmd, check=True, cwd=ROOT)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.parse_args()
+    parser.add_argument("--no-cache", "-nc", action="store_true", help="force a full rebuild, ignoring docker's layer cache")
+    args = parser.parse_args()
 
-    _run_build_script("build_etl.py", "amd64")
+    _run_build_script("build_etl.py", "amd64", no_cache=args.no_cache)
     _run_build_script("build_etl.py", "sif")
-    _run_build_script("build_db.py", "amd64")
+    _run_build_script("build_db.py", "amd64", no_cache=args.no_cache)
     _run_build_script("build_db.py", "sif")
 
     print("==> copying run scripts")

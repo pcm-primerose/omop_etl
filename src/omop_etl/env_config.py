@@ -66,7 +66,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 SYNTHETIC_DATASETS: dict[str, Path] = {
     "impress_150": SYNTHETIC_DATA / "impress_150",
     "impress_1k": SYNTHETIC_DATA / "impress_1k",
-    "impress_nonv600": SYNTHETIC_DATA / "impress_nonv600",
+    "brafnonv600": SYNTHETIC_DATA / "impress_nonv600",
 }
 
 

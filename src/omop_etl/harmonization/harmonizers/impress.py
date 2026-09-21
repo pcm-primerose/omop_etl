@@ -908,13 +908,31 @@ class ImpressHarmonizer(BaseHarmonizer):
 
         def coerce_types(frame: pl.DataFrame) -> pl.DataFrame:
             """Cast non-processed cols"""
+            # TR_TRODSTOT is a free-text field: seen so far as a plain number,
+            # a number with a "mg" unit suffix, and unresolvable multi-value
+            # entries (a range "190-350", a ratio "40/100"). The unit is
+            # stripped, anything else that still doesn't parse as one number
+            # becomes null rather than guessing, since the drug exposure
+            # builder needs a single dose
+            oral_dose_raw = pl.col("TR_TRODSTOT").cast(pl.Utf8, strict=False)
+            oral_dose_cleaned = oral_dose_raw.str.replace(r"(?i)\s*mg\s*$", "").str.strip_chars()
+            oral_dose = oral_dose_cleaned.cast(pl.Float64, strict=False)
+
+            unparseable = frame.filter(oral_dose_raw.is_not_null() & oral_dose.is_null())
+            for row in unparseable.select("SubjectId", "TR_TRODSTOT").iter_rows(named=True):
+                log.warning(
+                    "Oral dose parse: %r for subject %s doesn't parse as a single number, setting to null",
+                    row["TR_TRODSTOT"],
+                    row["SubjectId"],
+                )
+
             _coerced = frame.with_columns(
                 pl.col("TR_TRNAME").cast(pl.Utf8).alias(cols.SOURCE_TREATMENT_NAME),
                 pl.col("TR_TRTNO").cast(pl.Int64).alias(cols.TREATMENT_NUMBER),
                 pl.col("TR_TRCNO1").cast(pl.Int64).alias(cols.CYCLE_NUMBER),
                 pl.col("TR_TRIVDS1").cast(pl.Utf8).alias(cols.IV_DOSE_PRESCRIBED),
                 pl.col("TR_TRIVU1").cast(pl.Utf8).alias(cols.IV_DOSE_PRESCRIBED_UNIT),
-                pl.col("TR_TRODSTOT").cast(pl.Float64).alias(cols.ORAL_DOSE_PRESCRIBED_PER_DAY),
+                oral_dose.alias(cols.ORAL_DOSE_PRESCRIBED_PER_DAY),
                 pl.col("TR_TRODSU").cast(pl.Utf8).alias(cols.ORAL_DOSE_UNIT),
                 pl.col("TR_TROREA").cast(pl.Utf8).alias(cols.REASON_NOT_ADMINISTERED_TO_SPEC),
                 pl.col("TR_TROSPE").cast(pl.Utf8).alias(cols.REASON_TABLET_NOT_TAKEN),

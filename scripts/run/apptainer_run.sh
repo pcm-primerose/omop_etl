@@ -3,7 +3,7 @@
 # Single apptainer entry-point: starts the OMOP DB instance (if not
 # already running) and runs the ETL against it. Mirrors podman_run.sh.
 #
-#   scripts/run/apptainer_run.sh --input REL_PATH [--trial NAME]
+#   scripts/run/apptainer_run.sh [--trial NAME]
 #
 # apptainer instances share the host network by default, so the ETL just
 # connects to localhost.
@@ -18,32 +18,32 @@
 
 set -euo pipefail
 
-DATA_ROOT="${DATA_ROOT:-/data/durable}"
+DATA_ROOT="${DATA_ROOT:-/tsd/p2828/data/durable}"
 OMOP_SUBDIR="omop"
-ATHENA_SUBDIR="${OMOP_SUBDIR}/athena"
-MAPPINGS_SUBDIR="${OMOP_SUBDIR}/mappings"
+IMAGES_DIR="${OMOP_SUBDIR}/dist/images"
+ATHENA_SUBDIR="${OMOP_SUBDIR}/dist/athena"
+MAPPINGS_SUBDIR="${OMOP_SUBDIR}/dist/mappings"
 OUTPUT_SUBDIR="${OMOP_SUBDIR}/output"
 PGDATA_SUBDIR="${OMOP_SUBDIR}/pgdata"
+INPUT_SUBDIR="impress_ecrf/OUS_20260619_091637.xlsx"
 
-DB_SIF="${DB_SIF:-./omop-db-amd64-latest.sif}"
-ETL_SIF="${ETL_SIF:-./omop-etl-amd64-latest.sif}"
+DB_SIF="${DB_SIF:-${DATA_ROOT}/${IMAGES_DIR}/omop-db-amd64-latest.sif}"
+ETL_SIF="${ETL_SIF:-${DATA_ROOT}/${IMAGES_DIR}/omop-etl-amd64-latest.sif}"
 INSTANCE="omop-db"
 POSTGRES_DB="omop"
 POSTGRES_USER="omop"
 POSTGRES_PASSWORD="omop"
 
-INPUT_SUBDIR="" TRIAL="IMPRESS" TARGET_BIOMARKER=""
+TRIAL="IMPRESS" TARGET_BIOMARKER=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --input) INPUT_SUBDIR="$2"; shift 2 ;;
         --trial) TRIAL="$2"; shift 2 ;;
         --target-biomarker) TARGET_BIOMARKER="$2"; shift 2 ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
     esac
 done
-: "${INPUT_SUBDIR:?--input required, a path relative to ${DATA_ROOT}}"
 
-[[ -d "${DATA_ROOT}/${INPUT_SUBDIR}" ]] || { echo "error: missing ${INPUT_SUBDIR}/ under ${DATA_ROOT}" >&2; exit 1; }
+[[ -e "${DATA_ROOT}/${INPUT_SUBDIR}" ]] || { echo "error: missing ${INPUT_SUBDIR} under ${DATA_ROOT} (dir of CSVs or a single .xlsx)" >&2; exit 1; }
 [[ -d "${DATA_ROOT}/${ATHENA_SUBDIR}" ]] || { echo "error: missing ${ATHENA_SUBDIR}/ under ${DATA_ROOT}" >&2; exit 1; }
 [[ -d "${DATA_ROOT}/${MAPPINGS_SUBDIR}" ]] || { echo "error: missing ${MAPPINGS_SUBDIR}/ under ${DATA_ROOT}" >&2; exit 1; }
 mkdir -p "${DATA_ROOT}/${OUTPUT_SUBDIR}" "${DATA_ROOT}/${PGDATA_SUBDIR}"
@@ -69,6 +69,7 @@ done
 DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}"
 
 etl_args=(
+    etl
     load
     --input "/data/${INPUT_SUBDIR}"
     --outdir "/data/${OUTPUT_SUBDIR}"

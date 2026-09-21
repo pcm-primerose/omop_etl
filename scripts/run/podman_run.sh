@@ -3,23 +3,24 @@
 # Single podman entry-point: starts the OMOP DB (if not already running)
 # and runs the ETL against it.
 #
-#   scripts/run/podman_run.sh --input REL_PATH [--trial NAME]
-#
-# REL_PATH is relative to DATA_ROOT e.g. if some eCRF data is
-# in /data/durable/some_path, pass --input some_path.
+#   scripts/run/podman_run.sh [--trial NAME]
 #
 # DATA_ROOT is bind-mounted once and everything under it (athena,
-# mappings, output, input) are subpaths inside the container. 
-# athena/, mappings/ and run/ below match dist/'s dirnames so
-# the whole dist/ dir unzips straight into DATA_ROOT/omop/ with no renaming.
+# mappings, output, input) are subpaths inside the container. athena/,
+# mappings/ and run/ below match dist/'s dirnames so the whole dist/ dir
+# unzips straight into DATA_ROOT/omop/ with no renaming.
 
 set -euo pipefail
 
-DATA_ROOT="${DATA_ROOT:-/data/durable}"
-OMOP_SUBDIR="omop"
-ATHENA_SUBDIR="${OMOP_SUBDIR}/athena"
-MAPPINGS_SUBDIR="${OMOP_SUBDIR}/mappings"
-OUTPUT_SUBDIR="${OMOP_SUBDIR}/output"
+DATA_ROOT="${DATA_ROOT:-/tsd/p2828/data/durable}"
+CLUSTER_ROOT="${CLUSTER_ROOT:-/tsd/p2828/cluster}"
+
+OMOP_SUBDIR="${OMOP_SUBDIR:-omop}"
+IMAGES_DIR="${IMAGES_DIR:-${OMOP_SUBDIR}/dist/images}"
+ATHENA_SUBDIR="${ATHENA_SUBDIR:-${OMOP_SUBDIR}/dist/athena}"
+MAPPINGS_SUBDIR="${MAPPINGS_SUBDIR:-${OMOP_SUBDIR}/dist/mappings}"
+OUTPUT_SUBDIR="${OUTPUT_SUBDIR:-${OMOP_SUBDIR}/output}"
+INPUT_SUBDIR="${INPUT_SUBDIR:-impress_ecrf/OUS_20260619_091637.xlsx}"
 
 NET="omop-net"
 DB_NAME="omop-db"
@@ -30,22 +31,24 @@ POSTGRES_DB="omop"
 POSTGRES_USER="omop"
 POSTGRES_PASSWORD="omop"
 
-INPUT_SUBDIR="" TRIAL="IMPRESS" TARGET_BIOMARKER=""
+TRIAL="IMPRESS" TARGET_BIOMARKER=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --input) INPUT_SUBDIR="$2"; shift 2 ;;
         --trial) TRIAL="$2"; shift 2 ;;
         --target-biomarker) TARGET_BIOMARKER="$2"; shift 2 ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
     esac
 done
-: "${INPUT_SUBDIR:?--input required, a path relative to ${DATA_ROOT}}"
 
-[[ -d "${DATA_ROOT}/${INPUT_SUBDIR}" ]] || { echo "error: missing ${INPUT_SUBDIR}/ under ${DATA_ROOT}" >&2; exit 1; }
+[[ -e "${DATA_ROOT}/${INPUT_SUBDIR}" ]] || { echo "error: missing ${INPUT_SUBDIR} under ${DATA_ROOT} (dir of CSVs or a single .xlsx)" >&2; exit 1; }
 [[ -d "${DATA_ROOT}/${ATHENA_SUBDIR}" ]] || { echo "error: missing ${ATHENA_SUBDIR}/ under ${DATA_ROOT}" >&2; exit 1; }
 [[ -d "${DATA_ROOT}/${MAPPINGS_SUBDIR}" ]] || { echo "error: missing ${MAPPINGS_SUBDIR}/ under ${DATA_ROOT}" >&2; exit 1; }
 mkdir -p "${DATA_ROOT}/${OUTPUT_SUBDIR}"
+
+echo "==> loading images"
+podman load -i "${DATA_ROOT}/${IMAGES_DIR}/omop-db-amd64-latest.tar" >/dev/null
+podman load -i "${DATA_ROOT}/${IMAGES_DIR}/omop-etl-amd64-latest.tar" >/dev/null
 
 echo "==> ensuring network and volume"
 podman network exists "${NET}" || podman network create "${NET}"
@@ -75,6 +78,7 @@ done
 DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DB_NAME}:5432/${POSTGRES_DB}"
 
 etl_args=(
+    etl
     load
     --input "/data/${INPUT_SUBDIR}"
     --outdir "/data/${OUTPUT_SUBDIR}"
@@ -88,7 +92,8 @@ etl_args=(
 echo "==> running ETL"
 podman run --rm \
     --network "${NET}" \
-    -v "${DATA_ROOT}:/data:Z" \
+    --security-opt label=disable \
+    -v "${DATA_ROOT}:/data" \
     -e PYTHONUNBUFFERED=1 \
     -e DATABASE_URL="${DATABASE_URL}" \
     "${ETL_IMAGE}" \

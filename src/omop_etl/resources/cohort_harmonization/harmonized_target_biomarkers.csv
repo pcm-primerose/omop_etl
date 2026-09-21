@@ -14,6 +14,8 @@ BRAF fusions,1,BRAF fusion,
 BRAF non-V600,2,BRAFnonV600,
 BRAF Non-V600mut,7,BRAFnonV600,
 BRAF non-V600Emut,0,BRAFnonV600,
+BRAF Non-V600 activating mutations,0,BRAFnonV600
+BRAF Non-V600activating mutations,0,BRAFnonV600
 BRAF nonV600 (BRAF D594G),1,BRAFnonV600,
 BRAF nonV600E,1,BRAFnonV600,
 BRAF nonV600E (15exon),1,BRAFnonV600,

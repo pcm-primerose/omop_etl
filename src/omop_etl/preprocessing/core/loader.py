@@ -62,36 +62,77 @@ class BaseReader(ABC):
         return result.select(expected_cols[: len(present)])
 
     @staticmethod
+    def strip_whitespace(df: pl.DataFrame) -> pl.DataFrame:
+        """
+        Strip leading/trailing whitespace from every Utf8 column.
+
+        Excel exports can carry stray whitespace around an otherwise-clean
+        value (e.g. "2 " instead of "2"), this breaks the patterns in
+        normalize_decimal_commas/normalize_numeric_types.
+        """
+        replacements = [pl.col(col_name).str.strip_chars().alias(col_name) for col_name, dtype in df.schema.items() if dtype == pl.Utf8]
+
+        return df.with_columns(replacements) if replacements else df
+
+    @staticmethod
     def normalize_numeric_types(df: pl.DataFrame) -> pl.DataFrame:
         """
         Normalize numeric string columns to proper numeric types.
 
         This ensures consistency between CSV and Excel inputs by:
         - Converting integer-like strings to Int64 (e.g., "01" -> 1)
-        - Preserving nulls and non-numeric strings
+        - Preserving non-numeric strings
+        - Treating null and blank/whitespace-only strings as missing: Excel
+          represents an empty cell in an otherwise-integer column as "" once
+          the column is read as Utf8, not as null.
         """
 
         int_pattern = re.compile(r"^[+-]?\d+$")
 
-        # find string columns that contain only integers
+        # find string columns that contain only integers (blanks/nulls allowed)
         int_columns = []
 
         for col_name, dtype in df.schema.items():
             if dtype != pl.Utf8:
                 continue
 
-            # check if all non-null values are integer strings
-            is_int_col = df.select((pl.col(col_name).is_null() | pl.col(col_name).str.strip_chars().str.contains(int_pattern.pattern)).all()).item()
+            stripped = pl.col(col_name).str.strip_chars()
+            is_blank_or_null = pl.col(col_name).is_null() | (stripped == "")
+            is_int_col = df.select((is_blank_or_null | stripped.str.contains(int_pattern.pattern)).all()).item()
 
             if is_int_col:
                 int_columns.append(col_name)
 
-        # convert integer string columns to Int64
+        # convert integer string columns to Int64, blanks become null
         if int_columns:
             log.debug(f"Converting string columns to integers: {int_columns}")
-            return df.with_columns([pl.col(col).cast(pl.Int64) for col in int_columns])
+            return df.with_columns(
+                [pl.when(pl.col(col).str.strip_chars() == "").then(None).otherwise(pl.col(col)).cast(pl.Int64).alias(col) for col in int_columns]
+            )
 
         return df
+
+    @staticmethod
+    def normalize_decimal_commas(df: pl.DataFrame) -> pl.DataFrame:
+        """
+        Normalize decimal commas (e.g. "1,5") to periods
+        ("1.5"), so a later explicit .cast(pl.Float64) in a harmonizer
+        succeeds regardless of which decimal separator the source used.
+
+        Only exact <digits>,<digits> values are touched.
+        """
+        decimal_comma_pattern = r"^[+-]?\d+,\d+$"
+
+        replacements = [
+            pl.when(pl.col(col_name).str.contains(decimal_comma_pattern))
+            .then(pl.col(col_name).str.replace(",", "."))
+            .otherwise(pl.col(col_name))
+            .alias(col_name)
+            for col_name, dtype in df.schema.items()
+            if dtype == pl.Utf8
+        ]
+
+        return df.with_columns(replacements) if replacements else df
 
 
 class ExcelReader(BaseReader):
@@ -127,6 +168,8 @@ class ExcelReader(BaseReader):
 
             # normalize schema and types
             df = self.normalize_dataframe(df, source_config.usecols)
+            df = self.strip_whitespace(df)
+            df = self.normalize_decimal_commas(df)
             df = self.normalize_numeric_types(df)
 
             sheet_data = SheetData(key=source_config.key, data=df, input_path=path)

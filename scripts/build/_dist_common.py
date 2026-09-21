@@ -22,9 +22,13 @@ def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
-def docker_build_and_save(platform: str, tag: str, dockerfile: Path, context: Path, tar_path: Path) -> None:
+def docker_build_and_save(platform: str, tag: str, dockerfile: Path, context: Path, tar_path: Path, *, no_cache: bool = False) -> None:
     print(f"==> docker image, {platform}")
-    run(["docker", "buildx", "build", "--platform", platform, "-t", tag, "-f", str(dockerfile), "--load", str(context)])
+    cmd = ["docker", "buildx", "build", "--platform", platform, "-t", tag, "-f", str(dockerfile)]
+    if no_cache:
+        cmd.append("--no-cache")
+    cmd += ["--load", str(context)]
+    run(cmd)
     print(f"==> docker archive -> {tar_path}")
     run(["docker", "save", tag, "-o", str(tar_path)])
 

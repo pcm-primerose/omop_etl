@@ -123,11 +123,15 @@ def cmd_load(args: argparse.Namespace) -> int:
     )
 
     if wanted_biomarker is not None:
+        observed = sorted({biomarker for p in harmonized.patients if (cohort := p.cohort) is not None if (biomarker := cohort.target_biomarker) is not None})
         harmonized = harmonized.filter(
             lambda p: p.cohort is not None and p.cohort.target_biomarker is not None and p.cohort.target_biomarker.casefold() == wanted_biomarker
         )
         if not harmonized.patients:
-            raise SystemExit(f"No patients matched --target-biomarker {args.target_biomarker!r}, stopping before OMOP build.")
+            raise SystemExit(
+                f"No patients matched --target-biomarker {args.target_biomarker!r}, stopping before OMOP build. "
+                f"target_biomarker values actually present in this run: {observed}"
+            )
         log.info(f"--target-biomarker {args.target_biomarker!r} matched {len(harmonized.patients)} patients")
 
     _build_tables(
