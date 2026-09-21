@@ -13,7 +13,6 @@ from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
-from omop_etl.semantic_mapping.core.models import BatchQueryResult
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
 from omop_etl.vocabulary.service import VocabularyResult, VocabularyService
@@ -63,30 +62,25 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str, meta: R
     )
     return harmonized_result
 
-    # todo: move rest of services to here, re-use run context
 
-
-# todo: always use semantic & static (remove args basically)
 def _build_tables(
     harmonized: HarmonizedData,
     meta: RunMetadata,
     outdir: Path,
     *,
     mapping_dir: Path,
-    with_semantic: bool,
     vocabulary_result: VocabularyResult,
 ) -> OmopTables:
     paths = resolve_mapping_paths(mapping_dir)
 
-    semantic_batch: BatchQueryResult | None = None
-    if with_semantic:
-        result = SemanticService().run(harmonized_data=harmonized, meta=meta, trial=meta.trial, semantic_path=paths.semantic)
-        semantic_batch = result.batch_result
+    semantic_result = SemanticService(outdir=outdir, layout=Layout.TRIAL_TIMESTAMP_RUN).run(
+        harmonized_data=harmonized, meta=meta, trial=meta.trial, semantic_path=paths.semantic
+    )
 
     concept_service = ConceptLookupService.from_paths(
         static_path=paths.static,
         structural_path=paths.structural,
-        semantic_batch=semantic_batch,
+        semantic_batch=semantic_result.batch_result,
         meta=meta,
         outdir=outdir,
         layout=Layout.TRIAL_TIMESTAMP_RUN,
@@ -99,7 +93,12 @@ def _build_tables(
         athena_version=vocabulary_result.athena_version,
         outdir=outdir,
     )
-    return omop_service.build(harmonized.patients, meta=meta)
+    tables = omop_service.build(harmonized.patients, meta=meta)
+
+    # concept lookup tracking (missed lookups, coverage stats)
+    concept_service.export(formats="csv")
+
+    return tables
 
 
 def cmd_load(args: argparse.Namespace) -> int:
@@ -139,7 +138,6 @@ def cmd_load(args: argparse.Namespace) -> int:
         meta=meta,
         outdir=args.outdir,
         mapping_dir=args.mapping_dir,
-        with_semantic=args.with_semantic,
         vocabulary_result=vocabulary_result,
     )
 
@@ -171,7 +169,6 @@ def main(argv: list[str] | None = None) -> int:
     load.add_argument("--target-biomarker", default=None, help="Only load patients whose Cohort.target_biomarker matches this (case-insensitive)")
 
     load.add_argument("--dsn", default=None)
-    load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping")
     load.add_argument("--log-level", default="INFO")
     load.set_defaults(func=cmd_load)
 

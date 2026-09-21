@@ -43,7 +43,6 @@ def main() -> int:
         help=f"Dir containing static.csv/structural.csv/semantic.csv. Defaults to {MAPPING_DIR}.",
     )
     parser.add_argument("--dsn", default=os.environ.get("DATABASE_URL", DEFAULT_LOCAL_DSN))
-    parser.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping")
     parser.add_argument("--log-level", default=LOG_LEVEL)
     args = parser.parse_args()
 
@@ -74,8 +73,6 @@ def main() -> int:
     ]
     if args.target_biomarker:
         argv += ["--target-biomarker", args.target_biomarker]
-    if args.with_semantic:
-        argv += ["--with-semantic"]
 
     print(f"==> dataset={dataset_path} trial={args.trial} target_biomarker={args.target_biomarker}")
     return cli_main(argv)
