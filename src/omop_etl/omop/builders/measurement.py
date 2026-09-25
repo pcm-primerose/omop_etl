@@ -12,13 +12,14 @@ from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessmen
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.concept_mapping.core.models import MappedConcept
 from omop_etl.omop.builders.base import OmopBuilder
-from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.builders.helpers.context import BuildContext
 from omop_etl.omop.core.linkage import (
     BuildResult,
     LinkTarget,
     OmopRowReference,
     RowPublication,
     SourceReference,
+    polymorphic_row_key,
 )
 from omop_etl.omop.models.rows import MeasurementRow
 from omop_etl.omop.models.tables import OmopTables
@@ -217,11 +218,12 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
             concept_id: int,
             event_id: int | None,
             field_concept_id: int | None,
+            target_table: str | None,
             *,
             _date: dt.date = date,
             _target: str = target_biomarker,
         ) -> MeasurementRow:
-            return MeasurementRow(
+            measurement_row = MeasurementRow(
                 measurement_id=self.generate_row_id(
                     patient.patient_id,
                     Patient.Singletons.BIOMARKERS,
@@ -239,13 +241,21 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 measurement_event_id=event_id,
                 meas_event_field_concept_id=field_concept_id,
             )
+            if target_table is not None:
+                ctx.record_polymorphic_target(
+                    table=OmopTables.MEASUREMENT,
+                    row_key=polymorphic_row_key(OmopTables.MEASUREMENT, measurement_row),
+                    field="measurement_event_id",
+                    target_table=target_table,
+                )
+            return measurement_row
 
         rows: list[MeasurementRow] = []
         for concept in matches:
             if not targets:
-                rows.append(row(concept.concept_id, None, None))
+                rows.append(row(concept.concept_id, None, None, None))
             else:
-                rows.extend(row(concept.concept_id, t.event_id, t.field_concept_id) for t in targets)
+                rows.extend(row(concept.concept_id, t.event_id, t.field_concept_id, t.target_table) for t in targets)
         return rows
 
     def _build_tumor_assessment_rows(
@@ -299,11 +309,12 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                 def lesion_row(
                     event_id: int | None,
                     field_concept_id: int | None,
+                    target_table: str | None,
                     *,
                     _lesion: MappedConcept = lesion,
                     _date: dt.date = date,
                 ) -> MeasurementRow:
-                    return MeasurementRow(
+                    measurement_row = MeasurementRow(
                         measurement_id=self.generate_row_id(
                             patient.patient_id,
                             Patient.Collections.TUMOR_ASSESSMENTS,
@@ -323,12 +334,20 @@ class MeasurementBuilder(OmopBuilder[MeasurementRow]):
                         measurement_event_id=event_id,
                         meas_event_field_concept_id=field_concept_id,
                     )
+                    if target_table is not None:
+                        ctx.record_polymorphic_target(
+                            table=OmopTables.MEASUREMENT,
+                            row_key=polymorphic_row_key(OmopTables.MEASUREMENT, measurement_row),
+                            field="measurement_event_id",
+                            target_table=target_table,
+                        )
+                    return measurement_row
 
                 targets = self._primary_cancer_link_targets(patient, ctx)
                 if not targets:
-                    rows.append(lesion_row(None, None))
+                    rows.append(lesion_row(None, None, None))
                 else:
-                    rows.extend(lesion_row(t.event_id, t.field_concept_id) for t in targets)
+                    rows.extend(lesion_row(t.event_id, t.field_concept_id, t.target_table) for t in targets)
 
         # tumor assessment response rows (no FK linkage)
         recist = tumor_assessments.recist_response

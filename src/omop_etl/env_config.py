@@ -33,11 +33,11 @@ SYNTHETIC_DATA = DATA_ROOT / "synthetic"
 def _resolve_athena_dir() -> Path:
     """
     ATHENA_DIR from env, resolved relative to PROJECT_ROOT if the env value is a
-    relative path. Absolute paths are used as-is. Falls back to DATA_ROOT / "athena_vocab".
+    relative path. Absolute paths are used as-is. Falls back to DATA_ROOT / "athena".
     """
     env_val = os.getenv("ATHENA_DIR")
     if env_val is None:
-        return DATA_ROOT / "athena_vocab"
+        return DATA_ROOT / "athena"
     p = Path(env_val)
     return p if p.is_absolute() else PROJECT_ROOT / p
 
@@ -62,11 +62,11 @@ MAPPING_DIR = _resolve_mapping_dir()
 # debug for dev, info for prod
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-# synthetic dataset registry: short name -> path
+# synthetic dataset registry
 SYNTHETIC_DATASETS: dict[str, Path] = {
     "impress_150": SYNTHETIC_DATA / "impress_150",
     "impress_1k": SYNTHETIC_DATA / "impress_1k",
-    "impress_nonv600": SYNTHETIC_DATA / "impress_nonv600",
+    "brafnonv600": SYNTHETIC_DATA / "impress_nonv600",
 }
 
 

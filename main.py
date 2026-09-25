@@ -1,134 +1,35 @@
 import argparse
-from logging import getLogger
+import os
 from pathlib import Path
 
-from omop_etl.concept_mapping.service import ConceptLookupService
-from omop_etl.harmonization.models.harmonized import HarmonizedData
-from omop_etl.infra.io.types import Layout
-from omop_etl.infra.utils.run_context import RunMetadata
-from omop_etl.harmonization.service import HarmonizationService
-from omop_etl.infra.logging.logging_setup import configure_logger
-from omop_etl.omop.service import OmopService
-from omop_etl.preprocessing.service import (
-    make_ecrf_config,
-    PreprocessService,
-)
-from omop_etl.preprocessing.core.models import PreprocessResult
-from omop_etl.semantic_mapping.service import SemanticService
-from omop_etl.semantic_mapping.core.models import SemanticMappingResult
-from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
+from omop_etl.cli.main import main as cli_main
 from omop_etl.env_config import (
     ATHENA_DIR,
     DATA_ROOT,
     DEFAULT_DATASET,
+    LOG_LEVEL,
     MAPPING_DIR,
     SYNTHETIC_DATASETS,
     resolve_dataset,
-    LOG_LEVEL,
 )
-from omop_etl.vocabulary.service import VocabularyService, VocabularyResult
 
-log = getLogger(__name__)
-
-
-def run_pipeline(preprocessing_input: Path, base_root: Path, athena_dir: Path, mapping_dir: Path, trial: str = "IMPRESS") -> int:
-    """
-    End-to-end run of OMOP ETL.
-    """
-    base_root.mkdir(parents=True, exist_ok=True)
-    paths = resolve_mapping_paths(mapping_dir)
-
-    # set up configs & meta
-    ecrf_config = make_ecrf_config(trial=trial)
-    _meta = RunMetadata.create(trial)
-
-    # validate mappings against Athena and hydrate the concept lookup vocabulary,
-    # raises and stops the pipeline before anything else runs if mappings are invalid
-    vocabulary_service = VocabularyService(
-        outdir=base_root,
-        athena_dir=athena_dir,
-        mapping_files=paths.as_list(),
-    )
-    vocabulary_result: VocabularyResult = vocabulary_service.run(_meta)
-    log.info("Validated mappings against Athena %s", vocabulary_result.athena_version)
-
-    # run preprocessing
-    preprocessor = PreprocessService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
-    preprocessing_result: PreprocessResult = preprocessor.run(
-        trial=trial,
-        input_path=preprocessing_input,
-        config=ecrf_config,
-        formats="csv",
-        meta=_meta,
-        combine_key="SubjectId",
-        filter_valid_cohorts=True,
-    )
-
-    # run harmonization
-    harmonizer = HarmonizationService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
-    harmonized_result: HarmonizedData = harmonizer.run(
-        trial=trial,
-        input_path=preprocessing_result.output_path.data_file,
-        formats="csv",
-        write_wide=True,
-        write_normalized=True,
-        meta=_meta,
-    )
-
-    # print(f"Harmonized: {harmonized_result.patients[0:10]}")
-
-    # run semantic mapping
-    semantic_mapper = SemanticService(outdir=base_root, layout=Layout.TRIAL_TIMESTAMP_RUN)
-    semantic_result: SemanticMappingResult = semantic_mapper.run(
-        trial=trial,
-        input_path=None,
-        harmonized_data=harmonized_result,
-        meta=_meta,
-        semantic_path=paths.semantic,
-        write_output=True,
-    )
-
-    # concept lookup service: loads static/structural mappings, tracks lookups
-    concept_service = ConceptLookupService.from_paths(
-        static_path=paths.static,
-        structural_path=paths.structural,
-        semantic_batch=semantic_result.batch_result,
-        meta=_meta,
-        outdir=base_root,
-        layout=Layout.TRIAL_TIMESTAMP_RUN,
-    )
-
-    # build OMOP rows using the concept service
-    omop_service = OmopService(
-        concepts=concept_service,
-        vocabulary=vocabulary_result.vocabulary,
-        concept_ancestor=vocabulary_result.concept_ancestor,
-        athena_version=vocabulary_result.athena_version,
-    )
-    tables = omop_service.build(harmonized_result.patients)
-    # print(f"cohort: {tables.location}")
-
-    # export concept lookup tracking (missed lookups, coverage stats)
-    concept_service.export(formats="csv")
-
-    # just use a static default for testing locally
-    # todo: integrate later
-    dsn = "postgresql://omop:omop@localhost:5433/omop"
-    if not dsn:
-        raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
-
-    # writer = PostgresOmopWriter(dsn=dsn, truncate_first=True)
-    # writer.write(tables)
-    return 0
+DEFAULT_LOCAL_DSN = "postgresql://omop:omop@localhost:5433/omop"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="OMOP ETL pipeline")
+    """
+    Local dev convenience wrapper around `etl load` (src/omop_etl/cli/main.py):
+    resolves --dataset/.env defaults into the real CLI args and delegates the
+    actual pipeline run to it.
+    """
+    parser = argparse.ArgumentParser(description="OMOP ETL pipeline (local dev wrapper around `etl load`)")
     parser.add_argument(
         "--dataset",
         default=None,
         help=f"Dataset name ({', '.join(SYNTHETIC_DATASETS)}) or explicit path. Defaults to 'impress_150'.",
     )
+    parser.add_argument("--trial", default="IMPRESS")
+    parser.add_argument("--target-biomarker", default=None)
     parser.add_argument(
         "--athena-dir",
         type=Path,
@@ -141,6 +42,8 @@ def main() -> int:
         default=MAPPING_DIR,
         help=f"Dir containing static.csv/structural.csv/semantic.csv. Defaults to {MAPPING_DIR}.",
     )
+    parser.add_argument("--dsn", default=os.environ.get("DATABASE_URL", DEFAULT_LOCAL_DSN))
+    parser.add_argument("--log-level", default=LOG_LEVEL)
     args = parser.parse_args()
 
     dataset_path = resolve_dataset(args.dataset) if args.dataset else DEFAULT_DATASET
@@ -150,14 +53,29 @@ def main() -> int:
         parser.error(f"Athena dir does not exist: {args.athena_dir}")
     if not args.mapping_dir.exists():
         parser.error(f"Mapping dir does not exist: {args.mapping_dir}")
-    configure_logger(level=LOG_LEVEL)
 
-    return run_pipeline(
-        preprocessing_input=dataset_path,
-        base_root=DATA_ROOT,
-        athena_dir=args.athena_dir,
-        mapping_dir=args.mapping_dir,
-    )
+    argv = [
+        "load",
+        "--input",
+        str(dataset_path),
+        "--outdir",
+        str(DATA_ROOT),
+        "--trial",
+        args.trial,
+        "--athena-dir",
+        str(args.athena_dir),
+        "--mapping-dir",
+        str(args.mapping_dir),
+        "--dsn",
+        args.dsn,
+        "--log-level",
+        args.log_level,
+    ]
+    if args.target_biomarker:
+        argv += ["--target-biomarker", args.target_biomarker]
+
+    print(f"==> dataset={dataset_path} trial={args.trial} target_biomarker={args.target_biomarker}")
+    return cli_main(argv)
 
 
 if __name__ == "__main__":

@@ -933,6 +933,47 @@ class TestProcessTreatmentCycle:
         assert row.item(0, "number_of_days_tablet_not_taken") == 3
         assert row.item(0, "reason_tablet_not_taken") == "nausea"
 
+    def test_oral_dose_strips_mg_unit_and_nulls_unparseable_ranges(self):
+        """
+        Entries with no single dose for a single (non-combination) drug, so there's nothing to split
+        into per-ingredient doses. These should null out rather than crash or guess.
+        """
+        from dataclasses import asdict
+        from tests.harmonization.conftest import TreatmentCycleRow
+
+        oral_kwargs = dict(
+            TR_TRNAME="Oral Drug",
+            TR_TRTNO=1,
+            TR_TRCNO1=1,
+            TR_TRC1_DT="1900-01-01",
+            TR_TROSTPDT="1900-01-20",
+            TR_TRO_YNCD=1,
+            TR_TROTAKECD=0,
+            TR_TRODSU="mg",
+            TR_TROTABNO=3,
+            TR_TROSPE="nausea",
+            TR_TRCYNCD=1,
+        )
+        rows = [
+            TreatmentCycleRow("no_unit", **oral_kwargs, TR_TRODSTOT="150"),  # type: ignore
+            TreatmentCycleRow("with_unit_space", **oral_kwargs, TR_TRODSTOT="200 mg"),  # type: ignore
+            TreatmentCycleRow("with_unit_no_space", **oral_kwargs, TR_TRODSTOT="200mg"),  # type: ignore
+            TreatmentCycleRow("range", **oral_kwargs, TR_TRODSTOT="190-350"),  # type: ignore
+            TreatmentCycleRow("ratio", **oral_kwargs, TR_TRODSTOT="40/100"),  # type: ignore
+        ]
+        data = pl.from_dicts([asdict(r) for r in rows])
+
+        h = ImpressHarmonizer(data=data, trial_id="T")
+        df = h._process_treatment_cycle()
+        assert df is not None
+
+        doses = df.select("SubjectId", "oral_dose_prescribed_per_day").sort("SubjectId")
+        assert doses.filter(pl.col("SubjectId") == "no_unit").item(0, "oral_dose_prescribed_per_day") == 150.0
+        assert doses.filter(pl.col("SubjectId") == "with_unit_space").item(0, "oral_dose_prescribed_per_day") == 200.0
+        assert doses.filter(pl.col("SubjectId") == "with_unit_no_space").item(0, "oral_dose_prescribed_per_day") == 200.0
+        assert doses.filter(pl.col("SubjectId") == "range").item(0, "oral_dose_prescribed_per_day") is None
+        assert doses.filter(pl.col("SubjectId") == "ratio").item(0, "oral_dose_prescribed_per_day") is None
+
     def test_both_modalities_subject_has_iv_and_oral_rows(self, treatment_cycle_fixture):
         """
         `both_modalities` has 2 rows under different TR_TRTNO values: one IV

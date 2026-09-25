@@ -114,6 +114,55 @@ class TestBaseReaderNormalization:
         assert result.schema["Value"] == pl.Utf8
         assert result.schema["Code"] == pl.Utf8
 
+    def test_normalize_numeric_types_treats_blank_string_as_null(self):
+        """
+        Excel represents an empty cell in an otherwise-integer column as ""
+        once fastexcel infers the column as Utf8, not as null.
+        This can occur on 0/1 flag columns with one blank row and
+        no other non-numeric values.
+        """
+        df = pl.DataFrame({"TR_TRCYNCD": ["0", "1", "1", "", "0"]})
+
+        result = BaseReader.normalize_numeric_types(df)
+
+        assert result.schema["TR_TRCYNCD"] == pl.Int64
+        assert result["TR_TRCYNCD"].to_list() == [0, 1, 1, None, 0]
+
+    def test_strip_whitespace_removes_stray_padding(self):
+        """
+        Some numerical columns can contain whitespaces, e.g. "2 ",
+        must bt stripped.
+        """
+        df = pl.DataFrame({"TR_TRODSTOT": ["1", "2 ", " 1,5", None], "Other": [" A", "B ", " C ", None]})
+
+        result = BaseReader.strip_whitespace(df)
+
+        assert result["TR_TRODSTOT"].to_list() == ["1", "2", "1,5", None]
+        assert result["Other"].to_list() == ["A", "B", "C", None]
+
+    def test_normalize_decimal_commas_converts_to_periods(self):
+        """
+        Some float columns contains <num,num> patterns e.g. "1,5",
+        instead of being actual floats. Without converting this crashes
+        the harmonizer's explicit .cast(pl.Float64) with "conversion
+        from str to f64 failed".
+        """
+        df = pl.DataFrame({"TR_TRODSTOT": ["1", "1,5", "2", None, "-0,5"]})
+
+        result = BaseReader.normalize_decimal_commas(df)
+
+        assert result["TR_TRODSTOT"].to_list() == ["1", "1.5", "2", None, "-0.5"]
+        # the harmonizer's own explicit cast should now succeed
+        casted = result.with_columns(pl.col("TR_TRODSTOT").cast(pl.Float64))
+        assert casted["TR_TRODSTOT"].to_list() == [1.0, 1.5, 2.0, None, -0.5]
+
+    def test_normalize_decimal_commas_ignores_non_decimal_values(self):
+        df = pl.DataFrame({"Notes": ["A,B", "1,2,3", "N/A", None]})
+
+        result = BaseReader.normalize_decimal_commas(df)
+
+        assert result["Notes"].to_list() == ["A,B", "1,2,3", "N/A", None]
+
     def test_normalize_numeric_types_handles_nulls(self):
         df = pl.DataFrame({"Numbers": ["123", None, "456"], "Mixed": ["123", "abc", None]})
 

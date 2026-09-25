@@ -4,7 +4,7 @@ from logging import getLogger
 from omop_etl.harmonization.models.patient import Patient
 from omop_etl.omop.builders.base import BuildContext, BuildResult, OmopBuilder
 from omop_etl.omop.builders.episode import EpisodeBuilder
-from omop_etl.omop.core.linkage import SourceReference
+from omop_etl.omop.core.linkage import SourceReference, polymorphic_row_key
 from omop_etl.omop.models.rows import EpisodeEventRow
 from omop_etl.omop.models.tables import OmopTables
 
@@ -67,14 +67,19 @@ class EpisodeEventBuilder(OmopBuilder[EpisodeEventRow]):
                         component.natural_key(),
                     ),
                 )
-                rows.extend(
-                    EpisodeEventRow(
+                for target in targets:
+                    row = EpisodeEventRow(
                         episode_id=episode_id,
                         event_id=target.event_id,
                         episode_event_field_concept_id=target.field_concept_id,
                     )
-                    for target in targets
-                )
+                    ctx.record_polymorphic_target(
+                        table=OmopTables.EPISODE_EVENT,
+                        row_key=polymorphic_row_key(OmopTables.EPISODE_EVENT, row),
+                        field="event_id",
+                        target_table=target.target_table,
+                    )
+                    rows.append(row)
 
         return rows
 
@@ -95,14 +100,21 @@ class EpisodeEventBuilder(OmopBuilder[EpisodeEventRow]):
             target_table=OmopTables.CONDITION_OCCURRENCE,
             source_ref=tumor_ref,
         )
-        return [
-            EpisodeEventRow(
+        rows: list[EpisodeEventRow] = []
+        for target in targets:
+            row = EpisodeEventRow(
                 episode_id=disease_episode_id,
                 event_id=target.event_id,
                 episode_event_field_concept_id=target.field_concept_id,
             )
-            for target in targets
-        ]
+            ctx.record_polymorphic_target(
+                table=OmopTables.EPISODE_EVENT,
+                row_key=polymorphic_row_key(OmopTables.EPISODE_EVENT, row),
+                field="event_id",
+                target_table=target.target_table,
+            )
+            rows.append(row)
+        return rows
 
     def _dynamic_measurement_links(self, ctx: BuildContext) -> list[EpisodeEventRow]:
         patient = ctx.patient
@@ -123,13 +135,18 @@ class EpisodeEventBuilder(OmopBuilder[EpisodeEventRow]):
                     target_table=OmopTables.MEASUREMENT,
                     source_ref=SourceReference(patient.patient_id, Patient.Collections.TUMOR_ASSESSMENTS, ta.natural_key()),
                 )
-                rows.extend(
-                    EpisodeEventRow(
+                for target in targets:
+                    row = EpisodeEventRow(
                         episode_id=episode_id,
                         event_id=target.event_id,
                         episode_event_field_concept_id=target.field_concept_id,
                     )
-                    for target in targets
-                )
+                    ctx.record_polymorphic_target(
+                        table=OmopTables.EPISODE_EVENT,
+                        row_key=polymorphic_row_key(OmopTables.EPISODE_EVENT, row),
+                        field="event_id",
+                        target_table=target.target_table,
+                    )
+                    rows.append(row)
 
         return rows

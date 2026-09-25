@@ -1,8 +1,10 @@
 import argparse
+from logging import getLogger
 from pathlib import Path
 from dotenv import load_dotenv
 
-from omop_etl.db.postgres import PostgresOmopWriter
+from omop_etl.db.service import DbLoadService
+from omop_etl.harmonization.core.cohort_lookups import load_cohort_lookups
 from omop_etl.harmonization.models.harmonized import HarmonizedData
 from omop_etl.harmonization.service import HarmonizationService
 from omop_etl.infra.io.types import Layout
@@ -11,13 +13,26 @@ from omop_etl.infra.logging.logging_setup import configure_logger
 from omop_etl.preprocessing.service import make_ecrf_config, PreprocessService
 from omop_etl.preprocessing.core.models import PreprocessResult
 from omop_etl.semantic_mapping.service import SemanticService
-from omop_etl.semantic_mapping.core.models import BatchQueryResult
 from omop_etl.concept_mapping.service import ConceptLookupService
 from omop_etl.infra.utils.mapping_io import resolve_mapping_paths
 from omop_etl.vocabulary.service import VocabularyResult, VocabularyService
 
 from omop_etl.omop.service import OmopService
+from omop_etl.omop.core.io import OmopTableExporter
 from omop_etl.omop.models.tables import OmopTables
+
+log = getLogger(__name__)
+
+
+def _resolve_target_biomarker(value: str | None) -> str | None:
+    """Casefold and validate against the harmonized biomarker vocabulary, failing on a typo."""
+    if value is None:
+        return None
+    wanted = value.casefold()
+    known = {v.casefold() for v in load_cohort_lookups().biomarker.values()}
+    if wanted not in known:
+        raise SystemExit(f"Unknown --target-biomarker {value!r}; not a harmonized biomarker value.")
+    return wanted
 
 
 def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str, meta: RunMetadata) -> HarmonizedData:
@@ -47,30 +62,25 @@ def run_pipeline(preprocessing_input: Path, base_root: Path, trial: str, meta: R
     )
     return harmonized_result
 
-    # todo: move rest of services to here, re-use run context
 
-
-# todo: always use semantic & static (remove args basically)
 def _build_tables(
     harmonized: HarmonizedData,
     meta: RunMetadata,
     outdir: Path,
     *,
     mapping_dir: Path,
-    with_semantic: bool,
     vocabulary_result: VocabularyResult,
 ) -> OmopTables:
     paths = resolve_mapping_paths(mapping_dir)
 
-    semantic_batch: BatchQueryResult | None = None
-    if with_semantic:
-        result = SemanticService().run(harmonized_data=harmonized, meta=meta, trial=meta.trial, semantic_path=paths.semantic)
-        semantic_batch = result.batch_result
+    semantic_result = SemanticService(outdir=outdir, layout=Layout.TRIAL_TIMESTAMP_RUN).run(
+        harmonized_data=harmonized, meta=meta, trial=meta.trial, semantic_path=paths.semantic
+    )
 
     concept_service = ConceptLookupService.from_paths(
         static_path=paths.static,
         structural_path=paths.structural,
-        semantic_batch=semantic_batch,
+        semantic_batch=semantic_result.batch_result,
         meta=meta,
         outdir=outdir,
         layout=Layout.TRIAL_TIMESTAMP_RUN,
@@ -81,13 +91,20 @@ def _build_tables(
         vocabulary=vocabulary_result.vocabulary,
         concept_ancestor=vocabulary_result.concept_ancestor,
         athena_version=vocabulary_result.athena_version,
+        outdir=outdir,
     )
-    return omop_service.build(harmonized.patients)
+    tables = omop_service.build(harmonized.patients, meta=meta)
+
+    # concept lookup tracking (missed lookups, coverage stats)
+    concept_service.export(formats="csv")
+
+    return tables
 
 
 def cmd_load(args: argparse.Namespace) -> int:
     configure_logger(level=args.log_level)
     meta = RunMetadata.create(args.trial)
+    wanted_biomarker = _resolve_target_biomarker(args.target_biomarker)
 
     # The ETL must never run on invalid mappings: this validates the mapping files
     # against Athena and raises before anything else runs if there's a problem.
@@ -104,12 +121,23 @@ def cmd_load(args: argparse.Namespace) -> int:
         meta=meta,
     )
 
-    tables = _build_tables(
+    if wanted_biomarker is not None:
+        observed = sorted({biomarker for p in harmonized.patients if (cohort := p.cohort) is not None if (biomarker := cohort.target_biomarker) is not None})
+        harmonized = harmonized.filter(
+            lambda p: p.cohort is not None and p.cohort.target_biomarker is not None and p.cohort.target_biomarker.casefold() == wanted_biomarker
+        )
+        if not harmonized.patients:
+            raise SystemExit(
+                f"No patients matched --target-biomarker {args.target_biomarker!r}, stopping before OMOP build. "
+                f"target_biomarker values actually present in this run: {observed}"
+            )
+        log.info(f"--target-biomarker {args.target_biomarker!r} matched {len(harmonized.patients)} patients")
+
+    _build_tables(
         harmonized,
         meta=meta,
         outdir=args.outdir,
         mapping_dir=args.mapping_dir,
-        with_semantic=args.with_semantic,
         vocabulary_result=vocabulary_result,
     )
 
@@ -117,8 +145,12 @@ def cmd_load(args: argparse.Namespace) -> int:
     if not dsn:
         raise SystemExit("Missing DSN. Provide --dsn or set DATABASE_URL.")
 
-    writer = PostgresOmopWriter(dsn=dsn, truncate_first=args.truncate)
-    writer.write(tables)
+    omop_dir = OmopTableExporter(args.outdir).output_dir(meta)
+    DbLoadService(dsn=dsn).load(
+        omop_dir=omop_dir,
+        athena_dir=args.athena_dir,
+        athena_version=vocabulary_result.athena_version,
+    )
     return 0
 
 
@@ -134,10 +166,9 @@ def main(argv: list[str] | None = None) -> int:
     load.add_argument("--trial", default="IMPRESS")
     load.add_argument("--athena-dir", type=Path, required=True, help="Dir containing this release's Athena CSVs (CONCEPT.csv, VOCABULARY.csv, ...)")
     load.add_argument("--mapping-dir", type=Path, required=True, help="Dir containing static.csv/structural.csv/semantic.csv")
+    load.add_argument("--target-biomarker", default=None, help="Only load patients whose Cohort.target_biomarker matches this (case-insensitive)")
 
     load.add_argument("--dsn", default=None)
-    load.add_argument("--truncate", action="store_true")
-    load.add_argument("--with-semantic", action="store_true", help="Enable semantic mapping")
     load.add_argument("--log-level", default="INFO")
     load.set_defaults(func=cmd_load)
 

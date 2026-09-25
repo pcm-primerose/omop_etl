@@ -67,4 +67,4 @@ def normalize_format(
     fmt: AnyFormatToken,
     allowed: Sequence[AnyFormatToken] = WIDE_FORMATS,
 ) -> AnyFormatToken:
-    return cast(AnyFormatToken, expand_formats(fmt, allowed=allowed)[0])
+    return expand_formats(fmt, allowed=allowed)[0]

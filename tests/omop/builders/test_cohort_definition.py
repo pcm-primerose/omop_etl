@@ -36,7 +36,12 @@ def _eot(date: dt.date, patient_id: str = PID) -> EndOfTreatment:
 
 
 class TestCohortDefinitionBuilder:
-    def test_one_definition_per_distinct_cohort(self, static_index, structural_index):
+    def test_one_definition_per_distinct_cohort(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         p1 = create_patient("p1", TRIAL)
         p1.cohort = _cohort("Cohort A", patient_id="p1")
@@ -45,13 +50,18 @@ class TestCohortDefinitionBuilder:
         p3 = create_patient("p3", TRIAL)
         p3.cohort = _cohort("Cohort B", patient_id="p3")
 
-        definitions = CohortDefinitionBuilder(concepts).build([p1, p2, p3])
+        definitions = CohortDefinitionBuilder(concepts, row_id_generator).build([p1, p2, p3])
 
         assert len(definitions) == 2
         assert {d.cohort_definition_name for d in definitions} == {"Cohort A", "Cohort B"}
         assert len({d.cohort_definition_id for d in definitions}) == 2
 
-    def test_name_description_and_concepts(self, static_index, structural_index):
+    def test_name_description_and_concepts(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # the real normalized name embeds the drugs, the description is the raw source string
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)
@@ -60,7 +70,7 @@ class TestCohortDefinitionBuilder:
             raw_name="BRAFV600 melanoma, vemurafenib + cobimetinib",
         )
 
-        definitions = CohortDefinitionBuilder(concepts).build([patient])
+        definitions = CohortDefinitionBuilder(concepts, row_id_generator).build([patient])
 
         assert len(definitions) == 1
         d = definitions[0]
@@ -69,37 +79,56 @@ class TestCohortDefinitionBuilder:
         assert d.definition_type_concept_id == structural_index["ecrf"].concept_id
         assert d.subject_concept_id == structural_index["cohort_subject"].concept_id
 
-    def test_skips_unnormalized_cohort(self, static_index, structural_index):
+    def test_skips_unnormalized_cohort(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         p1 = create_patient("p1", TRIAL)
         p1.cohort = _cohort(None, patient_id="p1")  # didn't normalize
         p2 = create_patient("p2", TRIAL)
         p2.cohort = _cohort("Cohort A", patient_id="p2")
 
-        definitions = CohortDefinitionBuilder(concepts).build([p1, p2])
+        definitions = CohortDefinitionBuilder(concepts, row_id_generator).build([p1, p2])
 
         assert [d.cohort_definition_name for d in definitions] == ["Cohort A"]
 
-    def test_no_cohorts_yields_no_definitions(self, static_index, structural_index):
+    def test_no_cohorts_yields_no_definitions(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL)  # no cohort
 
-        assert CohortDefinitionBuilder(concepts).build([patient]) == []
+        assert CohortDefinitionBuilder(concepts, row_id_generator).build([patient]) == []
 
-    def test_concepts_default_to_zero_when_unseeded(self, static_index):
+    def test_concepts_default_to_zero_when_unseeded(
+        self,
+        static_index,
+        row_id_generator,
+    ):
         # no structural concepts (no ecrf, no cohort_subject): both default to 0
         concepts = ConceptLookupService(static_index, {})
         patient = create_patient(PID, TRIAL)
         patient.cohort = _cohort("Cohort A")
 
-        d = CohortDefinitionBuilder(concepts).build([patient])[0]
+        d = CohortDefinitionBuilder(concepts, row_id_generator).build([patient])[0]
 
         assert d.definition_type_concept_id == 0
         assert d.subject_concept_id == 0
 
 
 class TestCohortIdentity:
-    def test_definition_id_joins_cohort_row(self, static_index, structural_index):
+    def test_definition_id_joins_cohort_row(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # the membership row and the cohort definition resolve to the same id, so they join
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(PID, TRIAL, treatment_start_date=dt.date(2023, 1, 1))
@@ -107,12 +136,17 @@ class TestCohortIdentity:
         patient.end_of_treatment = _eot(dt.date(2023, 6, 1))
         ctx = create_build_context(patient, PERSON_ID)
 
-        cohort_row = CohortBuilder(concepts).build(ctx).rows[0]
-        definition = CohortDefinitionBuilder(concepts).build([patient])[0]
+        cohort_row = CohortBuilder(concepts, row_id_generator).build(ctx).rows[0]
+        definition = CohortDefinitionBuilder(concepts, row_id_generator).build([patient])[0]
 
         assert cohort_row.cohort_definition_id == definition.cohort_definition_id
 
-    def test_id_is_trial_independent(self, static_index, structural_index):
+    def test_id_is_trial_independent(
+        self,
+        static_index,
+        structural_index,
+        row_id_generator,
+    ):
         # the id keys only on the (cross-trial canonical) normalized name,
         # so the same cohort in different trials merges into one definition
         concepts = ConceptLookupService(static_index, structural_index)
@@ -121,6 +155,6 @@ class TestCohortIdentity:
         drup = create_patient("p2", "DRUP")
         drup.cohort = _cohort("Cohort A", patient_id="p2")
 
-        definitions = CohortDefinitionBuilder(concepts).build([impress, drup])
+        definitions = CohortDefinitionBuilder(concepts, row_id_generator).build([impress, drup])
 
         assert len(definitions) == 1

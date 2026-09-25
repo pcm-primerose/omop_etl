@@ -138,8 +138,12 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
                     )
                 )
 
+        # Disease Episode's object concept comes from the Condition domain,
+        # a dynamic status run is a status of that same disease, so it reuses the
+        # Disease Episode's object concept (0 if there is no Disease Episode)
+        disease_object_concept_id = disease_row.episode_object_concept_id if disease_row is not None else 0
         for run in self.dynamic_runs(self.concepts, ctx):
-            dynamic_row = self._build_dynamic_episode(run, person_id, ecrf_concept, disease_episode_id, patient.patient_id)
+            dynamic_row = self._build_dynamic_episode(run, person_id, ecrf_concept, disease_episode_id, disease_object_concept_id, patient.patient_id)
             built_rows.append(dynamic_row)
             publications.append(self._publish_dynamic_episode(patient.patient_id, run.start_date, dynamic_row))
 
@@ -349,6 +353,7 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
         person_id: int,
         ecrf_concept: int,
         disease_episode_id: int | None,
+        disease_object_concept_id: int,
         patient_id: str,
     ) -> EpisodeRow:
         """One Disease Dynamic Episode from a status run. Parent = the Disease Episode."""
@@ -358,6 +363,7 @@ class EpisodeBuilder(OmopBuilder[EpisodeRow]):
             person_id=person_id,
             episode_concept_id=run.status_concept_id,
             episode_start_date=start,
+            episode_object_concept_id=disease_object_concept_id,
             episode_start_datetime=dt.datetime(start.year, start.month, start.day),
             episode_end_date=end,
             episode_end_datetime=dt.datetime(end.year, end.month, end.day) if end else None,

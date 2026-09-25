@@ -9,8 +9,8 @@ from omop_etl.harmonization.models.domain.adverse_event import AdverseEvent
 from omop_etl.harmonization.models.domain.treatment_cycle_component import TreatmentCycleComponent
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.patient import Patient
-from omop_etl.omop.builders.context import BuildContext
-from omop_etl.omop.core.id_generator import sha256_bigint
+from omop_etl.omop.builders.helpers.context import BuildContext
+from omop_etl.omop.core.id_generator import sha256_bigint, RowIdGenerator
 from omop_etl.omop.core.linkage import (
     OmopRowReference,
     SourceReference,
@@ -22,6 +22,7 @@ from omop_etl.semantic_mapping.core.models import (
     Query,
     BatchQueryResult,
 )
+from omop_etl.vocabulary.core.models import AthenaConcept
 from omop_etl.vocabulary.core.vocabulary import Vocabulary
 
 
@@ -29,6 +30,11 @@ def create_build_context(patient: Patient, person_id: int | None = None) -> Buil
     if person_id is None:
         person_id = sha256_bigint("person", patient.patient_id)
     return BuildContext(patient=patient, person_id=person_id)
+
+
+@pytest.fixture
+def row_id_generator() -> RowIdGenerator:
+    return RowIdGenerator()
 
 
 def publish_ae_condition(
@@ -183,6 +189,32 @@ def _static(concept_id: int, domain_id: str) -> MappedConcept:
 def empty_vocabulary() -> Vocabulary:
     """No mapped concepts: for tests where DrugEraBuilder's ingredient rollup isn't the subject."""
     return Vocabulary({})
+
+
+class _PermissiveVocabulary(Vocabulary):
+    """
+    Hydrates any concept_id, used by OmopService tests where PK/FK validation runs
+    but vocab-integrity is out of the test scope.
+    """
+
+    def __init__(self) -> None:
+        super().__init__({})
+
+    def hydrate(self, concept_id: int) -> AthenaConcept:
+        return AthenaConcept(
+            concept_id=concept_id,
+            concept_code="",
+            concept_name="",
+            domain_id="",
+            vocabulary_id="",
+            concept_class_id="",
+            validity="valid",
+        )
+
+
+@pytest.fixture
+def permissive_vocabulary() -> Vocabulary:
+    return _PermissiveVocabulary()
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ from omop_etl.omop.models.rows import ConditionOccurrenceRow
 from omop_etl.omop.models.tables import OmopTables
 from omop_etl.semantic_mapping.core.models import OmopDomain
 from omop_etl.omop.builders.base import OmopBuilder
-from omop_etl.omop.builders.context import BuildContext
+from omop_etl.omop.builders.helpers.context import BuildContext
 from omop_etl.omop.core.linkage import (
     BuildResult,
     OmopRowReference,

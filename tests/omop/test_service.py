@@ -10,6 +10,7 @@ from omop_etl.harmonization.models.domain.tumor_assessment import TumorAssessmen
 from omop_etl.harmonization.models.domain.tumor_type import TumorType
 from omop_etl.harmonization.models.domain.visit import Visit
 from omop_etl.harmonization.models.patient import Patient
+from omop_etl.infra.utils.run_context import RunMetadata
 from omop_etl.omop.service import OmopService
 from omop_etl.harmonization.models.domain.end_of_treatment import (
     EndOfTreatment,
@@ -32,25 +33,41 @@ def _with_eot(patient: Patient, date: dt.date) -> None:
 
 
 class TestOmopServiceOrchestration:
-    def test_builds_person_and_observation_period(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_builds_person_and_observation_period(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         """Minimal patient produces person and observation_period rows."""
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
-            "p1",
-            "test",
+            patient_id="p1",
+            trial="test",
             sex="m",
             date_of_birth=dt.date(1980, 5, 15),
             treatment_start_date=dt.date(2023, 1, 1),
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build(patients=[patient], meta=RunMetadata.create("TEST"))
 
         assert len(tables.person) == 1
         assert len(tables.observation_period) == 1
         assert tables.cdm_source is not None
 
-    def test_all_builders_produce_output(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_all_builders_produce_output(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         """A fully-populated patient with semantic entries produces rows in all tables."""
         semantic = semantic_index(
             mapping(
@@ -78,7 +95,11 @@ class TestOmopServiceOrchestration:
                 "Oxynorm",
                 concept(1124957, "drug", vocab="rxnorm"),
             ),
-            mapping((Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT), "Surgery", concept(4301351, "procedure")),
+            mapping(
+                (Patient.Collections.PREVIOUS_TREATMENTS, PreviousTreatment.Fields.TREATMENT),
+                "Surgery",
+                concept(4301351, "procedure"),
+            ),
         )
         concepts = ConceptLookupService(static_index, structural_index, semantic)
 
@@ -135,7 +156,9 @@ class TestOmopServiceOrchestration:
         visit.event_id = "V00"
         patient.visits = [visit]
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([patient], meta=RunMetadata.create("TEST"))
 
         assert len(tables.person) == 1
         assert len(tables.observation_period) == 1
@@ -147,7 +170,14 @@ class TestOmopServiceOrchestration:
 
 
 class TestMultiPatient:
-    def test_multiple_patients(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_multiple_patients(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         p1 = create_patient(
             "p1",
@@ -166,12 +196,21 @@ class TestMultiPatient:
         )
         _with_eot(p2, dt.date(2023, 7, 15))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([p1, p2])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([p1, p2], meta=RunMetadata.create("TEST"))
 
         assert len(tables.person) == 2
         assert len(tables.observation_period) == 2
 
-    def test_person_ids_are_unique_across_patients(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_person_ids_are_unique_across_patients(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         p1 = create_patient(
             "p1",
@@ -190,12 +229,21 @@ class TestMultiPatient:
         )
         _with_eot(p2, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([p1, p2])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([p1, p2], meta=RunMetadata.create("TEST"))
 
         person_ids = [r.person_id for r in tables.person]
         assert len(person_ids) == len(set(person_ids))
 
-    def test_person_ids_are_deterministic(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_person_ids_are_deterministic(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
             "p1",
@@ -206,39 +254,102 @@ class TestMultiPatient:
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        t1 = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
-        t2 = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
+        t1 = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([patient], meta=RunMetadata.create("TEST"))
+
+        t2 = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([patient], meta=RunMetadata.create("TEST"))
 
         assert t1.person[0].person_id == t2.person[0].person_id
 
+    def test_polymorphic_targets_accumulate_across_patients(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
+        """
+        Each patient's Disease Episode links to their own primary-cancer
+        condition_occurrence row via episode_event.event_id, a polymorphic FK.
+        build() must merge every patient's ctx.polymorphic_targets into
+        one cross-patient collection before validate_integrity runs:
+        if either patient's targets were dropped, this raises
+        PreLoadIntegrityError instead of returning.
+        """
+        semantic = semantic_index(
+            mapping(
+                (Patient.Singletons.TUMOR_TYPE, TumorType.Fields.ICD10_CODE),
+                "C50.9",
+                concept(4000, "condition"),
+            ),
+        )
+        concepts = ConceptLookupService(static_index, structural_index, semantic)
+
+        def _patient_with_tumor(pid: str, dob: dt.date) -> Patient:
+            patient = create_patient(pid, "test", sex="m", date_of_birth=dob, treatment_start_date=dt.date(2023, 1, 1))
+            _with_eot(patient, dt.date(2023, 6, 30))
+            tumor = TumorType(patient_id=pid)
+            tumor.icd10_code = "C50.9"
+            tumor.date = dt.date(2022, 6, 1)
+            patient.tumor_type = tumor
+            return patient
+
+        p1 = _patient_with_tumor("p1", dt.date(1980, 5, 15))
+        p2 = _patient_with_tumor("p2", dt.date(1990, 3, 20))
+
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([p1, p2], meta=RunMetadata.create("TEST"))
+
+        assert len(tables.episode_event) == 2
+        assert {r.event_id for r in tables.episode_event} == {r.condition_occurrence_id for r in tables.condition_occurrence}
+
 
 class TestSkipBehavior:
-    def test_missing_dob_skips_person_but_not_observation_period(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_missing_dob_skips_all_builders(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
-        p_ok = create_patient(
+        p_no_dob = create_patient(
             "p1",
+            "test",
+            sex="m",
+            treatment_start_date=dt.date(2023, 1, 1),
+        )
+        _with_eot(p_no_dob, dt.date(2023, 6, 30))
+        p_ok = create_patient(
+            "p2",
             "test",
             sex="m",
             date_of_birth=dt.date(1980, 1, 1),
             treatment_start_date=dt.date(2023, 1, 1),
         )
         _with_eot(p_ok, dt.date(2023, 6, 30))
-        p_no_dob = create_patient(
-            "p2",
-            "test",
-            sex="m",
-            treatment_start_date=dt.date(2023, 1, 1),
-        )
-        _with_eot(p_no_dob, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build(
-            [p_ok, p_no_dob]
-        )
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([p_no_dob, p_ok], meta=RunMetadata.create("TEST"))
 
         assert len(tables.person) == 1
-        assert len(tables.observation_period) == 2
+        assert len(tables.observation_period) == 1
 
-    def test_missing_treatment_dates_skips_observation_period_but_not_person(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_missing_treatment_dates_skips_observation_period_but_not_person(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         p_ok = create_patient(
             "p1",
@@ -250,19 +361,28 @@ class TestSkipBehavior:
         _with_eot(p_ok, dt.date(2023, 6, 30))
         p_no_dates = create_patient("p2", "test", sex="f", date_of_birth=dt.date(1985, 8, 10))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build(
-            [p_ok, p_no_dates]
-        )
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([p_ok, p_no_dates], meta=RunMetadata.create("TEST"))
 
         assert len(tables.person) == 2
         assert len(tables.observation_period) == 1
 
 
 class TestEmptyInput:
-    def test_empty_patients_list(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_empty_patients_list(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([], meta=RunMetadata.create("TEST"))
 
         assert len(tables.person) == 0
         assert len(tables.observation_period) == 0
@@ -274,7 +394,14 @@ class TestEmptyInput:
 
 
 class TestOmopTablesApi:
-    def test_getitem(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_getitem(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
             "p1",
@@ -285,21 +412,39 @@ class TestOmopTablesApi:
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([patient], meta=RunMetadata.create("TEST"))
 
         assert len(tables["person"]) == 1
         assert len(tables["observation_period"]) == 1
         assert len(tables["cdm_source"]) == 1
 
-    def test_get_with_default(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_get_with_default(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([], meta=RunMetadata.create("TEST"))
 
         assert tables.get("condition_occurrence") == []
         assert tables.get("nonexistent", []) == []
 
-    def test_typed_properties(self, static_index, structural_index, empty_vocabulary, empty_concept_ancestor):
+    def test_typed_properties(
+        self,
+        static_index,
+        structural_index,
+        permissive_vocabulary,
+        empty_concept_ancestor,
+        tmp_path,
+    ):
         concepts = ConceptLookupService(static_index, structural_index)
         patient = create_patient(
             "p1",
@@ -310,7 +455,9 @@ class TestOmopTablesApi:
         )
         _with_eot(patient, dt.date(2023, 6, 30))
 
-        tables = OmopService(concepts, vocabulary=empty_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26").build([patient])
+        tables = OmopService(
+            concepts, vocabulary=permissive_vocabulary, concept_ancestor=empty_concept_ancestor, athena_version="v5.0 01-JAN-26", outdir=tmp_path
+        ).build([patient], meta=RunMetadata.create("TEST"))
 
         assert tables.person[0].person_source_value == "p1"
         assert tables.observation_period[0].observation_period_start_date == dt.date(2023, 1, 1)

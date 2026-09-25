@@ -46,6 +46,7 @@ class SemanticService:
             semantics_path=semantic_path,
             field_configs=configs,
             layout=self.layout,
+            outdir=self.outdir,
         )
 
         return pipeline.run(
